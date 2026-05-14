@@ -1755,10 +1755,6 @@
                         <label class="form-label" for="price-uf">UF</label>
                         <input class="form-control text-uppercase" id="price-uf" maxlength="2" placeholder="SP">
                     </div>
-                    <div class="col-md-2 price-suggest-toolbar__unit">
-                        <label class="form-label" for="price-unit">Unidade</label>
-                        <select class="form-select" id="price-unit"></select>
-                    </div>
                     <div class="col-md-2 d-grid price-suggest-toolbar__action">
                         <button class="btn btn-primary" type="button" id="price-refresh-btn">
                             <i class="bi bi-search me-1"></i> Pesquisar
@@ -2919,16 +2915,18 @@
     #priceSuggestionsModal .modal-body {
         background: linear-gradient(180deg, rgba(15,23,42,0.96) 0%, rgba(17,24,39,0.94) 100%);
         color: #e2e8f0;
-        overflow-x: hidden;
+        overflow-x: clip !important;
     }
 
     #priceSuggestionsModal .price-suggest-toolbar {
         --bs-gutter-x: 0;
         --bs-gutter-y: 0;
         display: grid;
-        grid-template-columns: minmax(0, 1.9fr) minmax(84px, 0.55fr) minmax(130px, 0.7fr) minmax(152px, 0.75fr);
+        grid-template-columns: minmax(0, 1fr) minmax(90px, 112px) minmax(150px, 168px);
         gap: 1rem;
         margin: 0;
+        max-width: 100%;
+        width: 100%;
     }
 
     #priceSuggestionsModal .price-suggest-toolbar > [class*="col-"] {
@@ -2940,7 +2938,6 @@
 
     #priceSuggestionsModal #price-query,
     #priceSuggestionsModal #price-uf,
-    #priceSuggestionsModal #price-unit,
     #priceSuggestionsModal #price-refresh-btn {
         min-height: 48px;
     }
@@ -2952,7 +2949,16 @@
 
     #priceSuggestionsModal .price-results {
         min-width: 0;
-        overflow-x: hidden;
+        max-width: 100%;
+        overflow-x: clip;
+    }
+
+    #priceSuggestionsModal #price-empty,
+    #priceSuggestionsModal #price-stats,
+    #priceSuggestionsModal #price-providers {
+        max-width: 100%;
+        min-width: 0;
+        overflow-wrap: anywhere;
     }
 
     .price-results {
@@ -5588,7 +5594,6 @@
 
     const priceModalElement = document.getElementById('priceSuggestionsModal');
     const priceModalInstance = priceModalElement ? new bootstrap.Modal(priceModalElement) : null;
-    const priceModalUnitSelect = document.getElementById('price-unit');
     const priceBatchModalElement = document.getElementById('priceBatchModal');
     const priceBatchModalInstance = priceBatchModalElement ? new bootstrap.Modal(priceBatchModalElement) : null;
     const priceBatchApplyBtn = document.getElementById('price-batch-apply-btn');
@@ -5677,16 +5682,7 @@
     };
 
     const renderPriceUnitSelect = (item, preferredCode = '') => {
-        if (!priceModalUnitSelect) {
-            return '';
-        }
-        const options = getPriceUnitOptionsForItem(item);
-        const selectedCode = resolvePreferredPriceUnit(item, preferredCode || priceModalUnitSelect.value || '');
-        priceModalUnitSelect.innerHTML = options.map((option) => `
-            <option value="${option.code}" ${option.code === selectedCode ? 'selected' : ''}>${option.label}</option>
-        `).join('');
-        priceModalUnitSelect.value = selectedCode;
-        return selectedCode;
+        return resolvePreferredPriceUnit(item, preferredCode || '');
     };
 
     const brlFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -7605,18 +7601,16 @@
 
         const qEl = document.getElementById('price-query');
         const ufEl = document.getElementById('price-uf');
-        const unitEl = document.getElementById('price-unit');
         const manualEl = document.getElementById('price-manual');
         const resultsEl = document.getElementById('price-results');
         const providersEl = document.getElementById('price-providers');
         const statsEl = document.getElementById('price-stats');
         const emptyEl = document.getElementById('price-empty');
 
-        if (!qEl || !ufEl || !unitEl || !manualEl || !resultsEl || !providersEl || !statsEl || !emptyEl) return;
+        if (!qEl || !ufEl || !manualEl || !resultsEl || !providersEl || !statsEl || !emptyEl) return;
 
         qEl.value = buildDefaultPriceQuery(item);
         ufEl.value = String(item?.preco_reposicao_uf || '').trim();
-        renderPriceUnitSelect(item, item?.preco_reposicao_unidade_preco || item?.preco_compra_unidade_preco || '');
         manualEl.value = '';
         resultsEl.innerHTML = '';
         providersEl.innerHTML = '';
@@ -7640,7 +7634,10 @@
 
         const q = qEl.value.trim();
         const uf = ufEl.value.trim();
-        const unit = document.getElementById('price-unit')?.value?.trim() || '';
+        const unit = resolvePreferredPriceUnit(
+            currentPriceItem,
+            currentPriceItem?.preco_reposicao_unidade_preco || currentPriceItem?.preco_compra_unidade_preco || ''
+        );
         resultsEl.innerHTML = '<div class="text-muted small">Buscando sugestões…</div>';
         providersEl.innerHTML = '';
         statsEl.classList.add('d-none');
@@ -7956,11 +7953,10 @@
                 if (!currentPriceItem) return;
                 const qEl = document.getElementById('price-query');
                 const ufEl = document.getElementById('price-uf');
-                const unitEl = document.getElementById('price-unit');
                 const manual = Number(manualEl?.value || 0);
-                const selectedPriceUnit = renderPriceUnitSelect(
+                const selectedPriceUnit = resolvePreferredPriceUnit(
                     currentPriceItem,
-                    unitEl?.value || currentPriceItem?.preco_reposicao_unidade_preco || currentPriceItem?.preco_compra_unidade_preco || ''
+                    currentPriceItem?.preco_reposicao_unidade_preco || currentPriceItem?.preco_compra_unidade_preco || ''
                 );
 
                 let chosen = null;
