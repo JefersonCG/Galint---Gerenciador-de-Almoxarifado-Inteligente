@@ -149,9 +149,24 @@ class PriceSuggestionService:
 
         if len(suggestions) < min(limit_i, 5):
             try:
+                ml_web = self._fetch_mercado_livre_web(query=query_norm, uf=uf_norm, limit=limit_i)
+                suggestions = self._dedupe_suggestions([*suggestions, *ml_web])
+                providers.append({"name": "MercadoLivre Web", "ok": True, "count": len(ml_web)})
+            except Exception as exc:
+                providers.append({"name": "MercadoLivre Web", "ok": False, "error": str(exc)})
+
+        if len(suggestions) < min(limit_i, 5):
+            try:
+                telhanorte = self._fetch_telhanorte_prices(query=query_norm, limit=limit_i)
+                suggestions = self._dedupe_suggestions([*suggestions, *telhanorte])
+                providers.append({"name": "Telhanorte", "ok": True, "count": len(telhanorte)})
+            except Exception as exc:
+                providers.append({"name": "Telhanorte", "ok": False, "error": str(exc)})
+
+        if len(suggestions) < min(limit_i, 5):
+            try:
                 web = self._fetch_public_web_prices(query=query_norm, limit=limit_i)
-                suggestions.extend(self._dedupe_suggestions([*suggestions, *web]))
-                suggestions = self._dedupe_suggestions(suggestions)
+                suggestions = self._dedupe_suggestions([*suggestions, *web])
                 providers.append({"name": "BuscaWeb", "ok": True, "count": len(web)})
             except Exception as exc:
                 providers.append({"name": "BuscaWeb", "ok": False, "error": str(exc)})
@@ -356,6 +371,64 @@ class PriceSuggestionService:
                     seller_contact_url=final_url,
                 )
             )
+        return suggestions[:limit]
+
+    def _fetch_telhanorte_prices(self, *, query: str, limit: int) -> list[PriceSuggestion]:
+        url = f"https://www.telhanorte.com.br/api/catalog_system/pub/products/search/{quote(query.strip())}"
+        response = requests.get(
+            url,
+            headers={**self._request_headers(), "Accept": "application/json,text/plain,*/*"},
+            timeout=8,
+        )
+        response.raise_for_status()
+        data = response.json() if response.content else []
+        if not isinstance(data, list):
+            return []
+
+        suggestions: list[PriceSuggestion] = []
+        for product in data:
+            if len(suggestions) >= limit:
+                break
+            if not isinstance(product, dict):
+                continue
+            title = str(product.get("productName") or product.get("productTitle") or "").strip()
+            product_url = str(product.get("link") or "").strip() or None
+            for item in product.get("items") or []:
+                if len(suggestions) >= limit:
+                    break
+                if not isinstance(item, dict):
+                    continue
+                sku_title = str(item.get("nameComplete") or item.get("name") or title or "").strip()
+                for seller in item.get("sellers") or []:
+                    if len(suggestions) >= limit:
+                        break
+                    if not isinstance(seller, dict):
+                        continue
+                    offer = seller.get("commertialOffer") or {}
+                    if not isinstance(offer, dict):
+                        continue
+                    price = offer.get("Price") or offer.get("ListPrice")
+                    try:
+                        price_f = float(price)
+                    except (TypeError, ValueError):
+                        continue
+                    if price_f <= 0:
+                        continue
+                    suggestions.append(
+                        PriceSuggestion(
+                            source="Telhanorte",
+                            title=sku_title or title or query,
+                            price=price_f,
+                            currency="BRL",
+                            url=product_url,
+                            uf=None,
+                            uf_raw=None,
+                            seller_name="Telhanorte",
+                            seller_identifier="telhanorte.com.br",
+                            seller_contact_url=product_url,
+                        )
+                    )
+                    break
         return suggestions[:limit]
 
     def _fetch_duckduckgo_result_links(self, *, query: str, limit: int) -> list[dict[str, str]]:

@@ -81,9 +81,21 @@ class FerramentasService:
         if self._has_open_repair(codigo_item):
             raise ValueError("Ferramenta indisponível para retirada: item em reparo.")
         
+        try:
+            quantidade_int = int(quantidade)
+        except (TypeError, ValueError):
+            raise ValueError("Quantidade inválida")
+
+        if quantidade_int < 1:
+            raise ValueError("Quantidade deve ser maior que zero")
+
+        from .inventory import inventory_service
+
+        inventory_service._ensure_tool_withdrawal_limit(codigo_item, matricula, quantidade_int)
+
         # CRÍTICO: Verifica saldo disponível DESCONTANDO ferramentas já retiradas
         saldo_disponivel = self._calcular_saldo_disponivel(codigo_item)
-        if saldo_disponivel < quantidade:
+        if saldo_disponivel < quantidade_int:
             # Informar quantas estão em uso para diagnóstico
             from sqlalchemy import func
             comprometido = db.session.query(
@@ -110,7 +122,7 @@ class FerramentasService:
         retirada = RetiradaFerramenta(
             codigo_item=codigo_item,
             matricula=matricula,
-            quantidade=quantidade,
+            quantidade=quantidade_int,
             local_servico=local_servico,
             observacao=observacao,
             data_prevista_devolucao=data_prevista,

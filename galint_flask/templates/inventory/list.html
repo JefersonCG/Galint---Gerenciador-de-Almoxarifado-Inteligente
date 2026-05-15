@@ -775,6 +775,16 @@
         font-weight: 600;
     }
 
+    .pre-registered-meta-value--stock {
+        color: #22c55e;
+        font-weight: 800;
+    }
+
+    .pre-registered-meta-value--incoming {
+        color: #facc15;
+        font-weight: 800;
+    }
+
     .pre-registered-doc-summary {
         border-radius: 0.9rem;
         background: rgba(59, 130, 246, 0.12);
@@ -1188,8 +1198,7 @@
     <div class="row g-3">
         {% for category in category_cards %}
         <div class="col-xl-3 col-lg-4 col-md-6">
-            <div class="card h-100 category-card" role="button" tabindex="0" data-category="{{ category.categoria }}"
-                data-category-template="category-template-{{ loop.index }}">
+            <div class="card h-100 category-card" role="button" tabindex="0" data-category="{{ category.categoria }}">
                 <div class="category-card-head">
                     <div class="d-flex align-items-start justify-content-between gap-2">
                         <h5 class="category-title text-truncate" title="{{ category.categoria }}">{{ category.categoria }}</h5>
@@ -1245,102 +1254,6 @@
                 </div>
             </div>
         </div>
-        <template id="category-template-{{ loop.index }}">
-            <p class="text-muted small mb-2">
-                {{ category.total }} item{% if category.total != 1 %}s{% endif %} nesta categoria.
-            </p>
-            <div class="category-modal-list">
-                {% for item in category.entries %}
-                <div class="list-group-item" data-item-card data-item-codigo="{{ item.codigo }}">
-                    <div class="item-content">
-                        {% if item.foto_path %}
-                        <img src="/static/{{ item.foto_path }}" alt="{{ item.descricao }}" class="item-photo">
-                        {% else %}
-                        <div class="item-photo no-photo">
-                            <i class="bi bi-image"></i>
-                        </div>
-                        {% endif %}
-                        <div class="item-meta">
-                            <strong>{{ item.descricao }}</strong>
-                            <div class="item-details">
-                                <div class="item-detail">
-                                    <i class="bi bi-upc-scan"></i>
-                                    <span class="item-detail-value">{{ item.codigo }}</span>
-                                </div>
-                                <div class="item-detail">
-                                    <i class="bi bi-tag"></i>
-                                    <span class="item-detail-value">{{ item.marca or item.setor or '—' }}</span>
-                                </div>
-                                <div class="item-detail">
-                                    <i class="bi bi-box-seam"></i>
-                                    <span class="item-detail-value">{{ item.unidade or '—' }}</span>
-                                </div>
-                                <div class="item-detail">
-                                    <i class="bi bi-stack"></i>
-                                    <span class="item-detail-label">Saldo:</span>
-                                    <span class="item-detail-value">{{ item.saldo_display if item.saldo_display is defined and item.saldo_display else item.saldo }}</span>
-                                </div>
-                                <div class="item-detail">
-                                    <i class="bi bi-exclamation-triangle"></i>
-                                    <span class="item-detail-label">Mín:</span>
-                                    <span class="item-detail-value">{{ item.estoque_minimo }}</span>
-                                </div>
-                            </div>
-                            {% if item.ultima_edicao_em %}
-                            <div class="item-edit-info">
-                                <i class="bi bi-pencil-square"></i>
-                                <span>Editado <span class="js-last-edit" data-iso="{{ item.ultima_edicao_em }}"></span>{% if item.ultima_edicao_por %} por {{ item.ultima_edicao_por }}{% endif %}</span>
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                    <div class="action-group">
-                        <div class="action-group-top">
-                            {% if can_manage and item.codigo %}
-                            <button class="item-photo-search-btn" type="button"
-                                onclick='openPhotoAssistantModal({{ {"codigo": item.codigo, "descricao": item.descricao, "marca": item.marca or item.setor or "", "foto_path": item.foto_path or ""}|tojson|forceescape }})'
-                                title="Buscar imagem do item">
-                                <i class="bi bi-image"></i> Buscar
-                            </button>
-                            {% endif %}
-                        </div>
-                        <div class="action-group-bottom">
-                            {% if can_edit_items and item.codigo %}
-                            <div class="btn-group" role="group">
-                                <a class="btn btn-outline-light btn-sm"
-                                    href="{{ url_for('inventory.edit_item_form', codigo=item.codigo|e) }}"
-                                    title="Editar item">
-                                    <i class="bi bi-pencil"></i> Editar
-                                </a>
-                            </div>
-                            {% endif %}
-                            {% if can_manage and item.codigo %}
-                            <div class="btn-group" role="group">
-                                <form method="post" action="{{ url_for('inventory.delete_item', codigo=item.codigo|e) }}"
-                                    class="d-inline" onsubmit="return confirm('Tem certeza que deseja excluir este item?\n\nEsta ação NÃO pode ser desfeita.');">
-                                    <button class="btn btn-outline-danger btn-sm" type="submit" title="Excluir item">
-                                        <i class="bi bi-trash"></i> Excluir item
-                                    </button>
-                                </form>
-                                {% set categoria_lower = (item.categoria or '')|lower %}
-                                {% if 'ferramenta' in categoria_lower or 'epi' in categoria_lower or ('material' in categoria_lower and 'ep' in categoria_lower) %}
-                                <button class="btn btn-success btn-sm" type="button" 
-                                    onclick='openAssignModal({{ item.codigo|tojson|forceescape }}, {{ item.descricao|tojson|forceescape }}, {{ {"tipo_embalagem_novo": item.tipo_embalagem_novo or "", "unidade": item.unidade or "", "unidades_por_embalagem": item.unidades_por_embalagem}|tojson|forceescape }})'
-                                    title="Atribuir a funcionário">
-                                    <i class="bi bi-person-check"></i> Atribuir
-                                </button>
-                                {% endif %}
-                            </div>
-                            {% endif %}
-                            {% if not can_manage and not can_edit_items %}
-                            <span class="text-muted small">Apenas administradores podem editar.</span>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-        </template>
         {% endfor %}
     </div>
 </div>
@@ -1653,6 +1566,21 @@
                                 <strong id="item-comparative-variation">—</strong>
                             </div>
                         </div>
+                        <div class="galint-comparative-cart-action d-none" id="item-comparative-cart-action">
+                            <div>
+                                <div class="small text-muted">Cotação selecionada</div>
+                                <div class="galint-comparative-cart-picked" id="item-comparative-cart-picked">—</div>
+                            </div>
+                            <div class="d-flex flex-wrap gap-2 align-items-end">
+                                <div>
+                                    <label class="form-label small mb-1" for="item-comparative-cart-quantity">Quantidade</label>
+                                    <input class="form-control form-control-sm" id="item-comparative-cart-quantity" type="number" min="0" step="any" inputmode="decimal" value="1">
+                                </div>
+                                <button class="btn btn-warning btn-sm fw-bold" type="button" id="btn-send-comparative-cart">
+                                    <i class="bi bi-cart-plus me-1"></i> Enviar para compras
+                                </button>
+                            </div>
+                        </div>
                         <div class="table-responsive mt-3">
                             <table class="table table-sm table-hover galint-comparative-table">
                                 <thead>
@@ -1850,6 +1778,9 @@
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Fechar</button>
+                <button class="btn btn-outline-success" type="button" id="pre-registered-save-direct-btn" disabled>
+                    SALVAR DIRETO
+                </button>
                 <button class="btn btn-success" type="button" id="pre-registered-finish-btn" disabled>
                     FINALIZAR CADASTRO
                 </button>
@@ -2873,6 +2804,40 @@
     .galint-comparative-table td {
         border-color: rgba(148, 163, 184, 0.12);
         vertical-align: top;
+    }
+
+    .galint-comparative-row {
+        cursor: pointer;
+    }
+
+    .galint-comparative-row.is-selected {
+        background: rgba(34, 197, 94, 0.14);
+        box-shadow: inset 3px 0 0 #22c55e;
+    }
+
+    .galint-comparative-cart-action {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: end;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-top: 0.9rem;
+        padding: 0.85rem;
+        border-radius: 12px;
+        border: 1px solid rgba(250, 204, 21, 0.28);
+        background: rgba(250, 204, 21, 0.08);
+    }
+
+    .galint-comparative-cart-action .form-control {
+        max-width: 150px;
+        background: rgba(15, 23, 42, 0.88);
+        border-color: rgba(250, 204, 21, 0.35);
+        color: #f8fafc;
+    }
+
+    .galint-comparative-cart-picked {
+        color: #fde68a;
+        font-weight: 800;
     }
 
     .galint-comparative-link {
@@ -5527,6 +5492,7 @@
 
         const items = {{ itens | tojson | safe
     }};
+        const itemsByCode = new Map(items.map((item) => [String(item?.codigo || ''), item]).filter(([codigo]) => codigo));
         const canManage = {{ 'true' if can_manage else 'false' }};
         const canEditItems = {{ 'true' if can_edit_items else 'false' }};
         const canManageIntentions = {{ 'true' if can_manage_intentions else 'false' }};
@@ -5570,7 +5536,9 @@
     const preRegisteredResults = document.getElementById('pre-registered-results');
     const preRegisteredDocSummary = document.getElementById('pre-registered-doc-summary');
     const preRegisteredFinishButton = document.getElementById('pre-registered-finish-btn');
+    const preRegisteredSaveDirectButton = document.getElementById('pre-registered-save-direct-btn');
     const preRegisteredButtonBadge = document.getElementById('preRegisteredButtonBadge');
+    const comparativeCartAddUrl = '/itens/projecao-compras/carrinho/adicionar';
     const withdrawalIntentionsModalElement = document.getElementById('withdrawalIntentionsModal');
     const withdrawalIntentionsModalInstance = withdrawalIntentionsModalElement ? new bootstrap.Modal(withdrawalIntentionsModalElement) : null;
     const withdrawalIntentionsList = document.getElementById('withdrawal-intentions-list');
@@ -5600,6 +5568,8 @@
     const priceBatchCategoryChip = document.getElementById('price-batch-category-chip');
     const priceBatchIntroNote = document.getElementById('price-batch-intro-note');
     let currentPriceItem = null;
+    let currentItemModalItem = null;
+    let selectedComparativeQuote = null;
     let priceSuggestions = [];
     let lastPriceStats = null;
     let selectedSuggestionIndex = null;
@@ -5726,6 +5696,9 @@
         preRegisteredSelection = null;
         if (preRegisteredFinishButton) {
             preRegisteredFinishButton.disabled = true;
+        }
+        if (preRegisteredSaveDirectButton) {
+            preRegisteredSaveDirectButton.disabled = true;
         }
     };
 
@@ -6435,12 +6408,12 @@
                     </div>
                     <div class="pre-registered-card-meta">
                         <div class="pre-registered-meta-box">
-                            <span class="pre-registered-meta-label">Saldo</span>
-                            <span class="pre-registered-meta-value">${escapeHtml(entry.saldo_display || String(entry.saldo ?? '0'))}</span>
+                            <span class="pre-registered-meta-label">Saldo atual em estoque</span>
+                            <span class="pre-registered-meta-value pre-registered-meta-value--stock">${escapeHtml(entry.saldo_display || String(entry.saldo ?? '0'))}</span>
                         </div>
                         <div class="pre-registered-meta-box">
-                            <span class="pre-registered-meta-label">Quantidade no documento</span>
-                            <span class="pre-registered-meta-value">${escapeHtml(entry.quantidade_documento_display || String(entry.quantidade_documento ?? '0'))}</span>
+                            <span class="pre-registered-meta-label">Vai entrar no estoque</span>
+                            <span class="pre-registered-meta-value pre-registered-meta-value--incoming">${escapeHtml(entry.quantidade_documento_display || String(entry.quantidade_documento ?? '0'))}</span>
                             ${entry.conversao_display ? `<div class="small text-muted mt-1">${escapeHtml(entry.conversao_display)}</div>` : ''}
                         </div>
                         <div class="pre-registered-meta-box">
@@ -6459,6 +6432,9 @@
                     preRegisteredSelection = entry;
                     if (preRegisteredFinishButton) {
                         preRegisteredFinishButton.disabled = !entry.edit_url;
+                    }
+                    if (preRegisteredSaveDirectButton) {
+                        preRegisteredSaveDirectButton.disabled = !entry.codigo;
                     }
                 });
                 itemsContainer.appendChild(card);
@@ -6511,6 +6487,43 @@
         }
         event.preventDefault();
         searchPreRegisteredItems();
+    });
+    preRegisteredSaveDirectButton?.addEventListener('click', async () => {
+        const codigo = String(preRegisteredSelection?.codigo || '').trim();
+        if (!codigo) {
+            return;
+        }
+        const originalHtml = preRegisteredSaveDirectButton.innerHTML;
+        preRegisteredSaveDirectButton.disabled = true;
+        if (preRegisteredFinishButton) {
+            preRegisteredFinishButton.disabled = true;
+        }
+        preRegisteredSaveDirectButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Salvando...';
+        setPreRegisteredStatus('Salvando cadastro e incorporando o estoque documental...', 'muted');
+        try {
+            const response = await fetch(`/itens/api/pre-cadastrados/${encodeURIComponent(codigo)}/finalizar`, {
+                method: 'POST',
+                headers: { 'Accept': 'application/json' },
+                credentials: 'same-origin',
+                cache: 'no-store',
+            });
+            const payload = await readJsonResponse(response);
+            if (!response.ok || !payload?.success) {
+                throw new Error(payload?.message || 'Falha ao salvar cadastro direto.');
+            }
+            const counters = payload?.counters || {};
+            updatePreRegisteredButtonBadge(counters.documents || 0, counters.items || 0);
+            setPreRegisteredStatus(payload.message || 'Cadastro salvo direto.', payload.errors ? 'danger' : 'success');
+            await searchPreRegisteredItems();
+        } catch (error) {
+            setPreRegisteredStatus(String(error?.message || error || 'Falha ao salvar cadastro direto.'), 'danger');
+            preRegisteredSaveDirectButton.disabled = false;
+            if (preRegisteredFinishButton) {
+                preRegisteredFinishButton.disabled = !preRegisteredSelection?.edit_url;
+            }
+        } finally {
+            preRegisteredSaveDirectButton.innerHTML = originalHtml;
+        }
     });
     preRegisteredFinishButton?.addEventListener('click', () => {
         if (!preRegisteredSelection?.edit_url) {
@@ -6757,13 +6770,7 @@
         return target;
     };
 
-    const buildPhotoSearchQuery = (item) => {
-        return [item?.descricao || '', item?.marca || '']
-            .map((part) => String(part || '').trim())
-            .filter(Boolean)
-            .join(' ')
-            .trim();
-    };
+    const buildPhotoSearchQuery = (item) => buildDescriptionBrandQuery(item?.descricao, item?.marca);
 
     const openExternalImageSearch = (provider) => {
         const query = String(photoSearchQuery?.value || '').trim();
@@ -6997,19 +7004,22 @@
         metaEl.innerHTML = parts.length ? parts.join('<br>') : '—';
 
         if (btnBuscar) {
-            btnBuscar.style.display = canManage && !hasFiscalPurchaseBacking(item) ? '' : 'none';
+            btnBuscar.style.display = canManage ? '' : 'none';
             btnBuscar.onclick = () => openPriceModal(item);
         }
     };
 
-    const buildDefaultPriceQuery = (item) => {
-        const descricao = String(item?.descricao || '').trim();
-        const marca = String(item?.marca || '').trim();
-        const tipoEmb = String(item?.tipo_embalagem_novo || '').trim();
-        const unidadesPor = Number(item?.unidades_por_embalagem ?? 0);
-        const extra = (tipoEmb && Number.isFinite(unidadesPor) && unidadesPor > 0) ? ` ${tipoEmb} ${unidadesPor}` : '';
-        return `${descricao}${marca ? ` ${marca}` : ''}${extra}`.trim();
+    const buildDescriptionBrandQuery = (descriptionValue, brandValue) => {
+        const description = String(descriptionValue || '').trim();
+        const brand = String(brandValue || '').trim();
+        if (!description) return brand;
+        if (!brand || normalize(description).includes(normalize(brand))) {
+            return description;
+        }
+        return `${description} ${brand}`.trim();
     };
+
+    const buildDefaultPriceQuery = (item) => buildDescriptionBrandQuery(item?.descricao, item?.marca);
 
     const renderItemHistory = (history) => {
         const historyTbody = document.getElementById('history-tbody');
@@ -7213,6 +7223,83 @@
         statusEl.classList.add('text-muted');
     };
 
+    const syncComparativeCartAction = () => {
+        const actionEl = document.getElementById('item-comparative-cart-action');
+        const pickedEl = document.getElementById('item-comparative-cart-picked');
+        const quantityEl = document.getElementById('item-comparative-cart-quantity');
+        const footerButton = document.getElementById('item-comparative-send-footer-btn');
+        const canSend = Boolean(currentItemModalItem?.codigo && selectedComparativeQuote?.id && canEditItems);
+        if (actionEl) {
+            actionEl.classList.toggle('d-none', !canSend);
+        }
+        if (footerButton) {
+            footerButton.classList.toggle('d-none', !canSend);
+            footerButton.disabled = !canSend;
+        }
+        if (!canSend) {
+            if (pickedEl) {
+                pickedEl.textContent = '—';
+            }
+            return;
+        }
+        const supplier = selectedComparativeQuote?.supplier || {};
+        const supplierName = supplier.display_name || 'Potencial Fornecedor';
+        const price = selectedComparativeQuote?.unit_price_base_display || selectedComparativeQuote?.unit_price_display || '—';
+        if (pickedEl) {
+            pickedEl.textContent = `${supplierName} • ${price}`;
+        }
+        if (quantityEl && !String(quantityEl.value || '').trim()) {
+            quantityEl.value = '1';
+        }
+    };
+
+    const resetComparativeSelection = () => {
+        selectedComparativeQuote = null;
+        document.querySelectorAll('[data-comparative-quote-id]').forEach((row) => row.classList.remove('is-selected'));
+        syncComparativeCartAction();
+    };
+
+    const sendSelectedComparativeQuoteToCart = async () => {
+        if (!currentItemModalItem?.codigo || !selectedComparativeQuote?.id) {
+            return;
+        }
+        const primaryButton = document.getElementById('btn-send-comparative-cart');
+        const footerButton = document.getElementById('item-comparative-send-footer-btn');
+        const buttons = [primaryButton, footerButton].filter((button) => button instanceof HTMLButtonElement);
+        const previousLabels = buttons.map((button) => button.innerHTML);
+        buttons.forEach((button) => {
+            button.disabled = true;
+            button.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Enviando...';
+        });
+        try {
+            const quantity = String(document.getElementById('item-comparative-cart-quantity')?.value || '').trim();
+            const response = await fetch(comparativeCartAddUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                credentials: 'same-origin',
+                cache: 'no-store',
+                body: JSON.stringify({
+                    codigo: currentItemModalItem.codigo,
+                    potential_quote_id: selectedComparativeQuote.id,
+                    quantity,
+                }),
+            });
+            const payload = await readJsonResponse(response);
+            if (!response.ok || !payload?.success) {
+                throw new Error(payload?.message || 'Falha ao enviar para compras.');
+            }
+            setItemComparativeStatus(payload.message || 'Item enviado para o carrinho da Projeção de Compras.', 'success');
+        } catch (error) {
+            setItemComparativeStatus(String(error?.message || error || 'Falha ao enviar para compras.'), 'danger');
+        } finally {
+            buttons.forEach((button, index) => {
+                button.disabled = false;
+                button.innerHTML = previousLabels[index] || '<i class="bi bi-cart-plus me-1"></i> Enviar para compras';
+            });
+            syncComparativeCartAction();
+        }
+    };
+
     const renderItemComparative = (payload, options = {}) => {
         const referenceEl = document.getElementById('item-comparative-reference');
         const bestEl = document.getElementById('item-comparative-best');
@@ -7223,6 +7310,8 @@
         const best = payload?.best_quote || quotes[0] || null;
         const mode = String(options?.mode || '').trim().toLowerCase();
         const query = String(payload?.query || '').trim();
+        selectedComparativeQuote = null;
+        syncComparativeCartAction();
 
         if (referenceEl) {
             referenceEl.textContent = reference.price_display_base || reference.price_display || '—';
@@ -7262,7 +7351,7 @@
             const contact = supplier.contact_url || quote.product_url || '';
             const address = supplier.address_display ? `<div class="text-muted small">${escapeHtml(supplier.address_display)}</div>` : '';
             return `
-                <tr>
+                <tr class="galint-comparative-row" data-comparative-quote-id="${escapeHtml(quote?.id || '')}">
                     <td>
                         <div class="fw-semibold">${escapeHtml(supplier.display_name || 'Potencial Fornecedor')}</div>
                         ${address}
@@ -7278,10 +7367,23 @@
                 </tr>
             `;
         }).join('');
+        tbody.querySelectorAll('[data-comparative-quote-id]').forEach((row) => {
+            row.addEventListener('click', (event) => {
+                if (event.target instanceof HTMLElement && event.target.closest('a')) {
+                    return;
+                }
+                const quoteId = String(row.getAttribute('data-comparative-quote-id') || '');
+                selectedComparativeQuote = quotes.find((quote) => String(quote?.id || '') === quoteId) || null;
+                tbody.querySelectorAll('[data-comparative-quote-id]').forEach((element) => element.classList.remove('is-selected'));
+                row.classList.toggle('is-selected', Boolean(selectedComparativeQuote));
+                syncComparativeCartAction();
+            });
+        });
     };
 
     const loadItemComparative = async (codigo) => {
         const tbody = document.getElementById('item-comparative-tbody');
+        resetComparativeSelection();
         setItemComparativeStatus('Carregando comparativo...', 'muted');
         if (tbody) {
             tbody.innerHTML = `
@@ -7312,6 +7414,8 @@
             }
         }
     };
+
+    document.getElementById('btn-send-comparative-cart')?.addEventListener('click', sendSelectedComparativeQuoteToCart);
 
     const syncItemPotentialSuppliers = async (codigo) => {
         const button = document.getElementById('btn-sync-potential-suppliers');
@@ -8140,6 +8244,8 @@
             // Endpoint backend: /itens/<codigo>/barcode.png
             return `/itens/${encodeURIComponent(raw)}/barcode.png?v=${Date.now()}`;
         };
+        currentItemModalItem = currentItem;
+        resetComparativeSelection();
         
         // Atualizar título do modal
         itemModalTitle.textContent = currentItem.descricao || 'Item';
@@ -8241,6 +8347,10 @@
             <button class="btn btn-warning" type="button" onclick="sendToRepair('${escapeHtml(currentItem.codigo)}', '${escapeHtml(currentItem.descricao)}')">
                 <i class="bi bi-tools me-1"></i> Enviado para Reparo
             </button>` : '';
+        const comparativeCartButton = canEditItems ? `
+            <button class="btn btn-outline-warning d-none" type="button" id="item-comparative-send-footer-btn">
+                <i class="bi bi-cart-plus me-1"></i> Enviar para compras
+            </button>` : '';
         
         itemModalFooter.innerHTML = `
             <div class="d-flex flex-wrap gap-2">
@@ -8248,9 +8358,12 @@
                 ${imageButton}
                 ${assignButton}
                 ${repairButton}
+                ${comparativeCartButton}
             </div>
             <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Fechar</button>
         `;
+        document.getElementById('item-comparative-send-footer-btn')?.addEventListener('click', sendSelectedComparativeQuoteToCart);
+        syncComparativeCartAction();
         
         // (barcode agora é imagem PNG gerada no backend)
         
@@ -8512,16 +8625,169 @@
     const deleteCategoryBtn = document.getElementById('delete-category-btn');
     let currentCategory = null;
 
+    const resolveCategoryName = (item) => String(item?.categoria || 'Sem categoria');
+
+    const isAssignableInventoryItem = (item) => {
+        const categoria = String(item?.categoria || '').toLowerCase();
+        return categoria.includes('ferramenta') || categoria.includes('epi') || (categoria.includes('material') && categoria.includes('ep'));
+    };
+
+    const renderCategoryItemRow = (item) => {
+        const codigo = String(item?.codigo || '').trim();
+        const fotoSrc = buildStableStaticPhotoUrl(item?.foto_path, item?.ultima_edicao_em || codigo);
+        const saldoDisplay = String(item?.saldo_display || '').trim() || String(item?.saldo ?? '');
+        const marcaOuSetor = String(item?.marca || item?.setor || '—');
+        const editUrl = String(item?.edit_url || (codigo ? `/itens/${encodeURIComponent(codigo)}/editar` : '')).trim();
+        const deleteUrl = codigo ? `/itens/${encodeURIComponent(codigo)}/excluir` : '';
+        const editInfo = item?.ultima_edicao_em ? `
+            <div class="item-edit-info">
+                <i class="bi bi-pencil-square"></i>
+                <span>Editado <span class="js-last-edit" data-iso="${escapeHtml(item.ultima_edicao_em)}"></span>${item?.ultima_edicao_por ? ` por ${escapeHtml(item.ultima_edicao_por)}` : ''}</span>
+            </div>
+        ` : '';
+        const photoMarkup = fotoSrc
+            ? `<img src="${escapeHtml(fotoSrc)}" alt="${escapeHtml(item?.descricao || 'Imagem do item')}" class="item-photo">`
+            : `<div class="item-photo no-photo"><i class="bi bi-image"></i></div>`;
+        const photoAction = canManage && codigo ? `
+            <button class="item-photo-search-btn" type="button" data-category-action="photo" data-item-code="${escapeHtml(codigo)}" title="Buscar imagem do item">
+                <i class="bi bi-image"></i> Buscar
+            </button>
+        ` : '';
+        const editAction = canEditItems && codigo && editUrl ? `
+            <div class="btn-group" role="group">
+                <a class="btn btn-outline-light btn-sm" href="${escapeHtml(editUrl)}" title="Editar item">
+                    <i class="bi bi-pencil"></i> Editar
+                </a>
+            </div>
+        ` : '';
+        const deleteAction = canManage && codigo && deleteUrl ? `
+            <form method="post" action="${escapeHtml(deleteUrl)}" class="d-inline" data-category-action="delete-item">
+                <button class="btn btn-outline-danger btn-sm" type="submit" title="Excluir item">
+                    <i class="bi bi-trash"></i> Excluir item
+                </button>
+            </form>
+        ` : '';
+        const assignAction = canManage && codigo && isAssignableInventoryItem(item) ? `
+            <button class="btn btn-success btn-sm" type="button" data-category-action="assign" data-item-code="${escapeHtml(codigo)}" title="Atribuir a funcionário">
+                <i class="bi bi-person-check"></i> Atribuir
+            </button>
+        ` : '';
+        const manageActions = canManage && codigo ? `
+            <div class="btn-group" role="group">
+                ${deleteAction}
+                ${assignAction}
+            </div>
+        ` : '';
+        const readonlyNotice = !canManage && !canEditItems ? '<span class="text-muted small">Apenas administradores podem editar.</span>' : '';
+
+        return `
+            <div class="list-group-item" data-item-card data-item-codigo="${escapeHtml(codigo)}">
+                <div class="item-content">
+                    ${photoMarkup}
+                    <div class="item-meta">
+                        <strong>${escapeHtml(item?.descricao || '')}</strong>
+                        <div class="item-details">
+                            <div class="item-detail">
+                                <i class="bi bi-upc-scan"></i>
+                                <span class="item-detail-value">${escapeHtml(codigo)}</span>
+                            </div>
+                            <div class="item-detail">
+                                <i class="bi bi-tag"></i>
+                                <span class="item-detail-value">${escapeHtml(marcaOuSetor)}</span>
+                            </div>
+                            <div class="item-detail">
+                                <i class="bi bi-box-seam"></i>
+                                <span class="item-detail-value">${escapeHtml(item?.unidade || '—')}</span>
+                            </div>
+                            <div class="item-detail">
+                                <i class="bi bi-stack"></i>
+                                <span class="item-detail-label">Saldo:</span>
+                                <span class="item-detail-value">${escapeHtml(saldoDisplay)}</span>
+                            </div>
+                            <div class="item-detail">
+                                <i class="bi bi-exclamation-triangle"></i>
+                                <span class="item-detail-label">Mín:</span>
+                                <span class="item-detail-value">${escapeHtml(item?.estoque_minimo ?? '')}</span>
+                            </div>
+                        </div>
+                        ${editInfo}
+                    </div>
+                </div>
+                <div class="action-group">
+                    <div class="action-group-top">${photoAction}</div>
+                    <div class="action-group-bottom">
+                        ${editAction}
+                        ${manageActions}
+                        ${readonlyNotice}
+                    </div>
+                </div>
+            </div>
+        `;
+    };
+
+    const renderCategoryModalContent = (category) => {
+        const categoryItems = items.filter((item) => resolveCategoryName(item) === category);
+        const totalLabel = categoryItems.length === 1 ? '1 item' : `${categoryItems.length} itens`;
+        const listHtml = categoryItems.length
+            ? categoryItems.map(renderCategoryItemRow).join('')
+            : '<div class="list-group-item text-muted">Nenhum item encontrado nesta categoria.</div>';
+        return `
+            <p class="text-muted small mb-2">${escapeHtml(totalLabel)} nesta categoria.</p>
+            <div class="category-modal-list">${listHtml}</div>
+        `;
+    };
+
+    const bindCategoryModalActions = (root) => {
+        root.querySelectorAll('[data-category-action="photo"]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const codigo = String(button.getAttribute('data-item-code') || '');
+                const item = itemsByCode.get(codigo);
+                if (!item || !window.openPhotoAssistantModal) {
+                    return;
+                }
+                window.openPhotoAssistantModal({
+                    codigo: item.codigo,
+                    descricao: item.descricao,
+                    marca: item.marca || item.setor || '',
+                    foto_path: item.foto_path || '',
+                });
+            });
+        });
+
+        root.querySelectorAll('[data-category-action="assign"]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const codigo = String(button.getAttribute('data-item-code') || '');
+                const item = itemsByCode.get(codigo);
+                if (!item || !window.openAssignModal) {
+                    return;
+                }
+                window.openAssignModal(item.codigo, item.descricao, {
+                    tipo_embalagem_novo: item.tipo_embalagem_novo || '',
+                    unidade: item.unidade || '',
+                    unidades_por_embalagem: item.unidades_por_embalagem,
+                });
+            });
+        });
+
+        root.querySelectorAll('[data-category-action="delete-item"]').forEach((form) => {
+            form.addEventListener('submit', (event) => {
+                const confirmed = confirm('Tem certeza que deseja excluir este item?\n\nEsta ação NÃO pode ser desfeita.');
+                if (!confirmed) {
+                    event.preventDefault();
+                }
+            });
+        });
+    };
+
     function openCategoryModal(card) {
         const category = card.getAttribute('data-category');
-        const templateId = card.getAttribute('data-category-template');
-        const template = document.getElementById(templateId);
-        if (!category || !template || !modalTitle || !modalBody) {
+        if (!category || !modalTitle || !modalBody) {
             return;
         }
         currentCategory = category;
         modalTitle.textContent = category;
-        modalBody.innerHTML = template.innerHTML;
+        modalBody.innerHTML = renderCategoryModalContent(category);
+        bindCategoryModalActions(modalBody);
         formatLastEdit(modalBody);
 
         if (reportPdfBtn) {

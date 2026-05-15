@@ -6319,13 +6319,7 @@ Conversão: 1 saco = 20 quilos</div>
         }, 1400);
     };
 
-    const buildFotoSearchQuery = () => {
-        return [descricaoInput?.value || '', marcaInput?.value || '']
-            .map((part) => String(part || '').trim())
-            .filter(Boolean)
-            .join(' ')
-            .trim();
-    };
+    const buildFotoSearchQuery = () => buildDescriptionBrandQuery(descricaoInput?.value, marcaInput?.value);
 
     const openExternalImageSearch = (provider) => {
         const query = String(fotoSearchQueryInput?.value || '').trim();
@@ -7817,14 +7811,23 @@ Conversão: 1 saco = 20 quilos</div>
         }
     };
 
-    const buildDefaultPriceQuery = (item) => {
-        const descricao = String(item?.descricao || '').trim();
-        const marca = String(item?.marca || '').trim();
-        const tipoEmb = String(item?.tipo_embalagem_novo || '').trim();
-        const unidadesPor = Number(item?.unidades_por_embalagem ?? 0);
-        const extra = (tipoEmb && Number.isFinite(unidadesPor) && unidadesPor > 0) ? ` ${tipoEmb} ${unidadesPor}` : '';
-        return `${descricao}${marca ? ` ${marca}` : ''}${extra}`.trim();
+    const normalizePriceQueryText = (value) => String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+
+    const buildDescriptionBrandQuery = (descriptionValue, brandValue) => {
+        const description = String(descriptionValue || '').trim();
+        const brand = String(brandValue || '').trim();
+        if (!description) return brand;
+        if (!brand || normalizePriceQueryText(description).includes(normalizePriceQueryText(brand))) {
+            return description;
+        }
+        return `${description} ${brand}`.trim();
     };
+
+    const buildDefaultPriceQuery = (item) => buildDescriptionBrandQuery(item?.descricao, item?.marca);
 
     const openPriceModal = async (item) => {
         if (!priceModalInstance) return;
@@ -8073,6 +8076,7 @@ Conversão: 1 saco = 20 quilos</div>
             codigo: String(btnBuscarPrecoForm.dataset.precoCodigo || ''),
             descricao: String(btnBuscarPrecoForm.dataset.precoDescricao || ''),
             marca: String(btnBuscarPrecoForm.dataset.precoMarca || ''),
+            unidade: String(document.getElementById('unidade')?.value || ''),
             tipo_embalagem_novo: String(btnBuscarPrecoForm.dataset.precoTipo || ''),
             unidades_por_embalagem: Number(btnBuscarPrecoForm.dataset.precoUnidades || 0) || 0,
             preco_reposicao_unidade_preco: String(precoReposicaoUnidadePrecoSelect?.value || ''),

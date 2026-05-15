@@ -6,7 +6,7 @@ from datetime import date, datetime
 import html
 import json
 from pathlib import Path
-from unicodedata import normalize as unicode_normalize
+from unicodedata import combining as unicodedata_combining, normalize as unicode_normalize
 
 from io import BytesIO
 
@@ -589,10 +589,12 @@ def _request_purchase_projection_category_action(source=None) -> dict[str, objec
     source = source or request.form
     add_category = str(source.get("add_visible_category") or "").strip()
     remove_category = str(source.get("remove_visible_category") or "").strip()
+    remove_item = str(source.get("remove_projection_item") or "").strip()
     clear_requested = str(source.get("clear_projection_cart") or "").strip() == "1"
     return {
         "add_category": add_category or None,
         "remove_category": remove_category or None,
+        "remove_item": remove_item or None,
         "clear": clear_requested,
     }
 
@@ -610,6 +612,7 @@ def _merge_purchase_projection_cart_state(
     potential_quote_ids: dict[str, object] | None = None,
     add_category: str | None = None,
     remove_category: str | None = None,
+    remove_item: str | None = None,
     clear: bool = False,
 ) -> tuple[dict[str, dict[str, str]], dict[str, object]]:
     updated: dict[str, dict[str, str]] = {}
@@ -639,6 +642,16 @@ def _merge_purchase_projection_cart_state(
 
     if clear:
         return {}, {"action": "clear", "changed_count": len(updated)}
+
+    if remove_item:
+        codigo_item = str(remove_item or "").strip()
+        removed = 1 if codigo_item in updated else 0
+        updated.pop(codigo_item, None)
+        return updated, {
+            "action": "remove_item",
+            "codigo_item": codigo_item,
+            "changed_count": removed,
+        }
 
     if add_category:
         category_key = _normalize_purchase_projection_category_name(add_category)
@@ -699,6 +712,39 @@ def _flash_purchase_projection_cart_feedback(outcome: dict[str, object]) -> None
         flash(f"Categoria '{category_name}' removida do carrinho em {changed_count} item(ns).", "info")
     elif action == "clear":
         flash("Carrinho da projeção limpo.", "info")
+    elif action == "remove_item":
+        codigo_item = str(outcome.get("codigo_item") or "").strip()
+        if codigo_item and changed_count:
+            flash(f"Item {codigo_item} removido do carrinho da projeção.", "info")
+
+
+def _format_cart_quantity_value(value: object) -> str | None:
+    raw = str(value or "").strip().replace(",", ".")
+    if not raw:
+        return None
+    try:
+        parsed = float(raw)
+    except (TypeError, ValueError):
+        return None
+    if parsed <= purchase_projection_service.BALANCE_TOLERANCE:
+        return None
+    return f"{parsed:.6f}".rstrip("0").rstrip(".")
+
+
+def _suggest_purchase_projection_quantity(codigo_item: str, potential_quote_id: str = "") -> str:
+    quote_map = {codigo_item: potential_quote_id} if potential_quote_id else {}
+    report = purchase_projection_service.build_projection_report(
+        search=codigo_item,
+        selected_codes=[codigo_item],
+        potential_quote_ids=quote_map,
+    )
+    for row in report.get("rows") or []:
+        if str(row.get("codigo_item") or "").strip() != codigo_item:
+            continue
+        suggested = _format_cart_quantity_value(row.get("manual_quantity_value"))
+        if suggested:
+            return suggested
+    return "1"
 
 
 def _sync_purchase_projection_report(
@@ -1209,20 +1255,30 @@ def _resolve_replacement_price_uf(raw_uf: str | None = None) -> str:
         return ""
 
 
+def _normalize_search_query_part(value: object) -> str:
+    text = _safe_text(value).strip().lower()
+    text = unicode_normalize("NFD", text)
+    return "".join(ch for ch in text if not unicodedata_combining(ch))
+
+
+def _build_description_brand_search_query(descricao: object, marca: object) -> str:
+    description = _safe_text(descricao).strip()
+    brand = _safe_text(marca).strip()
+    if not description:
+        return brand
+    if not brand or _normalize_search_query_part(brand) in _normalize_search_query_part(description):
+        return description
+    return f"{description} {brand}".strip()
+
+
 def _build_replacement_price_query(item: Item | dict | None) -> str:
     if isinstance(item, dict):
         descricao = _safe_text(item.get("descricao")).strip()
         marca = _safe_text(item.get("marca")).strip()
-        tipo_embalagem = _safe_text(item.get("tipo_embalagem_novo")).strip()
-        unidades_por_embalagem = _safe_float(item.get("unidades_por_embalagem"))
     else:
         descricao = _safe_text(getattr(item, "descricao", "")).strip()
         marca = _safe_text(getattr(item, "marca", "")).strip()
-        tipo_embalagem = _safe_text(getattr(item, "tipo_embalagem_novo", "")).strip()
-        unidades_por_embalagem = _safe_float(getattr(item, "unidades_por_embalagem", 0))
-
-    extra = f" {tipo_embalagem} {int(unidades_por_embalagem) if unidades_por_embalagem.is_integer() else unidades_por_embalagem}" if tipo_embalagem and unidades_por_embalagem > 0 else ""
-    return f"{descricao}{f' {marca}' if marca else ''}{extra}".strip()
+    return _build_description_brand_search_query(descricao, marca)
 
 
 def _replacement_price_unit_label(unit_code: object, *, plural: bool = False) -> str:
@@ -1239,6 +1295,13 @@ def _replacement_price_unit_label(unit_code: object, *, plural: bool = False) ->
         "und": "unidade",
         "unidade": "unidade",
         "unidades": "unidade",
+        "m": "metro",
+        "mt": "metro",
+        "metro": "metro",
+        "metros": "metro",
+        "cm": "centimetro",
+        "centimetro": "centimetro",
+        "centimetros": "centimetro",
         "lata": "lata",
         "latas": "lata",
         "bombona": "bombona",
@@ -1253,36 +1316,19 @@ def _replacement_price_unit_label(unit_code: object, *, plural: bool = False) ->
         "peça": "peca",
     }
     base = labels.get(normalized) or normalized
-    if plural and base in {"litro", "quilo", "unidade", "lata", "bombona", "caixa", "pacote", "fardo", "saco", "rolo", "balde", "peca"}:
+    if plural and base in {"litro", "quilo", "unidade", "metro", "centimetro", "lata", "bombona", "caixa", "pacote", "fardo", "saco", "rolo", "balde", "peca"}:
         return "pecas" if base == "peca" else f"{base}s"
     return base
 
 
-def _enrich_replacement_price_query(item: Item, query: str, selected_unit: str | None) -> str:
+def _enrich_replacement_price_query(item: Item, query: str, _selected_unit: str | None) -> str:
     query_norm = " ".join(_safe_text(query).split())
-    unit_norm = _safe_text(selected_unit).strip().lower()
     if not query_norm:
-        query_norm = _build_replacement_price_query(item)
-    if not unit_norm:
-        return query_norm
-
-    tipo_embalagem = _safe_text(getattr(item, "tipo_embalagem_novo", "")).strip().lower()
-    unidades_por_embalagem = _safe_float(getattr(item, "unidades_por_embalagem", 0))
-    base_unit_label = _replacement_price_unit_label(getattr(item, "unidade", ""), plural=unidades_por_embalagem > 1)
-    unit_label = _replacement_price_unit_label(unit_norm)
-
-    extras: list[str] = []
-    if tipo_embalagem and unit_norm == tipo_embalagem and unidades_por_embalagem > 0:
-        quantidade = int(unidades_por_embalagem) if unidades_por_embalagem.is_integer() else unidades_por_embalagem
-        extras.append(f"{unit_label} {quantidade} {base_unit_label}".strip())
-    elif unit_label and unit_label not in query_norm.lower():
-        extras.append(unit_label)
-
-    enriched = query_norm
-    for extra in extras:
-        if extra and extra.lower() not in enriched.lower():
-            enriched = f"{enriched} {extra}".strip()
-    return enriched
+        return _build_replacement_price_query(item)
+    brand = _safe_text(getattr(item, "marca", "")).strip()
+    if brand and _normalize_search_query_part(brand) not in _normalize_search_query_part(query_norm):
+        return f"{query_norm} {brand}".strip()
+    return query_norm
 
 
 def _sql_clean_text(column):
@@ -1976,7 +2022,11 @@ def _build_pre_registered_counters() -> dict[str, int]:
 @blueprint.get("/")
 @login_required
 def list_items():
-    raw_itens = inventory_service.list_items(use_cache=False)
+    raw_itens = inventory_service.list_items(
+        use_cache=True,
+        refresh_derived_fields=False,
+        cache_ttl_seconds=60.0,
+    )
     itens: list[dict] = []
     for raw in raw_itens:
         item = dict(raw)
@@ -2025,7 +2075,6 @@ def list_items():
                 "itens_com_preco_compra": value_summary["with_compra"],
                 "itens_sem_preco_compra": value_summary["missing_compra"],
                 "itens_sem_preco_reposicao": value_summary["missing_reposicao"],
-                "entries": items,
             }
         )
     pre_registered_counts = _build_pre_registered_counters() if can_create else {"documents": 0, "items": 0}
@@ -2903,6 +2952,52 @@ def purchase_projection_sync():
     return _json_no_store(_build_purchase_projection_sync_payload(report))
 
 
+@blueprint.post("/projecao-compras/carrinho/adicionar")
+@login_required
+def purchase_projection_cart_add_item():
+    _require_admin_or_supervisor()
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        payload = request.form.to_dict()
+
+    codigo_item = str(payload.get("codigo") or payload.get("codigo_item") or "").strip()
+    if not codigo_item:
+        return _json_no_store({"success": False, "message": "Código do item não informado."}), 400
+    item = Item.query.get(codigo_item)
+    if not item:
+        return _json_no_store({"success": False, "message": "Item não encontrado."}), 404
+
+    potential_quote_id = str(payload.get("potential_quote_id") or "").strip()
+    if potential_quote_id:
+        quote = potential_supplier_service.get_quote(potential_quote_id)
+        if not quote or str(quote.get("codigo_item") or "").strip() != codigo_item:
+            return _json_no_store({"success": False, "message": "Cotação selecionada não pertence a este item."}), 400
+
+    quantity_value = _format_cart_quantity_value(payload.get("quantity"))
+    if quantity_value is None:
+        quantity_value = _suggest_purchase_projection_quantity(codigo_item, potential_quote_id)
+
+    cart_state = _get_purchase_projection_cart_state()
+    cart_state[codigo_item] = {
+        "quantity": quantity_value,
+        "potential_quote_id": potential_quote_id,
+    }
+    _set_purchase_projection_cart_state(cart_state)
+
+    selected_codes, manual_quantities, potential_quote_ids = _purchase_projection_cart_payload_from_session()
+    report = purchase_projection_service.build_projection_report(
+        selected_codes=selected_codes,
+        manual_quantities=manual_quantities,
+        potential_quote_ids=potential_quote_ids,
+    )
+    return _json_no_store({
+        "success": True,
+        "message": f"{item.descricao or codigo_item} enviado para o carrinho da Projeção de Compras.",
+        "projection_url": url_for("inventory.purchase_projection_page"),
+        **_build_purchase_projection_sync_payload(report),
+    })
+
+
 @blueprint.post("/projecao-compras/potenciais/sync")
 @login_required
 def purchase_projection_potential_suppliers_sync():
@@ -3777,11 +3872,6 @@ def sugestoes_preco_reposicao(codigo: str):
     item = Item.query.get(codigo)
     if not item:
         return {"success": False, "message": "Item nÃ£o encontrado"}, 404
-    if not _item_allows_web_replacement_price(item):
-        return {
-            "success": False,
-            "message": "Este item tem NF/Cupom vinculado. A regra do sistema permite busca web somente para itens sem NF/Cupom.",
-        }, 409
 
     query = (request.args.get("q") or "").strip() or (item.descricao or "").strip()
     query = _enrich_replacement_price_query(item, query, request.args.get("unit"))
@@ -3922,11 +4012,6 @@ def salvar_preco_reposicao(codigo: str):
     item = Item.query.get(codigo)
     if not item:
         return {"success": False, "message": "Item nÃ£o encontrado"}, 404
-    if not _item_allows_web_replacement_price(item):
-        return {
-            "success": False,
-            "message": "Este item tem NF/Cupom vinculado. A regra do sistema permite aplicar busca web somente em itens sem NF/Cupom.",
-        }, 409
 
     payload = request.json or request.form or {}
     raw_price = payload.get("preco_reposicao_unitario")
@@ -5077,6 +5162,61 @@ def pre_registered_items_api():
         "documents": documents,
         "total_documents": len(documents),
         "total_items": total_items,
+    })
+
+
+@blueprint.post("/api/pre-cadastrados/<codigo>/finalizar")
+@login_required
+def finalize_pre_registered_item_api(codigo: str):
+    _require_admin_or_supervisor()
+    codigo_item = str(codigo or "").strip()
+    item_model = Item.query.get(codigo_item)
+    if not item_model:
+        return _json_no_store({"success": False, "message": "Item não encontrado."}), 404
+    if not bool(getattr(item_model, "pre_cadastro_pendente", False)):
+        return _json_no_store({"success": False, "message": "Este item já foi finalizado."}), 409
+
+    documento_item_id = getattr(item_model, "pre_cadastro_documento_item_id", None)
+    if documento_item_id is None:
+        return _json_no_store({"success": False, "message": "Item sem vínculo documental para finalizar direto."}), 400
+    documento_item = db.session.get(DocumentoEntradaEstoqueItem, documento_item_id)
+    if documento_item is None:
+        return _json_no_store({"success": False, "message": "Linha documental do pré-cadastro não encontrada."}), 404
+
+    try:
+        item_model.pre_cadastro_pendente = False
+        item_model.pre_cadastro_finalizado_em = datetime.utcnow()
+        item_model.ultima_edicao_em = datetime.utcnow()
+        item_model.ultima_edicao_por = getattr(current_user, "nome", None) or getattr(current_user, "id", None)
+        db.session.flush()
+
+        process_pending_result = finance_service.process_pending_document_items_for_item(
+            codigo_item,
+            usuario_matricula=current_user.id,
+        )
+        _clear_document_runtime_cache(process_pending_result.get("document_numbers"))
+        inventory_service.invalidate_realtime_views()
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        return _json_no_store({"success": False, "message": str(exc)}), 400
+
+    processed = int(process_pending_result.get("processed") or 0)
+    errors = int(process_pending_result.get("errors") or 0)
+    if errors:
+        message = "Cadastro salvo, mas houve falha ao incorporar parte do estoque documental."
+    elif processed:
+        message = f"Cadastro salvo direto e {processed} lançamento(s) incorporado(s) ao estoque."
+    else:
+        message = "Cadastro salvo direto. Não havia lançamento documental pendente para incorporar."
+
+    return _json_no_store({
+        "success": True,
+        "message": message,
+        "processed": processed,
+        "skipped": int(process_pending_result.get("skipped") or 0),
+        "errors": errors,
+        "counters": _build_pre_registered_counters(),
     })
 
 
