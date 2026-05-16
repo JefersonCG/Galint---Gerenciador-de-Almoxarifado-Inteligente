@@ -1326,10 +1326,10 @@ def item_info(codigo: str):
             unit_code=default_return_unit,
         )
         if retirada_pendente:
+            retirada_saida_id = retirada_pendente.get("saida_id")
             retirada_pendente_por_unidade = {
-                str(option.get("unit_code") or ""): inventory_service.get_material_return_pending(
-                    codigo=canonical_code,
-                    matricula=str(retirada_pendente.get("matricula") or ""),
+                str(option.get("unit_code") or ""): inventory_service.get_material_return_pending_for_saida(
+                    saida_id=retirada_saida_id,
                     unit_code=str(option.get("unit_code") or ""),
                 )
                 for option in return_unit_options
@@ -1400,6 +1400,7 @@ def item_info(codigo: str):
             "ultima_saida_label": retirada_pendente.get("ultima_saida_label"),
             "local_servico": retirada_pendente.get("local_servico"),
             "atividade_operacional": retirada_pendente.get("atividade_operacional"),
+            "saida_id": retirada_pendente.get("saida_id"),
             "pendente_por_unidade": retirada_pendente_por_unidade,
             "pendente": retirada_pendente_por_unidade.get(default_return_unit, retirada_pendente.get("pendente")),
         } if retirada_pendente else None,
@@ -1766,6 +1767,7 @@ def registrar_devolucao():
     quantidade = _parse_quantidade(request.form.get("quantidade"))
     from_unit_raw = request.form.get("from_unit") or request.form.get("unidade_devolucao")
     from_unit = (from_unit_raw or "").strip() if from_unit_raw is not None else None
+    retirada_saida_id = (request.form.get("retirada_saida_id") or "").strip() or None
     obs_raw = request.form.get("observacao")
     observacao = (obs_raw or "").strip() if obs_raw is not None else None
 
@@ -1777,6 +1779,7 @@ def registrar_devolucao():
             matricula=retirada_matricula or devolvedor.matricula,
             retirada_matricula=retirada_matricula,
             devolvido_por_matricula=devolvedor.matricula,
+            retirada_saida_id=retirada_saida_id,
             from_unit=from_unit,
             observacao=observacao,
             commit=True,

@@ -439,6 +439,7 @@ def devolucao_expressa_itens_api():
     payload["items"] = [
         {
             "saida_id": tool.get("saida_id"),
+            "source": tool.get("source") or "saida",
             "codigo": tool.get("codigo_item"),
             "descricao": tool.get("descricao"),
             "categoria": tool.get("categoria"),

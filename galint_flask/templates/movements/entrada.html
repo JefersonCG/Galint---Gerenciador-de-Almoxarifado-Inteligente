@@ -1415,6 +1415,7 @@
             returner_nome: returner.nome,
             returner_label: returner.label,
             retirada_matricula: String(withdrawer.matricula || '').trim(),
+            retirada_saida_id: withdrawer.saida_id || null,
             retirada_nome: withdrawer.nome || null,
             retirada_label: withdrawer.label || formatActorLabel(withdrawer.nome, withdrawer.matricula),
             codigo: detailData.codigo || String(inputCodigo.value || '').trim(),
@@ -1687,6 +1688,7 @@
                 returner_nome: returner.nome,
                 returner_label: returner.label,
                 retirada_matricula: data?.retirada_pendente?.matricula || '',
+                retirada_saida_id: data?.retirada_pendente?.saida_id || null,
                 retirada_nome: data?.retirada_pendente?.nome || null,
                 retirada_label: data?.retirada_pendente?.label || 'Não identificado',
                 quantidade: parseQuantityValue(inputQuantidade.value) || 1,
@@ -2081,6 +2083,9 @@
                 formData.append('devolvido_por', item.returner_matricula);
                 if (item.retirada_matricula) {
                     formData.append('retirada_matricula', item.retirada_matricula);
+                }
+                if (item.retirada_saida_id) {
+                    formData.append('retirada_saida_id', item.retirada_saida_id);
                 }
                 formData.append('codigo', item.codigo);
                 formData.append('quantidade', toInputNumberString(item.quantidade));

@@ -3328,7 +3328,7 @@ class InventoryService:
         for pattern in (
             r"retirada fracionada:\s*[\d.,]+\s*([a-zç]+)",
             r"devolvido:\s*[\d.,]+\s*([a-zç]+)",
-            r"unidade:\s*([a-zç]+)",
+            r"unidade\s*[:=]\s*([a-zç]+)",
         ):
             match = re.search(pattern, normalized)
             if match:
@@ -3613,6 +3613,146 @@ class InventoryService:
             window_start=start_datetime,
         )
 
+    def _build_material_return_pending_withdrawals(
+        self,
+        *,
+        item: Item,
+        codigo: str,
+        matricula: str,
+        target_unit: str,
+        default_unit: str,
+        end_datetime: datetime | None = None,
+    ) -> list[dict[str, Any]]:
+        withdrawals: list[dict[str, Any]] = []
+        timeline = self._build_material_return_timeline(
+            codigo=codigo,
+            matricula=matricula,
+            end_datetime=end_datetime,
+        )
+
+        for event_datetime, _order_index, kind, row, _reference_id in timeline:
+            if kind == "saida":
+                quantidade_saida = self._resolve_saida_pending_quantity(
+                    item=item,
+                    saida=row,
+                    target_unit=target_unit,
+                    default_unit=default_unit,
+                )
+                if quantidade_saida > 0:
+                    withdrawals.append(
+                        {
+                            "saida": row,
+                            "event_datetime": event_datetime,
+                            "quantity": quantidade_saida,
+                            "remaining": quantidade_saida,
+                        }
+                    )
+                continue
+
+            if kind == "devolucao_material":
+                source_unit = self._extract_material_return_unit_from_text(getattr(row, "descricao", None)) or default_unit
+                quantidade = self._convert_material_quantity_between_units(
+                    item=item,
+                    quantity=self._as_positive_float(getattr(row, "quantidade", 0.0)),
+                    from_unit=source_unit,
+                    to_unit=target_unit,
+                )
+            else:
+                quantidade = self._convert_material_quantity_between_units(
+                    item=item,
+                    quantity=self._as_positive_float(getattr(row, "quantidade", 0.0)),
+                    from_unit=default_unit,
+                    to_unit=target_unit,
+                )
+
+            remaining_return = quantidade
+            if remaining_return <= 0:
+                continue
+
+            for bucket in reversed(withdrawals):
+                bucket_pending = self._as_positive_float(bucket.get("remaining"))
+                if bucket_pending <= 0:
+                    continue
+                abatido = min(bucket_pending, remaining_return)
+                bucket["remaining"] = bucket_pending - abatido
+                remaining_return -= abatido
+                if remaining_return <= 1e-9:
+                    break
+
+        return withdrawals
+
+    def _get_latest_material_return_pending_withdrawal(
+        self,
+        *,
+        codigo: str,
+        matricula: str,
+        target_unit: str,
+        default_unit: str,
+        start_datetime: datetime | None = None,
+        end_datetime: datetime | None = None,
+    ) -> dict[str, Any] | None:
+        item = Item.query.get(codigo)
+        if item is None:
+            return None
+
+        withdrawals = self._build_material_return_pending_withdrawals(
+            item=item,
+            codigo=codigo,
+            matricula=matricula,
+            target_unit=target_unit,
+            default_unit=default_unit,
+            end_datetime=end_datetime,
+        )
+        for bucket in reversed(withdrawals):
+            saida = bucket.get("saida")
+            if saida is None:
+                continue
+            saida_datetime = getattr(saida, "data_saida", None)
+            if start_datetime is not None and (saida_datetime is None or saida_datetime < start_datetime):
+                continue
+            if end_datetime is not None and saida_datetime is not None and saida_datetime > end_datetime:
+                continue
+            pendente = self._as_positive_float(bucket.get("remaining"))
+            if pendente > 1e-9:
+                return {"saida": saida, "pendente": float(round(pendente, 3))}
+        return None
+
+    def get_material_return_pending_for_saida(self, *, saida_id: int | str | None, unit_code: str | None = None) -> float:
+        try:
+            saida_id_int = int(saida_id or 0)
+        except (TypeError, ValueError):
+            return 0.0
+        if saida_id_int <= 0:
+            return 0.0
+
+        saida = Saida.query.get(saida_id_int)
+        if saida is None:
+            return 0.0
+
+        codigo_norm = (saida.codigo_item or "").strip()
+        matricula_norm = str(saida.matricula or "").strip()
+        if not codigo_norm or not matricula_norm:
+            return 0.0
+
+        item = saida.item or Item.query.get(codigo_norm)
+        if item is None:
+            return 0.0
+
+        default_unit = self._get_default_material_return_unit_code(item)
+        target_unit = self._normalize_material_return_unit_code(unit_code) or default_unit
+        withdrawals = self._build_material_return_pending_withdrawals(
+            item=item,
+            codigo=codigo_norm,
+            matricula=matricula_norm,
+            target_unit=target_unit,
+            default_unit=default_unit,
+        )
+        for bucket in withdrawals:
+            bucket_saida = bucket.get("saida")
+            if int(getattr(bucket_saida, "id_saida", 0) or 0) == saida_id_int:
+                return float(round(self._as_positive_float(bucket.get("remaining")), 3))
+        return 0.0
+
     def get_latest_material_return_holder(
         self,
         *,
@@ -3640,44 +3780,55 @@ class InventoryService:
             query = query.filter(Saida.data_saida <= end_datetime)
 
         seen_users: set[str] = set()
+        candidates: list[dict[str, Any]] = []
         for saida in query.order_by(Saida.data_saida.desc(), Saida.id_saida.desc()).all():
             retirada_matricula = str(saida.matricula or "").strip()
             if not retirada_matricula or retirada_matricula in seen_users:
                 continue
             seen_users.add(retirada_matricula)
 
-            if start_datetime is not None and end_datetime is not None:
-                pendente = self.get_material_return_pending_in_window(
-                    codigo=codigo_norm,
-                    matricula=retirada_matricula,
-                    start_datetime=start_datetime,
-                    end_datetime=end_datetime,
-                    unit_code=target_unit,
-                )
-            else:
-                pendente = self.get_material_return_pending(
-                    codigo=codigo_norm,
-                    matricula=retirada_matricula,
-                    unit_code=target_unit,
-                )
-            if pendente <= 1e-9:
+            withdrawal = self._get_latest_material_return_pending_withdrawal(
+                codigo=codigo_norm,
+                matricula=retirada_matricula,
+                target_unit=target_unit,
+                default_unit=default_unit,
+                start_datetime=start_datetime,
+                end_datetime=end_datetime,
+            )
+            if not withdrawal:
                 continue
+            candidates.append({"matricula": retirada_matricula, **withdrawal})
 
-            usuario = saida.usuario or Usuario.query.get(retirada_matricula)
-            nome_usuario = getattr(usuario, "nome", None) or None
-            return {
-                "matricula": retirada_matricula,
-                "nome": nome_usuario,
-                "label": format_material_return_actor_label(nome=nome_usuario, matricula=retirada_matricula),
-                "pendente": float(round(pendente, 3)),
-                "ultima_saida_em": saida.data_saida,
-                "ultima_saida_label": TimeService.format_local(saida.data_saida),
-                "local_servico": (saida.local_servico or "").strip() or None,
-                "atividade_operacional": getattr(saida, "atividade_operacional", None),
-                "saida_id": getattr(saida, "id_saida", None),
-            }
+        if not candidates:
+            return None
 
-        return None
+        candidates.sort(
+            key=lambda row: (
+                getattr(row.get("saida"), "data_saida", None) or datetime.min,
+                int(getattr(row.get("saida"), "id_saida", 0) or 0),
+            ),
+            reverse=True,
+        )
+        selected = candidates[0]
+        saida = selected.get("saida")
+        retirada_matricula = str(selected.get("matricula") or "").strip()
+        pendente = self._as_positive_float(selected.get("pendente"))
+        if saida is None or not retirada_matricula or pendente <= 1e-9:
+            return None
+
+        usuario = saida.usuario or Usuario.query.get(retirada_matricula)
+        nome_usuario = getattr(usuario, "nome", None) or None
+        return {
+            "matricula": retirada_matricula,
+            "nome": nome_usuario,
+            "label": format_material_return_actor_label(nome=nome_usuario, matricula=retirada_matricula),
+            "pendente": float(round(pendente, 3)),
+            "ultima_saida_em": saida.data_saida,
+            "ultima_saida_label": TimeService.format_local(saida.data_saida),
+            "local_servico": (saida.local_servico or "").strip() or None,
+            "atividade_operacional": getattr(saida, "atividade_operacional", None),
+            "saida_id": getattr(saida, "id_saida", None),
+        }
 
     @staticmethod
     def _normalize_express_material_return_scope(scope: str | None) -> str:
@@ -3909,6 +4060,7 @@ class InventoryService:
         matricula: str | None = None,
         retirada_matricula: str | None = None,
         devolvido_por_matricula: str | None = None,
+        retirada_saida_id: int | str | None = None,
         from_unit: str | None = None,
         observacao: str | None = None,
         commit: bool = True,
@@ -3924,6 +4076,10 @@ class InventoryService:
         matricula_legado = (matricula or "").strip()
         retirada_matricula_norm = (retirada_matricula or matricula_legado).strip()
         devolvido_por_matricula_norm = (devolvido_por_matricula or matricula_legado).strip()
+        try:
+            retirada_saida_id_int = int(retirada_saida_id or 0)
+        except (TypeError, ValueError):
+            raise ValueError("Retirada de referência inválida")
         if not codigo_norm:
             raise ValueError("Código do item é obrigatório")
 
@@ -3954,16 +4110,30 @@ class InventoryService:
             if not retirada_info:
                 raise ValueError("Devolução não permitida: não há retirada pendente para este material.")
             retirada_matricula_norm = str(retirada_info.get("matricula") or "").strip()
+            retirada_saida_id_int = int(retirada_info.get("saida_id") or 0)
 
         if not devolvido_por_matricula_norm:
             raise ValueError("Informe quem está devolvendo o material.")
 
         unit_meta = self._build_material_return_unit_meta(selected_unit)
-        pendente = self.get_material_return_pending(
-            codigo=codigo_norm,
-            matricula=retirada_matricula_norm,
-            unit_code=selected_unit,
-        )
+        if retirada_saida_id_int > 0:
+            saida_referencia = Saida.query.get(retirada_saida_id_int)
+            if (
+                saida_referencia is None
+                or str(saida_referencia.codigo_item or "").strip() != codigo_norm
+                or str(saida_referencia.matricula or "").strip() != retirada_matricula_norm
+            ):
+                raise ValueError("Retirada de referência inválida para este material.")
+            pendente = self.get_material_return_pending_for_saida(
+                saida_id=retirada_saida_id_int,
+                unit_code=selected_unit,
+            )
+        else:
+            pendente = self.get_material_return_pending(
+                codigo=codigo_norm,
+                matricula=retirada_matricula_norm,
+                unit_code=selected_unit,
+            )
         # Tolerância mínima para float.
         if pendente <= 1e-9:
             raise ValueError("Devolução não permitida: não há retirada pendente para este material.")

@@ -5,22 +5,22 @@
 {% block extra_css %}
 <style>
     .audit-shell {
-        background: linear-gradient(180deg, #eef2f7 0%, #f8fafc 100%);
+        background: #f8fafc;
         border: 1px solid rgba(148, 163, 184, 0.18);
-        border-radius: 28px;
+        border-radius: 16px;
         padding: 1.75rem;
-        box-shadow: 0 24px 54px rgba(15, 23, 42, 0.1);
+        box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08);
     }
 
     .audit-hero {
         position: relative;
         overflow: hidden;
-        background: linear-gradient(135deg, #0f172a 0%, #172554 52%, #1d4ed8 100%);
-        border-radius: 24px;
+        background: linear-gradient(135deg, #111827 0%, #1f2937 58%, #334155 100%);
+        border-radius: 12px;
         padding: 1.75rem;
         color: #f8fafc;
         margin-bottom: 1.5rem;
-        box-shadow: 0 26px 60px rgba(15, 23, 42, 0.18);
+        box-shadow: 0 18px 38px rgba(15, 23, 42, 0.12);
     }
 
     .audit-hero::before {
@@ -28,8 +28,8 @@
         position: absolute;
         inset: 0;
         background:
-            radial-gradient(circle at 14% 18%, rgba(96, 165, 250, 0.32), transparent 32%),
-            radial-gradient(circle at 88% 22%, rgba(56, 189, 248, 0.18), transparent 22%),
+            radial-gradient(circle at 14% 18%, rgba(96, 165, 250, 0.16), transparent 32%),
+            radial-gradient(circle at 88% 22%, rgba(45, 212, 191, 0.1), transparent 22%),
             linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 60%);
         pointer-events: none;
     }
@@ -73,13 +73,13 @@
     .stats-card {
         position: relative;
         overflow: hidden;
-        background: linear-gradient(145deg, #0f172a 0%, #1e293b 68%, #334155 100%);
-        border-radius: 22px;
+        background: linear-gradient(145deg, #111827 0%, #1f2937 100%);
+        border-radius: 12px;
         padding: 1.2rem;
         color: #f8fafc;
         height: 100%;
         border: 1px solid rgba(148, 163, 184, 0.18);
-        box-shadow: 0 20px 42px rgba(15, 23, 42, 0.18);
+        box-shadow: 0 14px 28px rgba(15, 23, 42, 0.12);
     }
 
     .stats-card::before {
@@ -87,7 +87,7 @@
         position: absolute;
         inset: 0;
         background:
-            radial-gradient(circle at 18% 18%, rgba(96, 165, 250, 0.24), transparent 34%),
+            radial-gradient(circle at 18% 18%, rgba(96, 165, 250, 0.14), transparent 34%),
             linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 60%);
         pointer-events: none;
     }
@@ -125,19 +125,19 @@
     }
 
     .filter-card {
-        background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%);
+        background: #ffffff;
         border: 1px solid rgba(148, 163, 184, 0.18);
-        border-radius: 24px;
+        border-radius: 12px;
         padding: 1.5rem;
         margin-bottom: 1.5rem;
-        color: #e2e8f0;
-        box-shadow: 0 22px 48px rgba(15, 23, 42, 0.16);
+        color: #0f172a;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
     }
 
     .filter-accent {
         background: rgba(59, 130, 246, 0.08);
         border: 1px dashed rgba(96, 165, 250, 0.34) !important;
-        border-radius: 18px;
+        border-radius: 10px;
     }
 
     .filter-card .form-label,
@@ -146,7 +146,12 @@
     .filter-card p,
     .filter-card h5,
     .filter-card span {
-        color: #e2e8f0 !important;
+        color: #334155 !important;
+    }
+
+    .filter-card h5,
+    .filter-card .fw-bold {
+        color: #0f172a !important;
     }
 
     .filter-card .text-info {
@@ -160,15 +165,15 @@
     }
 
     .employee-card {
-        background: linear-gradient(145deg, #0f172a 0%, #1e293b 68%, #334155 100%);
+        background: linear-gradient(145deg, #111827 0%, #1f2937 100%);
         border: 1px solid rgba(148, 163, 184, 0.18);
-        border-radius: 22px;
+        border-radius: 12px;
         padding: 1.25rem;
         height: 100%;
         transition: all 0.3s ease;
         position: relative;
         overflow: hidden;
-        box-shadow: 0 22px 42px rgba(15, 23, 42, 0.16);
+        box-shadow: 0 14px 30px rgba(15, 23, 42, 0.12);
     }
 
     .employee-card::before {
@@ -176,7 +181,7 @@
         position: absolute;
         inset: 0;
         background:
-            radial-gradient(circle at 18% 18%, rgba(59, 130, 246, 0.26), transparent 32%),
+            radial-gradient(circle at 18% 18%, rgba(59, 130, 246, 0.12), transparent 32%),
             linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 60%);
         pointer-events: none;
     }
@@ -191,6 +196,86 @@
         box-shadow: 0 28px 54px rgba(15, 23, 42, 0.24);
         border-color: rgba(96, 165, 250, 0.4);
         cursor: pointer;
+    }
+
+    .audit-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        padding: 0.35rem;
+        margin-bottom: 1.25rem;
+        border-radius: 12px;
+        background: #e2e8f0;
+    }
+
+    .audit-tabs .nav-link {
+        border-radius: 8px;
+        color: #475569;
+        font-weight: 700;
+        border: 0;
+    }
+
+    .audit-tabs .nav-link.active {
+        background: #ffffff;
+        color: #0f172a;
+        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+    }
+
+    .lost-broken-panel {
+        background: #ffffff;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 12px;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+        overflow: hidden;
+    }
+
+    .lost-broken-toolbar {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1rem 1.1rem;
+        border-bottom: 1px solid #e2e8f0;
+        align-items: center;
+    }
+
+    .lost-broken-table {
+        margin: 0;
+        vertical-align: middle;
+    }
+
+    .lost-broken-table thead th {
+        background: #eff6ff;
+        color: #1e293b;
+        font-size: 0.76rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        border-bottom: 1px solid #dbeafe;
+    }
+
+    .lost-tool-thumb {
+        width: 52px;
+        height: 52px;
+        border-radius: 8px;
+        object-fit: cover;
+        background: #e2e8f0;
+        border: 1px solid #cbd5e1;
+    }
+
+    .lost-kind-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.3rem 0.55rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 800;
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .lost-kind-badge.is-lost {
+        background: #fef3c7;
+        color: #92400e;
     }
     
     .employee-card.has-alert {
@@ -366,6 +451,22 @@
     <h1 class="audit-hero-title">Auditar Ferramentas</h1>
     <p class="audit-hero-subtitle">Acompanhe funcionários com ferramentas em posse, destaque alertas e acesse a gestão com o mesmo visual dark do dashboard.</p>
 </section>
+
+<ul class="nav audit-tabs" id="toolAuditTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="custody-current-tab" data-bs-toggle="tab" data-bs-target="#custody-current-pane" type="button" role="tab" aria-controls="custody-current-pane" aria-selected="true">
+            <i class="bi bi-person-workspace me-1"></i> Em custódia
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="lost-broken-tab" data-bs-toggle="tab" data-bs-target="#lost-broken-pane" type="button" role="tab" aria-controls="lost-broken-pane" aria-selected="false">
+            <i class="bi bi-exclamation-octagon me-1"></i> Perdidas e Quebradas
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="toolAuditTabsContent">
+<div class="tab-pane fade show active" id="custody-current-pane" role="tabpanel" aria-labelledby="custody-current-tab" tabindex="0">
 
 <!-- Estatísticas -->
 <div class="row g-3 mb-4">
@@ -579,6 +680,113 @@
         </p>
     </div>
 {% endif %}
+</div>
+
+<div class="tab-pane fade" id="lost-broken-pane" role="tabpanel" aria-labelledby="lost-broken-tab" tabindex="0">
+    <div class="row g-3 mb-4">
+        <div class="col-md-3 col-sm-6">
+            <div class="stats-card">
+                <span class="stats-label">Ocorrências</span>
+                <h3 class="mb-0">{{ lost_broken_stats.total }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="stats-card magenta">
+                <span class="stats-label">Quebradas</span>
+                <h3 class="mb-0">{{ lost_broken_stats.quebradas }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="stats-card cyan">
+                <span class="stats-label">Perdidas</span>
+                <h3 class="mb-0">{{ lost_broken_stats.perdidas }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="stats-card green">
+                <span class="stats-label">Valor referência</span>
+                <h3 class="mb-0">R$ {{ "%.2f"|format(lost_broken_stats.valor_total or 0)|replace('.', ',') }}</h3>
+            </div>
+        </div>
+    </div>
+
+    <div class="lost-broken-panel">
+        <div class="lost-broken-toolbar">
+            <div>
+                <h5 class="mb-1">Perdidas e quebradas</h5>
+                <div class="text-muted small">Ferramentas agrupadas por colaborador, data e local no relatório exportado.</div>
+            </div>
+            <a class="btn btn-primary" href="{{ url_for('tool_custody.lost_broken_report_xlsx') }}">
+                <i class="bi bi-file-earmark-spreadsheet me-1"></i> Relatório XLSX
+            </a>
+        </div>
+        {% if lost_broken_tools %}
+        <div class="table-responsive">
+            <table class="table lost-broken-table">
+                <thead>
+                    <tr>
+                        <th>Ferramenta</th>
+                        <th>Colaborador</th>
+                        <th>Situação</th>
+                        <th>Uso / retirada</th>
+                        <th>Valor</th>
+                        <th>Motivo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in lost_broken_tools %}
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                {% if row.foto_url %}
+                                <img class="lost-tool-thumb" src="{{ row.foto_url }}" alt="{{ row.descricao }}" loading="lazy">
+                                {% else %}
+                                <div class="lost-tool-thumb d-flex align-items-center justify-content-center"><i class="bi bi-image text-muted"></i></div>
+                                {% endif %}
+                                <div>
+                                    <strong class="d-block">{{ row.descricao }}</strong>
+                                    <span class="text-muted small">Código {{ row.codigo_item }} • {{ row.marca }}</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <strong class="d-block">{{ row.colaborador }}</strong>
+                            <span class="text-muted small">{{ row.matricula }}{% if row.setor %} • {{ row.setor }}{% endif %}</span>
+                        </td>
+                        <td>
+                            <span class="lost-kind-badge {% if row.kind == 'perdida' %}is-lost{% endif %}">
+                                <i class="bi {% if row.kind == 'perdida' %}bi-question-octagon{% else %}bi-exclamation-triangle{% endif %}"></i>{{ row.kind_label }}
+                            </span>
+                            <span class="d-block text-muted small mt-1">{{ row.data_evento_label }}</span>
+                        </td>
+                        <td>
+                            <strong class="d-block">{{ row.local_servico }}</strong>
+                            <span class="text-muted small">Retirada: {{ row.data_retirada_label }}</span>
+                        </td>
+                        <td>
+                            {% if row.valor_total is not none %}
+                            <strong>R$ {{ "%.2f"|format(row.valor_total)|replace('.', ',') }}</strong>
+                            <span class="d-block text-muted small">{{ row.valor_fonte }}</span>
+                            {% else %}
+                            <span class="text-muted">Sem valor</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ row.motivo }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state m-3">
+            <i class="bi bi-check2-circle"></i>
+            <h4>Nenhuma ferramenta perdida ou quebrada</h4>
+            <p>As ocorrências registradas pelo botão Quebrada/Perdida aparecerão aqui.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+</div>
 </div>
 {% endblock %}
 

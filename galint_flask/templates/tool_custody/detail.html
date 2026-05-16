@@ -944,8 +944,10 @@
                 </div>
                 <div class="tool-list">
                     {% for tool in employee.tools_temporaria %}
+                    {% set tool_source = tool.source|default('saida') %}
                     <article class="tool-surface js-temporary-tool-card {% if tool.is_alert %}alert{% endif %}"
                         data-saida-id="{{ tool.saida_id }}"
+                        data-source="{{ tool_source }}"
                         data-tool-name="{{ tool.descricao|e }}"
                         data-tool-code="{{ tool.codigo_item|e }}"
                         data-tool-days="{{ tool.days_in_use }}"
@@ -974,15 +976,18 @@
                         {% endif %}
 
                         <div class="tool-actions mt-3">
-                            <button class="btn btn-success btn-sm" onclick='showReturnModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }})'>
+                            <button class="btn btn-success btn-sm" onclick='showReturnModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }}, {{ tool_source|tojson }})'>
                                 <i class="bi bi-arrow-return-left"></i> Dar baixa
                             </button>
+                            {% if tool_source != 'retirada_ferramenta' %}
                             <button class="btn btn-primary btn-sm" onclick='showTransferModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }}, {{ employee.nome|tojson }}, "temporaria", {{ tool.local_servico|tojson }}, {{ tool.quantidade|tojson }})'>
                                 <i class="bi bi-arrow-left-right"></i> Transferir
                             </button>
-                            <button class="btn btn-warning btn-sm" onclick='showDamageModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }})'>
+                            {% endif %}
+                            <button class="btn btn-warning btn-sm" onclick='showDamageModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }}, {{ tool_source|tojson }})'>
                                 <i class="bi bi-x-circle"></i> Quebrada
                             </button>
+                            {% if tool_source != 'retirada_ferramenta' %}
                             <button class="btn btn-info btn-sm" onclick='showRepairModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }})'>
                                 <i class="bi bi-wrench"></i> Reparo
                             </button>
@@ -992,6 +997,7 @@
                             <button class="btn btn-danger btn-sm" onclick='showAlertModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }}, {{ employee.nome|tojson }})'>
                                 <i class="bi bi-bell"></i> Alertar
                             </button>
+                            {% endif %}
                         </div>
                     </article>
                     {% endfor %}
@@ -1056,6 +1062,7 @@
             <form method="POST" id="returnForm">
                 <div class="modal-body">
                     <input type="hidden" name="matricula" value="{{ employee.matricula }}">
+                    <input type="hidden" name="source" id="returnSource" value="saida">
                     <p class="text-white" id="returnModalMessage">
                         Confirma a devolução da ferramenta <strong id="returnToolName"></strong>?
                     </p>
@@ -1099,6 +1106,7 @@
             <form method="POST" id="damageForm">
                 <div class="modal-body">
                     <input type="hidden" name="matricula" value="{{ employee.matricula }}">
+                    <input type="hidden" name="source" id="damageSource" value="saida">
                     <p class="text-white">
                         Registrar que a ferramenta <strong id="damageToolName"></strong> foi quebrada ou danificada?
                     </p>
@@ -1646,6 +1654,7 @@
         function getToolData(card) {
             return {
                 saidaId: String(card?.dataset?.saidaId || ''),
+                source: String(card?.dataset?.source || 'saida'),
                 toolName: String(card?.dataset?.toolName || 'Ferramenta'),
                 toolCode: String(card?.dataset?.toolCode || ''),
                 matricula: String(card?.dataset?.matricula || ''),
@@ -1757,6 +1766,7 @@
                 const payload = new URLSearchParams();
                 payload.append('matricula', item.matricula || '');
                 payload.append('codigo_item', item.toolCode || '');
+                payload.append('source', item.source || 'saida');
                 payload.append('observacao', observations || 'Devolução registrada via custódia do funcionário');
 
                 try {
@@ -2135,9 +2145,10 @@
         });
     })();
 
-    function showReturnModal(saidaId, toolName, toolCode, matricula) {
+    function showReturnModal(saidaId, toolName, toolCode, matricula, source) {
         const returnForm = document.getElementById('returnForm');
         const returnBatchPreview = document.getElementById('returnBatchPreview');
+        const returnSource = document.getElementById('returnSource');
         document.getElementById('returnModalTitle').innerHTML = '<i class="bi bi-arrow-return-left"></i> Dar baixa da ferramenta';
         document.getElementById('returnModalMessage').innerHTML = `Confirma a devolução da ferramenta <strong id="returnToolName"></strong>?`;
         document.getElementById('returnToolName').textContent = toolName;
@@ -2145,6 +2156,9 @@
         document.getElementById('returnConfirmButton').innerHTML = '<i class="bi bi-check-circle"></i> Confirmar baixa';
         if (returnForm) {
             returnForm.dataset.mode = 'single';
+        }
+        if (returnSource) {
+            returnSource.value = source || 'saida';
         }
         if (returnBatchPreview) {
             returnBatchPreview.innerHTML = '';
@@ -2166,6 +2180,7 @@
     function showRemoveCustodyModal(saidaId, toolName, toolCode, matricula) {
         const returnForm = document.getElementById('returnForm');
         const returnBatchPreview = document.getElementById('returnBatchPreview');
+        const returnSource = document.getElementById('returnSource');
         document.getElementById('returnModalTitle').innerHTML = '<i class="bi bi-box-arrow-in-down"></i> Remover custódia permanente';
         document.getElementById('returnModalMessage').innerHTML = `Confirma remover a custódia da ferramenta <strong id="returnToolName"></strong> e liberá-la novamente no estoque?`;
         document.getElementById('returnToolName').textContent = toolName;
@@ -2173,6 +2188,9 @@
         document.getElementById('returnConfirmButton').innerHTML = '<i class="bi bi-box-arrow-in-down"></i> Liberar no estoque';
         if (returnForm) {
             returnForm.dataset.mode = 'single';
+        }
+        if (returnSource) {
+            returnSource.value = 'saida';
         }
         if (returnBatchPreview) {
             returnBatchPreview.innerHTML = '';
@@ -2191,8 +2209,12 @@
         new bootstrap.Modal(document.getElementById('returnModal')).show();
     }
     
-    function showDamageModal(saidaId, toolName, toolCode, matricula) {
+    function showDamageModal(saidaId, toolName, toolCode, matricula, source) {
         document.getElementById('damageToolName').textContent = toolName;
+        const damageSource = document.getElementById('damageSource');
+        if (damageSource) {
+            damageSource.value = source || 'saida';
+        }
         const section = document.getElementById('damageBarcodeSection');
         const svg = document.getElementById('damageBarcodeSvg');
         if (section && svg) {

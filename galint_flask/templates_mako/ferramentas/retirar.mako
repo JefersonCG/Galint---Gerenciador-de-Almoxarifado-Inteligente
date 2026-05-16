@@ -1828,6 +1828,7 @@ ${parent.scripts()}
                 payload.append('observacao', observacao || 'Devolução expressa via tela de retirada de ferramentas');
                 payload.append('matricula', context.collaborator && context.collaborator.matricula ? context.collaborator.matricula : '');
                 payload.append('codigo_item', context.item && context.item.codigo ? context.item.codigo : '');
+                payload.append('source', context.item && context.item.source ? context.item.source : 'saida');
                 return {
                     url: '/controle-ferramentas/devolucao/' + encodeURIComponent(String(context.item.saida_id)) + '/api',
                     options: {

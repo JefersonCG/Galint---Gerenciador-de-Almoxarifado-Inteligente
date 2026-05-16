@@ -7,6 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import or_
 
 from ..extensions import db
+from ..services.ferramentas import ferramentas_service
 from ..services.tool_custody_service import tool_custody_service
 
 bp = Blueprint("tool_custody", __name__, url_prefix="/controle-ferramentas")
@@ -54,6 +55,16 @@ def index():
     
     # Estatísticas
     stats = tool_custody_service.get_statistics()
+    lost_broken_tools = tool_custody_service.list_lost_broken_tools(limit=500)
+    lost_broken_stats = {
+        "total": len(lost_broken_tools),
+        "perdidas": sum(1 for row in lost_broken_tools if row.get("kind") == "perdida"),
+        "quebradas": sum(1 for row in lost_broken_tools if row.get("kind") == "quebrada"),
+        "valor_total": sum(float(row.get("valor_total") or 0.0) for row in lost_broken_tools),
+    }
+    for row in lost_broken_tools:
+        foto_path = row.get("foto_path")
+        row["foto_url"] = url_for("static", filename=foto_path) if foto_path else None
     
     return render_template(
         "tool_custody/index.html",
@@ -64,6 +75,8 @@ def index():
         alert_only=alert_only,
         tipo_custodia_filter=tipo_custodia_filter,
         stats=stats,
+        lost_broken_tools=lost_broken_tools,
+        lost_broken_stats=lost_broken_stats,
     )
 
 
@@ -122,7 +135,11 @@ def return_tool(saida_id: int):
     """Registra devolução de ferramenta."""
     try:
         observacao = request.form.get("observacao", "").strip()
-        tool_custody_service.register_return(saida_id, observacao or None)
+        source = (request.form.get("source") or "saida").strip().lower()
+        if source == "retirada_ferramenta":
+            ferramentas_service.devolver_ferramenta(saida_id, observacao or None)
+        else:
+            tool_custody_service.register_return(saida_id, observacao or None)
         flash("Ferramenta devolvida com sucesso!", "success")
     except ValueError as e:
         flash(str(e), "danger")
@@ -142,7 +159,11 @@ def return_tool_api(saida_id: int):
     """Registra devolucao de ferramenta via API (sem redirect)."""
     try:
         observacao = request.form.get("observacao", "").strip()
-        tool_custody_service.register_return(saida_id, observacao or None)
+        source = (request.form.get("source") or "saida").strip().lower()
+        if source == "retirada_ferramenta":
+            ferramentas_service.devolver_ferramenta(saida_id, observacao or None)
+        else:
+            tool_custody_service.register_return(saida_id, observacao or None)
         return jsonify({"success": True, "message": "Ferramenta devolvida com sucesso"})
     except ValueError as e:
         message = str(e)
@@ -192,7 +213,8 @@ def damage_tool(saida_id: int):
     """Registra ferramenta quebrada/danificada."""
     try:
         observacao = request.form.get("observacao", "").strip()
-        tool_custody_service.register_damage(saida_id, observacao or None)
+        source = (request.form.get("source") or "saida").strip().lower()
+        tool_custody_service.register_damage(saida_id, observacao or None, source=source)
         flash("Quebra/dano registrado com sucesso!", "warning")
     except ValueError as e:
         flash(str(e), "danger")
@@ -203,6 +225,22 @@ def damage_tool(saida_id: int):
     if matricula:
         return redirect(url_for("tool_custody.employee_detail", matricula=matricula))
     return redirect(url_for("tool_custody.index"))
+
+
+@bp.route("/quebra/<int:saida_id>/api", methods=["POST"])
+@login_required
+def damage_tool_api(saida_id: int):
+    """Registra ferramenta quebrada/perdida via API."""
+    try:
+        source = (request.form.get("source") or "saida").strip()
+        kind = (request.form.get("kind") or request.form.get("tipo") or "quebrada").strip()
+        observacao = request.form.get("observacao", "").strip()
+        tool_custody_service.register_damage(saida_id, observacao or None, kind=kind, source=source)
+        return jsonify({"success": True, "message": "Ferramenta registrada como quebrada/perdida"})
+    except ValueError as e:
+        return jsonify({"success": False, "message": str(e)}), 400
+    except SQLAlchemyError as e:
+        return jsonify({"success": False, "message": f"Erro ao registrar ocorrência: {str(e)}"}), 500
 
 
 @bp.route("/reparo/<int:saida_id>", methods=["POST"])
@@ -425,6 +463,7 @@ def generate_tool_report():
     if requested_format not in ["pdf", "xlsx"]:
         flash("Formato inválido. Use PDF.", "danger")
         return _redirect_back()
+
     format_type = "pdf"
     
     # Validar filtro de custódia
@@ -823,6 +862,123 @@ def generate_tool_report():
         logger.exception("Erro ao gerar relatório de ferramentas")
         flash(f"Erro ao gerar relatório: {str(e)}", "danger")
         return _redirect_back()
+
+
+@bp.route("/relatorios/perdidas-quebradas.xlsx")
+@login_required
+def lost_broken_report_xlsx():
+    """Gera planilha A4 vertical de ferramentas perdidas e quebradas."""
+    from io import BytesIO
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    from openpyxl.utils import get_column_letter
+    from ..utils.report_branding import get_company_header_lines
+    from ..utils.time_service import TimeService
+
+    rows = tool_custody_service.list_lost_broken_tools(limit=None)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Perdidas e Quebradas"
+    ws.page_setup.orientation = "portrait"
+    ws.page_setup.paperSize = ws.PAPERSIZE_A4
+    ws.page_setup.fitToWidth = 1
+    ws.page_setup.fitToHeight = 0
+    ws.sheet_properties.pageSetUpPr.fitToPage = True
+    ws.freeze_panes = "A8"
+
+    total_columns = 12
+    title_fill = PatternFill("solid", fgColor="0F172A")
+    subtitle_fill = PatternFill("solid", fgColor="1E293B")
+    header_fill = PatternFill("solid", fgColor="2563EB")
+    group_fill = PatternFill("solid", fgColor="E2E8F0")
+    thin = Side(style="thin", color="CBD5E1")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=total_columns)
+    ws["A1"] = "Relatório de Ferramentas"
+    ws["A1"].font = Font(color="FFFFFF", bold=True, size=16)
+    ws["A1"].fill = title_fill
+    ws["A1"].alignment = Alignment(horizontal="center")
+
+    ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=total_columns)
+    ws["A2"] = "Perdidas e quebradas"
+    ws["A2"].font = Font(color="FFFFFF", bold=True, size=12)
+    ws["A2"].fill = subtitle_fill
+    ws["A2"].alignment = Alignment(horizontal="center")
+
+    current_row = 3
+    for line in get_company_header_lines():
+        ws.merge_cells(start_row=current_row, start_column=1, end_row=current_row, end_column=total_columns)
+        ws.cell(current_row, 1, line)
+        ws.cell(current_row, 1).alignment = Alignment(horizontal="center")
+        current_row += 1
+
+    ws.merge_cells(start_row=current_row, start_column=1, end_row=current_row, end_column=total_columns)
+    ws.cell(current_row, 1, f"Gerado em {TimeService.now_local().strftime('%d/%m/%Y %H:%M')} | Total: {len(rows)} ocorrência(s)")
+    ws.cell(current_row, 1).alignment = Alignment(horizontal="center")
+    current_row += 2
+
+    headers = [
+        "Colaborador", "Matrícula", "Situação", "Data retirada", "Data ocorrência", "Local/uso",
+        "Código", "Ferramenta", "Marca", "Qtd.", "Valor ref.", "Motivo / situação",
+    ]
+    header_row = current_row
+    ws.append(headers)
+    for cell in ws[header_row]:
+        cell.fill = header_fill
+        cell.font = Font(color="FFFFFF", bold=True)
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        cell.border = border
+    current_row += 1
+
+    current_employee = None
+    for row in rows:
+        employee_key = f"{row.get('colaborador') or 'N/D'} ({row.get('matricula') or 'N/D'})"
+        if employee_key != current_employee:
+            current_employee = employee_key
+            ws.merge_cells(start_row=current_row, start_column=1, end_row=current_row, end_column=total_columns)
+            group_cell = ws.cell(current_row, 1, current_employee)
+            group_cell.fill = group_fill
+            group_cell.font = Font(color="0F172A", bold=True)
+            group_cell.alignment = Alignment(horizontal="left")
+            current_row += 1
+
+        valor_total = row.get("valor_total")
+        valor_label = f"{float(valor_total):.2f} ({row.get('valor_fonte') or 'valor ref.'})" if valor_total is not None else ""
+        ws.append([
+            row.get("colaborador") or "N/D",
+            row.get("matricula") or "N/D",
+            row.get("kind_label") or "N/D",
+            row.get("data_retirada_label") or "N/D",
+            row.get("data_evento_label") or "N/D",
+            row.get("local_servico") or "Não informado",
+            row.get("codigo_item") or "N/D",
+            row.get("descricao") or "Ferramenta",
+            row.get("marca") or "N/D",
+            row.get("quantidade") or 0,
+            valor_label,
+            row.get("motivo") or "Motivo não informado",
+        ])
+        for cell in ws[current_row]:
+            cell.border = border
+            cell.alignment = Alignment(vertical="top", wrap_text=True)
+        current_row += 1
+
+    widths = [24, 14, 12, 18, 18, 24, 16, 34, 16, 8, 18, 42]
+    for index, width in enumerate(widths, start=1):
+        ws.column_dimensions[get_column_letter(index)].width = width
+
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    filename = f"relatorio_ferramentas_perdidas_quebradas_{TimeService.now_local().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name=filename,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
 
 
 @bp.route("/api/funcionarios/buscar")

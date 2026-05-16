@@ -2614,6 +2614,17 @@
         color: #eff6ff;
     }
 
+    .galint-custody-btn-danger {
+        background: rgba(220, 38, 38, 0.92);
+        color: #ffffff;
+        border: 1px solid rgba(248, 113, 113, 0.3);
+    }
+
+    .galint-custody-btn-danger:hover {
+        background: #b91c1c;
+        color: #ffffff;
+    }
+
     .galint-custody-btn:disabled {
         opacity: 0.55;
         cursor: not-allowed;
@@ -3093,7 +3104,7 @@
                 <div class="d-flex flex-wrap gap-2 ms-auto justify-content-end">
                     <a id="custodyReturnModalProfile" href="#" class="galint-custody-btn galint-custody-btn-secondary">Ver ficha</a>
                     <button type="button" id="custodyReturnModalSelectAll" class="galint-custody-btn galint-custody-btn-secondary galint-custody-btn-compact">Selecionar todas</button>
-                    <button type="button" class="galint-custody-btn galint-custody-btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <button type="button" id="custodyReturnModalDamage" class="galint-custody-btn galint-custody-btn-danger" disabled>Quebrada/Perdida</button>
                     <button type="button" id="custodyReturnModalConfirm" class="galint-custody-btn galint-custody-btn-primary" disabled>Baixar selecionadas</button>
                 </div>
             </div>
@@ -3294,6 +3305,7 @@
         const custodyModalSelected = document.getElementById('custodyReturnModalSelected');
         const custodyModalProfile = document.getElementById('custodyReturnModalProfile');
         const custodyModalSelectAll = document.getElementById('custodyReturnModalSelectAll');
+        const custodyModalDamage = document.getElementById('custodyReturnModalDamage');
         const custodyModalConfirm = document.getElementById('custodyReturnModalConfirm');
 
         if (custodyModalElement && custodyModalElement.parentElement !== document.body) {
@@ -3568,7 +3580,7 @@
 
         function renderCustodyModal(groupKey, options = {}) {
             const group = getCurrentGroupByKey(groupKey);
-            if (!group || !custodyModalSummary || !custodyModalTools || !custodyModalSelected || !custodyModalConfirm || !custodyModalSelectAll || !custodyModalProfile) {
+            if (!group || !custodyModalSummary || !custodyModalTools || !custodyModalSelected || !custodyModalConfirm || !custodyModalSelectAll || !custodyModalProfile || !custodyModalDamage) {
                 return false;
             }
 
@@ -3644,6 +3656,9 @@
             custodyModalSelectAll.textContent = isAllSelected ? 'Limpar seleção' : 'Selecionar todas';
             custodyModalSelectAll.classList.toggle('is-active', isAllSelected);
             custodyModalSelectAll.disabled = custodyReturnBusy || orderedItems.length <= 1;
+
+            custodyModalDamage.disabled = custodyReturnBusy || selectedItems.length === 0;
+            custodyModalDamage.textContent = custodyReturnBusy ? 'Registrando...' : 'Quebrada/Perdida';
 
             custodyModalConfirm.disabled = custodyReturnBusy || selectedItems.length === 0;
             custodyModalConfirm.textContent = options.confirmLabel || (custodyReturnBusy ? 'Baixando...' : buildReturnButtonLabel(selectedItems.length));
@@ -3738,6 +3753,36 @@
             return result;
         }
 
+        async function submitDamageRequest(item, kind, motivo) {
+            const retiradaId = item?.id;
+            if (!retiradaId) {
+                throw new Error('Não foi possível identificar a retirada para registrar a ocorrência.');
+            }
+
+            const payload = new URLSearchParams();
+            payload.append('matricula', item?.matricula_full || item?.matricula || '');
+            payload.append('codigo_item', item?.codigo || '');
+            payload.append('source', (item?.source || 'saida').toLowerCase());
+            payload.append('kind', kind);
+            payload.append('observacao', motivo);
+
+            const response = await fetch(`/controle-ferramentas/quebra/${retiradaId}/api`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                    'Accept': 'application/json'
+                },
+                body: payload.toString(),
+                credentials: 'same-origin'
+            });
+
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok || result.success === false) {
+                throw new Error(result.message || `Erro ${response.status}`);
+            }
+            return result;
+        }
+
         async function handleGroupReturn(groupKey) {
             const group = getCurrentGroupByKey(groupKey);
             if (!group) {
@@ -3802,13 +3847,87 @@
                     const otherFailures = failures.length - Math.min(failures.length, 3);
                     window.alert(`${selectedItems.length - failures.length} baixa(s) concluída(s) e ${failures.length} falha(s).\n\n${failurePreview}${otherFailures > 0 ? `\n• +${otherFailures} outra(s)` : ''}`);
                 } else {
-                    window.alert(selectedItems.length === 1
-                        ? 'Baixa concluída com sucesso.'
-                        : `${selectedItems.length} baixa(s) concluída(s) com sucesso.`);
+                    activeCustodyModalGroupKey = null;
+                    custodyModalInstance?.hide();
                 }
             } catch (error) {
                 console.error('Falha ao registrar devolução em lote:', error);
                 window.alert(`Falha ao dar baixa: ${error?.message || 'erro desconhecido'}`);
+            } finally {
+                custodyReturnBusy = false;
+                if (activeCustodyModalGroupKey) {
+                    renderCustodyModal(activeCustodyModalGroupKey);
+                }
+            }
+        }
+
+        async function handleGroupLossDamage(groupKey) {
+            const group = getCurrentGroupByKey(groupKey);
+            if (!group) {
+                return;
+            }
+
+            const orderedItems = getOrderedItems(group);
+            const selectedItems = getSelectedItems(group, orderedItems);
+            if (!selectedItems.length) {
+                window.alert('Selecione ao menos uma ferramenta para registrar como quebrada ou perdida.');
+                return;
+            }
+
+            const tipoRaw = (window.prompt('Digite Q para quebrada ou P para perdida:', 'Q') || '').trim().toLowerCase();
+            if (!tipoRaw) {
+                return;
+            }
+            const kind = tipoRaw.startsWith('p') ? 'perdida' : 'quebrada';
+            const motivo = (window.prompt(`Descreva o motivo/situação da ferramenta ${kind}:`, '') || '').trim();
+            if (!motivo) {
+                window.alert('Informe o motivo para registrar a ocorrência.');
+                return;
+            }
+
+            const label = kind === 'perdida' ? 'perdida' : 'quebrada';
+            const confirmMessage = selectedItems.length === 1
+                ? `Confirmar ${selectedItems[0].descricao || 'ferramenta'} como ${label}?`
+                : `Confirmar ${selectedItems.length} ferramentas como ${label}s?`;
+            if (!window.confirm(confirmMessage)) {
+                return;
+            }
+
+            try {
+                custodyReturnBusy = true;
+                const failures = [];
+                const failedKeys = [];
+
+                for (let index = 0; index < selectedItems.length; index += 1) {
+                    const item = selectedItems[index];
+                    renderCustodyModal(group.key, { confirmLabel: `Registrando ${index + 1}/${selectedItems.length}` });
+                    try {
+                        await submitDamageRequest(item, kind, motivo);
+                    } catch (error) {
+                        failures.push({ item, message: error?.message || 'erro desconhecido' });
+                        failedKeys.push(getItemKey(item));
+                    }
+                }
+
+                setSelectedKeys(group.key, failedKeys);
+                await load();
+
+                if (failures.length) {
+                    const failurePreview = failures
+                        .slice(0, 3)
+                        .map(({ item, message }) => `• ${item.descricao || item.codigo || 'Ferramenta'}: ${message}`)
+                        .join('\n');
+                    window.alert(`${selectedItems.length - failures.length} ocorrência(s) registrada(s) e ${failures.length} falha(s).\n\n${failurePreview}`);
+                    if (activeCustodyModalGroupKey) {
+                        renderCustodyModal(activeCustodyModalGroupKey);
+                    }
+                } else {
+                    activeCustodyModalGroupKey = null;
+                    custodyModalInstance?.hide();
+                }
+            } catch (error) {
+                console.error('Falha ao registrar quebra/perda:', error);
+                window.alert(`Falha ao registrar ocorrência: ${error?.message || 'erro desconhecido'}`);
             } finally {
                 custodyReturnBusy = false;
                 if (activeCustodyModalGroupKey) {
@@ -4012,6 +4131,14 @@
             custodyModalConfirm.addEventListener('click', () => {
                 if (activeCustodyModalGroupKey && !custodyReturnBusy) {
                     handleGroupReturn(activeCustodyModalGroupKey);
+                }
+            });
+        }
+
+        if (custodyModalDamage) {
+            custodyModalDamage.addEventListener('click', () => {
+                if (activeCustodyModalGroupKey && !custodyReturnBusy) {
+                    handleGroupLossDamage(activeCustodyModalGroupKey);
                 }
             });
         }

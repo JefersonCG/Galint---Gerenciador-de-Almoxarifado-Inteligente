@@ -26,7 +26,15 @@ def _path_matches_any(path: str, targets: list[str | None]) -> bool:
     return any(_path_matches(path, target) for target in targets)
 
 
-def _link_item(label: str, href: str, icon: str, active: bool, badge_count: int | None = None) -> dict[str, Any]:
+def _link_item(
+    label: str,
+    href: str,
+    icon: str,
+    active: bool,
+    badge_count: int | None = None,
+    *,
+    workspace_skip: bool = False,
+) -> dict[str, Any]:
     item = {
         "type": "link",
         "label": label,
@@ -34,6 +42,8 @@ def _link_item(label: str, href: str, icon: str, active: bool, badge_count: int 
         "icon": icon,
         "active": active,
     }
+    if workspace_skip:
+        item["workspace_skip"] = True
     if isinstance(badge_count, int) and badge_count > 0:
         item["badge_count"] = badge_count
     return item
@@ -386,7 +396,7 @@ def build_sidebar_navigation() -> dict[str, Any]:
     if central_kits_url:
         ferramentas_children.append(_link_item("Central de Kits", central_kits_url, "bi-briefcase-fill", _path_matches(path, central_kits_url)))
     if tool_custody_url:
-        ferramentas_children.append(_link_item("Auditar Ferramentas", tool_custody_url, "bi-search", _path_matches(path, tool_custody_url)))
+        ferramentas_children.append(_link_item("Auditar Ferramentas", tool_custody_url, "bi-search", _path_matches(path, tool_custody_url), workspace_skip=True))
     if reparo_url:
         ferramentas_children.append(_link_item("Em reparo...", reparo_url, "bi-wrench-adjustable", _path_matches(path, reparo_url)))
     if ferramentas_children:

@@ -16,6 +16,56 @@ from ..services.item_foto_service import ItemFotoService
 from ..utils.time_service import TimeService
 
 
+LOST_BROKEN_EVENT_TYPES = ("quebra_ferramenta",)
+
+
+def _normalize_loss_damage_kind(value: str | None) -> str:
+    raw = (value or "").strip().lower()
+    if raw in {"perda", "perdida", "lost"}:
+        return "perdida"
+    return "quebrada"
+
+
+def _loss_damage_label(kind: str | None) -> str:
+    return "Perdida" if _normalize_loss_damage_kind(kind) == "perdida" else "Quebrada"
+
+
+def _parse_loss_damage_description(value: str | None) -> dict[str, str | None]:
+    text = (value or "").strip()
+    parsed: dict[str, str | None] = {"kind": None, "motivo": text or None, "saida_id": None, "source": None}
+    if not text:
+        return parsed
+
+    parts = [part.strip() for part in text.split("|")]
+    remaining: list[str] = []
+    for part in parts:
+        lower = part.lower()
+        if lower.startswith("tipo:"):
+            parsed["kind"] = _normalize_loss_damage_kind(part.split(":", 1)[1])
+        elif lower.startswith("motivo:"):
+            parsed["motivo"] = part.split(":", 1)[1].strip() or None
+        elif lower.startswith("saida:"):
+            parsed["saida_id"] = part.split(":", 1)[1].strip() or None
+            parsed["source"] = "saida"
+        elif lower.startswith("retirada_ferramenta:"):
+            parsed["saida_id"] = part.split(":", 1)[1].strip() or None
+            parsed["source"] = "retirada_ferramenta"
+        else:
+            remaining.append(part)
+
+    if not parsed.get("motivo") and remaining:
+        parsed["motivo"] = " | ".join(remaining).strip() or None
+    if not parsed.get("kind"):
+        lower_text = text.lower()
+        parsed["kind"] = "perdida" if "perd" in lower_text else "quebrada"
+    return parsed
+
+
+def _format_loss_damage_description(*, kind: str, motivo: str, source: str, record_id: int) -> str:
+    source_label = "retirada_ferramenta" if source == "retirada_ferramenta" else "saida"
+    return f"Tipo: {_loss_damage_label(kind)} | Motivo: {motivo.strip()} | {source_label}:{int(record_id)}"
+
+
 class ToolCustodyService:
     """Gerencia custódia de ferramentas por funcionário."""
 
@@ -249,7 +299,6 @@ class ToolCustodyService:
                 func.lower(Item.categoria).contains("ferrament"),
             )
             .order_by(RetiradaFerramenta.data_retirada.desc())
-            .limit(200)
             .all()
         )
 
@@ -304,6 +353,173 @@ class ToolCustodyService:
             )
 
         return itens
+
+    @staticmethod
+    def _parse_feed_datetime(value: Any) -> datetime | None:
+        if not value:
+            return None
+        try:
+            parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+            return TimeService.to_utc(parsed).replace(tzinfo=None)
+        except Exception:
+            return None
+
+    @staticmethod
+    def _get_daily_feed_tools_for_employee(matricula: str) -> list[dict[str, Any]]:
+        """Monta a lista da ficha usando a mesma fonte da custódia diária do dashboard."""
+        matricula_norm = str(matricula or "").strip()
+        if not matricula_norm:
+            return []
+
+        feed_items = [
+            item for item in ToolCustodyService.get_daily_custody_feed_items()
+            if str(item.get("matricula_full") or "").strip() == matricula_norm
+        ]
+        if not feed_items:
+            return []
+
+        codes = sorted({str(item.get("codigo") or "").strip() for item in feed_items if item.get("codigo")})
+        item_lookup = {
+            item.codigo_item: item
+            for item in Item.query.filter(Item.codigo_item.in_(codes)).all()
+        } if codes else {}
+
+        tools: list[dict[str, Any]] = []
+        for feed_item in feed_items:
+            codigo = str(feed_item.get("codigo") or "").strip()
+            item = item_lookup.get(codigo)
+            data_saida = ToolCustodyService._parse_feed_datetime(feed_item.get("data_retirada_iso"))
+            try:
+                days_in_use = int(feed_item.get("dias_em_uso") or 0)
+            except (TypeError, ValueError):
+                days_in_use = 0
+
+            tools.append({
+                "saida_id": feed_item.get("id"),
+                "source": feed_item.get("source") or "saida",
+                "codigo_item": codigo,
+                "descricao": feed_item.get("descricao") or (item.descricao if item else ""),
+                "categoria": (item.categoria if item else None) or "Ferramentas",
+                "marca": (item.marca if item else None) or "N/D",
+                "foto_path": feed_item.get("foto_path") or (item.foto_path if item else None),
+                "quantidade": feed_item.get("quantidade") or 0,
+                "data_saida": data_saida,
+                "data_saida_formatada": TimeService.format_local(data_saida, "%d/%m/%Y %H:%M") if data_saida else "N/D",
+                "local_servico": feed_item.get("local_servico") or "Não informado",
+                "observacao": feed_item.get("observacao") or "",
+                "days_in_use": max(0, days_in_use),
+                "is_alert": bool(feed_item.get("atrasada", False)),
+                "tipo_custodia": "temporaria",
+                "data_prevista_devolucao": feed_item.get("data_prevista_devolucao"),
+            })
+
+        tools.sort(
+            key=lambda tool: (
+                bool(tool.get("is_alert")),
+                int(tool.get("days_in_use") or 0),
+                tool.get("data_saida") or datetime.min,
+            ),
+            reverse=True,
+        )
+        return tools
+
+    @staticmethod
+    def list_lost_broken_tools(limit: int | None = 500) -> list[dict[str, Any]]:
+        """Lista ferramentas registradas como perdidas ou quebradas."""
+        query = (
+            db.session.query(InventarioEvento, Item, Usuario)
+            .join(Item, InventarioEvento.codigo_item == Item.codigo_item)
+            .outerjoin(Usuario, Usuario.matricula == InventarioEvento.matricula)
+            .filter(InventarioEvento.tipo.in_(LOST_BROKEN_EVENT_TYPES))
+            .order_by(Usuario.nome.asc(), InventarioEvento.data_evento.asc())
+        )
+        if limit:
+            query = query.limit(limit)
+
+        rows: list[dict[str, Any]] = []
+        for evento, item, usuario in query.all():
+            parsed = _parse_loss_damage_description(evento.descricao)
+            source = parsed.get("source") or "saida"
+            source_id = parsed.get("saida_id")
+            retirada_data = None
+            local_servico = None
+            observacao_saida = None
+
+            if source == "retirada_ferramenta" and source_id:
+                retirada = RetiradaFerramenta.query.get(int(source_id)) if str(source_id).isdigit() else None
+                if retirada:
+                    retirada_data = retirada.data_retirada
+                    local_servico = retirada.local_servico
+                    observacao_saida = retirada.observacao
+            elif source_id:
+                saida = Saida.query.get(int(source_id)) if str(source_id).isdigit() else None
+                if saida:
+                    retirada_data = saida.data_saida
+                    local_servico = saida.local_servico
+                    observacao_saida = saida.observacao
+
+            if retirada_data is None:
+                fallback_saida = (
+                    db.session.query(Saida)
+                    .filter(
+                        Saida.codigo_item == evento.codigo_item,
+                        Saida.matricula == evento.matricula,
+                        Saida.data_saida <= evento.data_evento,
+                    )
+                    .order_by(Saida.data_saida.desc())
+                    .first()
+                )
+                if fallback_saida:
+                    retirada_data = fallback_saida.data_saida
+                    local_servico = fallback_saida.local_servico
+                    observacao_saida = fallback_saida.observacao
+
+            quantidade = float(evento.quantidade or 0.0)
+            valor_unitario = None
+            valor_fonte = "Sem valor"
+            for attr, fonte in (
+                ("preco_compra_unitario_base", "NF/compra"),
+                ("preco_compra_unitario", "NF/compra"),
+                ("preco_reposicao_unitario_base", "Estimado/reposição"),
+                ("preco_reposicao_unitario", "Estimado/reposição"),
+            ):
+                try:
+                    candidate = float(getattr(item, attr, None) or 0.0)
+                except (TypeError, ValueError):
+                    candidate = 0.0
+                if candidate > 0:
+                    valor_unitario = candidate
+                    valor_fonte = fonte
+                    break
+
+            rows.append(
+                {
+                    "event_id": evento.id_evento,
+                    "kind": _normalize_loss_damage_kind(parsed.get("kind")),
+                    "kind_label": _loss_damage_label(parsed.get("kind")),
+                    "motivo": parsed.get("motivo") or "Motivo não informado",
+                    "codigo_item": item.codigo_item,
+                    "descricao": item.descricao or "Ferramenta",
+                    "marca": item.marca or "N/D",
+                    "foto_path": item.foto_path or None,
+                    "quantidade": quantidade,
+                    "valor_unitario": valor_unitario,
+                    "valor_total": (valor_unitario * quantidade) if valor_unitario is not None else None,
+                    "valor_fonte": valor_fonte,
+                    "matricula": evento.matricula or "N/D",
+                    "colaborador": usuario.nome if usuario else (evento.matricula or "N/D"),
+                    "setor": usuario.setor if usuario else "N/D",
+                    "local_servico": local_servico or "Não informado",
+                    "observacao_saida": observacao_saida or "",
+                    "data_retirada": retirada_data,
+                    "data_retirada_label": TimeService.format_local(retirada_data, "%d/%m/%Y %H:%M") if retirada_data else "N/D",
+                    "data_evento": evento.data_evento,
+                    "data_evento_label": TimeService.format_local(evento.data_evento, "%d/%m/%Y %H:%M"),
+                }
+            )
+
+        rows.sort(key=lambda row: (row.get("colaborador") or "", row.get("data_retirada") or row.get("data_evento") or datetime.min, row.get("local_servico") or ""))
+        return rows
 
     @staticmethod
     def _get_active_tools_for_employee(matricula: str) -> list[dict[str, Any]]:
@@ -375,6 +591,7 @@ class ToolCustodyService:
                 
                 active_tools.append({
                     "saida_id": saida.id_saida,
+                    "source": "saida",
                     "codigo_item": item.codigo_item,
                     "descricao": item.descricao,
                     "categoria": item.categoria,
@@ -606,7 +823,20 @@ class ToolCustodyService:
         
         # Separar por tipo de custódia
         tools_permanente = [t for t in active_tools if t.get("tipo_custodia") == "permanente"]
-        tools_temporaria = [t for t in active_tools if t.get("tipo_custodia") != "permanente"]
+        legacy_temporaria = [t for t in active_tools if t.get("tipo_custodia") != "permanente"]
+        dashboard_temporaria = ToolCustodyService._get_daily_feed_tools_for_employee(matricula)
+        tools_temporaria = []
+        seen_daily_keys: set[tuple[str, str]] = set()
+        for tool in [*dashboard_temporaria, *legacy_temporaria]:
+            source = str(tool.get("source") or "saida")
+            record_id = str(tool.get("saida_id") or "")
+            key = (source, record_id or str(tool.get("codigo_item") or ""))
+            if key in seen_daily_keys:
+                continue
+            seen_daily_keys.add(key)
+            tools_temporaria.append(tool)
+
+        active_tools = [*tools_permanente, *tools_temporaria]
         overdue_count = sum(1 for tool in tools_temporaria if tool.get("is_alert"))
         average_daily_days = round(
             sum(tool.get("days_in_use", 0) for tool in tools_temporaria) / len(tools_temporaria),
@@ -970,37 +1200,104 @@ class ToolCustodyService:
             pass
 
     @staticmethod
-    def register_damage(saida_id: int, observacao: str | None = None) -> None:
-        """Registra ferramenta quebrada/danificada."""
-        saida = Saida.query.get(saida_id)
-        if not saida:
-            raise ValueError("Saída não encontrada")
-        
-        ledger_result = inventory_service.mirror_legacy_movement(
-            product_id=saida.codigo_item or "",
-            movement_type="ajuste",
-            quantity=-float(saida.quantidade or 0),
-            payload=MovimentoPayload(
-                codigo=saida.codigo_item or "",
-                quantidade=float(saida.quantidade or 0),
-                matricula=saida.matricula,
-                observacao=observacao or f"Ferramenta danificada/perdida: {saida.item.descricao if saida.item else 'Item'}",
-            ),
-            metadata={"reference_type": "tool_custody_service", "legacy_event_type": "quebra_ferramenta"},
+    def register_damage(saida_id: int, observacao: str | None = None, *, kind: str = "quebrada", source: str = "saida") -> None:
+        """Registra ferramenta quebrada ou perdida sem devolver ao estoque."""
+        kind_norm = _normalize_loss_damage_kind(kind)
+        source_norm = "retirada_ferramenta" if str(source or "").lower() == "retirada_ferramenta" else "saida"
+        motivo = (observacao or "").strip()
+        if not motivo:
+            raise ValueError("Informe o motivo da quebra ou perda")
+
+        saida = None
+        retirada = None
+        if source_norm == "retirada_ferramenta":
+            retirada = RetiradaFerramenta.query.get(saida_id)
+            if not retirada:
+                raise ValueError("Retirada não encontrada")
+            if retirada.status == "devolvida":
+                raise ValueError("Ferramenta já foi devolvida")
+            if retirada.status == "para_reparo":
+                raise ValueError("Ferramenta já possui ocorrência registrada")
+            item = retirada.item
+            codigo_item = retirada.codigo_item
+            matricula = retirada.matricula
+            quantidade = float(retirada.quantidade or 0)
+            data_base = retirada.data_retirada
+        else:
+            saida = Saida.query.get(saida_id)
+            if not saida:
+                raise ValueError("Saída não encontrada")
+            item = saida.item
+            codigo_item = saida.codigo_item
+            matricula = saida.matricula
+            quantidade = float(saida.quantidade or 0)
+            data_base = saida.data_saida
+            retirada = (
+                RetiradaFerramenta.query
+                .filter(
+                    RetiradaFerramenta.codigo_item == codigo_item,
+                    RetiradaFerramenta.matricula == matricula,
+                    RetiradaFerramenta.status.in_(["em_uso", "atrasada"]),
+                )
+                .order_by(RetiradaFerramenta.data_retirada.desc())
+                .first()
+            )
+
+        existing_event = (
+            db.session.query(InventarioEvento.id_evento)
+            .filter(
+                InventarioEvento.codigo_item == codigo_item,
+                InventarioEvento.matricula == matricula,
+                InventarioEvento.tipo.in_(["devolucao_ferramenta", "devolucao_material", "quebra_ferramenta", "reparo_ferramenta"]),
+                InventarioEvento.data_evento >= data_base,
+            )
+            .first()
+        )
+        if existing_event:
+            raise ValueError("Ferramenta já possui baixa ou ocorrência registrada")
+
+        descricao_evento = _format_loss_damage_description(
+            kind=kind_norm,
+            motivo=motivo,
+            source=source_norm,
+            record_id=saida_id,
         )
 
+        ledger_result = None
+        if source_norm == "retirada_ferramenta":
+            ledger_result = inventory_service.mirror_legacy_movement(
+                product_id=codigo_item or "",
+                movement_type="ajuste",
+                quantity=-float(quantidade or 0),
+                payload=MovimentoPayload(
+                    codigo=codigo_item or "",
+                    quantidade=float(quantidade or 0),
+                    matricula=matricula,
+                    observacao=descricao_evento,
+                ),
+                metadata={"reference_type": "tool_custody_service", "legacy_event_type": "quebra_ferramenta"},
+            )
+
+        if retirada and retirada.status != "devolvida":
+            retirada.registrar_devolucao(descricao_evento)
+            retirada.observacao_reparo = descricao_evento
+
         evento = InventarioEvento(
-            codigo_item=saida.codigo_item,
-            matricula=saida.matricula,
-            quantidade=saida.quantidade,
+            codigo_item=codigo_item,
+            matricula=matricula,
+            quantidade=quantidade,
             tipo="quebra_ferramenta",
-            descricao=observacao or f"Ferramenta danificada/perdida: {saida.item.descricao if saida.item else 'Item'}",
+            descricao=descricao_evento,
             data_evento=datetime.utcnow(),
         )
         
         db.session.add(evento)
         # Não ajusta estoque - ferramenta foi perdida/quebrada
         db.session.commit()
+        try:
+            inventory_service.invalidate_realtime_views()
+        except Exception:
+            pass
         if ledger_result is not None:
             ledger_result.metadata["reference_id"] = str(evento.id_evento)
             inventory_service.finalize_ledger_mirror(ledger_result)

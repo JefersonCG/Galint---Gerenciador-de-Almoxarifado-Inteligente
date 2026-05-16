@@ -22,7 +22,7 @@
                 </button>
                 <div id="{{ entry.collapse_id }}" class="collapse {{ 'show' if entry.active else '' }}">
                     {% for child in entry.children %}
-                    <a class="sidebar-link ps-4 {% if child.active %}active{% endif %}" href="{{ child.href }}">
+                    <a class="sidebar-link ps-4 {% if child.active %}active{% endif %}" href="{{ child.href }}" {% if child.workspace_skip %}data-workspace-skip="1"{% endif %}>
                         <i class="bi {{ child.icon }}"></i>
                         <span>{{ child.label }}</span>
                         {% if child.badge_count %}
@@ -42,7 +42,7 @@
                     </div>
                 </div>
                 {% else %}
-                <a class="sidebar-link {% if entry.active %}active{% endif %}" href="{{ entry.href }}">
+                <a class="sidebar-link {% if entry.active %}active{% endif %}" href="{{ entry.href }}" {% if entry.workspace_skip %}data-workspace-skip="1"{% endif %}>
                     {% if entry.icon %}<i class="bi {{ entry.icon }}"></i>{% endif %}
                     <span>{{ entry.label }}</span>
                     {% if entry.badge_count %}
