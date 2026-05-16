@@ -302,6 +302,14 @@
         color: #334155;
     }
 
+    .projection-cart-item-actions {
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        flex-shrink: 0;
+    }
+
     .projection-table {
         font-size: 0.88rem;
     }
@@ -783,7 +791,14 @@
                                 <span class="projection-cart-item-meta">Potencial: {{ item.selected_potential_quote.supplier.display_name }} • {{ item.selected_potential_quote.unit_price_base_display }}</span>
                                 {% endif %}
                             </span>
-                            <span>{{ brl(item.requested_total_value) }}</span>
+                            <span class="projection-cart-item-actions">
+                                <span>{{ brl(item.requested_total_value) }}</span>
+                                <form method="post" class="m-0">
+                                    {{ projection_hidden_filters(filters) }}
+                                    <input type="hidden" name="remove_projection_item" value="{{ item.codigo_item }}">
+                                    <button class="btn btn-outline-danger btn-sm" type="submit">Remover</button>
+                                </form>
+                            </span>
                         </div>
                         {% endfor %}
                         <div class="projection-cart-item projection-cart-total-row mt-2 fw-semibold">
@@ -1271,7 +1286,10 @@
                                 <span class="projection-cart-item-meta">${escapeHtml(supplierName)}${brandText}</span>
                                 ${potentialLine}
                             </span>
-                            <span>${currencyFormatter.format(Number(item?.requested_total_value || 0))}</span>
+                            <span class="projection-cart-item-actions">
+                                <span>${currencyFormatter.format(Number(item?.requested_total_value || 0))}</span>
+                                <button class="btn btn-outline-danger btn-sm" type="button" data-projection-remove-cart-item="${escapeHtml(item?.codigo_item || '')}">Remover</button>
+                            </span>
                         </div>
                     `;
                 }).join('');
@@ -1424,7 +1442,7 @@
             }
         };
 
-        const syncCartState = async () => {
+        const syncCartState = async (extraFields = {}) => {
             if (!syncUrl) {
                 return;
             }
@@ -1440,6 +1458,10 @@
 
             const requestId = ++syncRequestId;
             syncController = new AbortController();
+            const formData = new FormData(form);
+            Object.entries(extraFields || {}).forEach(([key, value]) => {
+                formData.append(key, value == null ? '' : String(value));
+            });
 
             try {
                 const response = await window.galintFetchWithAuth(
@@ -1450,7 +1472,7 @@
                             'Accept': 'application/json',
                             'X-Requested-With': 'XMLHttpRequest',
                         },
-                        body: new FormData(form),
+                        body: formData,
                         signal: syncController.signal,
                     },
                     'Sua sessão expirou durante a sincronização automática do carrinho. Faça login novamente.',
@@ -1498,6 +1520,20 @@
                 updateSelectionPreview();
             }
         };
+
+        cartSummaryEl?.addEventListener('click', (event) => {
+            const target = event.target instanceof HTMLElement ? event.target : null;
+            const button = target?.closest('[data-projection-remove-cart-item]');
+            if (!(button instanceof HTMLElement)) {
+                return;
+            }
+            const codigoItem = String(button.getAttribute('data-projection-remove-cart-item') || '').trim();
+            if (!codigoItem) {
+                return;
+            }
+            event.preventDefault();
+            syncCartState({ remove_projection_item: codigoItem });
+        });
 
         const scheduleCartSync = (delay = 220) => {
             if (!syncUrl) {

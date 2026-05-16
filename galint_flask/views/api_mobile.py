@@ -1173,6 +1173,21 @@ def retirar_multipla_mobile(current_user: Usuario):
                 canal_saida="ferramentas" if is_tool_item else "materiais",
             )
             inventory_service.validate_exit_payload_policy(item, payload_saida)
+            if is_tool_item and tipo_custodia_item != "permanente":
+                try:
+                    inventory_service._ensure_tool_withdrawal_limit(
+                        item.codigo_item,
+                        retirante_user.matricula,
+                        quantidade_operacao,
+                    )
+                except ValueError as exc:
+                    resultados.append({
+                        "index": idx,
+                        "codigo": codigo,
+                        "success": False,
+                        "message": str(exc),
+                    })
+                    continue
 
             # Criar saída
             saida = Saida()
@@ -1834,6 +1849,9 @@ def retirar_mobile(current_user: Usuario):
             canal_saida=("ferramentas" if is_tool_item else ("fracionado" if fracao_payload else "materiais")),
         )
         inventory_service.validate_exit_payload_policy(item, payload_saida)
+        if is_tool_item and tipo_custodia != "permanente":
+            qtd = int(max(1, round(float(quantidade_operacao or 1))))
+            inventory_service._ensure_tool_withdrawal_limit(item.codigo_item, retirante_user.matricula, qtd)
 
         ledger_result = inventory_service.mirror_legacy_movement(
             product_id=item.codigo_item,
@@ -1874,19 +1892,6 @@ def retirar_mobile(current_user: Usuario):
             categoria_text = (item.categoria or '').lower()
             if 'ferrament' in categoria_text and tipo_custodia != "permanente":
                 qtd = int(max(1, round(float(quantidade_operacao or 1))))
-
-                retirada_ativa_existente = db.session.query(RetiradaFerramenta.id).filter(
-                    RetiradaFerramenta.codigo_item == item.codigo_item,
-                    RetiradaFerramenta.matricula == retirante_user.matricula,
-                    RetiradaFerramenta.status.in_(['em_uso', 'atrasada'])
-                ).first()
-
-                if retirada_ativa_existente:
-                    db.session.rollback()
-                    return jsonify({
-                        "success": False,
-                        "message": "Retirada bloqueada: este funcionário já possui esta ferramenta em aberto. Faça a devolução antes de nova retirada."
-                    }), 400
                 
                 # VALIDAÇÃO CRÍTICA: Verificar se há saldo disponível para ferramentas
                 from sqlalchemy import func

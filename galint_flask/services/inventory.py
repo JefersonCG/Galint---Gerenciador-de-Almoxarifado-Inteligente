@@ -79,6 +79,8 @@ logger = logging.getLogger(__name__)
 
 ADVANCED_DIMENSION_OPTIONS = ("unit", "mass", "volume", "length")
 ACTIVE_TOOL_WITHDRAWAL_STATUSES = ("em_uso", "atrasada", "para_reparo")
+EMPLOYEE_OPEN_TOOL_WITHDRAWAL_STATUSES = ("em_uso", "atrasada")
+MAX_OPEN_SAME_TOOL_PER_EMPLOYEE = 3
 OPEN_TOOL_REPAIR_STATUSES = ("aguardando_orcamento", "em_reparo")
 TOOL_EXIT_CHANNELS = {"ferramenta", "ferramentas", "custodia", "tool_custody", "central_kits"}
 FRACTIONAL_EXIT_CHANNELS = {"fracionado", "saida_fracionada", "saida-fracionada"}
@@ -4905,13 +4907,20 @@ class InventoryService:
 
         return payload
 
-    def _has_active_tool_withdrawal(self, codigo_item: str, matricula: str | None) -> bool:
-        """Retorna True se a matrícula já possui retirada ativa da mesma ferramenta."""
+    @staticmethod
+    def _normalize_tool_withdrawal_quantity(value: object) -> int:
+        try:
+            quantity = int(round(float(value or 0)))
+        except (TypeError, ValueError):
+            quantity = 0
+        return max(1, quantity)
+
+    def _legacy_active_tool_withdrawal_quantity(self, codigo_item: str, matricula: str | None) -> int:
         if not codigo_item or not matricula:
-            return False
+            return 0
 
         saidas = (
-            db.session.query(Saida.id_saida, Saida.data_saida)
+            db.session.query(Saida.id_saida, Saida.data_saida, Saida.quantidade)
             .filter(
                 Saida.codigo_item == codigo_item,
                 Saida.matricula == matricula,
@@ -4922,7 +4931,7 @@ class InventoryService:
         )
 
         if not saidas:
-            return False
+            return 0
 
         tipos_fechamento = [
             "devolucao_ferramenta",
@@ -4932,7 +4941,8 @@ class InventoryService:
             "devolucao",
         ]
 
-        for _, data_saida in saidas:
+        active_quantity = 0
+        for _, data_saida, quantidade in saidas:
             devolucao = (
                 db.session.query(InventarioEvento.id_evento)
                 .filter(
@@ -4944,9 +4954,44 @@ class InventoryService:
                 .first()
             )
             if not devolucao:
-                return True
+                active_quantity += self._normalize_tool_withdrawal_quantity(quantidade)
 
-        return False
+        return active_quantity
+
+    def _active_tool_withdrawal_quantity(self, codigo_item: str, matricula: str | None) -> int:
+        if not codigo_item or not matricula:
+            return 0
+
+        control_quantity = db.session.query(
+            func.coalesce(func.sum(RetiradaFerramenta.quantidade), 0)
+        ).filter(
+            RetiradaFerramenta.codigo_item == codigo_item,
+            RetiradaFerramenta.matricula == matricula,
+            RetiradaFerramenta.status.in_(EMPLOYEE_OPEN_TOOL_WITHDRAWAL_STATUSES),
+        ).scalar() or 0
+
+        try:
+            control_quantity_int = int(control_quantity or 0)
+        except (TypeError, ValueError):
+            control_quantity_int = 0
+
+        legacy_quantity = self._legacy_active_tool_withdrawal_quantity(codigo_item, matricula)
+        return max(control_quantity_int, legacy_quantity)
+
+    def _ensure_tool_withdrawal_limit(self, codigo_item: str, matricula: str | None, requested_quantity: object = 1) -> int:
+        active_quantity = self._active_tool_withdrawal_quantity(codigo_item, matricula)
+        requested = self._normalize_tool_withdrawal_quantity(requested_quantity)
+        if active_quantity + requested > MAX_OPEN_SAME_TOOL_PER_EMPLOYEE:
+            raise ValueError(
+                "Retirada bloqueada: limite de 3 ferramentas do mesmo código em aberto para este colaborador. "
+                f"Atualmente ele possui {active_quantity} e a retirada solicitada é de {requested}. "
+                "Faça a devolução antes de nova retirada."
+            )
+        return active_quantity
+
+    def _has_active_tool_withdrawal(self, codigo_item: str, matricula: str | None) -> bool:
+        """Retorna True se a matrícula já possui retirada ativa da mesma ferramenta."""
+        return self._active_tool_withdrawal_quantity(codigo_item, matricula) > 0
 
     def ensure_barcodes_for_all(self) -> dict[str, int]:
         stats = {
@@ -5003,12 +5048,19 @@ class InventoryService:
         checksum = (10 - ((odd_sum * 3 + even_sum) % 10)) % 10
         return str(checksum)
 
-    def list_items(self, *, use_cache: bool = True) -> list[dict[str, Any]]:
-        cached = self._get_cached("list_items") if use_cache else None
+    def list_items(
+        self,
+        *,
+        use_cache: bool = True,
+        refresh_derived_fields: bool = True,
+        cache_ttl_seconds: float = 5.0,
+    ) -> list[dict[str, Any]]:
+        cache_key = "list_items" if refresh_derived_fields else "list_items_fast"
+        cached = self._get_cached(cache_key) if use_cache else None
         if cached is not None:
             return [dict(item) for item in cached]
 
-        itens = Item.query.order_by(Item.descricao).all()
+        itens = Item.query.options(joinedload(Item.product_units)).order_by(Item.descricao).all()
         resultado: list[dict[str, Any]] = []
         atualizado = False
         from ..services.embalagem_service import EmbalagemService
@@ -5085,7 +5137,7 @@ class InventoryService:
 
         for item in itens:
             if self._should_use_packaging_display(item):
-                if self._sync_packaging_read_model_for_item(item, commit=False):
+                if refresh_derived_fields and self._sync_packaging_read_model_for_item(item, commit=False):
                     atualizado = True
                 try:
                     saldo = float(item.get_saldo_fisico_total() or 0.0)
@@ -5106,14 +5158,14 @@ class InventoryService:
                 continue
 
             minimo = _calculate_min_stock(saldo)
-            if item.estoque_minimo != minimo:
+            if refresh_derived_fields and item.estoque_minimo != minimo:
                 item.estoque_minimo = minimo
                 atualizado = True
 
-            if _sync_missing_item_purchase_price_from_history(item):
+            if refresh_derived_fields and _sync_missing_item_purchase_price_from_history(item):
                 atualizado = True
 
-            if _reconcile_normalized_item_prices(item):
+            if refresh_derived_fields and _reconcile_normalized_item_prices(item):
                 atualizado = True
 
             preco_compra = _safe_float_or_none(getattr(item, "preco_compra_unitario", None))
@@ -5190,7 +5242,7 @@ class InventoryService:
         payload = [dict(item) for item in resultado]
         if not use_cache:
             return payload
-        return self._set_cached("list_items", payload, ttl_seconds=5.0)
+        return self._set_cached(cache_key, payload, ttl_seconds=cache_ttl_seconds)
 
     def get_item(self, codigo: str) -> dict[str, Any] | None:
         item = Item.query.get(codigo)
@@ -6655,11 +6707,7 @@ class InventoryService:
 
         categoria_text = (item.categoria or "").lower()
         if not is_entrada and "ferrament" in categoria_text:
-            if self._has_active_tool_withdrawal(payload.codigo, payload.matricula):
-                raise ValueError(
-                    "Retirada bloqueada: este funcionário já possui esta ferramenta em aberto. "
-                    "Faça a devolução antes de nova retirada."
-                )
+            self._ensure_tool_withdrawal_limit(payload.codigo, payload.matricula, payload.quantidade)
 
         # Verificar se o item usa sistema de embalagens
         from ..services.embalagem_service import EmbalagemService

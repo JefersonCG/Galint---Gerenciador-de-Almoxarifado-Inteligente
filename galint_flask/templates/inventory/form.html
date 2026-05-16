@@ -3115,7 +3115,8 @@
                 <div class="tab-pane" id="tab-financeiro">
                     {% set finance_section_can_edit = finance_section_can_edit if finance_section_can_edit is defined else (item is none or current_user.is_admin) %}
                     {% set finance_locked = item is not none and not finance_section_can_edit %}
-                    {% set origem_valor = form_item.finance_origem_valor if form_item and form_item.finance_origem_valor else 'inventario_inicial' %}
+                    {% set origem_valor_raw = form_item.finance_origem_valor if form_item and form_item.finance_origem_valor else 'valor_estimado' %}
+                    {% set origem_valor = origem_valor_raw if origem_valor_raw in ['compra_nf', 'compra_cupom', 'valor_estimado'] else 'valor_estimado' %}
                     {% set origem_documental = origem_valor in ['compra_nf', 'compra_cupom'] %}
                     {% set supplier_defined = preferred_supplier or (form_item and form_item.finance_supplier_id) %}
                     {% set tipo_documento_tab = form_item.finance_tipo_documento if form_item and form_item.finance_tipo_documento else 'Sem documento' %}
@@ -3194,10 +3195,7 @@
                                             <select class="form-select" id="finance_origem_valor" name="finance_origem_valor" {% if finance_locked %}disabled{% endif %}>
                                                 <option value="compra_nf" {% if origem_valor == 'compra_nf' %}selected{% endif %}>Compra com NF</option>
                                                 <option value="compra_cupom" {% if origem_valor == 'compra_cupom' %}selected{% endif %}>Compra com cupom</option>
-                                                <option value="inventario_inicial" {% if origem_valor == 'inventario_inicial' %}selected{% endif %}>Inventário inicial</option>
                                                 <option value="valor_estimado" {% if origem_valor == 'valor_estimado' %}selected{% endif %}>Valor estimado</option>
-                                                <option value="doacao" {% if origem_valor == 'doacao' %}selected{% endif %}>Doação</option>
-                                                <option value="ajuste_contabil" {% if origem_valor == 'ajuste_contabil' %}selected{% endif %}>Ajuste contábil</option>
                                             </select>
                                         </div>
                                     </div>
@@ -3210,7 +3208,6 @@
                                                 <option value="" {% if tipo_documento == '' %}selected{% endif %}>—</option>
                                                 <option value="nf" {% if tipo_documento == 'nf' %}selected{% endif %}>Nota fiscal</option>
                                                 <option value="cupom" {% if tipo_documento == 'cupom' %}selected{% endif %}>Cupom não fiscal</option>
-                                                <option value="recibo" {% if tipo_documento == 'recibo' %}selected{% endif %}>Recibo</option>
                                                 <option value="manual" {% if tipo_documento == 'manual' %}selected{% endif %}>Lançamento manual</option>
                                             </select>
                                         </div>
@@ -6322,13 +6319,7 @@ Conversão: 1 saco = 20 quilos</div>
         }, 1400);
     };
 
-    const buildFotoSearchQuery = () => {
-        return [descricaoInput?.value || '', marcaInput?.value || '']
-            .map((part) => String(part || '').trim())
-            .filter(Boolean)
-            .join(' ')
-            .trim();
-    };
+    const buildFotoSearchQuery = () => buildDescriptionBrandQuery(descricaoInput?.value, marcaInput?.value);
 
     const openExternalImageSearch = (provider) => {
         const query = String(fotoSearchQueryInput?.value || '').trim();
@@ -7099,7 +7090,7 @@ Conversão: 1 saco = 20 quilos</div>
     registrarCompraEdicaoToggle?.addEventListener('change', () => {
         if (registrarCompraEdicaoToggle.checked) {
             financeTipoDocumentoInput && !financeTipoDocumentoInput.value && (financeTipoDocumentoInput.value = 'nf');
-            financeOrigemValorInput && (!financeOrigemValorInput.value || financeOrigemValorInput.value === 'inventario_inicial') && (financeOrigemValorInput.value = 'compra_nf');
+            financeOrigemValorInput && (!financeOrigemValorInput.value || financeOrigemValorInput.value === 'valor_estimado') && (financeOrigemValorInput.value = 'compra_nf');
             financeComprovacaoInput && (!financeComprovacaoInput.value || financeComprovacaoInput.value === 'sem_comprovacao') && (financeComprovacaoInput.value = 'comprovado');
         }
         syncFinanceSectionState();
@@ -7408,7 +7399,7 @@ Conversão: 1 saco = 20 quilos</div>
             captureNfAutofillSnapshot();
         }
         if (financeOrigemValorInput) {
-            financeOrigemValorInput.value = payload.origem_valor || 'inventario_inicial';
+            financeOrigemValorInput.value = payload.origem_valor || 'valor_estimado';
         }
         syncFinancePurchaseFieldVisibility();
         if (financeTipoDocumentoInput) {
@@ -7656,7 +7647,7 @@ Conversão: 1 saco = 20 quilos</div>
         if (financeTipoDocumentoInput && !financeTipoDocumentoInput.value) {
             financeTipoDocumentoInput.value = 'nf';
         }
-        if (financeOrigemValorInput && (!financeOrigemValorInput.value || financeOrigemValorInput.value === 'inventario_inicial')) {
+        if (financeOrigemValorInput && (!financeOrigemValorInput.value || financeOrigemValorInput.value === 'valor_estimado')) {
             financeOrigemValorInput.value = 'compra_nf';
         }
         if (financeComprovacaoInput && (!financeComprovacaoInput.value || financeComprovacaoInput.value === 'sem_comprovacao')) {
@@ -7820,14 +7811,23 @@ Conversão: 1 saco = 20 quilos</div>
         }
     };
 
-    const buildDefaultPriceQuery = (item) => {
-        const descricao = String(item?.descricao || '').trim();
-        const marca = String(item?.marca || '').trim();
-        const tipoEmb = String(item?.tipo_embalagem_novo || '').trim();
-        const unidadesPor = Number(item?.unidades_por_embalagem ?? 0);
-        const extra = (tipoEmb && Number.isFinite(unidadesPor) && unidadesPor > 0) ? ` ${tipoEmb} ${unidadesPor}` : '';
-        return `${descricao}${marca ? ` ${marca}` : ''}${extra}`.trim();
+    const normalizePriceQueryText = (value) => String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+
+    const buildDescriptionBrandQuery = (descriptionValue, brandValue) => {
+        const description = String(descriptionValue || '').trim();
+        const brand = String(brandValue || '').trim();
+        if (!description) return brand;
+        if (!brand || normalizePriceQueryText(description).includes(normalizePriceQueryText(brand))) {
+            return description;
+        }
+        return `${description} ${brand}`.trim();
     };
+
+    const buildDefaultPriceQuery = (item) => buildDescriptionBrandQuery(item?.descricao, item?.marca);
 
     const openPriceModal = async (item) => {
         if (!priceModalInstance) return;
@@ -8076,6 +8076,7 @@ Conversão: 1 saco = 20 quilos</div>
             codigo: String(btnBuscarPrecoForm.dataset.precoCodigo || ''),
             descricao: String(btnBuscarPrecoForm.dataset.precoDescricao || ''),
             marca: String(btnBuscarPrecoForm.dataset.precoMarca || ''),
+            unidade: String(document.getElementById('unidade')?.value || ''),
             tipo_embalagem_novo: String(btnBuscarPrecoForm.dataset.precoTipo || ''),
             unidades_por_embalagem: Number(btnBuscarPrecoForm.dataset.precoUnidades || 0) || 0,
             preco_reposicao_unidade_preco: String(precoReposicaoUnidadePrecoSelect?.value || ''),

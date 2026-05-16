@@ -4,6 +4,7 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import date, datetime
 from typing import Any
+from unicodedata import combining as unicodedata_combining, normalize as unicode_normalize
 
 from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
@@ -193,24 +194,20 @@ def _build_manual_replacement_query(
     conteudo: float | None = None,
 ) -> str:
     if item is not None:
-        stored_query = (item.preco_reposicao_query or "").strip()
-        if stored_query:
-            return stored_query
         descricao = item.descricao
         marca = item.marca
-        embalagem = item.tipo_embalagem_novo
-        conteudo = item.unidades_por_embalagem or item.grandeza_referencia or item.litros_por_embalagem
 
-    parts = [
-        (descricao or "").strip(),
-        (marca or "").strip(),
-    ]
-    embalagem_clean = (embalagem or "").strip()
-    if embalagem_clean:
-        parts.append(embalagem_clean)
-    if conteudo:
-        parts.append(str(conteudo).rstrip("0").rstrip(".") if isinstance(conteudo, float) else str(conteudo))
-    return " ".join(part for part in parts if part).strip()
+    description = (descricao or "").strip()
+    brand = (marca or "").strip()
+    if not description:
+        return brand
+    normalized_description = unicode_normalize("NFD", description.lower())
+    normalized_description = "".join(ch for ch in normalized_description if not unicodedata_combining(ch))
+    normalized_brand = unicode_normalize("NFD", brand.lower())
+    normalized_brand = "".join(ch for ch in normalized_brand if not unicodedata_combining(ch))
+    if not brand or normalized_brand in normalized_description:
+        return description
+    return f"{description} {brand}".strip()
 
 
 def _apply_manual_replacement_price_to_item(
@@ -235,7 +232,7 @@ def _apply_manual_replacement_price_to_item(
     item.preco_reposicao_fator_base = float(normalized.factor_to_base)
     item.preco_reposicao_fonte = (source or item.preco_reposicao_fonte or "Documentos Fiscais").strip()
     item.preco_reposicao_uf = (uf or item.preco_reposicao_uf or "").strip().upper() or None
-    item.preco_reposicao_query = (query or item.preco_reposicao_query or _build_manual_replacement_query(item=item)).strip() or None
+    item.preco_reposicao_query = (query or _build_manual_replacement_query(item=item) or item.preco_reposicao_query).strip() or None
     item.preco_reposicao_url = (url or item.preco_reposicao_url or "").strip() or None
     item.preco_reposicao_atualizado_em = datetime.utcnow()
     item.preco_reposicao_atualizado_por = actor
@@ -1884,7 +1881,7 @@ def registrar_nf():
                 "preco_reposicao_fonte": preco_reposicao_fonte,
                 "preco_reposicao_uf": preco_reposicao_uf,
                 "preco_reposicao_url": preco_reposicao_url,
-                "preco_reposicao_query": preco_reposicao_query or " ".join(part for part in [nova_descricao, nova_marca] if part).strip() or None,
+                "preco_reposicao_query": preco_reposicao_query or _build_manual_replacement_query(descricao=nova_descricao, marca=nova_marca) or None,
                 "pre_cadastro_pendente": True,
                 "pre_cadastro_origem": "nf",
                 "pre_cadastro_criado_em": datetime.utcnow(),

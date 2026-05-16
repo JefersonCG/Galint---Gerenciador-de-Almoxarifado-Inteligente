@@ -984,11 +984,11 @@ def registrar_saida_multipla():
                     quantidade_ferramenta = int(round(float(quantidade_convertida)))
                     if abs(float(quantidade_convertida) - float(quantidade_ferramenta)) > 1e-6 or quantidade_ferramenta < 1:
                         raise ValueError("Ferramentas devem sair em quantidade inteira.")
-                    if inventory_service._has_active_tool_withdrawal(item.codigo_item, usuario.matricula):
-                        raise ValueError(
-                            "Retirada bloqueada: este funcionário já possui esta ferramenta em aberto. "
-                            "Faça a devolução antes de nova retirada."
-                        )
+                    inventory_service._ensure_tool_withdrawal_limit(
+                        item.codigo_item,
+                        usuario.matricula,
+                        quantidade_ferramenta,
+                    )
                     item_info = inventory_service.get_item(item.codigo_item)
                     if item_info and item_info.get("is_available") is False:
                         raise ValueError(

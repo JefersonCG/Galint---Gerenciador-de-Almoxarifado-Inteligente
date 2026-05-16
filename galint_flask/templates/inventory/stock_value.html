@@ -1681,14 +1681,23 @@
         document.querySelector('[data-finance-collapse-all]')?.addEventListener('click', () => runPanelAction('hide'));
     };
 
-    const buildDefaultPriceQuery = (item) => {
-        const descricao = String(item?.descricao || '').trim();
-        const marca = String(item?.marca || '').trim();
-        const tipoEmb = String(item?.tipo_embalagem_novo || '').trim();
-        const unidadesPor = Number(item?.unidades_por_embalagem ?? 0);
-        const extra = (tipoEmb && Number.isFinite(unidadesPor) && unidadesPor > 0) ? ` ${tipoEmb} ${unidadesPor}` : '';
-        return `${descricao}${marca ? ` ${marca}` : ''}${extra}`.trim();
+    const normalizePriceQueryText = (value) => String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+
+    const buildDescriptionBrandQuery = (descriptionValue, brandValue) => {
+        const description = String(descriptionValue || '').trim();
+        const brand = String(brandValue || '').trim();
+        if (!description) return brand;
+        if (!brand || normalizePriceQueryText(description).includes(normalizePriceQueryText(brand))) {
+            return description;
+        }
+        return `${description} ${brand}`.trim();
     };
+
+    const buildDefaultPriceQuery = (item) => buildDescriptionBrandQuery(item?.descricao, item?.marca);
 
     const openPriceModal = async (item) => {
         if (!priceModalInstance) return;

@@ -2702,13 +2702,11 @@
                                 <select class="form-select form-select-sm docf-hidden-native-select" id="finance_tipo_documento" name="finance_tipo_documento">
                                     <option value="nf">Nota fiscal</option>
                                     <option value="cupom">Cupom não fiscal</option>
-                                    <option value="recibo">Recibo</option>
                                     <option value="manual">Manual</option>
                                 </select>
                                 <div class="docf-choice-grid docf-choice-grid--finance" data-visual-select="finance_tipo_documento">
                                     <label class="docf-switch-option is-selected" data-select-value="nf" aria-pressed="true" role="button" tabindex="0"><span class="docf-switch-toggle" aria-hidden="true"></span><span>NF</span></label>
                                     <label class="docf-switch-option" data-select-value="cupom" aria-pressed="false" role="button" tabindex="0"><span class="docf-switch-toggle" aria-hidden="true"></span><span>Cupom</span></label>
-                                    <label class="docf-switch-option" data-select-value="recibo" aria-pressed="false" role="button" tabindex="0"><span class="docf-switch-toggle" aria-hidden="true"></span><span>Recibo</span></label>
                                     <label class="docf-switch-option" data-select-value="manual" aria-pressed="false" role="button" tabindex="0"><span class="docf-switch-toggle" aria-hidden="true"></span><span>Manual</span></label>
                                 </div>
                                 <div class="docf-field-lock-note" data-doc-lock-note></div>
@@ -2719,13 +2717,11 @@
                                     <option value="compra_nf">Compra com NF</option>
                                     <option value="compra_cupom">Compra com cupom</option>
                                     <option value="valor_estimado">Valor estimado</option>
-                                    <option value="inventario_inicial">Inventário inicial</option>
                                 </select>
                                 <div class="docf-choice-grid docf-choice-grid--finance" data-visual-select="finance_origem_valor">
                                     <label class="docf-switch-option is-selected" data-select-value="compra_nf" aria-pressed="true" role="button" tabindex="0"><span class="docf-switch-toggle" aria-hidden="true"></span><span>Compra NF</span></label>
                                     <label class="docf-switch-option" data-select-value="compra_cupom" aria-pressed="false" role="button" tabindex="0"><span class="docf-switch-toggle" aria-hidden="true"></span><span>Cupom</span></label>
                                     <label class="docf-switch-option" data-select-value="valor_estimado" aria-pressed="false" role="button" tabindex="0"><span class="docf-switch-toggle" aria-hidden="true"></span><span>Estimado</span></label>
-                                    <label class="docf-switch-option" data-select-value="inventario_inicial" aria-pressed="false" role="button" tabindex="0"><span class="docf-switch-toggle" aria-hidden="true"></span><span>Inventário</span></label>
                                 </div>
                                 <div class="docf-field-lock-note" data-doc-lock-note></div>
                             </div>
@@ -3193,7 +3189,7 @@
                         <input class="form-control" id="docf-photo-query" type="text" readonly>
                         <button class="docf-btn-secondary docf-btn-compact" type="button" id="docf-photo-copy-btn">Copiar</button>
                     </div>
-                    <div class="docf-field-hint">O termo usa descrição, categoria e marca para reduzir buscas erradas.</div>
+                    <div class="docf-field-hint">O termo usa descrição e marca para reduzir buscas erradas.</div>
                 </div>
                 <div class="docf-photo-action-row">
                     <button class="docf-btn-secondary" type="button" id="docf-photo-google-btn">Google Imagens</button>
@@ -3539,7 +3535,7 @@
             replacementUnitInput.value = String(item.preco_reposicao_unidade_preco || '').trim().toLowerCase();
         }
         if (replacementQueryInput) {
-            replacementQueryInput.value = String(item.preco_reposicao_query || '').trim();
+            replacementQueryInput.value = buildReplacementQuery();
         }
         if (photoUrlInput) {
             photoUrlInput.value = String(item.foto_url || '').trim();
@@ -3674,17 +3670,30 @@
         return /\.(png|jpe?g|webp|gif|bmp|svg)(\?.*)?$/i.test(raw) || /image|img|photo|cdn/i.test(raw);
     }
 
-    function buildPhotoSearchQuery() {
-        return [novaDescricaoInput?.value || '', novaCategoriaInput?.value || '', novaMarcaInput?.value || '']
-            .map((part) => String(part || '').trim())
-            .filter(Boolean)
-            .join(' ')
+    function normalizeSearchQueryText(value) {
+        return String(value || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
             .trim();
+    }
+
+    function buildDescriptionBrandQuery(descriptionValue, brandValue) {
+        const description = String(descriptionValue || '').trim();
+        const brand = String(brandValue || '').trim();
+        if (!description) return brand;
+        if (!brand || normalizeSearchQueryText(description).includes(normalizeSearchQueryText(brand))) {
+            return description;
+        }
+        return `${description} ${brand}`.trim();
+    }
+
+    function buildPhotoSearchQuery() {
+        return buildDescriptionBrandQuery(novaDescricaoInput?.value, novaMarcaInput?.value);
     }
 
     function hasPhotoAssistantMinimumContext() {
         return Boolean(String(novaDescricaoInput?.value || '').trim())
-            && Boolean(String(novaCategoriaInput?.value || '').trim())
             && Boolean(String(novaMarcaInput?.value || '').trim());
     }
 
@@ -3745,7 +3754,7 @@
     function openPhotoAssistantSearch(provider) {
         const query = buildPhotoSearchQuery();
         if (!query) {
-            setPhotoAssistantFeedback('Preencha descrição, categoria e marca antes de abrir o buscador.', 'warning');
+            setPhotoAssistantFeedback('Preencha descrição e marca antes de abrir o buscador.', 'warning');
             return;
         }
         if (photoAssistantQueryInput) {
@@ -3758,9 +3767,7 @@
     }
 
     function buildReplacementQuery() {
-        const description = String(novaDescricaoInput?.value || '').trim();
-        const brand = String(novaMarcaInput?.value || '').trim();
-        return [description, brand].filter(Boolean).join(' ').trim();
+        return buildDescriptionBrandQuery(novaDescricaoInput?.value, novaMarcaInput?.value);
     }
 
     function syncReplacementQuery() {
@@ -4654,15 +4661,9 @@
 
     function buildManualPriceQuery(item) {
         const selected = item || activeExistingItemPayload || {};
-        const stored = String(replacementQueryInput?.value || selected.preco_reposicao_query || '').trim();
-        if (stored) return stored;
         const descricao = String(selected.descricao || novaDescricaoInput?.value || '').trim();
         const marca = String(selected.marca || novaMarcaInput?.value || '').trim();
-        const embalagem = String(selected.tipo_embalagem_novo || novaUnidadeDocumentalInput?.value || '').trim();
-        const conteudo = String(
-            selected.unidades_por_embalagem || selected.capacidade_embalagem || selected.grandeza_referencia || novoConteudoEmbalagemInput?.value || ''
-        ).trim();
-        return [descricao, marca, embalagem, conteudo].filter(Boolean).join(' ').trim();
+        return buildDescriptionBrandQuery(descricao, marca);
     }
 
     function chooseApiReplacementPrice(data) {
@@ -4711,7 +4712,7 @@
                 uf: item?.preco_reposicao_uf || replacementUfInput?.value || '',
                 url: item?.preco_reposicao_url || replacementUrlInput?.value || '',
                 unit: item?.preco_reposicao_unidade_preco || replacementUnitInput?.value || '',
-                query: item?.preco_reposicao_query || query
+                query
             });
             setManualPriceLookupStatus(`Valor de reposição salvo aplicado: ${formatCurrencyPreview(savedPrice)}. Atualizando referência pela API...`);
         } else if (!query) {

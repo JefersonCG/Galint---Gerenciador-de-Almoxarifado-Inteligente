@@ -857,6 +857,26 @@ ${parent.scripts()}
         return unidadeSelecionada ? normalizeFractionUnitCode(unidadeSelecionada.value) : '';
     }
 
+    function getPreparedQuantity(item) {
+        const value = Number(item && item.quantidadePreparada);
+        return Number.isFinite(value) && value > 0 ? value : 0;
+    }
+
+    function getPreparedUnit(item) {
+        return normalizeFractionUnitCode(item && item.unidadePreparada);
+    }
+
+    function clearPreparedWithdrawal(item) {
+        if (!item) {
+            return item;
+        }
+        return {
+            ...item,
+            quantidadePreparada: null,
+            unidadePreparada: null,
+        };
+    }
+
     function getPendingItemOperationalFactor(item) {
         const value = Number(item && item.unitFactorBase);
         return Number.isFinite(value) && value > 0 ? value : 1;
@@ -1069,8 +1089,10 @@ ${parent.scripts()}
         const actor = String((item && item.usuario) || inputUsuario.value || '').trim();
         const local = String((item && item.local) || inputLocal.value || '').trim();
         const operationalContext = getOperationalContext();
-        const unidade = getSelectedUnitCode();
-        const quantidadeAtual = extra && extra.quantidade != null ? extra.quantidade : parseFloat(modalQuantidadeInput.value || '0');
+        const unidade = normalizeFractionUnitCode(
+            extra && extra.unidade ? extra.unidade : (getPreparedUnit(item) || getSelectedUnitCode())
+        );
+        const quantidadeAtual = extra && extra.quantidade != null ? extra.quantidade : (getPreparedQuantity(item) || parseFloat(modalQuantidadeInput.value || '0'));
         const quantidadeDisplay = quantidadeAtual && quantidadeAtual > 0
             ? formatDecimal(quantidadeAtual) + ' ' + getSelectedUnitBadge(unidade)
             : '--';
@@ -1139,9 +1161,11 @@ ${parent.scripts()}
             return;
         }
 
-        const unidade = getSelectedUnitCode();
+        const unidade = normalizeFractionUnitCode(
+            extra && extra.unidade ? extra.unidade : (getPreparedUnit(item) || getSelectedUnitCode())
+        );
         const operationalContext = getOperationalContext();
-        const quantidadeAtual = extra && extra.quantidade != null ? extra.quantidade : parseFloat(modalQuantidadeInput.value || '0');
+        const quantidadeAtual = extra && extra.quantidade != null ? extra.quantidade : (getPreparedQuantity(item) || parseFloat(modalQuantidadeInput.value || '0'));
         const quantidadeDisplay = quantidadeAtual && quantidadeAtual > 0
             ? formatDecimal(quantidadeAtual) + ' ' + getSelectedUnitBadge(unidade)
             : 'Aguardando pesagem';
@@ -1151,6 +1175,8 @@ ${parent.scripts()}
         const localDisplay = String(item.local || inputLocal.value || '').trim() || 'Nao informado';
         const eyebrowLabel = previewStatus === 'completed'
             ? '<i class="bi bi-check2-circle"></i> Ultima retirada registrada'
+            : previewStatus === 'ready'
+                ? '<i class="bi bi-hourglass-split"></i> Aguardando conferencia'
             : '<i class="bi bi-droplet-half"></i> Retirada pesada';
         const financialStatHtml = financialSummary && financialSummary.totalDisplay
             ? '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Valor estimado</span><span class="operation-preview-stat-value">' + escapeHtml(financialSummary.totalDisplay) + '</span></div>'
@@ -1158,6 +1184,8 @@ ${parent.scripts()}
         const previewNoteParts = [
             previewStatus === 'completed'
                 ? 'Ultima retirada registrada. Confira a pesagem antes de iniciar a proxima operacao.'
+                : previewStatus === 'ready'
+                    ? 'Retirada preparada. Confira quantidade, colaborador e local antes de registrar a saida.'
                 : 'Use a balanca para informar o valor real retirado na unidade operacional exibida.'
         ];
         if (financialSummary && financialSummary.detailDisplay) {
@@ -1527,7 +1555,7 @@ ${parent.scripts()}
         inputCodigo.dataset.descricao = item.descricao;
         inputCodigo.dataset.unidade = item.unidade;
         dropdownCodigo.classList.remove('show');
-        pendingItem = {
+        pendingItem = clearPreparedWithdrawal({
             ...pendingItem,
             codigo: item.codigo,
             descricao: item.descricao || item.codigo,
@@ -1539,7 +1567,7 @@ ${parent.scripts()}
             local: String(inputLocal.value || '').trim(),
             foto_url: item.foto_url,
             fotoUrl: item.foto_url,
-        };
+        });
         renderCurrentPreview(pendingItem, 'preview');
         hydratePendingItemPreview(item.codigo, { baseItem: pendingItem, silent: true });
         updateButtonState();
@@ -1600,14 +1628,110 @@ ${parent.scripts()}
         const hasUsuario = inputUsuario.value.trim() && inputUsuario.dataset.matricula;
         const hasCodigo = inputCodigo.value.trim();
         btnRegistrar.disabled = !(hasUsuario && hasCodigo);
+        btnRegistrar.innerHTML = pendingItem && getPreparedQuantity(pendingItem) > 0
+            ? '<i class="bi bi-check-circle me-2"></i>Registrar Saída'
+            : '<i class="bi bi-calculator me-2"></i>Conferir Quantidade';
     }
     
     inputUsuario.addEventListener('input', updateButtonState);
-    inputCodigo.addEventListener('input', updateButtonState);
+    inputCodigo.addEventListener('input', function() {
+        if (pendingItem && String(inputCodigo.value || '').trim() !== String(pendingItem.codigo || '').trim()) {
+            pendingItem = null;
+            renderCurrentPreview(null, 'idle');
+        }
+        updateButtonState();
+    });
+
+    async function registrarSaidaFracionadaPreparada() {
+        if (!pendingItem || !(getPreparedQuantity(pendingItem) > 0)) {
+            return false;
+        }
+
+        if (String(inputCodigo.value || '').trim() !== String(pendingItem.codigo || '').trim()) {
+            alert('O código atual não corresponde ao item conferido. Selecione o item novamente antes de registrar.');
+            return false;
+        }
+
+        const quantidade = getPreparedQuantity(pendingItem);
+        const unidadeSelecionada = getPreparedUnit(pendingItem) || getSelectedUnitCode();
+        pendingItem.usuario = String(inputUsuario.value || pendingItem.usuario || '').trim();
+        pendingItem.local = String(inputLocal.value || pendingItem.local || '').trim();
+
+        btnRegistrar.disabled = true;
+        btnRegistrar.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Registrando...';
+
+        try {
+            const formData = new FormData();
+            formData.append('usuario', pendingItem.usuario);
+            formData.append('local_servico', pendingItem.local);
+            formData.append('codigo', pendingItem.codigo);
+            formData.append('quantidade', quantidade);
+            formData.append('unidade_fracionada', unidadeSelecionada);
+            const operationalContext = getOperationalContext();
+            if (operationalContext.atividade_operacional) {
+                formData.append('atividade_operacional', operationalContext.atividade_operacional);
+            }
+            if (operationalContext.ordem_servico) {
+                formData.append('ordem_servico', operationalContext.ordem_servico);
+            }
+            if (operationalContext.centro_custo) {
+                formData.append('centro_custo', operationalContext.centro_custo);
+            }
+            formData.append('observacao', 'Retirada fracionada: ' + quantidade + ' ' + String(unidadeSelecionada || '').toUpperCase());
+
+            const response = await window.galintFetchWithAuth('${url_for("movements.registrar_saida")}', {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData
+            }, 'Sua sessão expirou antes de concluir a saída fracionada. Faça login novamente.');
+
+            if (response.ok) {
+                const data = await response.json();
+                const completedSnapshot = {
+                    ...pendingItem,
+                    usuario: String(pendingItem.usuario || inputUsuario.value || '').trim(),
+                    local: String(pendingItem.local || inputLocal.value || '').trim(),
+                };
+                alert(data.message || 'Saída registrada com sucesso!');
+                publishMirrorState(buildMirrorPayload('completed', completedSnapshot, { quantidade: quantidade, unidade: unidadeSelecionada }));
+                renderCurrentPreview(completedSnapshot, 'completed', false, { quantidade: quantidade, unidade: unidadeSelecionada });
+                window.location.reload();
+                return true;
+            }
+
+            try {
+                const errorData = await response.json();
+                alert('Erro: ' + (errorData.error || 'Erro ao registrar saída'));
+            } catch {
+                const text = await response.text();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(text, 'text/html');
+                const alertElement = doc.querySelector('.alert-danger');
+                const errorMsg = alertElement ? alertElement.textContent.trim() : 'Erro ao registrar saída';
+                alert('Erro: ' + errorMsg);
+            }
+            return false;
+        } catch (error) {
+            if (error && error.isAuthRedirect) {
+                return false;
+            }
+            alert('Erro de conexão: ' + error.message);
+            return false;
+        } finally {
+            btnRegistrar.disabled = false;
+            updateButtonState();
+        }
+    }
     
     btnRegistrar.addEventListener('click', async function() {
         if (!CAN_MANAGE) {
             alert('Seu usuário não tem permissão para registrar saídas. Solicite acesso de administrador.');
+            return;
+        }
+        if (pendingItem && getPreparedQuantity(pendingItem) > 0) {
+            await registrarSaidaFracionadaPreparada();
             return;
         }
         const usuario = inputUsuario.value.trim();
@@ -1645,6 +1769,7 @@ ${parent.scripts()}
                 usuario: usuario,
                 local: local,
             });
+            pendingItem = clearPreparedWithdrawal(pendingItem);
             renderCurrentPreview(pendingItem, 'preview');
             mostrarModalQuantidade(pendingItem);
         } catch (error) {
@@ -1654,7 +1779,7 @@ ${parent.scripts()}
             alert(error.message || 'Erro ao buscar item');
         } finally {
             btnRegistrar.disabled = false;
-            btnRegistrar.innerHTML = '<i class="bi bi-check-circle me-2"></i>Registrar Saída';
+            updateButtonState();
         }
     });
     
@@ -1703,82 +1828,14 @@ ${parent.scripts()}
         
         // Capturar unidade selecionada
         const unidadeSelecionada = document.querySelector('input[name="unidade-tipo"]:checked').value;
-        
-        // Desabilitar botão durante processamento
-        btnConfirmarQuantidade.disabled = true;
-        btnConfirmarQuantidade.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processando...';
-        
-        try {
-            // Enviar via AJAX usando FormData
-            const formData = new FormData();
-            formData.append('usuario', pendingItem.usuario);
-            formData.append('local_servico', pendingItem.local);
-            formData.append('codigo', pendingItem.codigo);
-            formData.append('quantidade', quantidade);
-            formData.append('unidade_fracionada', unidadeSelecionada); // Adicionar unidade
-            const operationalContext = getOperationalContext();
-            if (operationalContext.atividade_operacional) {
-                formData.append('atividade_operacional', operationalContext.atividade_operacional);
-            }
-            if (operationalContext.ordem_servico) {
-                formData.append('ordem_servico', operationalContext.ordem_servico);
-            }
-            if (operationalContext.centro_custo) {
-                formData.append('centro_custo', operationalContext.centro_custo);
-            }
-            // Atenção: não usar template string com ${...} aqui, pois o Mako interpreta e quebra a página.
-            formData.append('observacao', 'Retirada fracionada: ' + quantidade + ' ' + String(unidadeSelecionada || '').toUpperCase());
-            
-            const response = await window.galintFetchWithAuth('${url_for("movements.registrar_saida")}', {
-                method: 'POST',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: formData
-            }, 'Sua sessão expirou antes de concluir a saída fracionada. Faça login novamente.');
-            
-            if (response.ok) {
-                const data = await response.json();
-                const completedSnapshot = pendingItem ? {
-                    ...pendingItem,
-                    usuario: String(pendingItem.usuario || inputUsuario.value || '').trim(),
-                    local: String(pendingItem.local || inputLocal.value || '').trim(),
-                } : null;
-                
-                // Sucesso - fechar modal e limpar campos
-                modalQuantidade.hide();
-                
-                // Mostrar mensagem de sucesso
-                alert(data.message || 'Saída registrada com sucesso!');
-                if (completedSnapshot) {
-                    publishMirrorState(buildMirrorPayload('completed', completedSnapshot, { quantidade: quantidade }));
-                    renderCurrentPreview(completedSnapshot, 'completed', false, { quantidade: quantidade });
-                }
-                window.location.reload();
-            } else {
-                // Tentar parsear erro como JSON
-                try {
-                    const errorData = await response.json();
-                    alert('Erro: ' + (errorData.error || 'Erro ao registrar saída'));
-                } catch {
-                    // Se não for JSON, tentar extrair do HTML
-                    const text = await response.text();
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(text, 'text/html');
-                    const alertElement = doc.querySelector('.alert-danger');
-                    const errorMsg = alertElement ? alertElement.textContent.trim() : 'Erro ao registrar saída';
-                    alert('Erro: ' + errorMsg);
-                }
-            }
-        } catch (error) {
-            if (error && error.isAuthRedirect) {
-                return;
-            }
-            alert('Erro de conexão: ' + error.message);
-        } finally {
-            btnConfirmarQuantidade.disabled = false;
-            btnConfirmarQuantidade.innerHTML = 'Confirmar';
-        }
+
+        pendingItem.quantidadePreparada = quantidade;
+        pendingItem.unidadePreparada = normalizeFractionUnitCode(unidadeSelecionada);
+        pendingItem.usuario = String(pendingItem.usuario || inputUsuario.value || '').trim();
+        pendingItem.local = String(pendingItem.local || inputLocal.value || '').trim();
+        modalQuantidade.hide();
+        renderCurrentPreview(pendingItem, 'ready', true, { quantidade: quantidade, unidade: pendingItem.unidadePreparada });
+        updateButtonState();
     });
     
     // Enter no modal confirma

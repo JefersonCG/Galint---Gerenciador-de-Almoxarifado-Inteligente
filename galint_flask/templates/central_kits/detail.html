@@ -952,10 +952,22 @@
         return String(template || '').replace('__CODIGO__', encodeURIComponent(String(codigo || '')));
     }
 
+    function normalizeSearchQueryText(value) {
+        return String(value || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .trim();
+    }
+
     function buildDefaultQuery(item) {
         const description = String(item?.description || '').trim();
         const brand = String(item?.brand || '').trim();
-        return `${description}${brand ? ` ${brand}` : ''}`.trim();
+        if (!description) return brand;
+        if (!brand || normalizeSearchQueryText(description).includes(normalizeSearchQueryText(brand))) {
+            return description;
+        }
+        return `${description} ${brand}`.trim();
     }
 
     async function readJsonResponse(response) {
