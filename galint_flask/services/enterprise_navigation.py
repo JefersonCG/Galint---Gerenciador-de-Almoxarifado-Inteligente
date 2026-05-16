@@ -50,8 +50,8 @@ def build_enterprise_sections(*, is_admin: bool) -> list[dict[str, Any]]:
             "bi-buildings",
             "enterpriseCondominioMenu",
             [
-                _item("Editor de Edifício", _optional_url("pages.admin_condominium_blocks_editor"), "bi-building-gear", "ADM-000", "Estrutura", "cyan"),
-                _item("Cadastro de Morador", _optional_url("pages.admin_condominium_registry"), "bi-person-vcard", "ADM-001", "Cadastro", "cyan"),
+                _item("Editor de Blocos", _optional_url("pages.admin_condominium_blocks_editor"), "bi-building-gear", "ADM-000", "Estrutura", "cyan"),
+                _item("Cadastro Mestre", _optional_url("pages.admin_condominium_registry"), "bi-person-vcard", "ADM-001", "Cadastro", "cyan"),
                 _item("Agendamentos", _optional_url("pages.admin_condominium_schedule"), "bi-calendar2-week", "ADM-002", "Agenda", "amber"),
                 _item("Prestadores", _optional_url("pages.admin_service_providers"), "bi-building-check", "ADM-003", "Serviços", "green"),
             ],
@@ -106,7 +106,7 @@ def build_enterprise_sections(*, is_admin: bool) -> list[dict[str, Any]]:
         ),
         _section(
             "sistema",
-            "Configurações",
+            "Sistema",
             "bi-sliders",
             "enterpriseSistemaMenu",
             [
@@ -116,17 +116,7 @@ def build_enterprise_sections(*, is_admin: bool) -> list[dict[str, Any]]:
                 _item("Relatórios", _optional_url("config.relatorios"), "bi-file-earmark-text", "SYS-002", "Core", "cyan"),
                 _item("Atualizações", _optional_url("updates.index"), "bi-arrow-clockwise", "SYS-003", "Core", "amber"),
                 _item("Rede", _optional_url("pages.config_rede"), "bi-wifi", "SYS-004", "Core", "amber"),
-                _item("Usuários", _optional_url("users.list_users", enabled=is_admin), "bi-people-fill", "SYS-006", "Acesso", "violet"),
-                _item(
-                    "Painel Mobile",
-                    _optional_url("mobile_panel.dashboard", enabled=mobile_panel_enabled),
-                    "bi-phone-fill",
-                    "SYS-007",
-                    "Mobile",
-                    "violet",
-                ),
-                _item("Backup", _optional_url("pages.config_backup"), "bi-database", "SYS-008", "Dados", "amber"),
-                _item("ConversionEngine", _optional_url("pages.config_conversionengine", enabled=is_admin), "bi-cpu", "SYS-009", "Restore", "violet"),
+                _item("Checklist Final", _optional_url("pages.backup_final_checklist"), "bi-clipboard2-check", "SYS-005", "Core", "green"),
             ],
         ),
         _section(
@@ -138,6 +128,8 @@ def build_enterprise_sections(*, is_admin: bool) -> list[dict[str, Any]]:
                 _item("Notificações", _optional_url("config.notificacoes"), "bi-broadcast-pin", "OPS-001", "Integração", "green"),
                 _item("Telegram", _optional_url("telegram_config.index"), "bi-telegram", "OPS-002", "Integração", "cyan"),
                 _item("Histórico Telegram", _optional_url("telegram_config.historico"), "bi-clock-history", "OPS-003", "Integração", "cyan"),
+                _item("Backup", _optional_url("pages.config_backup"), "bi-database", "OPS-004", "Infra", "amber"),
+                _item("ConversionEngine", _optional_url("pages.config_conversionengine"), "bi-cpu", "OPS-005", "Infra", "violet"),
             ],
         ),
         _section(

@@ -299,145 +299,6 @@ def _owner_photo_upload(owner_id: int) -> str | None:
     return relative_path.as_posix()
 
 
-_OWNER_DOCUMENT_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png", ".webp"}
-_OWNER_DOCUMENT_CHECKLIST = (
-    ("document_onus_reais", "Cópia da Certidão de Ônus Reais atualizada"),
-    ("document_itbi", "Cópia do Comprovante de Pagamento do ITBI"),
-    ("document_escritura", "Cópia da Escritura ou Contrato de Compra e Venda"),
-    ("document_owner_ids", "Cópia do RG e CPF do(s) proprietário(s)"),
-    ("document_proxy", "Procuração registrada em cartório do RJ"),
-)
-
-
-def _form_text(field_name: str) -> str:
-    return str(request.form.get(field_name) or "").strip()
-
-
-def _form_bool(field_name: str) -> bool:
-    return bool(request.form.get(field_name))
-
-
-def _split_structured_lines(raw_value: str, columns: tuple[str, ...]) -> list[dict[str, str]]:
-    rows: list[dict[str, str]] = []
-    for raw_line in str(raw_value or "").splitlines():
-        line = raw_line.strip()
-        if not line:
-            continue
-        separator = "|" if "|" in line else ";"
-        parts = [part.strip() for part in line.split(separator)]
-        row = {column: parts[index] if index < len(parts) else "" for index, column in enumerate(columns)}
-        row["raw"] = line
-        rows.append(row)
-    return rows
-
-
-def _owner_private_document_uploads(owner_id: int) -> dict[str, list[dict[str, str]]]:
-    upload_root = Path(current_app.instance_path) / "uploads" / "condominio" / "cadastros" / f"owner_{owner_id}"
-    uploaded: dict[str, list[dict[str, str]]] = {}
-    for document_key, label in (*_OWNER_DOCUMENT_CHECKLIST, ("document_additional", "Documento adicional")):
-        field_name = f"{document_key}_files"
-        files = []
-        for index, file in enumerate(request.files.getlist(field_name), start=1):
-            if not file or not file.filename:
-                continue
-            original_name = secure_filename(file.filename)
-            extension = Path(original_name).suffix.lower()
-            if extension not in _OWNER_DOCUMENT_EXTENSIONS:
-                raise ValueError("Anexos devem ser PDF, JPG, PNG ou WEBP.")
-            upload_root.mkdir(parents=True, exist_ok=True)
-            stored_name = f"{document_key}_{index}_{original_name}"
-            target_path = upload_root / stored_name
-            file.save(target_path)
-            relative_path = Path("uploads") / "condominio" / "cadastros" / f"owner_{owner_id}" / stored_name
-            files.append(
-                {
-                    "label": label,
-                    "original_name": original_name,
-                    "stored_name": stored_name,
-                    "relative_path": relative_path.as_posix(),
-                    "content_type": str(file.mimetype or "").strip(),
-                }
-            )
-        uploaded[document_key] = files
-    return uploaded
-
-
-def _build_owner_registry_data(unit: CondominiumUnit) -> dict[str, object]:
-    residents_raw = _form_text("unit_residents")
-    vehicles_raw = _form_text("authorized_vehicles")
-    pets_raw = _form_text("pets")
-    staff_raw = _form_text("private_staff")
-    return {
-        "version": 1,
-        "unit_identification": {
-            "building_label": unit.building.display_name() if unit.building else _form_text("building_label"),
-            "unit_number": unit.number or _form_text("unit_number"),
-            "garage_spaces": _form_text("garage_spaces"),
-            "iptu_registration": _form_text("iptu_registration"),
-            "rgi_circumscription": _form_text("rgi_circumscription"),
-            "property_registry_number": _form_text("property_registry_number"),
-        },
-        "owner_data": {
-            "name_or_company": _form_text("full_name"),
-            "person_type": _form_text("person_type") or "fisica",
-            "cpf_cnpj": _form_text("document_number"),
-            "rg": _form_text("rg"),
-            "rg_issuer": _form_text("rg_issuer"),
-            "civil_status": _form_text("civil_status"),
-            "property_regime": _form_text("property_regime"),
-            "profession": _form_text("profession"),
-            "nationality": _form_text("nationality"),
-            "correspondence_address": _form_text("correspondence_address"),
-        },
-        "official_communication": {
-            "primary_email": _form_text("email"),
-            "email_authorized_for_notices": _form_bool("email_authorized_for_notices"),
-            "whatsapp_phone": _form_text("phone"),
-            "emergency_contact_name": _form_text("emergency_contact_name"),
-            "emergency_contact_phone": _form_text("emergency_contact_phone"),
-        },
-        "occupancy": {
-            "status": _form_text("occupancy_status") or "nao_informado",
-            "tenant_name": _form_text("tenant_name"),
-            "tenant_document": _form_text("tenant_document"),
-            "tenant_phone": _form_text("tenant_phone"),
-            "has_proxy": _form_bool("has_proxy"),
-            "proxy_notes": _form_text("proxy_notes"),
-        },
-        "access_security": {
-            "residents_raw": residents_raw,
-            "residents": _split_structured_lines(residents_raw, ("nome", "parentesco", "rg")),
-            "vehicles_raw": vehicles_raw,
-            "vehicles": _split_structured_lines(vehicles_raw, ("marca", "modelo", "cor", "placa", "vaga")),
-            "pets_raw": pets_raw,
-            "pets": _split_structured_lines(pets_raw, ("especie", "raca", "porte", "nome")),
-            "private_staff_raw": staff_raw,
-            "private_staff": _split_structured_lines(staff_raw, ("nome", "cpf", "funcao", "frequencia")),
-        },
-        "responsibility_lgpd": {
-            "truth_declaration": _form_bool("truth_declaration"),
-            "lgpd_authorized": _form_bool("lgpd_authorized"),
-        },
-    }
-
-
-def _build_owner_attachment_checklist(owner_id: int) -> dict[str, object]:
-    uploaded_files = _owner_private_document_uploads(owner_id)
-    items = {
-        key: {
-            "label": label,
-            "checked": _form_bool(key),
-            "files": uploaded_files.get(key, []),
-        }
-        for key, label in _OWNER_DOCUMENT_CHECKLIST
-    }
-    return {
-        "version": 1,
-        "items": items,
-        "additional_files": uploaded_files.get("document_additional", []),
-    }
-
-
 def _condominium_unit_options() -> list[CondominiumUnit]:
     return (
         CondominiumUnit.query
@@ -643,8 +504,7 @@ def _build_system_settings_hub(*, is_admin: bool) -> dict[str, object]:
                 _system_setting_item("Relatórios", "config.relatorios", "bi-file-earmark-text", "Core"),
                 _system_setting_item("Atualizações", "updates.index", "bi-arrow-clockwise", "Core"),
                 _system_setting_item("Rede", "pages.config_rede", "bi-wifi", "Core"),
-                _system_setting_item("Backup", "pages.config_backup", "bi-database", "Dados"),
-                _system_setting_item("ConversionEngine", "pages.config_conversionengine", "bi-cpu", "Restore", enabled=is_admin),
+                _system_setting_item("Checklist Final", "pages.backup_final_checklist", "bi-clipboard2-check", "Core"),
             ],
         ),
         _system_setting_section(
@@ -654,6 +514,8 @@ def _build_system_settings_hub(*, is_admin: bool) -> dict[str, object]:
                 _system_setting_item("Notificações", "config.notificacoes", "bi-bell", "Alertas"),
                 _system_setting_item("Telegram", "telegram_config.index", "bi-telegram", "Mensageria"),
                 _system_setting_item("Histórico Telegram", "telegram_config.historico", "bi-clock-history", "Mensageria"),
+                _system_setting_item("Backup", "pages.config_backup", "bi-database", "Dados"),
+                _system_setting_item("ConversionEngine", "pages.config_conversionengine", "bi-cpu", "Restore", enabled=is_admin),
             ],
         ),
         _system_setting_section(
@@ -1239,7 +1101,7 @@ def _build_condominium_blocks() -> list[dict[str, object]]:
 def _build_admin_condominium_blueprint(*, mode: str) -> dict[str, object]:
     schedule_mode = mode == "schedule"
     hero = {
-        "kicker": "Agenda condominial" if schedule_mode else "Cadastro de morador",
+        "kicker": "Agenda condominial" if schedule_mode else "Cadastro mestre",
         "title": "Agendamento de Mudancas e Reservas" if schedule_mode else "Cadastros Relacionais do Condominio",
         "summary": (
             "A agenda nasce amarrada ao cadastro principal: responsavel, unidade, janela de acesso, placa do veiculo, apoio de prestadores e historico operacional."
@@ -1253,7 +1115,7 @@ def _build_admin_condominium_blueprint(*, mode: str) -> dict[str, object]:
         "hero": hero,
         "focus_section": "agendamentos" if schedule_mode else "cadastro-mestre",
         "anchors": [
-            {"id": "cadastro-mestre", "label": "Cadastro de morador"},
+            {"id": "cadastro-mestre", "label": "Cadastro mestre"},
             {"id": "estrutura", "label": "Blocos e unidades"},
             {"id": "vinculos", "label": "Vinculos e acessos"},
             {"id": "agendamentos", "label": "Agendamento"},
@@ -1524,14 +1386,6 @@ def _mask_sensitive_document(value: object) -> str:
     return f"{text[:3]}***{text[-2:]}"
 
 
-def _owner_attachment_count(owner: CondominiumOwner) -> int:
-    checklist = dict(owner.attachment_checklist_json or {})
-    total = len(checklist.get("additional_files") or [])
-    for item in dict(checklist.get("items") or {}).values():
-        total += len(dict(item or {}).get("files") or [])
-    return total
-
-
 def _owner_notes_from_form() -> str | None:
     base_notes = str(request.form.get("notes") or "").strip()
     sections = []
@@ -1559,28 +1413,20 @@ def _create_condominium_owner_from_request() -> CondominiumOwner:
         raise ValueError("Informe o nome completo ou razao social.")
     if not document_number:
         raise ValueError("Informe CPF ou CNPJ.")
-    if not _form_bool("truth_declaration"):
-        raise ValueError("Confirme a declaração de veracidade para salvar o cadastro.")
-    if not _form_bool("lgpd_authorized"):
-        raise ValueError("Confirme o consentimento LGPD para salvar o cadastro.")
-
-    emergency_contact_name = _form_text("emergency_contact_name")
-    emergency_contact_phone = _form_text("emergency_contact_phone")
-    emergency_contact = " - ".join(part for part in (emergency_contact_name, emergency_contact_phone) if part) or None
 
     owner = CondominiumOwner(
         unit=unit,
-        relationship_type="proprietario",
-        person_type=_form_text("person_type") or "fisica",
+        relationship_type=str(request.form.get("relationship_type") or "proprietario").strip() or "proprietario",
+        person_type=str(request.form.get("person_type") or "fisica").strip() or "fisica",
         full_name=full_name,
         document_number=document_number,
-        rg=_form_text("rg") or None,
-        cnh=None,
-        phone=_form_text("phone") or None,
-        email=_form_text("email") or None,
-        correspondence_address=_form_text("correspondence_address") or None,
-        emergency_contact=emergency_contact,
-        occupancy_status=_form_text("occupancy_status") or "nao_informado",
+        rg=str(request.form.get("rg") or "").strip() or None,
+        cnh=str(request.form.get("cnh") or "").strip() or None,
+        phone=str(request.form.get("phone") or "").strip() or None,
+        email=str(request.form.get("email") or "").strip() or None,
+        correspondence_address=str(request.form.get("correspondence_address") or "").strip() or None,
+        emergency_contact=str(request.form.get("emergency_contact") or "").strip() or None,
+        occupancy_status=str(request.form.get("occupancy_status") or "nao_informado").strip() or "nao_informado",
         lgpd_authorized=bool(request.form.get("lgpd_authorized")),
         notes=_owner_notes_from_form(),
         created_by_matricula=_current_user_matricula(),
@@ -1588,8 +1434,6 @@ def _create_condominium_owner_from_request() -> CondominiumOwner:
     )
     db.session.add(owner)
     db.session.flush()
-    owner.registry_data_json = _build_owner_registry_data(unit)
-    owner.attachment_checklist_json = _build_owner_attachment_checklist(owner.id)
     photo_path = _owner_photo_upload(owner.id)
     if photo_path:
         owner.photo_path = photo_path
@@ -1609,7 +1453,7 @@ def admin_condominium_registry():
         try:
             _create_condominium_owner_from_request()
             db.session.commit()
-            flash("Cadastro de morador salvo e unidade marcada como ocupada.", "success")
+            flash("Cadastro mestre salvo e unidade marcada como ocupada.", "success")
             return redirect(url_for("pages.admin_condominium_registry"))
         except ValueError as exc:
             db.session.rollback()
@@ -1620,7 +1464,6 @@ def admin_condominium_registry():
         units=_condominium_unit_options(),
         owners=_condominium_owner_rows(),
         mask_sensitive_document=_mask_sensitive_document,
-        owner_attachment_count=_owner_attachment_count,
     )
 
 
@@ -1776,7 +1619,7 @@ def admin_condominium_owners():
         try:
             _create_condominium_owner_from_request()
             db.session.commit()
-            flash("Cadastro de morador salvo e unidade marcada como ocupada.", "success")
+            flash("Cadastro mestre salvo e unidade marcada como ocupada.", "success")
         except ValueError as exc:
             db.session.rollback()
             flash(str(exc), "danger")
@@ -1837,14 +1680,12 @@ def admin_condominium_schedule():
     month_date = _month_date_from_request(selected_date)
     edit_id = request.args.get("editar", type=int)
     edit_event = CondominiumScheduleEvent.query.get(edit_id) if edit_id else None
-    open_event_modal = str(request.args.get("abrir_modal") or "").strip().lower() in {"1", "true", "yes", "sim"} or bool(edit_event)
     return render_template(
         "condominium_schedule.html",
         calendar_page=build_calendar_context(month_date=month_date, selected_date=selected_date),
         form_options=_schedule_form_options(),
         event_form=_schedule_event_form(edit_event, selected_date=selected_date),
         edit_event=edit_event,
-        open_event_modal=open_event_modal,
         agenda_notifications=due_schedule_notifications(),
     )
 
