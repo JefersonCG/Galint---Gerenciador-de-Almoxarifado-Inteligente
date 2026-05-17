@@ -67,6 +67,16 @@
     .condo-owner-parking-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.65rem; align-items: center; }
     .condo-owner-parking-row .form-check { min-height: 40px; display: inline-flex; align-items: center; gap: 0.35rem; margin: 0; padding: 0.35rem 0.6rem; border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 12px; background: rgba(248, 250, 252, 0.92); }
     .condo-owner-parking-row .form-check-input { float: none; margin: 0; }
+    .condo-owner-media-box { display: grid; gap: 0.7rem; padding: 0.85rem; border: 1px solid rgba(148, 163, 184, 0.18); border-radius: 18px; background: rgba(248, 250, 252, 0.96); }
+    .condo-owner-media-actions { display: flex; flex-wrap: wrap; gap: 0.55rem; }
+    .condo-owner-media-preview { display: grid; justify-items: center; gap: 0.7rem; padding: 0.9rem; border-radius: 16px; border: 1px dashed rgba(148, 163, 184, 0.3); background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(226, 232, 240, 0.95)); }
+    .condo-owner-media-stage { position: relative; width: min(12rem, 58vw); aspect-ratio: 1 / 1; border-radius: 999px; overflow: hidden; border: 4px solid rgba(255, 255, 255, 0.96); box-shadow: 0 18px 34px rgba(15, 23, 42, 0.14); background: radial-gradient(circle at top, rgba(59, 130, 246, 0.18), rgba(226, 232, 240, 0.86)); }
+    .condo-owner-media-stage video,
+    .condo-owner-media-stage img { width: 100%; height: 100%; object-fit: cover; }
+    .condo-owner-media-placeholder { position: absolute; inset: 0; display: grid; place-items: center; padding: 1rem; color: #64748b; font-size: 0.78rem; font-weight: 750; text-align: center; }
+    .condo-owner-media-note { max-width: 18rem; color: #64748b; font-size: 0.72rem; font-weight: 730; text-align: center; line-height: 1.5; }
+    .condo-owner-address-row { display: grid; grid-template-columns: minmax(0, 12rem) auto; gap: 0.65rem; align-items: end; }
+    .condo-owner-address-row .btn { min-height: 40px; }
     .condo-owner-inline-status { min-height: 1.15rem; margin-top: 0.32rem; color: #64748b; font-size: 0.72rem; font-weight: 750; }
     .condo-owner-inline-status.is-loading { color: #0369a1; }
     .condo-owner-inline-status.is-success { color: #15803d; }
@@ -199,8 +209,49 @@
                                     <div class="col-md-4" id="owner-field-property-regime-wrap"><label class="form-label" id="property_regime_label" for="property_regime">Regime de Bens</label><input class="form-control form-control-sm" id="property_regime" name="property_regime"></div>
                                     <div class="col-md-4" id="owner-field-nationality-wrap"><label class="form-label" id="nationality_label" for="nationality">Nacionalidade</label><input class="form-control form-control-sm" id="nationality" name="nationality"></div>
                                     <div class="col-md-6"><label class="form-label" id="profession_label" for="profession">Profissão</label><input class="form-control form-control-sm" id="profession" name="profession"></div>
-                                    <div class="col-md-6"><label class="form-label" for="photo">Foto cadastral</label><input class="form-control form-control-sm" id="photo" name="photo" type="file" accept="image/png,image/jpeg,image/webp"></div>
-                                    <div class="col-12"><label class="form-label" for="correspondence_address">Endereço de Correspondência</label><textarea class="form-control form-control-sm" id="correspondence_address" name="correspondence_address" placeholder="Preencha se o proprietário não residir no prédio"></textarea></div>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="photo">Foto cadastral</label>
+                                        <div class="condo-owner-media-box">
+                                            <input class="form-control form-control-sm" id="photo" name="photo" type="file" accept="image/png,image/jpeg,image/webp">
+                                            <input id="photo_capture_data" name="photo_capture_data" type="hidden">
+                                            <div class="condo-owner-media-actions">
+                                                <button class="btn btn-outline-primary btn-sm" id="photo-start-camera" type="button"><i class="bi bi-camera-video me-1"></i>Usar webcam</button>
+                                                <button class="btn btn-primary btn-sm d-none" id="photo-capture" type="button"><i class="bi bi-camera me-1"></i>Capturar</button>
+                                                <button class="btn btn-outline-secondary btn-sm d-none" id="photo-retake" type="button"><i class="bi bi-arrow-repeat me-1"></i>Refazer</button>
+                                            </div>
+                                            <div class="condo-owner-media-preview" id="photo-preview-box">
+                                                <div class="condo-owner-media-stage">
+                                                    <div class="condo-owner-media-placeholder" id="photo-preview-placeholder">Foto 3x4 digital do titular</div>
+                                                    <video class="d-none" id="photo-camera-stream" autoplay playsinline muted></video>
+                                                    <img class="d-none" id="photo-preview-image" alt="Pré-visualização da foto cadastral">
+                                                </div>
+                                                <div class="condo-owner-media-note">Use a webcam para um cadastro rápido na administração ou envie um arquivo pronto do celular/computador.</div>
+                                            </div>
+                                            <div class="condo-owner-inline-status" id="photo-capture-status" aria-live="polite"></div>
+                                        </div>
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label" for="correspondence_cep">Endereço de Correspondência</label>
+                                        <input id="correspondence_address" name="correspondence_address" type="hidden">
+                                        <div class="row g-3">
+                                            <div class="col-md-4">
+                                                <div class="condo-owner-address-row">
+                                                    <div>
+                                                        <input class="form-control form-control-sm" id="correspondence_cep" name="correspondence_cep" inputmode="numeric" maxlength="9" placeholder="CEP">
+                                                        <div class="condo-owner-inline-status" id="correspondence-cep-status" aria-live="polite"></div>
+                                                    </div>
+                                                    <button class="btn btn-outline-primary btn-sm" id="correspondence-cep-search" type="button"><i class="bi bi-search me-1"></i>Buscar CEP</button>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6"><input class="form-control form-control-sm" id="correspondence_street" name="correspondence_street" placeholder="Logradouro"></div>
+                                            <div class="col-md-2"><input class="form-control form-control-sm" id="correspondence_number" name="correspondence_number" placeholder="Número"></div>
+                                            <div class="col-md-4"><input class="form-control form-control-sm" id="correspondence_complement" name="correspondence_complement" placeholder="Complemento"></div>
+                                            <div class="col-md-3"><input class="form-control form-control-sm" id="correspondence_neighborhood" name="correspondence_neighborhood" placeholder="Bairro"></div>
+                                            <div class="col-md-3"><input class="form-control form-control-sm" id="correspondence_city" name="correspondence_city" placeholder="Cidade"></div>
+                                            <div class="col-md-2"><input class="form-control form-control-sm" id="correspondence_state" name="correspondence_state" maxlength="2" placeholder="UF"></div>
+                                            <div class="col-12"><textarea class="form-control form-control-sm" id="correspondence_reference" name="correspondence_reference" placeholder="Referência, observações de entrega ou instruções adicionais"></textarea></div>
+                                        </div>
+                                    </div>
                                 </div>
                             </section>
                         </div>
@@ -394,6 +445,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const unitOptions = unitSelect ? Array.from(unitSelect.querySelectorAll('option[data-building-id]')) : [];
     const garageInput = document.getElementById('garage_spaces');
     const garageFreeInput = document.getElementById('garage_free');
+    const photoInput = document.getElementById('photo');
+    const photoCaptureInput = document.getElementById('photo_capture_data');
+    const photoStartCameraButton = document.getElementById('photo-start-camera');
+    const photoCaptureButton = document.getElementById('photo-capture');
+    const photoRetakeButton = document.getElementById('photo-retake');
+    const photoPreviewPlaceholder = document.getElementById('photo-preview-placeholder');
+    const photoVideo = document.getElementById('photo-camera-stream');
+    const photoPreviewImage = document.getElementById('photo-preview-image');
+    const photoStatusNode = document.getElementById('photo-capture-status');
+    const correspondenceAddressInput = document.getElementById('correspondence_address');
+    const correspondenceCepInput = document.getElementById('correspondence_cep');
+    const correspondenceCepSearchButton = document.getElementById('correspondence-cep-search');
+    const correspondenceCepStatusNode = document.getElementById('correspondence-cep-status');
+    const correspondenceStreetInput = document.getElementById('correspondence_street');
+    const correspondenceNumberInput = document.getElementById('correspondence_number');
+    const correspondenceComplementInput = document.getElementById('correspondence_complement');
+    const correspondenceNeighborhoodInput = document.getElementById('correspondence_neighborhood');
+    const correspondenceCityInput = document.getElementById('correspondence_city');
+    const correspondenceStateInput = document.getElementById('correspondence_state');
+    const correspondenceReferenceInput = document.getElementById('correspondence_reference');
     const personTypeSelect = document.getElementById('person_type');
     const documentInput = document.getElementById('document_number');
     const fullNameInput = document.getElementById('full_name');
@@ -405,7 +476,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const professionInput = document.getElementById('profession');
     const phoneInput = document.getElementById('phone');
     const emailInput = document.getElementById('email');
-    const correspondenceAddressInput = document.getElementById('correspondence_address');
     const statusNode = document.getElementById('owner-document-status');
 
     const labelNodes = {
@@ -430,6 +500,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const lookupUrlTemplate = "{{ (request.script_root or '') ~ '/administracao/condominio/api/proprietario/cnpj/__CNPJ__' }}";
     let lookupTimer = null;
     let lastLookupDigits = '';
+    let photoStream = null;
+    let photoPreviewUrl = '';
 
     const refreshUnitSelect = () => {
         if (!unitSelect) return;
@@ -457,6 +529,197 @@ document.addEventListener('DOMContentLoaded', () => {
         garageInput.placeholder = isFree ? 'Vaga livre' : 'Nº da vaga';
         if (isFree) {
             garageInput.value = '';
+        }
+    };
+
+    const setPhotoStatus = (message, tone = '') => {
+        if (!photoStatusNode) return;
+        photoStatusNode.textContent = message || '';
+        photoStatusNode.className = 'condo-owner-inline-status';
+        if (tone) {
+            photoStatusNode.classList.add(`is-${tone}`);
+        }
+    };
+
+    const stopPhotoStream = () => {
+        if (!photoStream) return;
+        photoStream.getTracks().forEach((track) => track.stop());
+        photoStream = null;
+        if (photoVideo) {
+            photoVideo.srcObject = null;
+        }
+    };
+
+    const revokePhotoPreviewUrl = () => {
+        if (photoPreviewUrl) {
+            URL.revokeObjectURL(photoPreviewUrl);
+            photoPreviewUrl = '';
+        }
+    };
+
+    const showPhotoPreview = (src) => {
+        if (photoPreviewImage) {
+            photoPreviewImage.src = src;
+            photoPreviewImage.classList.remove('d-none');
+        }
+        photoVideo?.classList.add('d-none');
+        photoPreviewPlaceholder?.classList.add('d-none');
+        photoCaptureButton?.classList.add('d-none');
+        photoRetakeButton?.classList.remove('d-none');
+    };
+
+    const clearCapturedPhoto = ({ keepStatus = false } = {}) => {
+        stopPhotoStream();
+        if (photoCaptureInput) {
+            photoCaptureInput.value = '';
+        }
+        revokePhotoPreviewUrl();
+        if (photoPreviewImage) {
+            photoPreviewImage.src = '';
+            photoPreviewImage.classList.add('d-none');
+        }
+        photoVideo?.classList.add('d-none');
+        photoRetakeButton?.classList.add('d-none');
+        photoCaptureButton?.classList.add('d-none');
+        photoPreviewPlaceholder?.classList.remove('d-none');
+        if (!keepStatus) {
+            setPhotoStatus('');
+        }
+    };
+
+    const syncCorrespondenceHidden = () => {
+        if (!correspondenceAddressInput) return;
+        const cep = String(correspondenceCepInput?.value || '').trim();
+        const street = String(correspondenceStreetInput?.value || '').trim();
+        const number = String(correspondenceNumberInput?.value || '').trim();
+        const complement = String(correspondenceComplementInput?.value || '').trim();
+        const neighborhood = String(correspondenceNeighborhoodInput?.value || '').trim();
+        const city = String(correspondenceCityInput?.value || '').trim();
+        const state = String(correspondenceStateInput?.value || '').trim().toUpperCase();
+        const reference = String(correspondenceReferenceInput?.value || '').trim();
+        const lines = [];
+        let firstLine = [street, number].filter(Boolean).join(', ');
+        if (complement) {
+            firstLine = firstLine ? `${firstLine} - ${complement}` : complement;
+        }
+        if (firstLine) lines.push(firstLine);
+        if (neighborhood) lines.push(neighborhood);
+        const cityState = [city, state].filter(Boolean).join(' - ');
+        if (cityState) lines.push(cityState);
+        if (cep) lines.push(`CEP ${cep}`);
+        if (reference) lines.push(reference);
+        correspondenceAddressInput.value = lines.join('\n');
+    };
+
+    const firstText = (...values) => {
+        for (const value of values) {
+            const text = String(value || '').trim();
+            if (text) return text;
+        }
+        return '';
+    };
+
+    const applyCorrespondencePayload = (payload = {}) => {
+        fillField(correspondenceCepInput, formatCep(firstText(payload.correspondence_cep, payload.endereco_cep, payload.cep)));
+        fillField(correspondenceStreetInput, firstText(payload.correspondence_street, payload.endereco_rua, payload.logradouro, payload.street));
+        fillField(correspondenceNumberInput, firstText(payload.correspondence_number, payload.endereco_numero, payload.numero, payload.number));
+        fillField(correspondenceComplementInput, firstText(payload.correspondence_complement, payload.endereco_complemento, payload.complemento, payload.complement));
+        fillField(correspondenceNeighborhoodInput, firstText(payload.correspondence_neighborhood, payload.endereco_bairro, payload.bairro, payload.neighborhood));
+        fillField(correspondenceCityInput, firstText(payload.correspondence_city, payload.endereco_cidade, payload.localidade, payload.cidade, payload.city));
+        fillField(correspondenceStateInput, firstText(payload.correspondence_state, payload.endereco_estado, payload.uf, payload.state).toUpperCase());
+        fillField(correspondenceReferenceInput, firstText(payload.correspondence_reference, payload.correspondence_address));
+        syncCorrespondenceHidden();
+    };
+
+    const startPhotoCamera = async () => {
+        if (!navigator.mediaDevices?.getUserMedia) {
+            setPhotoStatus('Este navegador não oferece captura por webcam. Use o upload do arquivo.', 'error');
+            return;
+        }
+        try {
+            stopPhotoStream();
+            photoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+            if (photoVideo) {
+                photoVideo.srcObject = photoStream;
+                photoVideo.classList.remove('d-none');
+            }
+            photoPreviewImage?.classList.add('d-none');
+            photoPreviewPlaceholder?.classList.add('d-none');
+            photoCaptureButton?.classList.remove('d-none');
+            photoRetakeButton?.classList.add('d-none');
+            if (photoCaptureInput) {
+                photoCaptureInput.value = '';
+            }
+            if (photoInput) {
+                photoInput.value = '';
+            }
+            setPhotoStatus('Webcam ativa. Posicione o rosto e clique em Capturar.', 'loading');
+        } catch (error) {
+            stopPhotoStream();
+            photoVideo?.classList.add('d-none');
+            photoPreviewPlaceholder?.classList.remove('d-none');
+            setPhotoStatus('Não foi possível acessar a webcam. Verifique a permissão do navegador.', 'error');
+        }
+    };
+
+    const capturePhotoFrame = () => {
+        if (!photoVideo || !photoCaptureInput || !photoStream) return;
+        const width = photoVideo.videoWidth || 960;
+        const height = photoVideo.videoHeight || 720;
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext('2d');
+        if (!context) {
+            setPhotoStatus('Não foi possível preparar a imagem capturada.', 'error');
+            return;
+        }
+        context.drawImage(photoVideo, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+        photoCaptureInput.value = dataUrl;
+        showPhotoPreview(dataUrl);
+        stopPhotoStream();
+        setPhotoStatus('Foto capturada com sucesso.', 'success');
+    };
+
+    const formatCep = (value) => {
+        const digits = digitsOnly(value).slice(0, 8);
+        if (digits.length <= 5) return digits;
+        return `${digits.slice(0, 5)}-${digits.slice(5)}`;
+    };
+
+    const setCepStatus = (message, tone = '') => {
+        if (!correspondenceCepStatusNode) return;
+        correspondenceCepStatusNode.textContent = message || '';
+        correspondenceCepStatusNode.className = 'condo-owner-inline-status';
+        if (tone) {
+            correspondenceCepStatusNode.classList.add(`is-${tone}`);
+        }
+    };
+
+    const fetchCepAddress = async () => {
+        const cepDigits = digitsOnly(correspondenceCepInput?.value || '');
+        if (cepDigits.length !== 8) {
+            setCepStatus('Informe um CEP com 8 dígitos.', 'error');
+            return;
+        }
+        setCepStatus('Consultando CEP...', 'loading');
+        try {
+            const response = await fetch(`https://viacep.com.br/ws/${cepDigits}/json/`);
+            const data = await response.json();
+            if (!response.ok || data.erro) {
+                throw new Error('CEP não encontrado.');
+            }
+            fillField(correspondenceCepInput, formatCep(cepDigits));
+            fillField(correspondenceStreetInput, data.logradouro);
+            fillField(correspondenceComplementInput, data.complemento);
+            fillField(correspondenceNeighborhoodInput, data.bairro);
+            fillField(correspondenceCityInput, data.localidade);
+            fillField(correspondenceStateInput, String(data.uf || '').toUpperCase());
+            syncCorrespondenceHidden();
+            setCepStatus('Endereço preenchido automaticamente. Revise o número e complemento, se necessário.', 'success');
+        } catch (error) {
+            setCepStatus(String(error?.message || error), 'error');
         }
     };
 
@@ -601,7 +864,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fillField(professionInput, owner.profession);
         fillField(phoneInput, owner.phone);
         fillField(emailInput, owner.email);
-        fillField(correspondenceAddressInput, owner.correspondence_address);
+        applyCorrespondencePayload(owner || {});
         applyDocumentMask();
     };
 
@@ -656,10 +919,63 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 220);
     });
 
+    photoInput?.addEventListener('change', () => {
+        const file = photoInput.files?.[0];
+        if (!file) {
+            clearCapturedPhoto();
+            return;
+        }
+        stopPhotoStream();
+        if (photoCaptureInput) {
+            photoCaptureInput.value = '';
+        }
+        revokePhotoPreviewUrl();
+        photoPreviewUrl = URL.createObjectURL(file);
+        showPhotoPreview(photoPreviewUrl);
+        setPhotoStatus('Arquivo selecionado com sucesso.', 'success');
+    });
+
+    photoStartCameraButton?.addEventListener('click', startPhotoCamera);
+    photoCaptureButton?.addEventListener('click', capturePhotoFrame);
+    photoRetakeButton?.addEventListener('click', () => {
+        clearCapturedPhoto({ keepStatus: true });
+        startPhotoCamera();
+    });
+
+    correspondenceCepInput?.addEventListener('input', () => {
+        correspondenceCepInput.value = formatCep(correspondenceCepInput.value);
+        if (digitsOnly(correspondenceCepInput.value).length < 8) {
+            setCepStatus('');
+        }
+        syncCorrespondenceHidden();
+    });
+    correspondenceStreetInput?.addEventListener('input', syncCorrespondenceHidden);
+    correspondenceNumberInput?.addEventListener('input', syncCorrespondenceHidden);
+    correspondenceComplementInput?.addEventListener('input', syncCorrespondenceHidden);
+    correspondenceNeighborhoodInput?.addEventListener('input', syncCorrespondenceHidden);
+    correspondenceCityInput?.addEventListener('input', syncCorrespondenceHidden);
+    correspondenceStateInput?.addEventListener('input', () => {
+        correspondenceStateInput.value = String(correspondenceStateInput.value || '').toUpperCase().slice(0, 2);
+        syncCorrespondenceHidden();
+    });
+    correspondenceReferenceInput?.addEventListener('input', syncCorrespondenceHidden);
+    correspondenceCepInput?.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            fetchCepAddress();
+        }
+    });
+    correspondenceCepSearchButton?.addEventListener('click', fetchCepAddress);
+
     buildingSelect?.addEventListener('change', refreshUnitSelect);
     garageFreeInput?.addEventListener('change', refreshGarageInput);
+    window.addEventListener('beforeunload', () => {
+        stopPhotoStream();
+        revokePhotoPreviewUrl();
+    });
     refreshUnitSelect();
     refreshGarageInput();
+    syncCorrespondenceHidden();
     applyDocumentMask();
 });
 </script>

@@ -499,6 +499,42 @@
         font-size: 0.9rem;
     }
 
+    .qty-adjust-wrap {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.28rem;
+        min-width: 8.5rem;
+    }
+
+    .btn-qty-adjust {
+        width: 1.85rem;
+        height: 1.85rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        border-radius: 999px;
+        background: rgba(248, 250, 252, 0.92);
+        color: #334155;
+        font-size: 0.82rem;
+        line-height: 1;
+        transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+    }
+
+    .btn-qty-adjust:hover {
+        background: #e0f2fe;
+        border-color: rgba(37, 99, 235, 0.42);
+        color: #1d4ed8;
+        transform: translateY(-1px);
+    }
+
+    .btn-qty-adjust:disabled {
+        opacity: 0.42;
+        cursor: not-allowed;
+        transform: none;
+    }
+
     .item-value-cell {
         min-width: 140px;
     }
@@ -1966,6 +2002,167 @@ ${parent.scripts()}
     let itemSearchRequestId = 0;
     let currentFuncionarios = [];
     let currentItens = [];
+    const scannerCommitDelay = 2000;
+    const scannerState = {
+        codigo: '',
+        quantidade: 0,
+        timer: null,
+        inputTimer: null,
+        keyTimes: [],
+        committing: false
+    };
+
+    function normalizeScannerCode(value) {
+        return String(value || '').replace(/[\r\n\t]+/g, '').trim();
+    }
+
+    function clearScannerTimers() {
+        if (scannerState.timer) {
+            window.clearTimeout(scannerState.timer);
+            scannerState.timer = null;
+        }
+        if (scannerState.inputTimer) {
+            window.clearTimeout(scannerState.inputTimer);
+            scannerState.inputTimer = null;
+        }
+    }
+
+    function focusScannerField() {
+        window.setTimeout(function() {
+            if (!inputCodigo) return;
+            const activeModal = document.querySelector('.modal.show');
+            if (!activeModal) {
+                inputCodigo.focus();
+            }
+        }, 40);
+    }
+
+    function playFeedbackTone(kind) {
+        const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextCtor) return;
+        try {
+            const context = new AudioContextCtor();
+            const oscillator = context.createOscillator();
+            const gain = context.createGain();
+            oscillator.type = 'sine';
+            oscillator.frequency.value = kind === 'error' ? 220 : 660;
+            gain.gain.value = 0.035;
+            oscillator.connect(gain);
+            gain.connect(context.destination);
+            oscillator.start();
+            oscillator.stop(context.currentTime + 0.08);
+            oscillator.addEventListener('ended', function() {
+                context.close().catch(function() {});
+            });
+        } catch (error) {
+            // Sem áudio disponível no navegador atual.
+        }
+    }
+
+    function isLikelyScannerTyping() {
+        const now = Date.now();
+        scannerState.keyTimes = scannerState.keyTimes.filter(function(entryTime) {
+            return now - entryTime < 1200;
+        });
+        if (scannerState.keyTimes.length < 5) {
+            return false;
+        }
+        const intervals = [];
+        for (let index = 1; index < scannerState.keyTimes.length; index += 1) {
+            intervals.push(scannerState.keyTimes[index] - scannerState.keyTimes[index - 1]);
+        }
+        const averageInterval = intervals.reduce(function(total, value) { return total + value; }, 0) / intervals.length;
+        return averageInterval <= 85;
+    }
+
+    function scheduleScannerCommit() {
+        if (scannerState.timer) {
+            window.clearTimeout(scannerState.timer);
+        }
+        scannerState.timer = window.setTimeout(function() {
+            commitPendingScannerReads();
+        }, scannerCommitDelay);
+    }
+
+    async function commitPendingScannerReads() {
+        const codigo = normalizeScannerCode(scannerState.codigo);
+        const quantidade = Number(scannerState.quantidade || 0);
+        if (scannerState.committing) {
+            if (codigo && quantidade > 0) {
+                scheduleScannerCommit();
+            }
+            return;
+        }
+        if (!codigo || quantidade <= 0) {
+            return;
+        }
+
+        clearScannerTimers();
+        scannerState.codigo = '';
+        scannerState.quantidade = 0;
+        scannerState.committing = true;
+
+        try {
+            inputCodigo.value = codigo;
+            inputQuantidade.value = String(quantidade);
+            const added = await adicionarItemDosCampos({ fromScanner: true, codigo: codigo, quantidade: quantidade });
+            playFeedbackTone(added ? 'success' : 'error');
+        } catch (error) {
+            playFeedbackTone('error');
+        } finally {
+            scannerState.committing = false;
+            inputCodigo.value = '';
+            inputQuantidade.value = '1';
+            syncQuantityFieldMode(null);
+            if (scannerState.codigo && scannerState.quantidade > 0) {
+                scheduleScannerCommit();
+            }
+            focusScannerField();
+        }
+    }
+
+    function registerScannerRead(rawCode) {
+        const codigo = normalizeScannerCode(rawCode);
+        if (!codigo) {
+            return;
+        }
+
+        if (scannerState.codigo && scannerState.codigo !== codigo) {
+            commitPendingScannerReads();
+            scannerState.codigo = codigo;
+            scannerState.quantidade = 1;
+        } else {
+            scannerState.codigo = codigo;
+            scannerState.quantidade = Number(scannerState.quantidade || 0) + 1;
+        }
+
+        inputCodigo.value = '';
+        dropdownCodigo.classList.remove('show');
+        scheduleScannerCommit();
+        focusScannerField();
+    }
+
+    function scheduleScannerInputCommit(rawCode) {
+        const codigo = normalizeScannerCode(rawCode);
+        if (!codigo || codigo.length < 4 || !isLikelyScannerTyping()) {
+            if (scannerState.inputTimer) {
+                window.clearTimeout(scannerState.inputTimer);
+                scannerState.inputTimer = null;
+            }
+            return;
+        }
+        if (scannerState.inputTimer) {
+            window.clearTimeout(scannerState.inputTimer);
+        }
+        scannerState.inputTimer = window.setTimeout(function() {
+            const currentCode = normalizeScannerCode(inputCodigo.value);
+            if (currentCode === codigo) {
+                scannerState.codigo = codigo;
+                scannerState.quantidade = Math.max(Number(scannerState.quantidade || 0), 1);
+                commitPendingScannerReads();
+            }
+        }, scannerCommitDelay);
+    }
     
     // Autocomplete de usuário
     inputUsuario.addEventListener('input', function() {
@@ -2058,6 +2255,7 @@ ${parent.scripts()}
         const query = this.value.trim();
         clearTimeout(debounceTimerCodigo);
         scheduleMirrorOperatorHeartbeat();
+        scheduleScannerInputCommit(query);
         
         if (query.length < 1) {
             dropdownCodigo.classList.remove('show');
@@ -2286,6 +2484,17 @@ ${parent.scripts()}
     
     // Keyboard navigation para código
     inputCodigo.addEventListener('keydown', function(e) {
+        if (e.key && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+            scannerState.keyTimes.push(Date.now());
+            if (scannerState.keyTimes.length > 24) {
+                scannerState.keyTimes = scannerState.keyTimes.slice(-24);
+            }
+        }
+        if (e.key === 'Tab' && normalizeScannerCode(inputCodigo.value)) {
+            e.preventDefault();
+            registerScannerRead(inputCodigo.value);
+            return;
+        }
         const items = dropdownCodigo.querySelectorAll('.autocomplete-item');
         const activeItem = dropdownCodigo.querySelector('.autocomplete-item.active');
         let currentIndex = -1;
@@ -2399,7 +2608,14 @@ ${parent.scripts()}
     inputCodigo.addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
             e.preventDefault();
-            btnAdicionar.click();
+            const activeItem = dropdownCodigo.querySelector('.autocomplete-item.active');
+            if (activeItem) {
+                return;
+            }
+            const codigoLido = normalizeScannerCode(inputCodigo.value);
+            if (codigoLido) {
+                registerScannerRead(codigoLido);
+            }
         }
     });
     
@@ -2474,28 +2690,34 @@ ${parent.scripts()}
         }
     });
     
-    btnAdicionar.addEventListener('click', async function() {
+    btnAdicionar.addEventListener('click', function() {
+        adicionarItemDosCampos();
+    });
+
+    async function adicionarItemDosCampos(options) {
+        const addOptions = options || {};
         const usuario = inputUsuario.value.trim();
         const local = inputLocal.value.trim();
-        const codigo = inputCodigo.value.trim();
-        const quantidade = readQuantidadeInputValue(0);
+        const codigo = normalizeScannerCode(addOptions.codigo !== undefined ? addOptions.codigo : inputCodigo.value);
+        const quantidade = addOptions.quantidade !== undefined ? Number(addOptions.quantidade) : readQuantidadeInputValue(0);
+        const fromScanner = addOptions.fromScanner === true;
         
         if (!usuario) {
             alert('Informe o crachá/matrícula');
             inputUsuario.focus();
-            return;
+            return false;
         }
         
         if (!codigo) {
             alert('Informe o código do item');
             inputCodigo.focus();
-            return;
+            return false;
         }
         
         if (!(quantidade > 0)) {
             alert('Quantidade deve ser maior que zero');
             inputQuantidade.focus();
-            return;
+            return false;
         }
         
         // Busca informações do item
@@ -2516,7 +2738,7 @@ ${parent.scripts()}
             if (data.is_available === false) {
                 showErrorModal('Item indisponível', getUnavailableMessage(data));
                 inputCodigo.focus();
-                return;
+                return false;
             }
 
             const baseDraftValidation = validateDraftAgainstRuntimeStock({
@@ -2526,7 +2748,7 @@ ${parent.scripts()}
             }, { mode: 'base' });
             if (!baseDraftValidation.ok) {
                 inputCodigo.focus();
-                return;
+                return false;
             }
             
             // Verificar se o item usa sistema de embalagens
@@ -2576,7 +2798,7 @@ ${parent.scripts()}
                 renderCurrentPreview(currentPreviewItem, 'preview');
                 
                 mostrarModalUnidade(pendingItem);
-                return;
+                return true;
                 
             } else {
                 // Não tem embalagem - adiciona direto
@@ -2618,17 +2840,22 @@ ${parent.scripts()}
             // Limpa campos
             clearCurrentItemInputs();
             inputCodigo.focus();
+            return true;
             
         } catch (error) {
             if (error && error.isAuthRedirect) {
-                return;
+                return false;
             }
             alert(error.message || 'Erro ao buscar item');
+            return false;
         } finally {
             btnAdicionar.disabled = false;
             btnAdicionar.innerHTML = '<i class="bi bi-plus-circle me-1"></i>Adicionar Item';
+            if (fromScanner) {
+                focusScannerField();
+            }
         }
-    });
+    }
     
     function mostrarModalUnidade(item) {
         const nomes = nomesEmbalagem[item.tipo_embalagem] || { singular: 'embalagem', plural: 'embalagens' };
@@ -3005,7 +3232,13 @@ ${parent.scripts()}
                             '<span class="item-desc-meta">' + escapeHtml(item.categoria || 'Sem categoria') + (item.marca ? ' • ' + escapeHtml(item.marca) : '') + '</span></div>' +
                         '</div>' +
                     '</td>' +
-                    '<td class="text-center"><span class="badge-qty">' + (item.quantidade_exibicao || item.quantidade) + (item.unidade_label ? ' ' + item.unidade_label : '') + '</span></td>' +
+                    '<td class="text-center">' +
+                        '<div class="qty-adjust-wrap">' +
+                            '<button type="button" class="btn-qty-adjust" title="Diminuir quantidade" onclick="adjustQueuedItemQuantity(' + item.id + ', -1)"' + (getQueuedItemDisplayQuantity(item) <= 1 ? ' disabled' : '') + '><i class="bi bi-dash"></i></button>' +
+                            '<span class="badge-qty">' + (item.quantidade_exibicao || item.quantidade) + (item.unidade_label ? ' ' + item.unidade_label : '') + '</span>' +
+                            '<button type="button" class="btn-qty-adjust" title="Aumentar quantidade" onclick="adjustQueuedItemQuantity(' + item.id + ', 1)"><i class="bi bi-plus"></i></button>' +
+                        '</div>' +
+                    '</td>' +
                     '<td class="text-end item-value-cell">' + buildItemValueHtml(item) + '</td>' +
                     '<td class="text-end">' +
                         '<button type="button" class="btn-remove-item" onclick="removeItem(' + item.id + ')">' +
@@ -3017,6 +3250,61 @@ ${parent.scripts()}
             return groupHeader + groupItems;
         }).join('');
     }
+
+    function resolveQuantityAdjustmentMode(item) {
+        if (item?.em_embalagens === true) {
+            return 'package';
+        }
+        if (extractObservationUnitCode(item) === 'CM') {
+            return 'cm';
+        }
+        return 'base';
+    }
+
+    function applyDisplayQuantityToQueuedItem(item, displayQuantity) {
+        const quantity = Math.max(1, Number(displayQuantity) || 1);
+        item.quantidade_input = quantity;
+        item.quantidade_exibicao = quantity;
+
+        if (extractObservationUnitCode(item) === 'CM') {
+            item.quantidade = quantity / 100;
+            item.unidade_fracionada = 'cm';
+        } else {
+            item.quantidade = quantity;
+        }
+
+        item.unidade_label = resolveMergedUnitLabel(item, quantity);
+        item.observacao_unit = buildMergedObservationUnit(item, quantity);
+    }
+
+    window.adjustQueuedItemQuantity = function(id, delta) {
+        const item = items.find(entry => entry.id === id);
+        if (!item) {
+            return;
+        }
+
+        const currentQuantity = getQueuedItemDisplayQuantity(item);
+        const nextQuantity = Math.max(1, currentQuantity + Number(delta || 0));
+        if (Math.abs(nextQuantity - currentQuantity) <= 0.000001) {
+            return;
+        }
+
+        const draftItem = { ...item };
+        applyDisplayQuantityToQueuedItem(draftItem, nextQuantity);
+        const validation = validateDraftAgainstRuntimeStock(draftItem, {
+            mode: resolveQuantityAdjustmentMode(draftItem),
+            excludeItemId: item.id,
+        });
+        if (!validation.ok) {
+            return;
+        }
+
+        applyDisplayQuantityToQueuedItem(item, nextQuantity);
+        currentPreviewItem = { ...item };
+        renderCurrentPreview(currentPreviewItem, 'queued');
+        renderItems();
+        focusScannerField();
+    };
     
     window.removeItem = function(id) {
         const index = items.findIndex(item => item.id === id);

@@ -1,6 +1,8 @@
 """Rotas auxiliares: configurações e página sobre."""
 from __future__ import annotations
 
+import base64
+import binascii
 import html
 import re
 from datetime import date, time as dt_time
@@ -284,16 +286,45 @@ def _building_summaries() -> list[dict[str, object]]:
 
 
 def _owner_photo_upload(owner_id: int) -> str | None:
+    captured_data = str(request.form.get("photo_capture_data") or "").strip()
     file = request.files.get("photo")
-    if not file or not file.filename:
+    if (not file or not file.filename) and not captured_data:
         return None
+
+    static_root = Path(current_app.static_folder or (Path(current_app.root_path) / "static"))
+    upload_dir = static_root / "uploads" / "condominio" / "proprietarios"
+    upload_dir.mkdir(parents=True, exist_ok=True)
+
+    if captured_data:
+        match = re.match(r"^data:(image\/(?:png|jpeg|webp));base64,(.+)$", captured_data, re.IGNORECASE)
+        if not match:
+            raise ValueError("Formato da foto capturada e invalido.")
+        mime_type = match.group(1).lower()
+        encoded = match.group(2)
+        extension_by_mime = {
+            "image/png": ".png",
+            "image/jpeg": ".jpg",
+            "image/webp": ".webp",
+        }
+        extension = extension_by_mime.get(mime_type)
+        if not extension:
+            raise ValueError("Foto capturada deve ser JPG, PNG ou WEBP.")
+        try:
+            image_bytes = base64.b64decode(encoded, validate=True)
+        except (ValueError, binascii.Error) as exc:
+            raise ValueError("Nao foi possivel processar a foto capturada.") from exc
+        if not image_bytes:
+            raise ValueError("A foto capturada veio vazia.")
+        if len(image_bytes) > 6 * 1024 * 1024:
+            raise ValueError("A foto capturada excede o limite de 6 MB.")
+        relative_path = Path("uploads") / "condominio" / "proprietarios" / f"proprietario_{owner_id}{extension}"
+        (static_root / relative_path).write_bytes(image_bytes)
+        return relative_path.as_posix()
+
     filename = secure_filename(file.filename)
     extension = Path(filename).suffix.lower()
     if extension not in {".jpg", ".jpeg", ".png", ".webp"}:
         raise ValueError("Foto deve ser JPG, PNG ou WEBP.")
-    static_root = Path(current_app.static_folder or (Path(current_app.root_path) / "static"))
-    upload_dir = static_root / "uploads" / "condominio" / "proprietarios"
-    upload_dir.mkdir(parents=True, exist_ok=True)
     relative_path = Path("uploads") / "condominio" / "proprietarios" / f"proprietario_{owner_id}{extension}"
     file.save(static_root / relative_path)
     return relative_path.as_posix()
@@ -1401,6 +1432,77 @@ def _owner_notes_from_form() -> str | None:
     return "\n\n".join(content) or None
 
 
+def _owner_correspondence_payload() -> tuple[str | None, dict[str, str]]:
+    cep = str(request.form.get("correspondence_cep") or "").strip()
+    street = str(request.form.get("correspondence_street") or "").strip()
+    number = str(request.form.get("correspondence_number") or "").strip()
+    complement = str(request.form.get("correspondence_complement") or "").strip()
+    neighborhood = str(request.form.get("correspondence_neighborhood") or "").strip()
+    city = str(request.form.get("correspondence_city") or "").strip()
+    state = str(request.form.get("correspondence_state") or "").strip().upper()
+    reference = str(request.form.get("correspondence_reference") or "").strip()
+
+    structured = {
+        key: value
+        for key, value in {
+            "cep": cep,
+            "street": street,
+            "number": number,
+            "complement": complement,
+            "neighborhood": neighborhood,
+            "city": city,
+            "state": state,
+            "reference": reference,
+        }.items()
+        if value
+    }
+
+    address_lines: list[str] = []
+    first_line_parts = [part for part in (street, number) if part]
+    first_line = ", ".join(first_line_parts)
+    if complement:
+        first_line = f"{first_line} - {complement}" if first_line else complement
+    if first_line:
+        address_lines.append(first_line)
+    if neighborhood:
+        address_lines.append(neighborhood)
+    city_state = " - ".join(part for part in (city, state) if part)
+    if city_state:
+        address_lines.append(city_state)
+    if cep:
+        address_lines.append(f"CEP {cep}")
+    if reference:
+        address_lines.append(reference)
+
+    composed = "\n".join(address_lines).strip()
+    if composed:
+        return composed, structured
+
+    fallback_text = str(request.form.get("correspondence_address") or "").strip()
+    return fallback_text or None, structured
+
+
+def _owner_registry_data_from_form() -> dict[str, object]:
+    _, correspondence_structured = _owner_correspondence_payload()
+    owner_profile = {
+        key: value
+        for key, value in {
+            "rg_issuer": str(request.form.get("rg_issuer") or "").strip(),
+            "civil_status": str(request.form.get("civil_status") or "").strip(),
+            "property_regime": str(request.form.get("property_regime") or "").strip(),
+            "nationality": str(request.form.get("nationality") or "").strip(),
+            "profession": str(request.form.get("profession") or "").strip(),
+        }.items()
+        if value
+    }
+    data: dict[str, object] = {}
+    if owner_profile:
+        data["owner_profile"] = owner_profile
+    if correspondence_structured:
+        data["correspondence_address"] = correspondence_structured
+    return data
+
+
 def _create_condominium_owner_from_request() -> CondominiumOwner:
     unit_id = request.form.get("unit_id", type=int)
     unit = CondominiumUnit.query.get(unit_id) if unit_id else None
@@ -1414,6 +1516,8 @@ def _create_condominium_owner_from_request() -> CondominiumOwner:
     if not document_number:
         raise ValueError("Informe CPF ou CNPJ.")
 
+    correspondence_address, registry_data = _owner_correspondence_payload()[0], _owner_registry_data_from_form()
+
     owner = CondominiumOwner(
         unit=unit,
         relationship_type=str(request.form.get("relationship_type") or "proprietario").strip() or "proprietario",
@@ -1424,9 +1528,10 @@ def _create_condominium_owner_from_request() -> CondominiumOwner:
         cnh=str(request.form.get("cnh") or "").strip() or None,
         phone=str(request.form.get("phone") or "").strip() or None,
         email=str(request.form.get("email") or "").strip() or None,
-        correspondence_address=str(request.form.get("correspondence_address") or "").strip() or None,
+        correspondence_address=correspondence_address,
         emergency_contact=str(request.form.get("emergency_contact") or "").strip() or None,
         occupancy_status=str(request.form.get("occupancy_status") or "nao_informado").strip() or "nao_informado",
+        registry_data_json=registry_data or None,
         lgpd_authorized=bool(request.form.get("lgpd_authorized")),
         notes=_owner_notes_from_form(),
         created_by_matricula=_current_user_matricula(),
