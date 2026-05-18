@@ -8,6 +8,7 @@ from ..extensions import db
 from ..models import CondominiumBuilding, CondominiumOwner, CondominiumScheduleEvent, ServiceCompany, ServiceProviderEmployee
 from ..services.condominium_audit import record_condominium_audit
 from ..services.condominium_dossier import build_unit_dossier_context
+from ..services.condominium_gatehouse import build_gatehouse_context, save_gatehouse_access_from_form
 from ..services.condominium_service_providers import (
     COMPANY_STATUS_OPTIONS,
     DOCUMENT_TYPE_OPTIONS,
@@ -611,6 +612,53 @@ def admin_condominium_dossier():
     )
 
 
+@blueprint.route("/administracao/condominio/portaria", methods=["GET", "POST"])
+@login_required
+def admin_condominium_gatehouse():
+    if not _has_management_access():
+        flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
+        return redirect(url_for("dashboard.index"))
+    if _is_messenger_session():
+        return redirect(url_for("pages.mensageria_maintenance"))
+
+    if request.method == "POST":
+        try:
+            access_log = save_gatehouse_access_from_form(request.form, actor_matricula=_current_user_matricula())
+            db.session.flush()
+            record_condominium_audit(
+                action="gatehouse.access_log",
+                entity_type="condominium_access_log",
+                entity_id=access_log.id,
+                title=f"Portaria registrou {access_log.direction_label().lower()}: {access_log.person_name}",
+                actor_matricula=_current_user_matricula(),
+                details={
+                    "direction": access_log.direction,
+                    "status": access_log.access_status,
+                    "person_type": access_log.person_type,
+                    "unit_id": access_log.unit_id,
+                    "owner_id": access_log.owner_id,
+                    "service_employee_id": access_log.service_employee_id,
+                },
+            )
+            db.session.commit()
+            flash(f"Portaria registrada: {access_log.direction_label()} de {access_log.person_name}.", "success")
+            return redirect(url_for("condominium.admin_condominium_gatehouse", q=request.form.get("return_query") or ""))
+        except ValueError as exc:
+            db.session.rollback()
+            flash(str(exc), "danger")
+            return redirect(url_for("condominium.admin_condominium_gatehouse", q=request.form.get("return_query") or ""))
+
+    context = build_gatehouse_context(
+        query=str(request.args.get("q") or "").strip(),
+        status=str(request.args.get("status") or "").strip(),
+    )
+    return render_template(
+        "condominium_gatehouse.html",
+        gatehouse=context,
+        mask_sensitive_document=_mask_sensitive_document,
+    )
+
+
 @blueprint.get("/configuracoes/condominio/cadastros")
 @login_required
 def legacy_admin_condominium_registry():
@@ -627,6 +675,12 @@ def legacy_admin_condominium_schedule():
 @login_required
 def legacy_admin_condominium_dossier():
     return redirect(url_for("condominium.admin_condominium_dossier"))
+
+
+@blueprint.get("/configuracoes/condominio/portaria")
+@login_required
+def legacy_admin_condominium_gatehouse():
+    return redirect(url_for("condominium.admin_condominium_gatehouse"))
 
 
 @blueprint.get("/configuracoes/condominio/prestadores")

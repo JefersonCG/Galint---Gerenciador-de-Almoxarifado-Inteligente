@@ -292,6 +292,40 @@ class CondominiumAuditLog(db.Model):
         return self.actor_matricula or "Sistema"
 
 
+class CondominiumAccessLog(db.Model):
+    __tablename__ = "condominium_access_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), index=True)
+    direction: Mapped[str] = mapped_column(String(20), nullable=False, default="entrada", index=True)
+    access_status: Mapped[str] = mapped_column(String(24), nullable=False, default="liberado", index=True)
+    person_type: Mapped[str] = mapped_column(String(30), nullable=False, default="visitante", index=True)
+    person_name: Mapped[str] = mapped_column(String(180), nullable=False, index=True)
+    document_number: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    vehicle_plate: Mapped[str | None] = mapped_column(String(16), nullable=True, index=True)
+    purpose: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    unit_id: Mapped[int | None] = mapped_column(ForeignKey("condominium_units.id", ondelete="SET NULL"), nullable=True, index=True)
+    owner_id: Mapped[int | None] = mapped_column(ForeignKey("condominium_owners.id", ondelete="SET NULL"), nullable=True, index=True)
+    service_company_id: Mapped[int | None] = mapped_column(ForeignKey("service_companies.id", ondelete="SET NULL"), nullable=True, index=True)
+    service_employee_id: Mapped[int | None] = mapped_column(ForeignKey("service_provider_employees.id", ondelete="SET NULL"), nullable=True, index=True)
+    authorized_by_matricula: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
+
+    unit: Mapped[CondominiumUnit | None] = relationship("CondominiumUnit")
+    owner: Mapped[CondominiumOwner | None] = relationship("CondominiumOwner")
+    service_company: Mapped[ServiceCompany | None] = relationship("ServiceCompany")
+    service_employee: Mapped[ServiceProviderEmployee | None] = relationship("ServiceProviderEmployee")
+    authorized_by: Mapped["Usuario | None"] = relationship("Usuario", foreign_keys=[authorized_by_matricula])
+
+    def direction_label(self) -> str:
+        return "Saida" if self.direction == "saida" else "Entrada"
+
+    def status_label(self) -> str:
+        labels = {"liberado": "Liberado", "bloqueado": "Bloqueado", "observacao": "Observacao"}
+        return labels.get(self.access_status, "Liberado")
+
+
 class Item(db.Model):
     __tablename__ = "itens"
 

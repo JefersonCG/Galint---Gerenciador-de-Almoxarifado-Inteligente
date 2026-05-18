@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block title %}Portaria Digital{% endblock %}
+{% block body_class %}condominium-gatehouse-page{% endblock %}
+{% block extra_css %}
+<style>
+    body.condominium-gatehouse-page .app-body { background: linear-gradient(180deg, #eef5fc 0%, #e3edf7 100%); }
+    body.condominium-gatehouse-page .content-panel { background: rgba(239, 246, 255, 0.94); border-left: 1px solid rgba(148, 163, 184, 0.16); }
+    .gatehouse-shell { display: grid; gap: 0.9rem; color: #0f172a; }
+    .gatehouse-header { position: relative; overflow: hidden; display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; min-height: 11rem; padding: clamp(1rem, 2.1vw, 1.45rem); border-radius: 18px; border: 1px solid rgba(148, 163, 184, 0.2); background: #0f172a; color: #f8fafc; box-shadow: 0 24px 56px rgba(15, 23, 42, 0.18); }
+    .gatehouse-header::before { content: ""; position: absolute; inset: 0; background: url("{{ system_image_url('administracao_dashboard_hero', '20260506-admin-hero') }}") center / cover no-repeat; opacity: 0.72; }
+    .gatehouse-header::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(15, 23, 42, 0.9), rgba(21, 128, 61, 0.58)); }
+    .gatehouse-header > * { position: relative; z-index: 1; }
+    .gatehouse-kicker { display: inline-flex; align-items: center; gap: 0.42rem; margin: 0 0 0.45rem; padding: 0.3rem 0.58rem; border-radius: 999px; background: rgba(255,255,255,0.09); border: 1px solid rgba(226,232,240,0.14); color: #bbf7d0; font-size: 0.68rem; font-weight: 900; letter-spacing: 0.07em; text-transform: uppercase; }
+    .gatehouse-title { margin: 0; font-size: clamp(1.75rem, 2.8vw, 2.35rem); line-height: 1; font-weight: 950; letter-spacing: 0; color: #f8fafc; }
+    .gatehouse-summary { margin: 0.55rem 0 0; max-width: 56rem; color: rgba(226, 232, 240, 0.84); font-weight: 750; line-height: 1.42; }
+    .gatehouse-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: start; justify-content: flex-end; }
+    .gatehouse-card { border: 1px solid rgba(148, 163, 184, 0.22); border-radius: 16px; background: #fff; box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08); padding: 0.9rem; }
+    .gatehouse-search { display: grid; grid-template-columns: minmax(0, 1fr) minmax(10rem, 14rem) auto; gap: 0.65rem; align-items: end; }
+    .gatehouse-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.65rem; }
+    .gatehouse-kpi { display: grid; gap: 0.18rem; padding: 0.75rem; border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.18); background: #f8fafc; }
+    .gatehouse-kpi span { color: #64748b; font-size: 0.68rem; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; }
+    .gatehouse-kpi strong { font-size: 1.25rem; line-height: 1; font-weight: 950; }
+    .gatehouse-layout { display: grid; grid-template-columns: minmax(0, 0.96fr) minmax(22rem, 0.56fr); gap: 0.9rem; align-items: start; }
+    .gatehouse-section-title { margin: 0 0 0.55rem; font-size: 1rem; font-weight: 950; }
+    .gatehouse-result-list, .gatehouse-log-list { display: grid; gap: 0.55rem; }
+    .gatehouse-result { display: grid; gap: 0.55rem; padding: 0.75rem; border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.2); background: #f8fafc; }
+    .gatehouse-result-top { display: flex; justify-content: space-between; gap: 0.7rem; flex-wrap: wrap; }
+    .gatehouse-result-title { font-weight: 950; }
+    .gatehouse-muted { color: #64748b; font-size: 0.78rem; font-weight: 760; }
+    .gatehouse-tags { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+    .gatehouse-tag { display: inline-flex; min-height: 1.55rem; align-items: center; gap: 0.25rem; padding: 0.18rem 0.45rem; border-radius: 999px; background: #e2e8f0; color: #0f172a; font-size: 0.68rem; font-weight: 900; }
+    .gatehouse-tag.ok { background: #dcfce7; color: #166534; }
+    .gatehouse-tag.warn { background: #fef9c3; color: #854d0e; }
+    .gatehouse-tag.danger { background: #fee2e2; color: #991b1b; }
+    .gatehouse-access-form { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.55rem; align-items: end; }
+    .gatehouse-access-form .wide { grid-column: span 2; }
+    .gatehouse-log { display: grid; gap: 0.3rem; padding: 0.65rem; border-radius: 12px; background: #f8fafc; border: 1px solid rgba(148, 163, 184, 0.18); }
+    .gatehouse-log-top { display: flex; justify-content: space-between; gap: 0.55rem; flex-wrap: wrap; }
+    .gatehouse-empty { padding: 0.85rem; border-radius: 14px; border: 1px dashed rgba(148, 163, 184, 0.44); background: #f8fafc; color: #475569; font-weight: 760; }
+    @media (max-width: 1199.98px) { .gatehouse-layout { grid-template-columns: 1fr; } }
+    @media (max-width: 767.98px) { .gatehouse-search, .gatehouse-kpis, .gatehouse-access-form { grid-template-columns: 1fr; } .gatehouse-access-form .wide { grid-column: auto; } }
+</style>
+{% endblock %}
+{% block content %}
+<div class="gatehouse-shell">
+    <header class="gatehouse-header">
+        <div>
+            <p class="gatehouse-kicker"><i class="bi bi-door-open"></i> Fase 1 · Portaria Digital MVP</p>
+            <h1 class="gatehouse-title">Portaria Digital</h1>
+            <p class="gatehouse-summary">Busca rápida por unidade, morador, prestador, documento ou placa, com registro auditável de entrada, saída, bloqueio e liberação com observação.</p>
+        </div>
+        <div class="gatehouse-actions">
+            <a class="btn btn-info rounded-pill px-4" href="{{ url_for('condominium.admin_condominium_dossier', q=gatehouse.filters.q) }}"><i class="bi bi-journal-richtext me-1"></i> Dossiê</a>
+            <a class="btn btn-light rounded-pill px-4" href="{{ url_for('condominium.admin_condominium_schedule') }}"><i class="bi bi-calendar2-week me-1"></i> Agenda</a>
+            <a class="btn btn-outline-light rounded-pill px-4" href="{{ url_for('pages.administration_dashboard') }}"><i class="bi bi-buildings me-1"></i> Dashboard</a>
+        </div>
+    </header>
+
+    <section class="gatehouse-card">
+        <form class="gatehouse-search" method="get" action="{{ url_for('condominium.admin_condominium_gatehouse') }}">
+            <div>
+                <label class="form-label" for="gatehouse-q">Busca da portaria</label>
+                <input class="form-control" id="gatehouse-q" name="q" value="{{ gatehouse.filters.q }}" placeholder="Unidade, morador, CPF, placa, prestador ou empresa">
+            </div>
+            <div>
+                <label class="form-label" for="gatehouse-status">Status da unidade</label>
+                <select class="form-select" id="gatehouse-status" name="status">
+                    <option value="" {% if not gatehouse.filters.status %}selected{% endif %}>Todos</option>
+                    <option value="ocupado" {% if gatehouse.filters.status == 'ocupado' %}selected{% endif %}>Ocupado</option>
+                    <option value="sem_cadastro" {% if gatehouse.filters.status == 'sem_cadastro' %}selected{% endif %}>Sem cadastro</option>
+                    <option value="vago" {% if gatehouse.filters.status == 'vago' %}selected{% endif %}>Vago</option>
+                    <option value="reforma" {% if gatehouse.filters.status == 'reforma' %}selected{% endif %}>Reforma</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" type="submit"><i class="bi bi-search me-1"></i> Buscar</button>
+        </form>
+    </section>
+
+    <section class="gatehouse-kpis">
+        <div class="gatehouse-kpi"><span>Entradas hoje</span><strong>{{ gatehouse.summary.entries }}</strong></div>
+        <div class="gatehouse-kpi"><span>Saídas hoje</span><strong>{{ gatehouse.summary.exits }}</strong></div>
+        <div class="gatehouse-kpi"><span>Bloqueios</span><strong>{{ gatehouse.summary.blocked }}</strong></div>
+        <div class="gatehouse-kpi"><span>Total</span><strong>{{ gatehouse.summary.total }}</strong></div>
+    </section>
+
+    <div class="gatehouse-layout">
+        <main class="gatehouse-card">
+            <h2 class="gatehouse-section-title"><i class="bi bi-search me-1"></i> Resultado para liberação</h2>
+            <div class="gatehouse-result-list">
+                {% for row in gatehouse.results.units %}
+                {% set unit = row.unit %}
+                <article class="gatehouse-result">
+                    <div class="gatehouse-result-top">
+                        <div>
+                            <div class="gatehouse-result-title">{{ unit.full_label() }}</div>
+                            <div class="gatehouse-muted">{{ row.owner_names }} · {{ row.active_owner_count }} vínculo(s)</div>
+                        </div>
+                        <div class="gatehouse-tags">
+                            <span class="gatehouse-tag ok">{{ row.status_label }}</span>
+                            <span class="gatehouse-tag {% if row.pending_documents %}warn{% else %}ok{% endif %}">{{ row.pending_documents }} pendência(s)</span>
+                        </div>
+                    </div>
+                    <form class="gatehouse-access-form" method="post" action="{{ url_for('condominium.admin_condominium_gatehouse') }}">
+                        <input type="hidden" name="return_query" value="{{ gatehouse.filters.q }}">
+                        <input type="hidden" name="person_type" value="morador">
+                        <input type="hidden" name="unit_id" value="{{ unit.id }}">
+                        <div>
+                            <label class="form-label">Movimento</label>
+                            <select class="form-select form-select-sm" name="direction">{% for option in gatehouse.direction_options %}<option value="{{ option.value }}">{{ option.label }}</option>{% endfor %}</select>
+                        </div>
+                        <div>
+                            <label class="form-label">Status</label>
+                            <select class="form-select form-select-sm" name="access_status">{% for option in gatehouse.access_status_options %}<option value="{{ option.value }}">{{ option.label }}</option>{% endfor %}</select>
+                        </div>
+                        <div class="wide">
+                            <label class="form-label">Pessoa</label>
+                            <select class="form-select form-select-sm" name="owner_id">
+                                <option value="">Visitante da unidade</option>
+                                {% for owner in unit.owners %}<option value="{{ owner.id }}">{{ owner.full_name }} · {{ mask_sensitive_document(owner.document_number) }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div><label class="form-label">Nome avulso</label><input class="form-control form-control-sm" name="person_name" placeholder="Visitante ou apoio"></div>
+                        <div><label class="form-label">Documento</label><input class="form-control form-control-sm" name="document_number" inputmode="numeric"></div>
+                        <div><label class="form-label">Placa</label><input class="form-control form-control-sm" name="vehicle_plate" maxlength="16"></div>
+                        <div class="wide"><label class="form-label">Finalidade</label><input class="form-control form-control-sm" name="purpose" placeholder="Entrega, visita, manutenção, serviço"></div>
+                        <div class="wide"><label class="form-label">Observação</label><input class="form-control form-control-sm" name="notes"></div>
+                        <button class="btn btn-success btn-sm" type="submit"><i class="bi bi-check2-circle me-1"></i> Registrar</button>
+                    </form>
+                </article>
+                {% endfor %}
+
+                {% for row in gatehouse.results.providers %}
+                {% set employee = row.employee %}
+                <article class="gatehouse-result">
+                    <div class="gatehouse-result-top">
+                        <div>
+                            <div class="gatehouse-result-title">{{ row.title }}</div>
+                            <div class="gatehouse-muted">{{ row.subtitle }} · {{ employee.role or 'Função não informada' }} · {{ employee.vehicle_plate or 'Sem placa' }}</div>
+                        </div>
+                        <div class="gatehouse-tags">
+                            <span class="gatehouse-tag {% if employee.status == 'ativo' %}ok{% else %}danger{% endif %}">{{ employee.status|title }}</span>
+                            <span class="gatehouse-tag {{ 'danger' if row.document_summary.value == 'vencido' else 'warn' if row.document_summary.value in ['vencendo', 'pendente'] else 'ok' }}">{{ row.document_summary.label }}</span>
+                        </div>
+                    </div>
+                    <form class="gatehouse-access-form" method="post" action="{{ url_for('condominium.admin_condominium_gatehouse') }}">
+                        <input type="hidden" name="return_query" value="{{ gatehouse.filters.q }}">
+                        <input type="hidden" name="person_type" value="prestador">
+                        <input type="hidden" name="service_employee_id" value="{{ employee.id }}">
+                        <div><label class="form-label">Movimento</label><select class="form-select form-select-sm" name="direction">{% for option in gatehouse.direction_options %}<option value="{{ option.value }}">{{ option.label }}</option>{% endfor %}</select></div>
+                        <div><label class="form-label">Status</label><select class="form-select form-select-sm" name="access_status"><option value="liberado">Liberado</option><option value="bloqueado" {% if employee.status != 'ativo' %}selected{% endif %}>Bloqueado</option><option value="observacao">Liberado com observação</option></select></div>
+                        <div class="wide"><label class="form-label">Finalidade</label><input class="form-control form-control-sm" name="purpose" value="Serviço prestador"></div>
+                        <div><label class="form-label">Placa</label><input class="form-control form-control-sm" name="vehicle_plate" value="{{ employee.vehicle_plate or '' }}" maxlength="16"></div>
+                        <div class="wide"><label class="form-label">Observação</label><input class="form-control form-control-sm" name="notes" value="{% if employee.status != 'ativo' %}Prestador não ativo{% endif %}"></div>
+                        <button class="btn btn-success btn-sm" type="submit"><i class="bi bi-check2-circle me-1"></i> Registrar</button>
+                    </form>
+                </article>
+                {% endfor %}
+
+                {% if not gatehouse.results.total %}<div class="gatehouse-empty">Nenhum morador, unidade ou prestador encontrado para a busca atual.</div>{% endif %}
+            </div>
+        </main>
+
+        <aside class="gatehouse-card">
+            <h2 class="gatehouse-section-title"><i class="bi bi-clock-history me-1"></i> Últimos movimentos</h2>
+            <div class="gatehouse-log-list">
+                {% for log in gatehouse.recent_logs %}
+                <div class="gatehouse-log">
+                    <div class="gatehouse-log-top"><strong>{{ log.person_name }}</strong><span class="gatehouse-tag {% if log.access_status == 'bloqueado' %}danger{% else %}ok{% endif %}">{{ log.direction_label() }} · {{ log.status_label() }}</span></div>
+                    <div class="gatehouse-muted">{{ log.occurred_at.strftime('%d/%m/%Y %H:%M') if log.occurred_at else '' }} · {{ log.unit.full_label() if log.unit else log.person_type|title }}</div>
+                    {% if log.purpose or log.notes %}<div class="gatehouse-muted">{{ log.purpose or '' }}{% if log.purpose and log.notes %} · {% endif %}{{ log.notes or '' }}</div>{% endif %}
+                </div>
+                {% else %}
+                <div class="gatehouse-empty">Ainda não há movimentos de portaria registrados.</div>
+                {% endfor %}
+            </div>
+        </aside>
+    </div>
+</div>
+{% endblock %}
