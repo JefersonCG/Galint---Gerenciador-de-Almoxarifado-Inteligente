@@ -1,0 +1,352 @@
+"""Rotas do dominio condominial do GALINT."""
+from __future__ import annotations
+
+from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask_login import login_required
+
+from ..extensions import db
+from ..models import CondominiumBuilding, CondominiumOwner, CondominiumScheduleEvent
+from ..services.condominium_schedule import (
+    build_calendar_context,
+    due_schedule_notifications,
+    normalize_status,
+    now_local_naive,
+    today_local,
+)
+from ..services.condominium_structure import generate_unit_layout, sync_building_units
+from .pages import (
+    _apply_schedule_event_form,
+    _build_admin_service_providers_blueprint,
+    _building_form,
+    _building_form_from_default,
+    _building_summaries,
+    _condominium_owner_rows,
+    _condominium_unit_options,
+    _create_condominium_owner_from_request,
+    _current_user_matricula,
+    _default_admin_block,
+    _form_int,
+    _has_management_access,
+    _is_messenger_session,
+    _is_registered_admin,
+    _mask_sensitive_document,
+    _month_date_from_request,
+    _parse_iso_date,
+    _schedule_event_form,
+    _schedule_form_options,
+)
+
+
+blueprint = Blueprint("condominium", __name__)
+
+
+@blueprint.route("/administracao/condominio/cadastros", methods=["GET", "POST"])
+@login_required
+def admin_condominium_registry():
+    if not _has_management_access():
+        flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
+        return redirect(url_for("dashboard.index"))
+    if _is_messenger_session():
+        return redirect(url_for("pages.mensageria_maintenance"))
+    if request.method == "POST":
+        try:
+            _create_condominium_owner_from_request()
+            db.session.commit()
+            flash("Cadastro mestre salvo e unidade marcada como ocupada.", "success")
+            return redirect(url_for("condominium.admin_condominium_registry"))
+        except ValueError as exc:
+            db.session.rollback()
+            flash(str(exc), "danger")
+            return redirect(url_for("condominium.admin_condominium_registry"))
+    return render_template(
+        "condominium_owners.html",
+        units=_condominium_unit_options(),
+        owners=_condominium_owner_rows(),
+        mask_sensitive_document=_mask_sensitive_document,
+    )
+
+
+@blueprint.route("/administracao/condominio/editor-blocos", methods=["GET", "POST"])
+@login_required
+def admin_condominium_blocks_editor():
+    if not _has_management_access():
+        flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
+        return redirect(url_for("dashboard.index"))
+    if _is_messenger_session():
+        return redirect(url_for("pages.mensageria_maintenance"))
+    if not _is_registered_admin():
+        flash("Somente administrador cadastrado no sistema pode editar os cards dos edifícios.", "danger")
+        return redirect(url_for("pages.administration_dashboard"))
+
+    edit_id = request.args.get("editar", type=int)
+    model_number = request.args.get("modelo", type=int)
+    edit_building = CondominiumBuilding.query.get(edit_id) if edit_id else None
+    template_block = _default_admin_block(model_number) if not edit_building else None
+
+    if request.method == "POST":
+        building_id = request.form.get("building_id", type=int)
+        building = CondominiumBuilding.query.get(building_id) if building_id else CondominiumBuilding()
+        if building is None:
+            flash("Bloco nao encontrado.", "danger")
+            return redirect(url_for("condominium.admin_condominium_blocks_editor"))
+
+        try:
+            code = str(request.form.get("code") or "").strip()
+            name = str(request.form.get("name") or "").strip()
+            display_order = _form_int("display_order", default=0, minimum=0, maximum=999)
+            if not name:
+                raise ValueError("Informe o nome do edifício.")
+            if not code:
+                code = f"B{display_order:02d}" if display_order else name[:12].upper()
+            duplicate = CondominiumBuilding.query.filter(CondominiumBuilding.code == code).first()
+            if duplicate and duplicate.id != building.id:
+                raise ValueError("Já existe um edifício com esse código.")
+
+            building.code = code
+            building.name = name
+            building.display_order = display_order
+            building.floor_start = _form_int("floor_start", default=1, minimum=-10, maximum=300)
+            building.floor_count = _form_int("floor_count", default=1, minimum=1, maximum=300)
+            building.units_per_floor = _form_int("units_per_floor", default=0, minimum=0, maximum=300)
+            building.unit_suffix_start = _form_int("unit_suffix_start", default=0, minimum=0, maximum=9999)
+            building.suffix_width = _form_int("suffix_width", default=2, minimum=1, maximum=4)
+            building.numbering_mode = "floor_suffix"
+            building.custom_units_text = str(request.form.get("custom_units_text") or "").strip() or None
+            building.notes = str(request.form.get("notes") or "").strip() or None
+            building.active = bool(request.form.get("active"))
+            building.updated_by_matricula = _current_user_matricula()
+            if not building.id:
+                building.created_by_matricula = _current_user_matricula()
+                db.session.add(building)
+
+            layout = generate_unit_layout(
+                floor_start=building.floor_start,
+                floor_count=building.floor_count,
+                units_per_floor=building.units_per_floor,
+                unit_suffix_start=building.unit_suffix_start,
+                suffix_width=building.suffix_width,
+                custom_units_text=building.custom_units_text or "",
+            )
+            sync_building_units(building, layout, default_status=request.form.get("initial_status") or "vago")
+            db.session.commit()
+            flash("Editor de edifícios atualizado.", "success")
+            return redirect(url_for("condominium.admin_condominium_blocks_editor"))
+        except ValueError as exc:
+            db.session.rollback()
+            flash(str(exc), "danger")
+            return redirect(
+                url_for("condominium.admin_condominium_blocks_editor", editar=building_id)
+                if building_id else url_for("condominium.admin_condominium_blocks_editor")
+            )
+
+    return render_template(
+        "condominium_blocks_editor.html",
+        building_form=_building_form(edit_building) if not template_block else _building_form_from_default(template_block),
+        building_summaries=_building_summaries(),
+        edit_building=edit_building,
+    )
+
+
+@blueprint.post("/administracao/condominio/editor-blocos/<int:building_id>/arquivar")
+@login_required
+def admin_condominium_archive_building(building_id: int):
+    if not _has_management_access():
+        flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
+        return redirect(url_for("dashboard.index"))
+    if not _is_registered_admin():
+        flash("Somente administrador cadastrado no sistema pode editar os cards dos edifícios.", "danger")
+        return redirect(url_for("pages.administration_dashboard"))
+    building = CondominiumBuilding.query.get_or_404(building_id)
+    building.active = False
+    building.updated_by_matricula = _current_user_matricula()
+    for unit in building.units:
+        unit.active = False
+    db.session.commit()
+    flash("Edifício arquivado. Ele saiu do dashboard e da lista de unidades ativas.", "info")
+    return redirect(url_for("condominium.admin_condominium_blocks_editor"))
+
+
+@blueprint.post("/administracao/condominio/editor-blocos/<int:building_id>/excluir")
+@login_required
+def admin_condominium_delete_building(building_id: int):
+    if not _has_management_access():
+        flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
+        return redirect(url_for("dashboard.index"))
+    if not _is_registered_admin():
+        flash("Somente administrador cadastrado no sistema pode editar os cards dos edifícios.", "danger")
+        return redirect(url_for("pages.administration_dashboard"))
+
+    building = CondominiumBuilding.query.get_or_404(building_id)
+    actor_id = _current_user_matricula()
+    unit_ids = [int(unit.id) for unit in building.units]
+
+    if unit_ids:
+        owners = CondominiumOwner.query.filter(CondominiumOwner.unit_id.in_(unit_ids)).all()
+        for owner in owners:
+            owner.unit_id = None
+            owner.updated_by_matricula = actor_id
+
+    related_events = CondominiumScheduleEvent.query.filter(CondominiumScheduleEvent.building_id == building.id).all()
+    if unit_ids:
+        seen_event_ids = {int(event.id) for event in related_events}
+        unit_events = CondominiumScheduleEvent.query.filter(CondominiumScheduleEvent.unit_id.in_(unit_ids)).all()
+        for event in unit_events:
+            if int(event.id) not in seen_event_ids:
+                related_events.append(event)
+                seen_event_ids.add(int(event.id))
+
+    for event in related_events:
+        if event.building_id == building.id:
+            event.building_id = None
+        if event.unit_id in unit_ids:
+            event.unit_id = None
+        event.updated_by_matricula = actor_id
+
+    db.session.delete(building)
+    db.session.commit()
+    flash("Edifício excluído com sucesso.", "info")
+    return redirect(url_for("condominium.admin_condominium_blocks_editor"))
+
+
+@blueprint.route("/administracao/condominio/proprietarios", methods=["GET", "POST"])
+@login_required
+def admin_condominium_owners():
+    if not _has_management_access():
+        flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
+        return redirect(url_for("dashboard.index"))
+    if _is_messenger_session():
+        return redirect(url_for("pages.mensageria_maintenance"))
+
+    if request.method == "POST":
+        try:
+            _create_condominium_owner_from_request()
+            db.session.commit()
+            flash("Cadastro mestre salvo e unidade marcada como ocupada.", "success")
+        except ValueError as exc:
+            db.session.rollback()
+            flash(str(exc), "danger")
+    return redirect(url_for("condominium.admin_condominium_registry"))
+
+
+@blueprint.post("/administracao/condominio/proprietarios/<int:owner_id>/encerrar")
+@login_required
+def admin_condominium_close_owner(owner_id: int):
+    if not _has_management_access():
+        flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
+        return redirect(url_for("dashboard.index"))
+    owner = CondominiumOwner.query.get_or_404(owner_id)
+    owner.status = "encerrado"
+    owner.updated_by_matricula = _current_user_matricula()
+    if owner.unit:
+        has_active_owner = CondominiumOwner.query.filter(
+            CondominiumOwner.unit_id == owner.unit_id,
+            CondominiumOwner.id != owner.id,
+            CondominiumOwner.status == "ativo",
+        ).first()
+        if not has_active_owner:
+            owner.unit.status = "vago"
+    db.session.commit()
+    flash("Vinculo encerrado.", "info")
+    return redirect(url_for("condominium.admin_condominium_registry"))
+
+
+@blueprint.route("/administracao/condominio/agendamentos", methods=["GET", "POST"])
+@login_required
+def admin_condominium_schedule():
+    if not _has_management_access():
+        flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
+        return redirect(url_for("dashboard.index"))
+    if _is_messenger_session():
+        return redirect(url_for("pages.mensageria_maintenance"))
+
+    if request.method == "POST":
+        event_id = request.form.get("event_id", type=int)
+        event = CondominiumScheduleEvent.query.get(event_id) if event_id else CondominiumScheduleEvent()
+        if event is None:
+            flash("Compromisso nao encontrado.", "danger")
+            return redirect(url_for("condominium.admin_condominium_schedule"))
+        try:
+            if not event.id:
+                event.created_by_matricula = _current_user_matricula()
+                db.session.add(event)
+            _apply_schedule_event_form(event)
+            db.session.commit()
+            flash("Compromisso salvo na agenda.", "success")
+            return redirect(url_for("condominium.admin_condominium_schedule", data=event.event_date.isoformat(), mes=event.event_date.strftime("%Y-%m")))
+        except ValueError as exc:
+            db.session.rollback()
+            flash(str(exc), "danger")
+            return redirect(url_for("condominium.admin_condominium_schedule", data=request.form.get("event_date") or today_local().isoformat(), editar=event_id or None))
+
+    selected_date = _parse_iso_date(request.args.get("data"), default=today_local())
+    month_date = _month_date_from_request(selected_date)
+    edit_id = request.args.get("editar", type=int)
+    edit_event = CondominiumScheduleEvent.query.get(edit_id) if edit_id else None
+    return render_template(
+        "condominium_schedule.html",
+        calendar_page=build_calendar_context(month_date=month_date, selected_date=selected_date),
+        form_options=_schedule_form_options(),
+        event_form=_schedule_event_form(edit_event, selected_date=selected_date),
+        edit_event=edit_event,
+        agenda_notifications=due_schedule_notifications(),
+    )
+
+
+@blueprint.post("/administracao/condominio/agendamentos/<int:event_id>/status")
+@login_required
+def admin_condominium_schedule_status(event_id: int):
+    if not _has_management_access():
+        flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
+        return redirect(url_for("dashboard.index"))
+    event = CondominiumScheduleEvent.query.get_or_404(event_id)
+    event.status = normalize_status(request.form.get("status"))
+    event.updated_by_matricula = _current_user_matricula()
+    db.session.commit()
+    flash("Status do compromisso atualizado.", "success")
+    return redirect(url_for("condominium.admin_condominium_schedule", data=event.event_date.isoformat(), mes=event.event_date.strftime("%Y-%m")))
+
+
+@blueprint.post("/administracao/condominio/agendamentos/<int:event_id>/notificacao")
+@login_required
+def admin_condominium_schedule_acknowledge(event_id: int):
+    if not _has_management_access():
+        flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
+        return redirect(url_for("dashboard.index"))
+    event = CondominiumScheduleEvent.query.get_or_404(event_id)
+    event.notification_acknowledged_at = now_local_naive()
+    event.updated_by_matricula = _current_user_matricula()
+    db.session.commit()
+    flash("Notificacao da agenda confirmada.", "info")
+    return redirect(request.referrer or url_for("condominium.admin_condominium_schedule", data=event.event_date.isoformat()))
+
+
+@blueprint.get("/administracao/condominio/prestadores")
+@login_required
+def admin_service_providers():
+    if not _has_management_access():
+        flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
+        return redirect(url_for("dashboard.index"))
+    if _is_messenger_session():
+        return redirect(url_for("pages.mensageria_maintenance"))
+    return render_template(
+        "config_service_providers_blueprint.html",
+        service_provider_page=_build_admin_service_providers_blueprint(),
+    )
+
+
+@blueprint.get("/configuracoes/condominio/cadastros")
+@login_required
+def legacy_admin_condominium_registry():
+    return redirect(url_for("condominium.admin_condominium_registry"))
+
+
+@blueprint.get("/configuracoes/condominio/agendamentos")
+@login_required
+def legacy_admin_condominium_schedule():
+    return redirect(url_for("condominium.admin_condominium_schedule"))
+
+
+@blueprint.get("/configuracoes/condominio/prestadores")
+@login_required
+def legacy_admin_service_providers():
+    return redirect(url_for("condominium.admin_service_providers"))
