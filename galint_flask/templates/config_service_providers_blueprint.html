@@ -1,190 +1,194 @@
 {% extends "base.html" %}
 {% block title %}Prestadores de Serviços{% endblock %}
-{% block body_class %}service-provider-blueprint-page{% endblock %}
+{% block body_class %}service-provider-page{% endblock %}
 {% block page_header %}{% endblock %}
 {% block extra_css %}
 <style>
-    body.service-provider-blueprint-page .app-body {
-        background:
-            radial-gradient(circle at 18% 10%, rgba(14, 165, 233, 0.15), transparent 24rem),
-            radial-gradient(circle at 86% 14%, rgba(34, 197, 94, 0.1), transparent 23rem),
-            linear-gradient(180deg, #d8e4ee 0%, #c4d0dc 100%);
-    }
-
-    .service-provider-shell {
-        display: grid;
-        gap: 1rem;
-        color: #172033;
-    }
-
-    .service-provider-hero,
-    .service-provider-section {
-        border: 1px solid rgba(15, 23, 42, 0.12);
-        border-radius: 8px;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(241, 245, 249, 0.84));
-        box-shadow: 0 18px 38px rgba(15, 23, 42, 0.11);
-    }
-
-    .service-provider-hero {
-        display: grid;
-        gap: 0.9rem;
-        padding: clamp(1.2rem, 2.8vw, 2rem);
-    }
-
-    .service-provider-kicker {
-        margin: 0;
-        color: #0369a1;
-        font-size: 0.78rem;
-        font-weight: 850;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-    }
-
-    .service-provider-title {
-        margin: 0;
-        max-width: 52rem;
-        color: #0f172a;
-        font-size: clamp(2rem, 3.8vw, 3rem);
-        line-height: 1;
-        font-weight: 950;
-        letter-spacing: 0;
-    }
-
-    .service-provider-summary {
-        margin: 0;
-        max-width: 56rem;
-        color: #475569;
-        font-size: 1rem;
-        line-height: 1.55;
-        font-weight: 600;
-    }
-
-    .service-provider-badge {
-        width: fit-content;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.45rem;
-        min-height: 2rem;
-        padding: 0.34rem 0.7rem;
-        border-radius: 999px;
-        background: rgba(15, 23, 42, 0.9);
-        color: #f8fafc;
-        font-size: 0.74rem;
-        font-weight: 850;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-    }
-
-    .service-provider-section {
-        display: grid;
-        gap: 0.85rem;
-        padding: clamp(1rem, 2vw, 1.35rem);
-    }
-
-    .service-provider-section h2 {
-        margin: 0;
-        color: #0f172a;
-        font-size: 1.25rem;
-        font-weight: 900;
-    }
-
-    .service-provider-grid {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 0.75rem;
-    }
-
-    .service-provider-field,
-    .service-provider-card {
-        min-width: 0;
-        display: grid;
-        gap: 0.35rem;
-        padding: 0.85rem;
-        border-radius: 8px;
-        border: 1px solid rgba(148, 163, 184, 0.22);
-        background: rgba(248, 250, 252, 0.88);
-    }
-
-    .service-provider-field strong,
-    .service-provider-card h3 {
-        margin: 0;
-        color: #0f172a;
-        font-size: 0.95rem;
-        line-height: 1.25;
-        font-weight: 850;
-    }
-
-    .service-provider-field span,
-    .service-provider-card p {
-        margin: 0;
-        color: #475569;
-        font-size: 0.84rem;
-        line-height: 1.45;
-        font-weight: 600;
-    }
-
-    @media (max-width: 991.98px) {
-        .service-provider-grid {
-            grid-template-columns: 1fr;
-        }
-    }
+    body.service-provider-page .app-body { background: linear-gradient(180deg, #e8eef5 0%, #d9e2ec 100%); }
+    body.service-provider-page .content-panel { background: rgba(241, 245, 249, 0.96); }
+    .provider-shell { display: grid; gap: 0.9rem; color: #0f172a; }
+    .provider-hero { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; padding: 1rem; border: 1px solid rgba(15, 23, 42, 0.12); border-radius: 8px; background: #ffffff; box-shadow: 0 14px 32px rgba(15, 23, 42, 0.08); }
+    .provider-kicker { margin: 0 0 0.35rem; color: #0369a1; font-size: 0.72rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; }
+    .provider-title { margin: 0; max-width: 46rem; color: #0f172a; font-size: clamp(1.7rem, 3vw, 2.35rem); line-height: 1; font-weight: 950; letter-spacing: 0; }
+    .provider-summary { margin: 0.5rem 0 0; max-width: 58rem; color: #475569; font-size: 0.92rem; line-height: 1.45; font-weight: 650; }
+    .provider-badge { display: inline-flex; align-items: center; gap: 0.4rem; min-height: 2rem; padding: 0.32rem 0.68rem; border-radius: 999px; background: #0f172a; color: #f8fafc; font-size: 0.72rem; font-weight: 850; text-transform: uppercase; letter-spacing: 0.04em; }
+    .provider-toolbar,
+    .provider-panel { border: 1px solid rgba(148, 163, 184, 0.24); border-radius: 8px; background: #ffffff; box-shadow: 0 14px 30px rgba(15, 23, 42, 0.07); }
+    .provider-toolbar { padding: 0.8rem; }
+    .provider-toolbar form { display: grid; grid-template-columns: minmax(14rem, 1fr) minmax(10rem, 0.35fr) minmax(10rem, 0.35fr) auto; gap: 0.6rem; align-items: end; }
+    .provider-layout { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(20rem, 0.85fr); gap: 0.9rem; align-items: start; }
+    .provider-panel { overflow: hidden; }
+    .provider-panel-head { display: flex; justify-content: space-between; gap: 0.75rem; align-items: center; flex-wrap: wrap; padding: 0.82rem 0.9rem; border-bottom: 1px solid rgba(148, 163, 184, 0.2); background: #f8fafc; }
+    .provider-panel-title { margin: 0; font-size: 1rem; font-weight: 900; color: #0f172a; }
+    .provider-panel-meta { color: #64748b; font-size: 0.76rem; font-weight: 800; }
+    .provider-form { padding: 0.9rem; }
+    .provider-form .form-label { margin-bottom: 0.22rem; color: #334155; font-size: 0.76rem; font-weight: 850; }
+    .provider-form .form-control,
+    .provider-form .form-select { min-height: 39px; border-radius: 8px; border-color: rgba(148, 163, 184, 0.38); font-weight: 650; }
+    .provider-form textarea.form-control { min-height: 82px; }
+    .provider-check-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.45rem; }
+    .provider-check { min-height: 2.35rem; display: flex; align-items: center; gap: 0.4rem; padding: 0.42rem 0.55rem; border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.24); background: #f8fafc; font-weight: 800; color: #0f172a; }
+    .provider-check .form-check-input { float: none; margin: 0; }
+    .provider-save-row { display: flex; justify-content: space-between; gap: 0.65rem; align-items: center; flex-wrap: wrap; padding-top: 0.85rem; border-top: 1px solid rgba(148, 163, 184, 0.18); }
+    .provider-list { display: grid; gap: 0.58rem; padding: 0.75rem; max-height: 42rem; overflow: auto; }
+    .provider-company-card { display: grid; gap: 0.55rem; padding: 0.78rem; border: 1px solid rgba(148, 163, 184, 0.24); border-radius: 8px; background: #f8fafc; }
+    .provider-company-card.is-selected { border-color: rgba(37, 99, 235, 0.5); box-shadow: inset 3px 0 0 #2563eb; }
+    .provider-company-card.is-muted { opacity: 0.68; }
+    .provider-company-top { display: flex; justify-content: space-between; gap: 0.65rem; align-items: flex-start; }
+    .provider-company-name { display: block; color: #0f172a; font-weight: 900; line-height: 1.18; }
+    .provider-company-doc { display: block; margin-top: 0.2rem; color: #64748b; font-size: 0.72rem; font-weight: 850; letter-spacing: 0.03em; text-transform: uppercase; }
+    .provider-status { display: inline-flex; min-height: 1.65rem; align-items: center; padding: 0.24rem 0.5rem; border-radius: 999px; font-size: 0.7rem; font-weight: 900; white-space: nowrap; }
+    .provider-status.success { background: #dcfce7; color: #166534; }
+    .provider-status.warning { background: #fef3c7; color: #92400e; }
+    .provider-status.danger { background: #fee2e2; color: #991b1b; }
+    .provider-status.muted { background: #e2e8f0; color: #475569; }
+    .provider-tags { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+    .provider-tag { display: inline-flex; align-items: center; min-height: 1.55rem; padding: 0.2rem 0.45rem; border-radius: 999px; background: #e0f2fe; color: #075985; font-size: 0.7rem; font-weight: 850; }
+    .provider-company-actions { display: flex; flex-wrap: wrap; gap: 0.38rem; }
+    .provider-empty { margin: 0.75rem; padding: 0.85rem; border: 1px dashed rgba(148, 163, 184, 0.5); border-radius: 8px; color: #64748b; font-weight: 760; }
+    .provider-employee-layout { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr); gap: 0.9rem; align-items: start; }
+    .provider-employee-list { display: grid; gap: 0.55rem; padding: 0.75rem; }
+    .provider-worker-card { display: grid; gap: 0.42rem; padding: 0.7rem; border: 1px solid rgba(148, 163, 184, 0.24); border-radius: 8px; background: #f8fafc; }
+    .provider-worker-main { display: flex; justify-content: space-between; gap: 0.6rem; align-items: flex-start; }
+    .provider-worker-name { color: #0f172a; font-weight: 900; }
+    .provider-worker-detail { color: #64748b; font-size: 0.75rem; font-weight: 750; }
+    @media (max-width: 1199.98px) { .provider-layout, .provider-employee-layout { grid-template-columns: 1fr; } .provider-list { max-height: none; } }
+    @media (max-width: 991.98px) { .provider-toolbar form { grid-template-columns: 1fr; } .provider-check-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 575.98px) { .provider-check-grid { grid-template-columns: 1fr; } .provider-company-top, .provider-worker-main { flex-direction: column; } }
 </style>
 {% endblock %}
 {% block content %}
-<div class="service-provider-shell">
-    <section class="service-provider-hero" aria-labelledby="service-provider-title">
-        <span class="service-provider-badge"><i class="bi bi-building-check"></i> {{ service_provider_page.hero.badge }}</span>
-        <p class="service-provider-kicker">{{ service_provider_page.hero.kicker }}</p>
-        <h1 class="service-provider-title" id="service-provider-title">{{ service_provider_page.hero.title }}</h1>
-        <p class="service-provider-summary">{{ service_provider_page.hero.summary }}</p>
+<div class="provider-shell">
+    <section class="provider-hero" aria-labelledby="provider-title">
+        <div>
+            <p class="provider-kicker">{{ service_provider_page.hero.kicker }}</p>
+            <h1 class="provider-title" id="provider-title">{{ service_provider_page.hero.title }}</h1>
+            <p class="provider-summary">{{ service_provider_page.hero.summary }}</p>
+        </div>
+        <span class="provider-badge"><i class="bi bi-building-check"></i> {{ service_provider_page.hero.badge }}</span>
     </section>
 
-    <section class="service-provider-section" aria-labelledby="service-provider-company-title">
-        <h2 id="service-provider-company-title">Cadastro da empresa</h2>
-        <div class="service-provider-grid">
-            {% for field in service_provider_page.company_fields %}
-            <article class="service-provider-field">
-                <strong>{{ field.label }}</strong>
-                <span>{{ field.note }}</span>
-            </article>
-            {% endfor %}
-        </div>
+    <section class="provider-toolbar" aria-label="Filtros de prestadores">
+        <form method="get" action="{{ url_for('condominium.admin_service_providers') }}">
+            <div><label class="form-label" for="provider-search">Busca</label><input class="form-control form-control-sm" id="provider-search" name="q" value="{{ filters.q }}" placeholder="Empresa, CNPJ ou responsável"></div>
+            <div>
+                <label class="form-label" for="provider-status-filter">Status</label>
+                <select class="form-select form-select-sm" id="provider-status-filter" name="status">
+                    <option value="">Todos</option>
+                    <option value="ativo" {% if filters.status == 'ativo' %}selected{% endif %}>Ativo</option>
+                    <option value="vencendo" {% if filters.status == 'vencendo' %}selected{% endif %}>Vencendo</option>
+                    <option value="vencido" {% if filters.status == 'vencido' %}selected{% endif %}>Vencido</option>
+                    <option value="inativo" {% if filters.status == 'inativo' %}selected{% endif %}>Inativo</option>
+                    <option value="suspenso" {% if filters.status == 'suspenso' %}selected{% endif %}>Suspenso</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label" for="provider-type-filter">Serviço</label>
+                <select class="form-select form-select-sm" id="provider-type-filter" name="tipo">
+                    <option value="">Todos</option>
+                    {% for option in service_type_options %}<option value="{{ option.value }}" {% if filters.tipo == option.value %}selected{% endif %}>{{ option.label }}</option>{% endfor %}
+                </select>
+            </div>
+            <button class="btn btn-primary btn-sm" type="submit"><i class="bi bi-search me-1"></i>Filtrar</button>
+        </form>
     </section>
 
-    <section class="service-provider-section" aria-labelledby="service-provider-worker-title">
-        <h2 id="service-provider-worker-title">Funcionarios recorrentes</h2>
-        <div class="service-provider-grid">
-            {% for field in service_provider_page.worker_fields %}
-            <article class="service-provider-field">
-                <strong>{{ field.label }}</strong>
-                <span>{{ field.note }}</span>
-            </article>
-            {% endfor %}
-        </div>
-    </section>
+    <div class="provider-layout">
+        <section class="provider-panel" aria-labelledby="provider-company-form-title">
+            <div class="provider-panel-head">
+                <div><h2 class="provider-panel-title" id="provider-company-form-title">{{ 'Editar empresa' if company_form.id else 'Nova empresa prestadora' }}</h2><div class="provider-panel-meta">Cadastro jurídico, contrato, serviços e LGPD</div></div>
+                {% if company_form.id %}<a class="btn btn-outline-secondary btn-sm" href="{{ url_for('condominium.admin_service_providers') }}"><i class="bi bi-plus-circle me-1"></i>Novo</a>{% endif %}
+            </div>
+            <form class="provider-form" method="post" action="{{ url_for('condominium.admin_service_providers') }}">
+                {% if company_form.id %}<input type="hidden" name="company_id" value="{{ company_form.id }}">{% endif %}
+                <div class="row g-3">
+                    <div class="col-md-7"><label class="form-label" for="corporate_name">Razão social</label><input class="form-control form-control-sm" id="corporate_name" name="corporate_name" value="{{ company_form.corporate_name }}" required></div>
+                    <div class="col-md-5"><label class="form-label" for="trade_name">Nome fantasia</label><input class="form-control form-control-sm" id="trade_name" name="trade_name" value="{{ company_form.trade_name }}"></div>
+                    <div class="col-md-4"><label class="form-label" for="cnpj">CNPJ</label><input class="form-control form-control-sm" id="cnpj" name="cnpj" value="{{ company_form.cnpj }}" inputmode="numeric" maxlength="18" required></div>
+                    <div class="col-md-4"><label class="form-label" for="state_registration">Inscrição estadual</label><input class="form-control form-control-sm" id="state_registration" name="state_registration" value="{{ company_form.state_registration }}"></div>
+                    <div class="col-md-4"><label class="form-label" for="municipal_registration">Inscrição municipal</label><input class="form-control form-control-sm" id="municipal_registration" name="municipal_registration" value="{{ company_form.municipal_registration }}"></div>
+                    <div class="col-md-4"><label class="form-label" for="phone">Telefone</label><input class="form-control form-control-sm" id="phone" name="phone" value="{{ company_form.phone }}"></div>
+                    <div class="col-md-4"><label class="form-label" for="whatsapp">WhatsApp</label><input class="form-control form-control-sm" id="whatsapp" name="whatsapp" value="{{ company_form.whatsapp }}"></div>
+                    <div class="col-md-4"><label class="form-label" for="email">E-mail</label><input class="form-control form-control-sm" id="email" name="email" value="{{ company_form.email }}" type="email"></div>
+                    <div class="col-12"><label class="form-label" for="address">Endereço</label><textarea class="form-control form-control-sm" id="address" name="address">{{ company_form.address }}</textarea></div>
+                    <div class="col-md-7"><label class="form-label" for="legal_representative_name">Responsável legal</label><input class="form-control form-control-sm" id="legal_representative_name" name="legal_representative_name" value="{{ company_form.legal_representative_name }}"></div>
+                    <div class="col-md-5"><label class="form-label" for="legal_representative_cpf">CPF do responsável</label><input class="form-control form-control-sm" id="legal_representative_cpf" name="legal_representative_cpf" value="{{ company_form.legal_representative_cpf }}" inputmode="numeric" maxlength="14"></div>
+                    <div class="col-md-4"><label class="form-label" for="contract_start_date">Início do contrato</label><input class="form-control form-control-sm" id="contract_start_date" name="contract_start_date" value="{{ company_form.contract_start_date }}" type="date"></div>
+                    <div class="col-md-4"><label class="form-label" for="contract_end_date">Vencimento</label><input class="form-control form-control-sm" id="contract_end_date" name="contract_end_date" value="{{ company_form.contract_end_date }}" type="date"></div>
+                    <div class="col-md-4"><label class="form-label" for="monthly_contract_value">Valor mensal</label><input class="form-control form-control-sm" id="monthly_contract_value" name="monthly_contract_value" value="{{ company_form.monthly_contract_value }}" inputmode="decimal"></div>
+                    <div class="col-md-4"><label class="form-label" for="company-status">Situação</label><select class="form-select form-select-sm" id="company-status" name="status">{% for option in company_status_options %}<option value="{{ option.value }}" {% if company_form.status == option.value %}selected{% endif %}>{{ option.label }}</option>{% endfor %}</select></div>
+                    <div class="col-12">
+                        <label class="form-label">Tipos de serviço</label>
+                        <div class="provider-check-grid">
+                            {% for option in service_type_options %}
+                            <label class="provider-check" for="service-type-{{ option.value }}"><input class="form-check-input" id="service-type-{{ option.value }}" name="service_types" type="checkbox" value="{{ option.value }}" {% if option.value in company_form.service_types %}checked{% endif %}><span>{{ option.label }}</span></label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="col-12"><label class="form-label" for="notes">Observações</label><textarea class="form-control form-control-sm" id="notes" name="notes">{{ company_form.notes }}</textarea></div>
+                    <div class="col-12"><label class="provider-check" for="lgpd_authorized"><input class="form-check-input" id="lgpd_authorized" name="lgpd_authorized" type="checkbox" value="1" {% if company_form.lgpd_authorized %}checked{% endif %}><span>Consentimento e finalidade registrados</span></label></div>
+                </div>
+                <div class="provider-save-row"><span class="provider-panel-meta">Documentos ficam mascarados nas listas operacionais.</span><button class="btn btn-success btn-sm px-4" type="submit"><i class="bi bi-check2-circle me-1"></i>Salvar empresa</button></div>
+            </form>
+        </section>
 
-    <section class="service-provider-section" aria-labelledby="service-provider-automation-title">
-        <h2 id="service-provider-automation-title">Automacao e integracoes futuras</h2>
-        <div class="service-provider-grid">
-            {% for card in service_provider_page.automation_cards %}
-            <article class="service-provider-card">
-                <h3>{{ card.title }}</h3>
-                <p>{{ card.text }}</p>
-            </article>
-            {% endfor %}
-        </div>
-    </section>
+        <section class="provider-panel" aria-labelledby="provider-company-list-title">
+            <div class="provider-panel-head"><div><h2 class="provider-panel-title" id="provider-company-list-title">Empresas cadastradas</h2><div class="provider-panel-meta">{{ company_rows|length }} registro(s)</div></div></div>
+            {% if company_rows %}
+            <div class="provider-list">
+                {% for row in company_rows %}
+                {% set company = row.company %}
+                <article class="provider-company-card {% if selected_company_id == company.id %}is-selected{% endif %} {% if row.contract_status.value in ['inativo', 'suspenso'] %}is-muted{% endif %}">
+                    <div class="provider-company-top"><div><strong class="provider-company-name">{{ company.display_name() }}</strong><span class="provider-company-doc">{{ row.cnpj_masked }}</span></div><span class="provider-status {{ row.contract_status.css }}">{{ row.contract_status.label }}</span></div>
+                    <div class="provider-tags"><span class="provider-tag"><i class="bi bi-tools me-1"></i>{{ row.services_label }}</span><span class="provider-tag"><i class="bi bi-people me-1"></i>{{ row.active_worker_count }}/{{ row.worker_count }} ativo(s)</span>{% if company.contract_end_date %}<span class="provider-tag"><i class="bi bi-calendar2-check me-1"></i>{{ company.contract_end_date.strftime('%d/%m/%Y') }}</span>{% endif %}</div>
+                    <div class="provider-company-actions">
+                        <a class="btn btn-outline-primary btn-sm" href="{{ url_for('condominium.admin_service_providers', editar=company.id, empresa=company.id) }}"><i class="bi bi-pencil-square me-1"></i>Editar</a>
+                        <a class="btn btn-outline-dark btn-sm" href="{{ url_for('condominium.admin_service_providers', empresa=company.id) }}"><i class="bi bi-person-plus me-1"></i>Funcionários</a>
+                        {% if company.status != 'inativo' %}<form method="post" action="{{ url_for('condominium.admin_service_provider_company_deactivate', company_id=company.id) }}" onsubmit="return confirm('Desativar esta empresa e marcar funcionários ativos como inativos?');"><button class="btn btn-outline-danger btn-sm" type="submit"><i class="bi bi-slash-circle me-1"></i>Desativar</button></form>{% endif %}
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+            {% else %}<p class="provider-empty">Nenhuma empresa prestadora encontrada.</p>{% endif %}
+        </section>
+    </div>
 
-    <section class="service-provider-section" aria-labelledby="service-provider-security-title">
-        <h2 id="service-provider-security-title">Seguranca, LGPD e auditoria</h2>
-        <div class="service-provider-grid">
-            {% for card in service_provider_page.security_cards %}
-            <article class="service-provider-card">
-                <h3>{{ card.title }}</h3>
-                <p>{{ card.text }}</p>
-            </article>
-            {% endfor %}
-        </div>
+    <section class="provider-employee-layout" aria-label="Funcionários vinculados">
+        <section class="provider-panel" aria-labelledby="provider-employee-form-title">
+            <div class="provider-panel-head"><div><h2 class="provider-panel-title" id="provider-employee-form-title">Adicionar funcionário</h2><div class="provider-panel-meta">Vínculo operacional com uma empresa ativa</div></div></div>
+            <form class="provider-form" method="post" action="{{ url_for('condominium.admin_service_provider_employee_create') }}">
+                <div class="row g-3">
+                    <div class="col-12"><label class="form-label" for="employee-company-id">Empresa</label><select class="form-select form-select-sm" id="employee-company-id" name="company_id" required {% if not company_rows %}disabled{% endif %}><option value="">Selecione</option>{% for row in company_rows %}{% set company = row.company %}<option value="{{ company.id }}" {% if selected_company_id == company.id %}selected{% endif %} {% if company.status != 'ativo' %}disabled{% endif %}>{{ company.display_name() }}</option>{% endfor %}</select></div>
+                    <div class="col-md-8"><label class="form-label" for="employee_full_name">Nome completo</label><input class="form-control form-control-sm" id="employee_full_name" name="employee_full_name" required></div>
+                    <div class="col-md-4"><label class="form-label" for="employee_cpf">CPF</label><input class="form-control form-control-sm" id="employee_cpf" name="employee_cpf" inputmode="numeric" maxlength="14" required></div>
+                    <div class="col-md-4"><label class="form-label" for="employee_rg">RG</label><input class="form-control form-control-sm" id="employee_rg" name="employee_rg"></div>
+                    <div class="col-md-4"><label class="form-label" for="employee_role">Função</label><input class="form-control form-control-sm" id="employee_role" name="employee_role"></div>
+                    <div class="col-md-4"><label class="form-label" for="employee_phone">Telefone</label><input class="form-control form-control-sm" id="employee_phone" name="employee_phone"></div>
+                    <div class="col-md-4"><label class="form-label" for="employee_vehicle_plate">Placa</label><input class="form-control form-control-sm" id="employee_vehicle_plate" name="employee_vehicle_plate"></div>
+                    <div class="col-md-4"><label class="form-label" for="employee_usual_schedule">Horário habitual</label><input class="form-control form-control-sm" id="employee_usual_schedule" name="employee_usual_schedule" placeholder="Ex.: 08:00-17:00"></div>
+                    <div class="col-md-4"><label class="form-label" for="employee_status">Status</label><select class="form-select form-select-sm" id="employee_status" name="employee_status">{% for option in employee_status_options %}<option value="{{ option.value }}">{{ option.label }}</option>{% endfor %}</select></div>
+                    <div class="col-12"><label class="form-label">Dias recorrentes</label><div class="provider-check-grid">{% for option in weekday_options %}<label class="provider-check" for="employee-day-{{ option.value }}"><input class="form-check-input" id="employee-day-{{ option.value }}" name="employee_recurring_days" type="checkbox" value="{{ option.value }}"><span>{{ option.label }}</span></label>{% endfor %}</div></div>
+                    <div class="col-12"><label class="form-label" for="employee_notes">Observações</label><textarea class="form-control form-control-sm" id="employee_notes" name="employee_notes"></textarea></div>
+                    <div class="col-12"><label class="provider-check" for="employee_lgpd_authorized"><input class="form-check-input" id="employee_lgpd_authorized" name="employee_lgpd_authorized" type="checkbox" value="1"><span>Consentimento e finalidade registrados</span></label></div>
+                </div>
+                <div class="provider-save-row"><span class="provider-panel-meta">CPF aparece mascarado após o cadastro.</span><button class="btn btn-success btn-sm px-4" type="submit" {% if not company_rows %}disabled{% endif %}><i class="bi bi-person-check me-1"></i>Vincular funcionário</button></div>
+            </form>
+        </section>
+
+        <section class="provider-panel" aria-labelledby="provider-employee-list-title">
+            <div class="provider-panel-head"><div><h2 class="provider-panel-title" id="provider-employee-list-title">Funcionários vinculados</h2><div class="provider-panel-meta">{{ employee_rows|length }} registro(s)</div></div></div>
+            {% if employee_rows %}
+            <div class="provider-employee-list">
+                {% for row in employee_rows %}
+                {% set employee = row.employee %}
+                <article class="provider-worker-card">
+                    <div class="provider-worker-main"><div><div class="provider-worker-name">{{ employee.full_name }}</div><div class="provider-worker-detail">{{ row.cpf_masked }} · {{ employee.role or 'Função não informada' }}</div><div class="provider-worker-detail">{{ row.company_name }} · {{ row.days_label }}</div>{% if employee.vehicle_plate %}<div class="provider-worker-detail">Placa {{ employee.vehicle_plate }}</div>{% endif %}</div><span class="provider-status {% if employee.status == 'ativo' %}success{% elif employee.status == 'bloqueado' %}danger{% else %}muted{% endif %}">{{ employee.status|capitalize }}</span></div>
+                    <div class="provider-company-actions"><form method="post" action="{{ url_for('condominium.admin_service_provider_employee_status', employee_id=employee.id) }}"><input type="hidden" name="status" value="ativo"><button class="btn btn-outline-success btn-sm" type="submit">Ativar</button></form><form method="post" action="{{ url_for('condominium.admin_service_provider_employee_status', employee_id=employee.id) }}"><input type="hidden" name="status" value="bloqueado"><button class="btn btn-outline-danger btn-sm" type="submit">Bloquear</button></form><form method="post" action="{{ url_for('condominium.admin_service_provider_employee_status', employee_id=employee.id) }}"><input type="hidden" name="status" value="inativo"><button class="btn btn-outline-secondary btn-sm" type="submit">Inativar</button></form></div>
+                </article>
+                {% endfor %}
+            </div>
+            {% else %}<p class="provider-empty">Selecione uma empresa para visualizar os funcionários vinculados.</p>{% endif %}
+        </section>
     </section>
 </div>
 {% endblock %}

@@ -195,6 +195,80 @@ class CondominiumScheduleEvent(db.Model):
         return "Condomínio"
 
 
+class ServiceCompany(db.Model):
+    __tablename__ = "service_companies"
+    __table_args__ = (
+        UniqueConstraint("cnpj", name="uq_service_companies_cnpj"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    corporate_name: Mapped[str] = mapped_column(String(180), nullable=False, index=True)
+    trade_name: Mapped[str | None] = mapped_column(String(180), nullable=True, index=True)
+    cnpj: Mapped[str] = mapped_column(String(18), nullable=False, index=True)
+    state_registration: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    municipal_registration: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    whatsapp: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    address: Mapped[str | None] = mapped_column(Text, nullable=True)
+    legal_representative_name: Mapped[str | None] = mapped_column(String(180), nullable=True)
+    legal_representative_cpf: Mapped[str | None] = mapped_column(String(18), nullable=True)
+    contract_start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    contract_end_date: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
+    service_types_json: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
+    monthly_contract_value: Mapped[float | None] = mapped_column(Float, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="ativo", index=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    lgpd_authorized: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_by_matricula: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True)
+    updated_by_matricula: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+
+    employees: Mapped[list["ServiceProviderEmployee"]] = relationship(
+        "ServiceProviderEmployee",
+        back_populates="company",
+        cascade="all, delete-orphan",
+        order_by="ServiceProviderEmployee.full_name.asc()",
+    )
+    created_by: Mapped["Usuario | None"] = relationship("Usuario", foreign_keys=[created_by_matricula])
+    updated_by: Mapped["Usuario | None"] = relationship("Usuario", foreign_keys=[updated_by_matricula])
+
+    def display_name(self) -> str:
+        trade_name = (self.trade_name or "").strip()
+        corporate_name = (self.corporate_name or "").strip()
+        return trade_name or corporate_name
+
+
+class ServiceProviderEmployee(db.Model):
+    __tablename__ = "service_provider_employees"
+    __table_args__ = (
+        UniqueConstraint("cpf", name="uq_service_provider_employees_cpf"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    company_id: Mapped[int] = mapped_column(ForeignKey("service_companies.id", ondelete="CASCADE"), nullable=False, index=True)
+    full_name: Mapped[str] = mapped_column(String(180), nullable=False, index=True)
+    cpf: Mapped[str] = mapped_column(String(18), nullable=False, index=True)
+    rg: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    role: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    vehicle_plate: Mapped[str | None] = mapped_column(String(16), nullable=True, index=True)
+    recurring_days_json: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
+    usual_schedule: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="ativo", index=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    lgpd_authorized: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_by_matricula: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True)
+    updated_by_matricula: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+
+    company: Mapped[ServiceCompany] = relationship("ServiceCompany", back_populates="employees")
+    created_by: Mapped["Usuario | None"] = relationship("Usuario", foreign_keys=[created_by_matricula])
+    updated_by: Mapped["Usuario | None"] = relationship("Usuario", foreign_keys=[updated_by_matricula])
+
+
 class Item(db.Model):
     __tablename__ = "itens"
 

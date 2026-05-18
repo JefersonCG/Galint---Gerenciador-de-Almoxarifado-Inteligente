@@ -5,7 +5,19 @@ from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import login_required
 
 from ..extensions import db
-from ..models import CondominiumBuilding, CondominiumOwner, CondominiumScheduleEvent
+from ..models import CondominiumBuilding, CondominiumOwner, CondominiumScheduleEvent, ServiceCompany, ServiceProviderEmployee
+from ..services.condominium_service_providers import (
+    COMPANY_STATUS_OPTIONS,
+    EMPLOYEE_STATUS_OPTIONS,
+    SERVICE_TYPE_OPTIONS,
+    WEEKDAY_OPTIONS,
+    service_company_form,
+    service_company_rows,
+    service_employee_form,
+    service_employee_rows,
+    save_service_company_from_form,
+    save_service_provider_employee_from_form,
+)
 from ..services.condominium_schedule import (
     build_calendar_context,
     due_schedule_notifications,
@@ -320,7 +332,7 @@ def admin_condominium_schedule_acknowledge(event_id: int):
     return redirect(request.referrer or url_for("condominium.admin_condominium_schedule", data=event.event_date.isoformat()))
 
 
-@blueprint.get("/administracao/condominio/prestadores")
+@blueprint.route("/administracao/condominio/prestadores", methods=["GET", "POST"])
 @login_required
 def admin_service_providers():
     if not _has_management_access():
@@ -328,10 +340,104 @@ def admin_service_providers():
         return redirect(url_for("dashboard.index"))
     if _is_messenger_session():
         return redirect(url_for("pages.mensageria_maintenance"))
+
+    if request.method == "POST":
+        company_id = request.form.get("company_id", type=int)
+        company = ServiceCompany.query.get(company_id) if company_id else None
+        try:
+            saved_company = save_service_company_from_form(
+                request.form,
+                actor_matricula=_current_user_matricula(),
+                company=company,
+            )
+            db.session.commit()
+            flash("Empresa prestadora salva com sucesso.", "success")
+            return redirect(url_for("condominium.admin_service_providers", empresa=saved_company.id))
+        except ValueError as exc:
+            db.session.rollback()
+            flash(str(exc), "danger")
+            return redirect(url_for("condominium.admin_service_providers", editar=company_id) if company_id else url_for("condominium.admin_service_providers"))
+
+    edit_id = request.args.get("editar", type=int)
+    selected_company_id = request.args.get("empresa", type=int) or edit_id
+    edit_company = ServiceCompany.query.get(edit_id) if edit_id else None
+
     return render_template(
         "config_service_providers_blueprint.html",
         service_provider_page=_build_admin_service_providers_blueprint(),
+        company_rows=service_company_rows(
+            search=str(request.args.get("q") or "").strip(),
+            status=str(request.args.get("status") or "").strip(),
+            service_type=str(request.args.get("tipo") or "").strip(),
+        ),
+        employee_rows=service_employee_rows(selected_company_id),
+        company_form=service_company_form(edit_company),
+        employee_form=service_employee_form(selected_company_id),
+        edit_company=edit_company,
+        selected_company_id=selected_company_id,
+        service_type_options=SERVICE_TYPE_OPTIONS,
+        company_status_options=COMPANY_STATUS_OPTIONS,
+        employee_status_options=EMPLOYEE_STATUS_OPTIONS,
+        weekday_options=WEEKDAY_OPTIONS,
+        filters={
+            "q": str(request.args.get("q") or "").strip(),
+            "status": str(request.args.get("status") or "").strip(),
+            "tipo": str(request.args.get("tipo") or "").strip(),
+        },
     )
+
+
+@blueprint.post("/administracao/condominio/prestadores/funcionarios")
+@login_required
+def admin_service_provider_employee_create():
+    if not _has_management_access():
+        flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
+        return redirect(url_for("dashboard.index"))
+    try:
+        employee = save_service_provider_employee_from_form(
+            request.form,
+            actor_matricula=_current_user_matricula(),
+        )
+        db.session.commit()
+        flash("Funcionário/prestador vinculado com sucesso.", "success")
+        return redirect(url_for("condominium.admin_service_providers", empresa=employee.company_id))
+    except ValueError as exc:
+        db.session.rollback()
+        flash(str(exc), "danger")
+        return redirect(url_for("condominium.admin_service_providers", empresa=request.form.get("company_id") or None))
+
+
+@blueprint.post("/administracao/condominio/prestadores/<int:company_id>/desativar")
+@login_required
+def admin_service_provider_company_deactivate(company_id: int):
+    if not _has_management_access():
+        flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
+        return redirect(url_for("dashboard.index"))
+    company = ServiceCompany.query.get_or_404(company_id)
+    company.status = "inativo"
+    company.updated_by_matricula = _current_user_matricula()
+    for employee in company.employees:
+        if employee.status == "ativo":
+            employee.status = "inativo"
+            employee.updated_by_matricula = _current_user_matricula()
+    db.session.commit()
+    flash("Empresa prestadora desativada. Funcionários ativos foram marcados como inativos.", "info")
+    return redirect(url_for("condominium.admin_service_providers"))
+
+
+@blueprint.post("/administracao/condominio/prestadores/funcionarios/<int:employee_id>/status")
+@login_required
+def admin_service_provider_employee_status(employee_id: int):
+    if not _has_management_access():
+        flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
+        return redirect(url_for("dashboard.index"))
+    employee = ServiceProviderEmployee.query.get_or_404(employee_id)
+    requested_status = str(request.form.get("status") or "").strip().lower()
+    employee.status = requested_status if requested_status in {"ativo", "bloqueado", "inativo"} else "ativo"
+    employee.updated_by_matricula = _current_user_matricula()
+    db.session.commit()
+    flash("Status do funcionário/prestador atualizado.", "success")
+    return redirect(url_for("condominium.admin_service_providers", empresa=employee.company_id))
 
 
 @blueprint.get("/configuracoes/condominio/cadastros")
