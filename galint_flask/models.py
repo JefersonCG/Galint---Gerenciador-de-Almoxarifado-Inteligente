@@ -270,6 +270,28 @@ class ServiceProviderEmployee(db.Model):
     updated_by: Mapped["Usuario | None"] = relationship("Usuario", foreign_keys=[updated_by_matricula])
 
 
+class CondominiumAuditLog(db.Model):
+    __tablename__ = "condominium_audit_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), index=True)
+    actor_matricula: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True, index=True)
+    action: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    entity_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    entity_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    title: Mapped[str] = mapped_column(String(220), nullable=False)
+    details_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    ip_address: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    user_agent: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    actor: Mapped["Usuario | None"] = relationship("Usuario", foreign_keys=[actor_matricula])
+
+    def actor_label(self) -> str:
+        if self.actor:
+            return str(getattr(self.actor, "nome", None) or self.actor_matricula or "Sistema")
+        return self.actor_matricula or "Sistema"
+
+
 class Item(db.Model):
     __tablename__ = "itens"
 

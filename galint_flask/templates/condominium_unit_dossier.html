@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% block title %}Dossiê Vivo da Unidade{% endblock %}
+{% block body_class %}condominium-dossier-page{% endblock %}
+{% block extra_css %}
+<style>
+    body.condominium-dossier-page .app-body { background: linear-gradient(180deg, #eef5fc 0%, #e3edf7 100%); }
+    body.condominium-dossier-page .content-panel { background: rgba(239, 246, 255, 0.94); border-left: 1px solid rgba(148, 163, 184, 0.16); }
+    .condo-dossier-shell { display: grid; gap: 0.9rem; color: #0f172a; }
+    .condo-dossier-header { position: relative; overflow: hidden; display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; min-height: 11rem; padding: clamp(1rem, 2.1vw, 1.45rem); border-radius: 18px; border: 1px solid rgba(148, 163, 184, 0.2); background: #0f172a; color: #f8fafc; box-shadow: 0 24px 56px rgba(15, 23, 42, 0.18); }
+    .condo-dossier-header::before { content: ""; position: absolute; inset: 0; background: url("{{ system_image_url('administracao_cadastro_hero', '20260506-cadastro-hero') }}") center / cover no-repeat; opacity: 0.68; }
+    .condo-dossier-header::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(15, 23, 42, 0.9), rgba(30, 64, 175, 0.54)); }
+    .condo-dossier-header > * { position: relative; z-index: 1; }
+    .condo-dossier-kicker { display: inline-flex; align-items: center; gap: 0.42rem; margin: 0 0 0.45rem; padding: 0.3rem 0.58rem; border-radius: 999px; background: rgba(255,255,255,0.09); border: 1px solid rgba(226,232,240,0.14); color: #bae6fd; font-size: 0.68rem; font-weight: 900; letter-spacing: 0.07em; text-transform: uppercase; }
+    .condo-dossier-title { margin: 0; font-size: clamp(1.75rem, 2.8vw, 2.35rem); line-height: 1; font-weight: 950; letter-spacing: 0; color: #f8fafc; }
+    .condo-dossier-summary { margin: 0.55rem 0 0; max-width: 56rem; color: rgba(226, 232, 240, 0.84); font-weight: 750; line-height: 1.42; }
+    .condo-dossier-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: start; justify-content: flex-end; }
+    .condo-dossier-card { border: 1px solid rgba(148, 163, 184, 0.22); border-radius: 16px; background: #fff; box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08); padding: 0.9rem; }
+    .condo-dossier-search { display: grid; grid-template-columns: minmax(0, 1fr) minmax(10rem, 14rem) auto; gap: 0.65rem; align-items: end; }
+    .condo-dossier-layout { display: grid; grid-template-columns: minmax(18rem, 0.42fr) minmax(0, 0.92fr); gap: 0.9rem; align-items: start; }
+    .condo-dossier-results { display: grid; gap: 0.55rem; max-height: 48rem; overflow: auto; padding-right: 0.2rem; }
+    .condo-dossier-result { display: grid; gap: 0.45rem; padding: 0.7rem; border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.2); background: #f8fafc; color: #0f172a; text-decoration: none; }
+    .condo-dossier-result:hover { color: #0f172a; border-color: rgba(59, 130, 246, 0.36); background: #eff6ff; }
+    .condo-dossier-result.is-selected { border-color: #2563eb; box-shadow: inset 4px 0 0 #2563eb; }
+    .condo-dossier-result-title { font-weight: 950; }
+    .condo-dossier-muted { color: #64748b; font-size: 0.78rem; font-weight: 760; }
+    .condo-dossier-tags { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+    .condo-dossier-tag { display: inline-flex; min-height: 1.55rem; align-items: center; gap: 0.25rem; padding: 0.18rem 0.45rem; border-radius: 999px; background: #e2e8f0; color: #0f172a; font-size: 0.68rem; font-weight: 900; }
+    .condo-dossier-tag.status-ocupado { background: #dcfce7; color: #166534; }
+    .condo-dossier-tag.status-vago, .condo-dossier-tag.status-sem_cadastro { background: #fee2e2; color: #991b1b; }
+    .condo-dossier-tag.status-reforma { background: #fef9c3; color: #854d0e; }
+    .condo-dossier-detail { display: grid; gap: 0.75rem; }
+    .condo-dossier-unit-head { display: flex; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; align-items: start; }
+    .condo-dossier-unit-title { margin: 0; font-size: 1.35rem; font-weight: 950; }
+    .condo-dossier-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.65rem; }
+    .condo-dossier-kpi { display: grid; gap: 0.18rem; padding: 0.75rem; border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.18); background: #f8fafc; }
+    .condo-dossier-kpi span { color: #64748b; font-size: 0.68rem; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; }
+    .condo-dossier-kpi strong { font-size: 1.25rem; line-height: 1; font-weight: 950; }
+    .condo-dossier-section-title { margin: 0 0 0.5rem; font-size: 1rem; font-weight: 950; }
+    .condo-dossier-owner { display: grid; gap: 0.55rem; padding: 0.75rem; border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.18); background: #f8fafc; }
+    .condo-dossier-owner-top { display: flex; justify-content: space-between; gap: 0.7rem; flex-wrap: wrap; }
+    .condo-dossier-owner-name { font-weight: 950; }
+    .condo-dossier-two-col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.65rem; }
+    .condo-dossier-mini-list { display: grid; gap: 0.42rem; }
+    .condo-dossier-mini-item { padding: 0.62rem; border-radius: 12px; background: #f8fafc; border: 1px solid rgba(148, 163, 184, 0.18); }
+    .condo-dossier-empty { padding: 0.85rem; border-radius: 14px; border: 1px dashed rgba(148, 163, 184, 0.44); background: #f8fafc; color: #475569; font-weight: 760; }
+    @media (max-width: 1199.98px) { .condo-dossier-layout { grid-template-columns: 1fr; } }
+    @media (max-width: 767.98px) { .condo-dossier-search, .condo-dossier-grid, .condo-dossier-two-col { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+{% block content %}
+{% set selected = dossier.selected %}
+<div class="condo-dossier-shell">
+    <header class="condo-dossier-header">
+        <div>
+            <p class="condo-dossier-kicker"><i class="bi bi-journal-richtext"></i> Base condominial forte</p>
+            <h1 class="condo-dossier-title">Dossiê Vivo da Unidade</h1>
+            <p class="condo-dossier-summary">Consulta operacional única para administração, portaria e zeladoria, com unidade, moradores, vínculos, documentos, agenda e trilha de auditoria recente.</p>
+        </div>
+        <div class="condo-dossier-actions">
+            <a class="btn btn-info rounded-pill px-4" href="{{ url_for('condominium.admin_condominium_registry') }}"><i class="bi bi-person-vcard me-1"></i> Cadastro</a>
+            <a class="btn btn-light rounded-pill px-4" href="{{ url_for('condominium.admin_condominium_schedule') }}"><i class="bi bi-calendar2-week me-1"></i> Agenda</a>
+            <a class="btn btn-outline-light rounded-pill px-4" href="{{ url_for('pages.administration_dashboard') }}"><i class="bi bi-buildings me-1"></i> Dashboard</a>
+        </div>
+    </header>
+
+    <section class="condo-dossier-card" aria-label="Busca operacional">
+        <form class="condo-dossier-search" method="get" action="{{ url_for('condominium.admin_condominium_dossier') }}">
+            <div>
+                <label class="form-label" for="dossier-q">Busca global</label>
+                <input class="form-control" id="dossier-q" name="q" value="{{ dossier.filters.q }}" placeholder="Unidade, bloco, morador, CPF/CNPJ, telefone, e-mail, placa ou observação">
+            </div>
+            <div>
+                <label class="form-label" for="dossier-status">Status</label>
+                <select class="form-select" id="dossier-status" name="status">
+                    <option value="" {% if not dossier.filters.status %}selected{% endif %}>Todos</option>
+                    <option value="ocupado" {% if dossier.filters.status == 'ocupado' %}selected{% endif %}>Ocupado</option>
+                    <option value="sem_cadastro" {% if dossier.filters.status == 'sem_cadastro' %}selected{% endif %}>Sem cadastro</option>
+                    <option value="vago" {% if dossier.filters.status == 'vago' %}selected{% endif %}>Vago</option>
+                    <option value="reforma" {% if dossier.filters.status == 'reforma' %}selected{% endif %}>Reforma</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" type="submit"><i class="bi bi-search me-1"></i> Buscar</button>
+        </form>
+    </section>
+
+    <div class="condo-dossier-layout">
+        <aside class="condo-dossier-card">
+            <div class="condo-dossier-grid mb-3">
+                <div class="condo-dossier-kpi"><span>Resultados</span><strong>{{ dossier.totals.result_count }}</strong></div>
+                <div class="condo-dossier-kpi"><span>Ocupadas</span><strong>{{ dossier.totals.occupied }}</strong></div>
+                <div class="condo-dossier-kpi"><span>Pendências</span><strong>{{ dossier.totals.pending_documents }}</strong></div>
+            </div>
+            <div class="condo-dossier-results">
+                {% for row in dossier.rows %}
+                {% set unit = row.unit %}
+                <a class="condo-dossier-result {% if selected and selected.unit_card.unit.id == unit.id %}is-selected{% endif %}" href="{{ url_for('condominium.admin_condominium_dossier', unidade=unit.id, q=dossier.filters.q, status=dossier.filters.status) }}">
+                    <span class="condo-dossier-result-title">{{ unit.full_label() }}</span>
+                    <span class="condo-dossier-muted">{{ row.owner_names }}</span>
+                    <span class="condo-dossier-tags">
+                        <span class="condo-dossier-tag status-{{ row.status }}">{{ row.status_label }}</span>
+                        <span class="condo-dossier-tag">{{ row.active_owner_count }} vínculo(s)</span>
+                        <span class="condo-dossier-tag">{{ row.pending_documents }} pendência(s)</span>
+                    </span>
+                </a>
+                {% else %}
+                <div class="condo-dossier-empty">Nenhuma unidade encontrada para os filtros atuais.</div>
+                {% endfor %}
+            </div>
+        </aside>
+
+        <main class="condo-dossier-detail">
+            {% if selected %}
+            {% set unit_card = selected.unit_card %}
+            {% set unit = unit_card.unit %}
+            <section class="condo-dossier-card">
+                <div class="condo-dossier-unit-head">
+                    <div>
+                        <h2 class="condo-dossier-unit-title">{{ unit.full_label() }}</h2>
+                        <div class="condo-dossier-muted">{{ unit.unit_type|title }} · {{ unit.floor_number }}º andar · posição {{ unit.position }}</div>
+                    </div>
+                    <div class="condo-dossier-tags">
+                        <span class="condo-dossier-tag status-{{ unit_card.status }}">{{ unit_card.status_label }}</span>
+                        <span class="condo-dossier-tag">{{ unit_card.pending_documents }} pendência(s)</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="condo-dossier-card">
+                <h3 class="condo-dossier-section-title"><i class="bi bi-people me-1"></i> Moradores e vínculos</h3>
+                <div class="condo-dossier-mini-list">
+                    {% for item in selected.owners %}
+                    {% set owner = item.owner %}
+                    <article class="condo-dossier-owner">
+                        <div class="condo-dossier-owner-top">
+                            <div>
+                                <div class="condo-dossier-owner-name">{{ owner.full_name }}</div>
+                                <div class="condo-dossier-muted">{{ item.relationship_label }} · {{ mask_sensitive_document(owner.document_number) }} · {{ owner.phone or 'Telefone não informado' }}</div>
+                            </div>
+                            <div class="condo-dossier-tags">
+                                <span class="condo-dossier-tag">{{ owner.status|title }}</span>
+                                <span class="condo-dossier-tag">LGPD {{ 'ok' if owner.lgpd_authorized else 'pendente' }}</span>
+                                <span class="condo-dossier-tag">{{ item.document_summary.pending_count }} doc. pendente(s)</span>
+                            </div>
+                        </div>
+                        <div class="condo-dossier-two-col">
+                            <div class="condo-dossier-mini-item"><strong>Vínculos da casa</strong><div class="condo-dossier-muted">{{ item.linked_people or 'Sem vínculos adicionais registrados.' }}</div></div>
+                            <div class="condo-dossier-mini-item"><strong>Veículos/placas</strong><div class="condo-dossier-muted">{{ item.vehicles or 'Sem veículos registrados.' }}</div></div>
+                            <div class="condo-dossier-mini-item"><strong>Visitantes recorrentes</strong><div class="condo-dossier-muted">{{ item.authorized_visitors or 'Sem visitantes recorrentes.' }}</div></div>
+                            <div class="condo-dossier-mini-item"><strong>Documentos</strong><div class="condo-dossier-muted">{{ item.document_summary.ok_count }} ok · {{ item.document_summary.pending_count }} pendente(s)</div></div>
+                        </div>
+                    </article>
+                    {% else %}
+                    <div class="condo-dossier-empty">Esta unidade ainda não tem morador ativo cadastrado.</div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <div class="condo-dossier-two-col">
+                <section class="condo-dossier-card">
+                    <h3 class="condo-dossier-section-title"><i class="bi bi-calendar2-week me-1"></i> Agenda vinculada</h3>
+                    <div class="condo-dossier-mini-list">
+                        {% for event in selected.upcoming_events %}
+                        <div class="condo-dossier-mini-item"><strong>{{ event.date.strftime('%d/%m/%Y') if event.date else '' }} · {{ event.time_label }}</strong><div class="condo-dossier-muted">{{ event.title }} · {{ event.status_label }}</div></div>
+                        {% else %}
+                        <div class="condo-dossier-empty">Sem agenda ativa nos próximos 60 dias.</div>
+                        {% endfor %}
+                    </div>
+                </section>
+                <section class="condo-dossier-card">
+                    <h3 class="condo-dossier-section-title"><i class="bi bi-shield-check me-1"></i> Auditoria recente</h3>
+                    <div class="condo-dossier-mini-list">
+                        {% for log in selected.audit_logs %}
+                        <div class="condo-dossier-mini-item"><strong>{{ log.title }}</strong><div class="condo-dossier-muted">{{ log.occurred_at.strftime('%d/%m/%Y %H:%M') if log.occurred_at else '' }} · {{ log.actor_label() }}</div></div>
+                        {% else %}
+                        <div class="condo-dossier-empty">Ainda não há trilha recente para esta unidade.</div>
+                        {% endfor %}
+                    </div>
+                </section>
+            </div>
+            {% else %}
+            <section class="condo-dossier-card"><div class="condo-dossier-empty">Use a busca para abrir o dossiê de uma unidade.</div></section>
+            {% endif %}
+        </main>
+    </div>
+</div>
+{% endblock %}

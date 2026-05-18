@@ -106,14 +106,15 @@
             <p class="condo-owner-summary">Dossiê cadastral da unidade com identificação imobiliária, proprietário, ocupação, acesso, anexos e consentimentos.</p>
         </div>
         <div class="condo-owner-actions">
-            <a class="btn btn-dark condo-owner-action" href="{{ url_for('pages.admin_condominium_blocks_editor') }}"><i class="bi bi-building-gear me-1"></i> Editor de Edifício</a>
+            <a class="btn btn-info condo-owner-action" href="{{ url_for('condominium.admin_condominium_dossier') }}"><i class="bi bi-search me-1"></i> Dossiê Vivo</a>
+            <a class="btn btn-dark condo-owner-action" href="{{ url_for('condominium.admin_condominium_blocks_editor') }}"><i class="bi bi-building-gear me-1"></i> Editor de Edifício</a>
             <a class="btn btn-outline-dark condo-owner-action" href="{{ url_for('pages.administration_dashboard') }}"><i class="bi bi-buildings me-1"></i> Dashboard</a>
         </div>
     </header>
 
     <div class="condo-owner-layout">
         <section class="condo-owner-panel condo-owner-form-panel" aria-labelledby="condo-owner-form-title">
-            <form method="post" action="{{ url_for('pages.admin_condominium_registry') }}" enctype="multipart/form-data">
+            <form method="post" action="{{ url_for('condominium.admin_condominium_registry') }}" enctype="multipart/form-data">
                 <div class="condo-owner-form-head">
                     <div>
                         <h2 class="condo-owner-panel-title" id="condo-owner-form-title">Novo cadastro da unidade</h2>
@@ -421,7 +422,7 @@
                             {% if owner.email %}<span class="condo-owner-tag"><i class="bi bi-envelope"></i> {{ owner.email }}</span>{% endif %}
                         </div>
                         {% if owner.status == 'ativo' %}
-                        <form method="post" action="{{ url_for('pages.admin_condominium_close_owner', owner_id=owner.id) }}">
+                        <form method="post" action="{{ url_for('condominium.admin_condominium_close_owner', owner_id=owner.id) }}">
                             <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-x-circle me-1"></i> Encerrar vínculo</button>
                         </form>
                         {% endif %}

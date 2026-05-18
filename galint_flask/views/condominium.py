@@ -6,6 +6,8 @@ from flask_login import login_required
 
 from ..extensions import db
 from ..models import CondominiumBuilding, CondominiumOwner, CondominiumScheduleEvent, ServiceCompany, ServiceProviderEmployee
+from ..services.condominium_audit import record_condominium_audit
+from ..services.condominium_dossier import build_unit_dossier_context
 from ..services.condominium_service_providers import (
     COMPANY_STATUS_OPTIONS,
     DOCUMENT_TYPE_OPTIONS,
@@ -64,7 +66,15 @@ def admin_condominium_registry():
         return redirect(url_for("pages.mensageria_maintenance"))
     if request.method == "POST":
         try:
-            _create_condominium_owner_from_request()
+            owner = _create_condominium_owner_from_request()
+            record_condominium_audit(
+                action="owner.create",
+                entity_type="condominium_owner",
+                entity_id=owner.id,
+                title=f"Cadastro condominial criado: {owner.full_name}",
+                actor_matricula=_current_user_matricula(),
+                details={"unit_id": owner.unit_id, "relationship_type": owner.relationship_type},
+            )
             db.session.commit()
             flash("Cadastro mestre salvo e unidade marcada como ocupada.", "success")
             return redirect(url_for("condominium.admin_condominium_registry"))
@@ -142,6 +152,15 @@ def admin_condominium_blocks_editor():
                 custom_units_text=building.custom_units_text or "",
             )
             sync_building_units(building, layout, default_status=request.form.get("initial_status") or "vago")
+            db.session.flush()
+            record_condominium_audit(
+                action="building.save",
+                entity_type="condominium_building",
+                entity_id=building.id,
+                title=f"Edificio salvo: {building.display_name()}",
+                actor_matricula=_current_user_matricula(),
+                details={"active": building.active, "units": len(layout)},
+            )
             db.session.commit()
             flash("Editor de edifícios atualizado.", "success")
             return redirect(url_for("condominium.admin_condominium_blocks_editor"))
@@ -175,6 +194,14 @@ def admin_condominium_archive_building(building_id: int):
     building.updated_by_matricula = _current_user_matricula()
     for unit in building.units:
         unit.active = False
+    record_condominium_audit(
+        action="building.archive",
+        entity_type="condominium_building",
+        entity_id=building.id,
+        title=f"Edificio arquivado: {building.display_name()}",
+        actor_matricula=_current_user_matricula(),
+        details={"unit_count": len(building.units)},
+    )
     db.session.commit()
     flash("Edifício arquivado. Ele saiu do dashboard e da lista de unidades ativas.", "info")
     return redirect(url_for("condominium.admin_condominium_blocks_editor"))
@@ -216,6 +243,14 @@ def admin_condominium_delete_building(building_id: int):
             event.unit_id = None
         event.updated_by_matricula = actor_id
 
+    record_condominium_audit(
+        action="building.delete",
+        entity_type="condominium_building",
+        entity_id=building.id,
+        title=f"Edificio excluido: {building.display_name()}",
+        actor_matricula=actor_id,
+        details={"detached_owners": len(unit_ids), "detached_events": len(related_events)},
+    )
     db.session.delete(building)
     db.session.commit()
     flash("Edifício excluído com sucesso.", "info")
@@ -233,7 +268,15 @@ def admin_condominium_owners():
 
     if request.method == "POST":
         try:
-            _create_condominium_owner_from_request()
+            owner = _create_condominium_owner_from_request()
+            record_condominium_audit(
+                action="owner.create",
+                entity_type="condominium_owner",
+                entity_id=owner.id,
+                title=f"Cadastro condominial criado: {owner.full_name}",
+                actor_matricula=_current_user_matricula(),
+                details={"unit_id": owner.unit_id, "relationship_type": owner.relationship_type},
+            )
             db.session.commit()
             flash("Cadastro mestre salvo e unidade marcada como ocupada.", "success")
         except ValueError as exc:
@@ -259,6 +302,14 @@ def admin_condominium_close_owner(owner_id: int):
         ).first()
         if not has_active_owner:
             owner.unit.status = "vago"
+    record_condominium_audit(
+        action="owner.close",
+        entity_type="condominium_owner",
+        entity_id=owner.id,
+        title=f"Vinculo encerrado: {owner.full_name}",
+        actor_matricula=_current_user_matricula(),
+        details={"unit_id": owner.unit_id, "relationship_type": owner.relationship_type},
+    )
     db.session.commit()
     flash("Vinculo encerrado.", "info")
     return redirect(url_for("condominium.admin_condominium_registry"))
@@ -284,6 +335,15 @@ def admin_condominium_schedule():
                 event.created_by_matricula = _current_user_matricula()
                 db.session.add(event)
             _apply_schedule_event_form(event)
+            db.session.flush()
+            record_condominium_audit(
+                action="schedule.save",
+                entity_type="condominium_schedule_event",
+                entity_id=event.id,
+                title=f"Agenda salva: {event.title}",
+                actor_matricula=_current_user_matricula(),
+                details={"unit_id": event.unit_id, "building_id": event.building_id, "event_date": event.event_date.isoformat()},
+            )
             db.session.commit()
             flash("Compromisso salvo na agenda.", "success")
             return redirect(url_for("condominium.admin_condominium_schedule", data=event.event_date.isoformat(), mes=event.event_date.strftime("%Y-%m")))
@@ -315,6 +375,14 @@ def admin_condominium_schedule_status(event_id: int):
     event = CondominiumScheduleEvent.query.get_or_404(event_id)
     event.status = normalize_status(request.form.get("status"))
     event.updated_by_matricula = _current_user_matricula()
+    record_condominium_audit(
+        action="schedule.status",
+        entity_type="condominium_schedule_event",
+        entity_id=event.id,
+        title=f"Status da agenda atualizado: {event.title}",
+        actor_matricula=_current_user_matricula(),
+        details={"status": event.status, "unit_id": event.unit_id},
+    )
     db.session.commit()
     flash("Status do compromisso atualizado.", "success")
     return redirect(url_for("condominium.admin_condominium_schedule", data=event.event_date.isoformat(), mes=event.event_date.strftime("%Y-%m")))
@@ -329,6 +397,14 @@ def admin_condominium_schedule_acknowledge(event_id: int):
     event = CondominiumScheduleEvent.query.get_or_404(event_id)
     event.notification_acknowledged_at = now_local_naive()
     event.updated_by_matricula = _current_user_matricula()
+    record_condominium_audit(
+        action="schedule.notification_ack",
+        entity_type="condominium_schedule_event",
+        entity_id=event.id,
+        title=f"Notificacao confirmada: {event.title}",
+        actor_matricula=_current_user_matricula(),
+        details={"unit_id": event.unit_id, "event_date": event.event_date.isoformat()},
+    )
     db.session.commit()
     flash("Notificacao da agenda confirmada.", "info")
     return redirect(request.referrer or url_for("condominium.admin_condominium_schedule", data=event.event_date.isoformat()))
@@ -352,6 +428,15 @@ def admin_service_providers():
                 actor_matricula=_current_user_matricula(),
                 company=company,
                 files=request.files,
+            )
+            db.session.flush()
+            record_condominium_audit(
+                action="service_company.save",
+                entity_type="service_company",
+                entity_id=saved_company.id,
+                title=f"Prestadora salva: {saved_company.display_name()}",
+                actor_matricula=_current_user_matricula(),
+                details={"status": saved_company.status, "cnpj": saved_company.cnpj},
             )
             db.session.commit()
             flash("Empresa prestadora salva com sucesso.", "success")
@@ -402,6 +487,15 @@ def admin_service_provider_employee_create():
             request.form,
             actor_matricula=_current_user_matricula(),
         )
+        db.session.flush()
+        record_condominium_audit(
+            action="service_employee.save",
+            entity_type="service_provider_employee",
+            entity_id=employee.id,
+            title=f"Prestador vinculado: {employee.full_name}",
+            actor_matricula=_current_user_matricula(),
+            details={"company_id": employee.company_id, "status": employee.status},
+        )
         db.session.commit()
         flash("Funcionário/prestador vinculado com sucesso.", "success")
         return redirect(url_for("condominium.admin_service_providers", empresa=employee.company_id))
@@ -424,6 +518,14 @@ def admin_service_provider_company_deactivate(company_id: int):
         if employee.status == "ativo":
             employee.status = "inativo"
             employee.updated_by_matricula = _current_user_matricula()
+    record_condominium_audit(
+        action="service_company.deactivate",
+        entity_type="service_company",
+        entity_id=company.id,
+        title=f"Prestadora desativada: {company.display_name()}",
+        actor_matricula=_current_user_matricula(),
+        details={"employees": len(company.employees)},
+    )
     db.session.commit()
     flash("Empresa prestadora desativada. Funcionários ativos foram marcados como inativos.", "info")
     return redirect(url_for("condominium.admin_service_providers"))
@@ -439,6 +541,14 @@ def admin_service_provider_employee_status(employee_id: int):
     requested_status = str(request.form.get("status") or "").strip().lower()
     employee.status = requested_status if requested_status in {"ativo", "bloqueado", "inativo"} else "ativo"
     employee.updated_by_matricula = _current_user_matricula()
+    record_condominium_audit(
+        action="service_employee.status",
+        entity_type="service_provider_employee",
+        entity_id=employee.id,
+        title=f"Status do prestador atualizado: {employee.full_name}",
+        actor_matricula=_current_user_matricula(),
+        details={"company_id": employee.company_id, "status": employee.status},
+    )
     db.session.commit()
     flash("Status do funcionário/prestador atualizado.", "success")
     return redirect(url_for("condominium.admin_service_providers", empresa=employee.company_id))
@@ -455,7 +565,50 @@ def admin_service_provider_document_download(company_id: int, document_key: str)
     if payload is None:
         flash("Documento da prestadora não encontrado.", "warning")
         return redirect(url_for("condominium.admin_service_providers", editar=company.id, empresa=company.id))
+    record_condominium_audit(
+        action="service_company.document_download",
+        entity_type="service_company",
+        entity_id=company.id,
+        title=f"Download de documento da prestadora: {company.display_name()}",
+        actor_matricula=_current_user_matricula(),
+        details={"document_key": document_key},
+    )
+    db.session.commit()
     return send_file(payload["path"], as_attachment=True, download_name=str(payload["download_name"]))
+
+
+@blueprint.get("/administracao/condominio/dossie")
+@login_required
+def admin_condominium_dossier():
+    if not _has_management_access():
+        flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
+        return redirect(url_for("dashboard.index"))
+    if _is_messenger_session():
+        return redirect(url_for("pages.mensageria_maintenance"))
+
+    selected_unit_id = request.args.get("unidade", type=int)
+    context = build_unit_dossier_context(
+        selected_unit_id,
+        query=str(request.args.get("q") or "").strip(),
+        status=str(request.args.get("status") or "").strip(),
+    )
+    selected = context.get("selected")
+    if selected:
+        unit = selected["unit_card"]["unit"]
+        record_condominium_audit(
+            action="unit_dossier.view",
+            entity_type="condominium_unit",
+            entity_id=unit.id,
+            title=f"Dossie consultado: {unit.full_label()}",
+            actor_matricula=_current_user_matricula(),
+            details={"query": context["filters"]["q"], "status": context["filters"]["status"]},
+        )
+        db.session.commit()
+    return render_template(
+        "condominium_unit_dossier.html",
+        dossier=context,
+        mask_sensitive_document=_mask_sensitive_document,
+    )
 
 
 @blueprint.get("/configuracoes/condominio/cadastros")
@@ -468,6 +621,12 @@ def legacy_admin_condominium_registry():
 @login_required
 def legacy_admin_condominium_schedule():
     return redirect(url_for("condominium.admin_condominium_schedule"))
+
+
+@blueprint.get("/configuracoes/condominio/dossie")
+@login_required
+def legacy_admin_condominium_dossier():
+    return redirect(url_for("condominium.admin_condominium_dossier"))
 
 
 @blueprint.get("/configuracoes/condominio/prestadores")
