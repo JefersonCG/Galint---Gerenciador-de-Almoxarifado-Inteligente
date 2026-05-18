@@ -173,7 +173,7 @@ def _admin_search_payload(query: str, *, limit: int = 12) -> dict[str, object]:
             "email": owner.email,
             "status": owner.status,
             "unit_label": _owner_unit_label(owner),
-            "url": url_for("pages.admin_condominium_registry"),
+            "url": url_for("condominium.admin_condominium_registry"),
         }
         for owner in owners
     ]
@@ -188,7 +188,7 @@ def _admin_search_payload(query: str, *, limit: int = 12) -> dict[str, object]:
             "building": unit.building.display_name() if unit.building else "Bloco",
             "floor": unit.floor_number,
             "owner_count": len([owner for owner in unit.owners if owner.status == "ativo"]),
-            "url": url_for("pages.admin_condominium_blocks_editor", editar=unit.building_id) if unit.building_id else url_for("pages.admin_condominium_blocks_editor"),
+            "url": url_for("condominium.admin_condominium_blocks_editor", editar=unit.building_id) if unit.building_id else url_for("condominium.admin_condominium_blocks_editor"),
         }
         for unit in units
     ]
@@ -203,7 +203,7 @@ def _admin_search_payload(query: str, *, limit: int = 12) -> dict[str, object]:
                 "subtitle": f"{_event_date_label(event)} · {event.time_label()} · {event.related_label()}",
                 "badge": view.get("event_type_label"),
                 "date_label": _event_date_label(event),
-                "url": url_for("pages.admin_condominium_schedule", data=event.event_date.isoformat()) if event.event_date else url_for("pages.admin_condominium_schedule"),
+                "url": url_for("condominium.admin_condominium_schedule", data=event.event_date.isoformat()) if event.event_date else url_for("condominium.admin_condominium_schedule"),
             }
         )
 
@@ -220,7 +220,7 @@ def _admin_search_payload(query: str, *, limit: int = 12) -> dict[str, object]:
                         "badge": ", ".join(plates) if plates else "Cadastro",
                         "source": "Morador/proprietário",
                         "context": context[:220],
-                        "url": url_for("pages.admin_condominium_registry"),
+                        "url": url_for("condominium.admin_condominium_registry"),
                     }
                 )
         for event in events:
@@ -234,7 +234,7 @@ def _admin_search_payload(query: str, *, limit: int = 12) -> dict[str, object]:
                         "badge": ", ".join(plates) if plates else "Agenda",
                         "source": "Agenda",
                         "context": context[:220],
-                        "url": url_for("pages.admin_condominium_schedule", data=event.event_date.isoformat()) if event.event_date else url_for("pages.admin_condominium_schedule"),
+                        "url": url_for("condominium.admin_condominium_schedule", data=event.event_date.isoformat()) if event.event_date else url_for("condominium.admin_condominium_schedule"),
                     }
                 )
     vehicle_matches = vehicle_matches[:limit]

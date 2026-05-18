@@ -96,10 +96,10 @@
                 <h1 class="agenda-title">Agenda Condominial</h1>
             </div>
             <nav class="agenda-month-controls" aria-label="Navegação da agenda">
-                <a class="agenda-month-chip" href="{{ url_for('pages.admin_condominium_schedule', mes=calendar_page.previous_month.strftime('%Y-%m'), data=calendar_page.previous_month.isoformat()) }}"><i class="bi bi-chevron-left"></i></a>
+                <a class="agenda-month-chip" href="{{ url_for('condominium.admin_condominium_schedule', mes=calendar_page.previous_month.strftime('%Y-%m'), data=calendar_page.previous_month.isoformat()) }}"><i class="bi bi-chevron-left"></i></a>
                 <span class="agenda-month-chip is-current"><i class="bi bi-calendar3"></i> {{ calendar_page.month_label }}</span>
-                <a class="agenda-month-chip" href="{{ url_for('pages.admin_condominium_schedule', mes=calendar_page.next_month.strftime('%Y-%m'), data=calendar_page.next_month.isoformat()) }}"><i class="bi bi-chevron-right"></i></a>
-                <a class="agenda-month-chip" href="{{ url_for('pages.admin_condominium_schedule', data=calendar_page.today.isoformat(), mes=calendar_page.today.strftime('%Y-%m')) }}">Hoje</a>
+                <a class="agenda-month-chip" href="{{ url_for('condominium.admin_condominium_schedule', mes=calendar_page.next_month.strftime('%Y-%m'), data=calendar_page.next_month.isoformat()) }}"><i class="bi bi-chevron-right"></i></a>
+                <a class="agenda-month-chip" href="{{ url_for('condominium.admin_condominium_schedule', data=calendar_page.today.isoformat(), mes=calendar_page.today.strftime('%Y-%m')) }}">Hoje</a>
             </nav>
         </div>
         <div class="agenda-hero-kpis">
@@ -119,7 +119,7 @@
                 <div class="agenda-week">
                     {% for day in week %}
                         {% if day['date'] %}
-                        <a class="agenda-day {% if day['is_today'] %}is-today{% endif %} {% if day['is_selected'] %}is-selected{% endif %} {% if day['is_holiday'] %}is-holiday{% endif %}" href="{{ url_for('pages.admin_condominium_schedule', data=day['date_iso'], mes=calendar_page.month_date.strftime('%Y-%m')) }}" data-day-url="{{ url_for('pages.admin_condominium_schedule', data=day['date_iso'], mes=calendar_page.month_date.strftime('%Y-%m')) }}" data-day-modal-url="{{ url_for('pages.admin_condominium_schedule', data=day['date_iso'], mes=calendar_page.month_date.strftime('%Y-%m'), abrir_modal=1) }}" {% if day['is_holiday'] %}title="{{ day['holiday_name'] }}"{% endif %}>
+                        <a class="agenda-day {% if day['is_today'] %}is-today{% endif %} {% if day['is_selected'] %}is-selected{% endif %} {% if day['is_holiday'] %}is-holiday{% endif %}" href="{{ url_for('condominium.admin_condominium_schedule', data=day['date_iso'], mes=calendar_page.month_date.strftime('%Y-%m')) }}" data-day-url="{{ url_for('condominium.admin_condominium_schedule', data=day['date_iso'], mes=calendar_page.month_date.strftime('%Y-%m')) }}" data-day-modal-url="{{ url_for('condominium.admin_condominium_schedule', data=day['date_iso'], mes=calendar_page.month_date.strftime('%Y-%m'), abrir_modal=1) }}" {% if day['is_holiday'] %}title="{{ day['holiday_name'] }}"{% endif %}>
                             <span class="agenda-day-number">{{ day['day_number'] }} {% if day['event_count'] %}<span class="agenda-day-count">{{ day['event_count'] }}</span>{% endif %}</span>
                             {% if day['is_holiday'] %}<span class="agenda-holiday-name">{{ day['holiday_name'] }}</span>{% endif %}
                             {% for event in day['events'] %}
@@ -162,9 +162,9 @@
                             {% if event.location %}<span class="agenda-tag"><i class="bi bi-pin-map"></i> {{ event.location }}</span>{% endif %}
                         </div>
                         <div class="agenda-event-actions">
-                            <a class="btn btn-sm btn-outline-dark" href="{{ url_for('pages.admin_condominium_schedule', data=event.date_iso, mes=calendar_page.month_date.strftime('%Y-%m'), editar=event.id, abrir_modal=1) }}"><i class="bi bi-pencil-square me-1"></i> Editar</a>
-                            <form method="post" action="{{ url_for('pages.admin_condominium_schedule_status', event_id=event.id) }}"><input type="hidden" name="status" value="concluido"><button class="btn btn-sm btn-outline-success" type="submit">Concluir</button></form>
-                            <form method="post" action="{{ url_for('pages.admin_condominium_schedule_status', event_id=event.id) }}"><input type="hidden" name="status" value="cancelado"><button class="btn btn-sm btn-outline-danger" type="submit">Cancelar</button></form>
+                            <a class="btn btn-sm btn-outline-dark" href="{{ url_for('condominium.admin_condominium_schedule', data=event.date_iso, mes=calendar_page.month_date.strftime('%Y-%m'), editar=event.id, abrir_modal=1) }}"><i class="bi bi-pencil-square me-1"></i> Editar</a>
+                            <form method="post" action="{{ url_for('condominium.admin_condominium_schedule_status', event_id=event.id) }}"><input type="hidden" name="status" value="concluido"><button class="btn btn-sm btn-outline-success" type="submit">Concluir</button></form>
+                            <form method="post" action="{{ url_for('condominium.admin_condominium_schedule_status', event_id=event.id) }}"><input type="hidden" name="status" value="cancelado"><button class="btn btn-sm btn-outline-danger" type="submit">Cancelar</button></form>
                         </div>
                     </article>
                     {% endfor %}
@@ -183,12 +183,12 @@
                         <h2 class="modal-title" id="agenda-form-title">{{ 'Editar compromisso' if event_form.id else 'Novo compromisso' }}</h2>
                     </div>
                     <div class="d-flex align-items-center gap-2">
-                        {% if event_form.id %}<a class="btn btn-outline-light btn-sm rounded-pill" href="{{ url_for('pages.admin_condominium_schedule', data=calendar_page.selected_date.isoformat(), mes=calendar_page.month_date.strftime('%Y-%m')) }}">Limpar edição</a>{% endif %}
+                        {% if event_form.id %}<a class="btn btn-outline-light btn-sm rounded-pill" href="{{ url_for('condominium.admin_condominium_schedule', data=calendar_page.selected_date.isoformat(), mes=calendar_page.month_date.strftime('%Y-%m')) }}">Limpar edição</a>{% endif %}
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                     </div>
                 </div>
                 <div class="modal-body">
-                    <form id="agendaEventForm" method="post" action="{{ url_for('pages.admin_condominium_schedule') }}">
+                    <form id="agendaEventForm" method="post" action="{{ url_for('condominium.admin_condominium_schedule') }}">
                         {% if event_form.id %}<input type="hidden" name="event_id" value="{{ event_form.id }}">{% endif %}
                         <div class="row g-3">
                             <div class="col-md-3"><label class="form-label" for="event_date">Data</label><input class="form-control" id="event_date" name="event_date" type="date" value="{{ event_form.event_date }}" required></div>

@@ -23,8 +23,8 @@
                 {% endfor %}
             </div>
             <div class="modal-footer agenda-alert-footer">
-                <a class="btn btn-outline-light rounded-pill px-4" href="{{ url_for('pages.admin_condominium_schedule', data=agenda_notifications[0].date_iso) }}"><i class="bi bi-calendar2-week me-1"></i> Ver agenda</a>
-                <form method="post" action="{{ url_for('pages.admin_condominium_schedule_acknowledge', event_id=agenda_notifications[0].id) }}">
+                <a class="btn btn-outline-light rounded-pill px-4" href="{{ url_for('condominium.admin_condominium_schedule', data=agenda_notifications[0].date_iso) }}"><i class="bi bi-calendar2-week me-1"></i> Ver agenda</a>
+                <form method="post" action="{{ url_for('condominium.admin_condominium_schedule_acknowledge', event_id=agenda_notifications[0].id) }}">
                     <button class="btn btn-info rounded-pill px-4" type="submit"><i class="bi bi-check2-circle me-1"></i> Entendi</button>
                 </form>
             </div>

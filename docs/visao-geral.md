@@ -17,6 +17,7 @@ O GALINT concentra fluxo operacional de almoxarifado, documentação fiscal, ras
 - Infraestrutura de suporte: [Setup Ambiente Dev](infra/setup-ambiente-dev.md), [HTTPS Setup](infra/https-setup.md) e [PG Backup Setup](infra/pg-backup-setup.md)
 - Build mobile: [Build APK](mobile/build-apk.md)
 - Trilha mobile mais completa: [Guia Completo Mobile](mobile/guia-mobile.md)
+- Roadmap condominial: [Roadmap Condominial GALINT](propostas/roadmap-condominial.md)
 - Nova frente proposta: [Mensageria Condominial](propostas/mensageria-condominial.md)
 
 ## Fonte da documentação

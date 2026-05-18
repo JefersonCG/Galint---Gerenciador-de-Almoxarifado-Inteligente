@@ -948,8 +948,8 @@
                         <h4><i class="bi bi-person-vcard text-info me-2"></i>Cadastro de Morador do condomínio</h4>
                         <p>O cadastro prático fica na Administração; aqui mora a regra de negócio: unidade, titular, locatário, visitantes, veículos, condutores, LGPD e histórico precisam nascer em torno do mesmo vínculo.</p>
                     </div>
-                    {% if endpoint_exists('pages.admin_condominium_registry') %}
-                    <a class="about-cta" href="{{ url_for('pages.admin_condominium_registry') }}">
+                    {% if endpoint_exists('condominium.admin_condominium_registry') %}
+                    <a class="about-cta" href="{{ url_for('condominium.admin_condominium_registry') }}">
                         <i class="bi bi-box-arrow-up-right"></i>
                         Abrir Cadastro de Morador
                     </a>

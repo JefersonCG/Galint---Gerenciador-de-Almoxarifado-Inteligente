@@ -66,7 +66,7 @@
         </div>
         <div class="condo-editor-actions">
             <a class="condo-editor-action px-3" href="{{ url_for('pages.administration_dashboard') }}"><i class="bi bi-buildings"></i> Dashboard</a>
-            <a class="condo-editor-action px-3" href="{{ url_for('pages.admin_condominium_registry') }}"><i class="bi bi-person-vcard"></i> Cadastro de Morador</a>
+            <a class="condo-editor-action px-3" href="{{ url_for('condominium.admin_condominium_registry') }}"><i class="bi bi-person-vcard"></i> Cadastro de Morador</a>
         </div>
     </header>
 
@@ -74,7 +74,7 @@
         <section class="condo-editor-panel is-dark" aria-labelledby="condo-building-form-title">
             <h2 class="condo-editor-panel-title" id="condo-building-form-title">{{ 'Editar edifício' if building_form.id else ('Implantar edifício' if building_form.template_mode else 'Novo edifício') }}</h2>
             <p class="condo-editor-panel-copy">Informe a estrutura do edifício; a prévia ao lado acompanha o formulário em tempo real e, ao salvar, as unidades passam a existir no dashboard e no Cadastro de Morador.</p>
-            <form method="post" action="{{ url_for('pages.admin_condominium_blocks_editor') }}" data-condo-editor-form>
+            <form method="post" action="{{ url_for('condominium.admin_condominium_blocks_editor') }}" data-condo-editor-form>
                 {% if building_form.id %}<input type="hidden" name="building_id" value="{{ building_form.id }}">{% endif %}
                 <div class="row g-2">
                     <div class="col-md-4">
@@ -186,13 +186,13 @@
                             <span class="condo-building-chip"><span class="text-secondary">●</span> {{ row.status_counts.sem_cadastro }}</span>
                         </div>
                         <div class="condo-building-card-actions">
-                            <a class="btn btn-sm btn-dark" href="{{ url_for('pages.admin_condominium_blocks_editor', editar=building.id) }}"><i class="bi bi-pencil-square me-1"></i> Editar</a>
+                            <a class="btn btn-sm btn-dark" href="{{ url_for('condominium.admin_condominium_blocks_editor', editar=building.id) }}"><i class="bi bi-pencil-square me-1"></i> Editar</a>
                             {% if building.active %}
-                            <form method="post" action="{{ url_for('pages.admin_condominium_archive_building', building_id=building.id) }}">
+                            <form method="post" action="{{ url_for('condominium.admin_condominium_archive_building', building_id=building.id) }}">
                                 <button class="btn btn-sm btn-outline-secondary" type="submit"><i class="bi bi-archive me-1"></i> Arquivar</button>
                             </form>
                             {% endif %}
-                            <form method="post" action="{{ url_for('pages.admin_condominium_delete_building', building_id=building.id) }}" onsubmit="return confirm('Excluir este edifício removerá a estrutura e desvinculará cadastros relacionados. Deseja continuar?');">
+                            <form method="post" action="{{ url_for('condominium.admin_condominium_delete_building', building_id=building.id) }}" onsubmit="return confirm('Excluir este edifício removerá a estrutura e desvinculará cadastros relacionados. Deseja continuar?');">
                                 <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-trash me-1"></i> Excluir</button>
                             </form>
                         </div>

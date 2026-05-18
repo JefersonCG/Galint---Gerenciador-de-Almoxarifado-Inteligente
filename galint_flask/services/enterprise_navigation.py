@@ -50,10 +50,10 @@ def build_enterprise_sections(*, is_admin: bool) -> list[dict[str, Any]]:
             "bi-buildings",
             "enterpriseCondominioMenu",
             [
-                _item("Editor de Blocos", _optional_url("pages.admin_condominium_blocks_editor"), "bi-building-gear", "ADM-000", "Estrutura", "cyan"),
-                _item("Cadastro Mestre", _optional_url("pages.admin_condominium_registry"), "bi-person-vcard", "ADM-001", "Cadastro", "cyan"),
-                _item("Agendamentos", _optional_url("pages.admin_condominium_schedule"), "bi-calendar2-week", "ADM-002", "Agenda", "amber"),
-                _item("Prestadores", _optional_url("pages.admin_service_providers"), "bi-building-check", "ADM-003", "Serviços", "green"),
+                _item("Editor de Blocos", _optional_url("condominium.admin_condominium_blocks_editor"), "bi-building-gear", "ADM-000", "Estrutura", "cyan"),
+                _item("Cadastro Mestre", _optional_url("condominium.admin_condominium_registry"), "bi-person-vcard", "ADM-001", "Cadastro", "cyan"),
+                _item("Agendamentos", _optional_url("condominium.admin_condominium_schedule"), "bi-calendar2-week", "ADM-002", "Agenda", "amber"),
+                _item("Prestadores", _optional_url("condominium.admin_service_providers"), "bi-building-check", "ADM-003", "Serviços", "green"),
             ],
         ),
         _section(

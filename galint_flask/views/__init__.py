@@ -19,6 +19,7 @@ from . import (
     nf,
     operations,
     pages,
+    condominium,
     qrcode,
     reparo,
     reports,
@@ -42,6 +43,7 @@ BLUEPRINTS = (
 
     backups.blueprint,
     pages.blueprint,
+    condominium.blueprint,
     api.api_bp,
     api_mobile.blueprint,
     qrcode.blueprint,

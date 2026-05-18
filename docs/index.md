@@ -37,7 +37,7 @@ Portal central da documentação operacional, técnica e de implantação do GAL
 
 - build e replicação do APK.
 - painel mobile e documentação dedicada.
-- frentes futuras como mensageria condominial e rastreabilidade.
+- roadmap condominial, mensageria condominial e rastreabilidade.
 
 ## Rodar localmente
 

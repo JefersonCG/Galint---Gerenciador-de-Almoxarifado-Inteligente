@@ -1,0 +1,1 @@
+--8<-- "_sources/propostas/ROADMAP_CONDOMINIAL_GALINT.md"
