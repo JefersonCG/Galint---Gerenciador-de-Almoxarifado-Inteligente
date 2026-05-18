@@ -95,6 +95,17 @@ RUNTIME_SCHEMA_COMPAT_RULES: tuple[SchemaCompatRule, ...] = (
             "UPDATE telegram_config SET low_stock_enabled = COALESCE(low_stock_enabled, false), low_stock_weekly_count = COALESCE(low_stock_weekly_count, 3), low_stock_daily_count = COALESCE(low_stock_daily_count, 3)",
         ),
     ),
+    SchemaCompatRule(
+        table_name="condominium_owners",
+        required_columns=(
+            "registry_data_json",
+            "attachment_checklist_json",
+        ),
+        ddl_statements=(
+            "ALTER TABLE condominium_owners ADD COLUMN IF NOT EXISTS registry_data_json JSONB",
+            "ALTER TABLE condominium_owners ADD COLUMN IF NOT EXISTS attachment_checklist_json JSONB",
+        ),
+    ),
 )
 
 
