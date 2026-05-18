@@ -216,6 +216,7 @@ class ServiceCompany(db.Model):
     contract_start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     contract_end_date: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
     service_types_json: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
+    documents_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     monthly_contract_value: Mapped[float | None] = mapped_column(Float, nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="ativo", index=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)

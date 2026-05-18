@@ -14,15 +14,17 @@ from __future__ import annotations
 import argparse
 import sys
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
+from flask import current_app
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from galint_flask import create_app
 from galint_flask.extensions import db
 from galint_flask.models import CondominiumBuilding, CondominiumOwner, ServiceCompany
+from galint_flask.services.condominium_service_providers import DOCUMENT_TYPE_OPTIONS
 from galint_flask.services.condominium_structure import generate_unit_layout, sync_building_units
 
 
@@ -333,6 +335,51 @@ def _resident_notes(spec: ResidentSpec) -> str:
     return f"{SEED_TAG}\nCadastro ficticio de {tipo} para validacao por fases do modulo condominial."
 
 
+def _seed_company_document_offsets(spec: CompanySpec) -> dict[str, int]:
+    profiles = {
+        "99000000000001": {"contract": 120, "art": 95, "insurance": 80, "certificates": 70},
+        "99000000000002": {"contract": 15, "art": 12, "insurance": 65, "certificates": 44},
+        "99000000000003": {"contract": -7, "art": 18, "insurance": -5, "certificates": 40},
+        "99000000000004": {"contract": 45, "art": 30, "insurance": 26, "certificates": 60},
+        "99000000000005": {"contract": 90, "art": 60, "insurance": 14, "certificates": 8},
+    }
+    return profiles.get(spec.cnpj, {"contract": 90, "art": 60, "insurance": 45, "certificates": 30})
+
+
+def _seed_company_documents(company: ServiceCompany, spec: CompanySpec, *, dry_run: bool) -> dict[str, dict[str, str]]:
+    static_root = Path(current_app.static_folder or (Path(current_app.root_path) / "static"))
+    relative_dir = Path("uploads") / "condominio" / "prestadores" / f"empresa_{company.id}"
+    target_dir = static_root / relative_dir
+    if not dry_run:
+        target_dir.mkdir(parents=True, exist_ok=True)
+
+    offsets = _seed_company_document_offsets(spec)
+    documents: dict[str, dict[str, str]] = {}
+    for option in DOCUMENT_TYPE_OPTIONS:
+        doc_key = option["value"]
+        relative_path = relative_dir / f"{doc_key}_demo_{company.id}.txt"
+        if not dry_run:
+            (static_root / relative_path).write_text(
+                "\n".join(
+                    (
+                        f"GALINT documento demo: {option['label']}",
+                        f"Empresa: {company.display_name()}",
+                        f"CNPJ: {company.cnpj}",
+                        SEED_TAG,
+                    )
+                ),
+                encoding="utf-8",
+            )
+        documents[doc_key] = {
+            "file_path": relative_path.as_posix(),
+            "original_name": f"{doc_key}_demo_{company.id}.txt",
+            "uploaded_at": datetime.utcnow().isoformat(timespec="seconds"),
+            "expires_on": (date.today() + timedelta(days=offsets.get(doc_key, 30))).isoformat(),
+            "notes": f"{SEED_TAG} Documento ficticio de {option['label'].lower()}.",
+        }
+    return documents
+
+
 def _ensure_building(spec: BuildingSpec) -> tuple[CondominiumBuilding, bool]:
     building = CondominiumBuilding.query.filter_by(code=spec.code).first()
     created = building is None
@@ -369,13 +416,14 @@ def _ensure_building(spec: BuildingSpec) -> tuple[CondominiumBuilding, bool]:
     return building, created
 
 
-def _ensure_company(spec: CompanySpec) -> bool:
+def _ensure_company(spec: CompanySpec, *, dry_run: bool) -> bool:
     today = date.today()
     company = ServiceCompany.query.filter_by(cnpj=spec.cnpj).first()
     created = company is None
     if company is None:
         company = ServiceCompany(cnpj=spec.cnpj, created_by_matricula=None)
         db.session.add(company)
+        db.session.flush()
 
     company.corporate_name = spec.corporate_name
     company.trade_name = spec.trade_name
@@ -388,6 +436,7 @@ def _ensure_company(spec: CompanySpec) -> bool:
     company.contract_start_date = today + timedelta(days=spec.contract_start_offset_days)
     company.contract_end_date = today + timedelta(days=spec.contract_end_offset_days)
     company.service_types_json = list(spec.service_types)
+    company.documents_json = _seed_company_documents(company, spec, dry_run=dry_run)
     company.monthly_contract_value = spec.monthly_contract_value
     company.status = spec.status
     company.notes = _company_notes(spec)
@@ -467,7 +516,7 @@ def main(argv: list[str] | None = None) -> int:
 
         created_companies = 0
         for spec in COMPANY_SPECS:
-            created_companies += int(_ensure_company(spec))
+            created_companies += int(_ensure_company(spec, dry_run=args.dry_run))
 
         created_residents = 0
         for spec in RESIDENT_SPECS:

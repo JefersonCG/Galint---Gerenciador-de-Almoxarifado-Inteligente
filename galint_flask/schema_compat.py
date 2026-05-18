@@ -106,6 +106,15 @@ RUNTIME_SCHEMA_COMPAT_RULES: tuple[SchemaCompatRule, ...] = (
             "ALTER TABLE condominium_owners ADD COLUMN IF NOT EXISTS attachment_checklist_json JSONB",
         ),
     ),
+    SchemaCompatRule(
+        table_name="service_companies",
+        required_columns=(
+            "documents_json",
+        ),
+        ddl_statements=(
+            "ALTER TABLE service_companies ADD COLUMN IF NOT EXISTS documents_json JSONB",
+        ),
+    ),
 )
 
 

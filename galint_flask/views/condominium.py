@@ -1,16 +1,18 @@
 """Rotas do dominio condominial do GALINT."""
 from __future__ import annotations
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, flash, redirect, render_template, request, send_file, url_for
 from flask_login import login_required
 
 from ..extensions import db
 from ..models import CondominiumBuilding, CondominiumOwner, CondominiumScheduleEvent, ServiceCompany, ServiceProviderEmployee
 from ..services.condominium_service_providers import (
     COMPANY_STATUS_OPTIONS,
+    DOCUMENT_TYPE_OPTIONS,
     EMPLOYEE_STATUS_OPTIONS,
     SERVICE_TYPE_OPTIONS,
     WEEKDAY_OPTIONS,
+    service_company_document_download_payload,
     service_company_form,
     service_company_rows,
     service_employee_form,
@@ -349,6 +351,7 @@ def admin_service_providers():
                 request.form,
                 actor_matricula=_current_user_matricula(),
                 company=company,
+                files=request.files,
             )
             db.session.commit()
             flash("Empresa prestadora salva com sucesso.", "success")
@@ -377,6 +380,7 @@ def admin_service_providers():
         selected_company_id=selected_company_id,
         service_type_options=SERVICE_TYPE_OPTIONS,
         company_status_options=COMPANY_STATUS_OPTIONS,
+        document_type_options=DOCUMENT_TYPE_OPTIONS,
         employee_status_options=EMPLOYEE_STATUS_OPTIONS,
         weekday_options=WEEKDAY_OPTIONS,
         filters={
@@ -438,6 +442,20 @@ def admin_service_provider_employee_status(employee_id: int):
     db.session.commit()
     flash("Status do funcionário/prestador atualizado.", "success")
     return redirect(url_for("condominium.admin_service_providers", empresa=employee.company_id))
+
+
+@blueprint.get("/administracao/condominio/prestadores/<int:company_id>/documentos/<document_key>")
+@login_required
+def admin_service_provider_document_download(company_id: int, document_key: str):
+    if not _has_management_access():
+        flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
+        return redirect(url_for("dashboard.index"))
+    company = ServiceCompany.query.get_or_404(company_id)
+    payload = service_company_document_download_payload(company, document_key)
+    if payload is None:
+        flash("Documento da prestadora não encontrado.", "warning")
+        return redirect(url_for("condominium.admin_service_providers", editar=company.id, empresa=company.id))
+    return send_file(payload["path"], as_attachment=True, download_name=str(payload["download_name"]))
 
 
 @blueprint.get("/configuracoes/condominio/cadastros")
