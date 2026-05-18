@@ -666,13 +666,12 @@ def admin_condominium_gatehouse():
 
 
 @blueprint.route("/administracao/condominio/operacao", methods=["GET", "POST"])
+@blueprint.route("/administracao/condominio/mensageria", methods=["GET", "POST"])
 @login_required
 def admin_condominium_operations():
     if not _has_management_access():
         flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
         return redirect(url_for("dashboard.index"))
-    if _is_messenger_session():
-        return redirect(url_for("pages.mensageria_maintenance"))
 
     if request.method == "POST":
         action = str(request.form.get("action") or "").strip()
@@ -702,19 +701,19 @@ def admin_condominium_operations():
                     details={"unit_id": package.unit_id, "status": package.status, "tracking_code": package.tracking_code},
                 )
                 db.session.commit()
-                flash("Encomenda/correspondência registrada.", "success")
+                flash("Recebimento da mensageria registrado.", "success")
             elif action == "package_status":
                 package = update_package_status(request.form.get("package_id", type=int), request.form.get("status"), actor_matricula=_current_user_matricula())
                 record_condominium_audit(
                     action="package.status",
                     entity_type="condominium_package_log",
                     entity_id=package.id,
-                    title=f"Status de recebimento atualizado: {package.recipient_name}",
+                    title=f"Status de mensageria atualizado: {package.recipient_name}",
                     actor_matricula=_current_user_matricula(),
                     details={"status": package.status, "unit_id": package.unit_id},
                 )
                 db.session.commit()
-                flash("Status do recebimento atualizado.", "success")
+                flash("Status da mensageria atualizado.", "success")
             else:
                 raise ValueError("Ação operacional inválida.")
         except ValueError as exc:

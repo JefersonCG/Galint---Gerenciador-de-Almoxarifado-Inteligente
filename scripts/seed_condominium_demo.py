@@ -9,6 +9,7 @@ Cria:
 - 5 moradores ficticios (2 locatarios)
 - 5 empresas prestadoras ficticias
 - 5 funcionarios de prestadoras para a Portaria Digital
+- 12 recebimentos ficticios para indicadores da Mensageria
 """
 from __future__ import annotations
 
@@ -24,7 +25,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from galint_flask import create_app
 from galint_flask.extensions import db
-from galint_flask.models import CondominiumBuilding, CondominiumOwner, ServiceCompany, ServiceProviderEmployee
+from galint_flask.models import CondominiumBuilding, CondominiumOwner, CondominiumPackageLog, ServiceCompany, ServiceProviderEmployee
 from galint_flask.services.condominium_service_providers import DOCUMENT_TYPE_OPTIONS
 from galint_flask.services.condominium_structure import generate_unit_layout, sync_building_units
 
@@ -92,6 +93,19 @@ class ProviderEmployeeSpec:
     phone: str
     status: str = "ativo"
     vehicle_plate: str | None = None
+    notes: str | None = None
+
+
+@dataclass(frozen=True)
+class PackageSpec:
+    unit_number: str
+    building_code: str
+    recipient_document: str
+    carrier: str
+    tracking_code: str
+    package_type: str
+    status: str
+    storage_location: str
     notes: str | None = None
 
 
@@ -344,6 +358,22 @@ PROVIDER_EMPLOYEE_SPECS: tuple[ProviderEmployeeSpec, ...] = (
 )
 
 
+PACKAGE_SPECS: tuple[PackageSpec, ...] = (
+    PackageSpec("101", "DEMO-A", "90000000001", "Correios", "BR-DEMO-0001", "encomenda", "armazenado", "Armario A1"),
+    PackageSpec("101", "DEMO-A", "90000000001", "Mercado Livre", "ML-DEMO-0002", "volume", "notificado", "Armario A2"),
+    PackageSpec("101", "DEMO-A", "90000000001", "Shopee", "SP-DEMO-0003", "encomenda", "recebido", "Mesa triagem"),
+    PackageSpec("102", "DEMO-A", "90000000002", "Amazon", "AMZ-DEMO-0004", "encomenda", "armazenado", "Prateleira B1"),
+    PackageSpec("102", "DEMO-A", "90000000002", "Correios", "BR-DEMO-0005", "correspondencia", "retirado", "Arquivo entregue"),
+    PackageSpec("201", "DEMO-A", "90000000003", "DHL", "DHL-DEMO-0006", "documento", "armazenado", "Cofre documentos"),
+    PackageSpec("201", "DEMO-A", "90000000003", "FedEx", "FDX-DEMO-0007", "documento", "notificado", "Cofre documentos"),
+    PackageSpec("202", "DEMO-A", "90000000004", "Mercado Livre", "ML-DEMO-0008", "volume", "armazenado", "Prateleira C1"),
+    PackageSpec("202", "DEMO-A", "90000000004", "Shopee", "SP-DEMO-0009", "encomenda", "recebido", "Mesa triagem"),
+    PackageSpec("202", "DEMO-A", "90000000004", "Amazon", "AMZ-DEMO-0010", "encomenda", "retirado", "Arquivo entregue"),
+    PackageSpec("301", "DEMO-B", "90000000005", "eBay", "EBY-DEMO-0011", "encomenda", "devolvido", "Devolucao"),
+    PackageSpec("301", "DEMO-B", "90000000005", "Jadlog", "JDL-DEMO-0012", "volume", "armazenado", "Prateleira D1"),
+)
+
+
 def _compose_address(spec: ResidentSpec) -> str:
     return "\n".join(
         (
@@ -527,6 +557,35 @@ def _ensure_provider_employee(spec: ProviderEmployeeSpec) -> bool:
     return created
 
 
+def _ensure_package(spec: PackageSpec, units_by_key: dict[tuple[str, str], object]) -> bool:
+    unit = units_by_key.get((spec.building_code, spec.unit_number))
+    if unit is None:
+        raise ValueError(f"Unidade demo nao encontrada para mensageria: {spec.building_code}/{spec.unit_number}")
+    owner = CondominiumOwner.query.filter_by(document_number=spec.recipient_document).first()
+    package = CondominiumPackageLog.query.filter_by(tracking_code=spec.tracking_code).first()
+    created = package is None
+    if package is None:
+        package = CondominiumPackageLog(tracking_code=spec.tracking_code, created_by_matricula=None)
+        db.session.add(package)
+
+    package.unit = unit
+    package.owner = owner
+    package.recipient_name = owner.full_name if owner else f"Morador unidade {unit.number}"
+    package.carrier = spec.carrier
+    package.package_type = spec.package_type
+    package.status = spec.status
+    package.storage_location = spec.storage_location
+    package.notes = spec.notes or f"{SEED_TAG}\nRecebimento ficticio para rankings da Mensageria."
+    if spec.status in {"armazenado", "notificado"} and package.stored_at is None:
+        package.stored_at = datetime.utcnow()
+    if spec.status == "notificado" and package.notified_at is None:
+        package.notified_at = datetime.utcnow()
+    if spec.status in {"retirado", "devolvido"}:
+        package.delivered_at = package.delivered_at or datetime.utcnow()
+        package.delivered_to = package.delivered_to or package.recipient_name
+    return created
+
+
 def _ensure_resident(spec: ResidentSpec, units_by_key: dict[tuple[str, str], object]) -> bool:
     unit = units_by_key.get((spec.building_code, spec.unit_number))
     if unit is None:
@@ -575,12 +634,14 @@ def _print_summary(
     created_companies: int,
     created_residents: int,
     created_employees: int,
+    created_packages: int,
 ) -> None:
     locatarios = sum(1 for spec in RESIDENT_SPECS if spec.relationship_type == "locatario")
     print("DRY RUN concluido." if dry_run else "Seed concluido com sucesso.")
     print(f"Blocos demo: {len(BUILDING_SPECS)} (novos: {created_buildings})")
     print(f"Empresas demo: {len(COMPANY_SPECS)} (novas: {created_companies})")
     print(f"Funcionarios de prestadoras: {len(PROVIDER_EMPLOYEE_SPECS)} (novos: {created_employees})")
+    print(f"Recebimentos de mensageria: {len(PACKAGE_SPECS)} (novos: {created_packages})")
     print(f"Moradores demo: {len(RESIDENT_SPECS)} (novos: {created_residents}, locatarios: {locatarios})")
     print("Rotas para validacao manual:")
     print("- /administracao/condominio/cadastros")
@@ -618,6 +679,11 @@ def main(argv: list[str] | None = None) -> int:
         created_residents = 0
         for spec in RESIDENT_SPECS:
             created_residents += int(_ensure_resident(spec, units_by_key))
+        db.session.flush()
+
+        created_packages = 0
+        for spec in PACKAGE_SPECS:
+            created_packages += int(_ensure_package(spec, units_by_key))
 
         if args.dry_run:
             db.session.rollback()
@@ -630,6 +696,7 @@ def main(argv: list[str] | None = None) -> int:
             created_companies=created_companies,
             created_residents=created_residents,
             created_employees=created_employees,
+            created_packages=created_packages,
         )
     return 0
 

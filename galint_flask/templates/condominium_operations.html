@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Operação Diária Condominial{% endblock %}
+{% block title %}Operação Diária e Mensageria{% endblock %}
 {% block body_class %}condominium-operations-page{% endblock %}
 {% block extra_css %}
 <style>
@@ -20,6 +20,12 @@
     .ops-kpi span { color: #64748b; font-size: 0.68rem; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; }
     .ops-kpi strong { font-size: 1.25rem; line-height: 1; font-weight: 950; }
     .ops-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.9rem; align-items: start; }
+    .ops-analytics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.65rem; }
+    .ops-rank { display: grid; gap: 0.5rem; }
+    .ops-rank-row { display: grid; gap: 0.22rem; }
+    .ops-rank-top { display: flex; justify-content: space-between; gap: 0.45rem; color: #334155; font-size: 0.78rem; font-weight: 850; }
+    .ops-rank-bar { height: 0.44rem; border-radius: 999px; overflow: hidden; background: #e2e8f0; }
+    .ops-rank-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #0f766e, #f59e0b); }
     .ops-section-title { margin: 0 0 0.55rem; font-size: 1rem; font-weight: 950; }
     .ops-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.55rem; }
     .ops-form-grid .wide { grid-column: 1 / -1; }
@@ -41,9 +47,9 @@
 <div class="ops-shell">
     <header class="ops-header">
         <div>
-            <p class="ops-kicker"><i class="bi bi-tools"></i> Fase 1 · Operação diária</p>
-            <h1 class="ops-title">Chamados, Manutenção e Encomendas</h1>
-            <p class="ops-summary">Fila operacional para zeladoria, administração e portaria registrarem chamados, prestadores, recebimentos, ciência e retirada com rastreio condominial.</p>
+            <p class="ops-kicker"><i class="bi bi-tools"></i> Fase 1.1 · Operação diária</p>
+            <h1 class="ops-title">Chamados, Manutenção e Mensageria</h1>
+            <p class="ops-summary">Fila operacional para zeladoria, administração, portaria e mensageria registrarem chamados, recebimentos, armazenamento, ciência e entrega ao morador.</p>
         </div>
         <div class="ops-actions">
             <a class="btn btn-success rounded-pill px-4" href="{{ url_for('condominium.admin_condominium_gatehouse') }}"><i class="bi bi-door-open me-1"></i> Portaria</a>
@@ -55,8 +61,35 @@
     <section class="ops-kpis">
         <div class="ops-kpi"><span>Chamados abertos</span><strong>{{ operations.summary.open_tickets }}</strong></div>
         <div class="ops-kpi"><span>Críticos</span><strong>{{ operations.summary.critical_tickets }}</strong></div>
-        <div class="ops-kpi"><span>Recebimentos pendentes</span><strong>{{ operations.summary.pending_packages }}</strong></div>
-        <div class="ops-kpi"><span>Recém recebidos</span><strong>{{ operations.summary.received_packages }}</strong></div>
+        <div class="ops-kpi"><span>Mensageria pendente</span><strong>{{ operations.summary.pending_packages }}</strong></div>
+        <div class="ops-kpi"><span>Armazenados</span><strong>{{ operations.summary.stored_packages }}</strong></div>
+    </section>
+
+    <section class="ops-analytics">
+        <div class="ops-card ops-rank">
+            <h2 class="ops-section-title"><i class="bi bi-truck me-1"></i> Transportadoras</h2>
+            {% for row in operations.messenger_analytics.carriers %}
+            <div class="ops-rank-row"><div class="ops-rank-top"><span>{{ row.label }}</span><strong>{{ row.count }}</strong></div><div class="ops-rank-bar"><div class="ops-rank-fill" style="width: {{ row.percent }}%"></div></div></div>
+            {% else %}<div class="ops-empty">Sem entregas ranqueadas.</div>{% endfor %}
+        </div>
+        <div class="ops-card ops-rank">
+            <h2 class="ops-section-title"><i class="bi bi-house-door me-1"></i> Unidades</h2>
+            {% for row in operations.messenger_analytics.units %}
+            <div class="ops-rank-row"><div class="ops-rank-top"><span>{{ row.label }}</span><strong>{{ row.count }}</strong></div><div class="ops-rank-bar"><div class="ops-rank-fill" style="width: {{ row.percent }}%"></div></div></div>
+            {% else %}<div class="ops-empty">Sem unidades ranqueadas.</div>{% endfor %}
+        </div>
+        <div class="ops-card ops-rank">
+            <h2 class="ops-section-title"><i class="bi bi-box2-heart me-1"></i> Tipos</h2>
+            {% for row in operations.messenger_analytics.types %}
+            <div class="ops-rank-row"><div class="ops-rank-top"><span>{{ row.label }}</span><strong>{{ row.count }}</strong></div><div class="ops-rank-bar"><div class="ops-rank-fill" style="width: {{ row.percent }}%"></div></div></div>
+            {% else %}<div class="ops-empty">Sem tipos ranqueados.</div>{% endfor %}
+        </div>
+        <div class="ops-card ops-rank">
+            <h2 class="ops-section-title"><i class="bi bi-activity me-1"></i> Status</h2>
+            {% for row in operations.messenger_analytics.statuses %}
+            <div class="ops-rank-row"><div class="ops-rank-top"><span>{{ row.label|title }}</span><strong>{{ row.count }}</strong></div><div class="ops-rank-bar"><div class="ops-rank-fill" style="width: {{ row.percent }}%"></div></div></div>
+            {% else %}<div class="ops-empty">Sem status ranqueado.</div>{% endfor %}
+        </div>
     </section>
 
     <div class="ops-layout">
@@ -89,16 +122,18 @@
         </section>
 
         <section class="ops-card">
-            <h2 class="ops-section-title"><i class="bi bi-box-seam me-1"></i> Encomendas / Correspondência</h2>
+            <h2 class="ops-section-title"><i class="bi bi-box-seam me-1"></i> Mensageria</h2>
             <form class="ops-form-grid" method="post" action="{{ url_for('condominium.admin_condominium_operations') }}">
                 <input type="hidden" name="action" value="package_create">
                 <div><label class="form-label">Unidade</label><select class="form-select form-select-sm" name="unit_id" required><option value="">Selecione</option>{% for unit in operations.units %}<option value="{{ unit.id }}">{{ unit.full_label() }}</option>{% endfor %}</select></div>
                 <div><label class="form-label">Morador</label><select class="form-select form-select-sm" name="owner_id"><option value="">Destinatário avulso</option>{% for owner in operations.owners %}<option value="{{ owner.id }}">{{ owner.full_name }}</option>{% endfor %}</select></div>
                 <div class="wide"><label class="form-label">Destinatário</label><input class="form-control form-control-sm" name="recipient_name" placeholder="Nome impresso no pacote"></div>
                 <div><label class="form-label">Tipo</label><select class="form-select form-select-sm" name="package_type">{% for option in operations.package_type_options %}<option value="{{ option.value }}">{{ option.label }}</option>{% endfor %}</select></div>
-                <div><label class="form-label">Transportadora</label><input class="form-control form-control-sm" name="carrier" placeholder="Correios, Loggi..."></div>
+                <div><label class="form-label">Transportadora</label><input class="form-control form-control-sm" name="carrier" list="carrier-options" placeholder="Correios, Mercado Livre..."></div>
+                <datalist id="carrier-options">{% for carrier in operations.carrier_options %}<option value="{{ carrier }}">{% endfor %}</datalist>
                 <div><label class="form-label">Rastreio</label><input class="form-control form-control-sm" name="tracking_code"></div>
-                <div><label class="form-label">Status</label><select class="form-select form-select-sm" name="status"><option value="recebido">Recebido</option><option value="notificado">Notificado</option></select></div>
+                <div><label class="form-label">Local</label><input class="form-control form-control-sm" name="storage_location" placeholder="Armário A1, prateleira 2"></div>
+                <div><label class="form-label">Status</label><select class="form-select form-select-sm" name="status"><option value="recebido">Recebido</option><option value="armazenado">Armazenado</option><option value="notificado">Notificado</option></select></div>
                 <div class="wide"><label class="form-label">Observação</label><input class="form-control form-control-sm" name="notes"></div>
                 <button class="btn btn-warning btn-sm" type="submit"><i class="bi bi-plus-circle me-1"></i> Registrar recebimento</button>
             </form>
@@ -107,13 +142,19 @@
                 {% for package in operations.packages %}
                 <article class="ops-item">
                     <div class="ops-item-top"><strong>{{ package.recipient_name }}</strong><span class="ops-tag {% if package.status in ['retirado', 'devolvido'] %}ok{% else %}warn{% endif %}">{{ package.status_label() }}</span></div>
-                    <div class="ops-muted">{{ package.unit.full_label() if package.unit else 'Sem unidade' }} · {{ package.package_type|title }}{% if package.tracking_code %} · {{ package.tracking_code }}{% endif %}</div>
-                    {% if package.status in ['recebido', 'notificado'] %}
+                    <div class="ops-muted">{{ package.unit.full_label() if package.unit else 'Sem unidade' }} · {{ package.package_type|title }}{% if package.carrier %} · {{ package.carrier }}{% endif %}{% if package.tracking_code %} · {{ package.tracking_code }}{% endif %}</div>
+                    <div class="ops-tags">
+                        {% if package.storage_location %}<span class="ops-tag">{{ package.storage_location }}</span>{% endif %}
+                        {% if package.created_by %}<span class="ops-tag">Recebido por {{ package.created_by.nome }}</span>{% endif %}
+                        {% if package.delivered_by %}<span class="ops-tag ok">Entregue por {{ package.delivered_by.nome }}</span>{% endif %}
+                    </div>
+                    {% if package.status in ['recebido', 'armazenado', 'notificado'] %}
                     <form class="d-flex gap-2 flex-wrap" method="post" action="{{ url_for('condominium.admin_condominium_operations') }}">
                         <input type="hidden" name="action" value="package_status">
                         <input type="hidden" name="package_id" value="{{ package.id }}">
-                        <button class="btn btn-sm btn-success" name="status" value="retirado" type="submit"><i class="bi bi-check2 me-1"></i> Retirado</button>
+                        <button class="btn btn-sm btn-outline-primary" name="status" value="armazenado" type="submit">Armazenado</button>
                         <button class="btn btn-sm btn-outline-secondary" name="status" value="notificado" type="submit">Notificado</button>
+                        <button class="btn btn-sm btn-success" name="status" value="retirado" type="submit"><i class="bi bi-check2 me-1"></i> Retirado</button>
                         <button class="btn btn-sm btn-outline-danger" name="status" value="devolvido" type="submit">Devolvido</button>
                     </form>
                     {% endif %}

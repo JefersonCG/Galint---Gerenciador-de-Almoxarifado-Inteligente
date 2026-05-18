@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
+from sqlalchemy import func
+
 from ..extensions import db
 from ..models import (
     CondominiumMaintenanceTicket,
@@ -39,6 +41,7 @@ TICKET_CATEGORY_OPTIONS = (
 
 PACKAGE_STATUS_OPTIONS = (
     {"value": "recebido", "label": "Recebido"},
+    {"value": "armazenado", "label": "Armazenado"},
     {"value": "notificado", "label": "Notificado"},
     {"value": "retirado", "label": "Retirado"},
     {"value": "devolvido", "label": "Devolvido"},
@@ -49,6 +52,20 @@ PACKAGE_TYPE_OPTIONS = (
     {"value": "correspondencia", "label": "Correspondência"},
     {"value": "documento", "label": "Documento"},
     {"value": "volume", "label": "Volume"},
+)
+
+CARRIER_OPTIONS = (
+    "Correios",
+    "Mercado Livre",
+    "Shopee",
+    "Amazon",
+    "DHL",
+    "FedEx",
+    "eBay",
+    "Loggi",
+    "Jadlog",
+    "Total Express",
+    "Transportadora local",
 )
 
 
@@ -106,8 +123,57 @@ def operations_summary() -> dict[str, int]:
     return {
         "open_tickets": sum(1 for ticket in tickets if ticket.status in {"aberto", "em_andamento", "aguardando"}),
         "critical_tickets": sum(1 for ticket in tickets if ticket.priority == "critica" and ticket.status not in {"concluido", "cancelado"}),
-        "pending_packages": sum(1 for package in packages if package.status in {"recebido", "notificado"}),
+        "pending_packages": sum(1 for package in packages if package.status in {"recebido", "armazenado", "notificado"}),
         "received_packages": sum(1 for package in packages if package.status == "recebido"),
+        "stored_packages": sum(1 for package in packages if package.status == "armazenado"),
+        "delivered_packages": sum(1 for package in packages if package.status == "retirado"),
+    }
+
+
+def _rank_value(value: object, total: int, highest: int) -> dict[str, object]:
+    count = int(total or 0)
+    peak = max(int(highest or 0), 1)
+    return {"label": value or "Não informado", "count": count, "percent": round((count / peak) * 100)}
+
+
+def messenger_analytics(*, limit: int = 8) -> dict[str, object]:
+    carrier_rows = (
+        db.session.query(CondominiumPackageLog.carrier, func.count(CondominiumPackageLog.id))
+        .group_by(CondominiumPackageLog.carrier)
+        .order_by(func.count(CondominiumPackageLog.id).desc())
+        .limit(limit)
+        .all()
+    )
+    unit_rows = (
+        db.session.query(CondominiumUnit.number, CondominiumPackageLog.unit_id, func.count(CondominiumPackageLog.id))
+        .join(CondominiumPackageLog, CondominiumPackageLog.unit_id == CondominiumUnit.id)
+        .group_by(CondominiumUnit.number, CondominiumPackageLog.unit_id)
+        .order_by(func.count(CondominiumPackageLog.id).desc())
+        .limit(limit)
+        .all()
+    )
+    type_rows = (
+        db.session.query(CondominiumPackageLog.package_type, func.count(CondominiumPackageLog.id))
+        .group_by(CondominiumPackageLog.package_type)
+        .order_by(func.count(CondominiumPackageLog.id).desc())
+        .limit(limit)
+        .all()
+    )
+    status_rows = (
+        db.session.query(CondominiumPackageLog.status, func.count(CondominiumPackageLog.id))
+        .group_by(CondominiumPackageLog.status)
+        .order_by(func.count(CondominiumPackageLog.id).desc())
+        .all()
+    )
+    carrier_peak = max((count for _, count in carrier_rows), default=0)
+    unit_peak = max((count for _, _, count in unit_rows), default=0)
+    type_peak = max((count for _, count in type_rows), default=0)
+    status_peak = max((count for _, count in status_rows), default=0)
+    return {
+        "carriers": [_rank_value(carrier, count, carrier_peak) for carrier, count in carrier_rows],
+        "units": [_rank_value(f"Unidade {number}", count, unit_peak) for number, _, count in unit_rows],
+        "types": [_rank_value(package_type.title() if package_type else "Não informado", count, type_peak) for package_type, count in type_rows],
+        "statuses": [_rank_value(status, count, status_peak) for status, count in status_rows],
     }
 
 
@@ -155,7 +221,7 @@ def save_package_from_form(form_data, *, actor_matricula: str | None = None) -> 
 
     recipient_name = _clean(form_data.get("recipient_name")) or (owner.full_name if owner else "")
     if not recipient_name:
-        raise ValueError("Informe o destinatário da encomenda/correspondência.")
+        raise ValueError("Informe o destinatário do recebimento da mensageria.")
     if unit is None:
         raise ValueError("Selecione a unidade vinculada ao recebimento.")
 
@@ -165,14 +231,23 @@ def save_package_from_form(form_data, *, actor_matricula: str | None = None) -> 
         carrier=_clean(form_data.get("carrier")) or None,
         package_type=_normalize(form_data.get("package_type"), {option["value"] for option in PACKAGE_TYPE_OPTIONS}, default="encomenda"),
         status=_normalize(form_data.get("status"), {option["value"] for option in PACKAGE_STATUS_OPTIONS}, default="recebido"),
+        storage_location=_clean(form_data.get("storage_location")) or None,
+        delivered_to=_clean(form_data.get("delivered_to")) or None,
         unit=unit,
         owner=owner,
         notes=_clean(form_data.get("notes")) or None,
         created_by_matricula=actor_matricula,
     )
+    if package.status == "armazenado":
+        package.stored_at = datetime.utcnow()
+        package.stored_by_matricula = actor_matricula
+    if package.status == "notificado":
+        package.notified_at = datetime.utcnow()
+        package.notified_by_matricula = actor_matricula
     if package.status in {"retirado", "devolvido"}:
         package.delivered_at = datetime.utcnow()
         package.delivered_by_matricula = actor_matricula
+        package.delivered_to = package.delivered_to or recipient_name
     db.session.add(package)
     return package
 
@@ -182,15 +257,23 @@ def update_package_status(package_id: int, status: str, *, actor_matricula: str 
     if package is None:
         raise ValueError("Recebimento não encontrado.")
     package.status = _normalize(status, {option["value"] for option in PACKAGE_STATUS_OPTIONS}, default=package.status)
+    if package.status == "armazenado" and package.stored_at is None:
+        package.stored_at = datetime.utcnow()
+        package.stored_by_matricula = actor_matricula
+    if package.status == "notificado" and package.notified_at is None:
+        package.notified_at = datetime.utcnow()
+        package.notified_by_matricula = actor_matricula
     if package.status in {"retirado", "devolvido"} and package.delivered_at is None:
         package.delivered_at = datetime.utcnow()
         package.delivered_by_matricula = actor_matricula
+        package.delivered_to = package.delivered_to or package.recipient_name
     return package
 
 
 def build_operations_context() -> dict[str, object]:
     return {
         "summary": operations_summary(),
+        "messenger_analytics": messenger_analytics(),
         "tickets": maintenance_ticket_rows(),
         "packages": package_rows(),
         "units": unit_options(),
@@ -202,4 +285,5 @@ def build_operations_context() -> dict[str, object]:
         "ticket_category_options": TICKET_CATEGORY_OPTIONS,
         "package_status_options": PACKAGE_STATUS_OPTIONS,
         "package_type_options": PACKAGE_TYPE_OPTIONS,
+        "carrier_options": CARRIER_OPTIONS,
     }

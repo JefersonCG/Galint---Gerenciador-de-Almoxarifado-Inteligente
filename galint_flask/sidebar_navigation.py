@@ -113,10 +113,10 @@ def _management_mode_label() -> str:
 
 def _build_messenger_navigation(path: str) -> list[dict[str, Any]]:
     entries: list[dict[str, Any]] = []
-    maintenance_url = _optional_url("pages.mensageria_maintenance")
+    messenger_url = _optional_url("condominium.admin_condominium_operations")
     sobre_url = _optional_url("pages.sobre")
-    if maintenance_url:
-        entries.append(_link_item("Manutenção", maintenance_url, "bi-tools", path == maintenance_url))
+    if messenger_url:
+        entries.append(_link_item("Mensageria", messenger_url, "bi-box-seam", path == messenger_url))
     if sobre_url:
         entries.append({"type": "divider"})
         entries.append(_link_item("Sobre", sobre_url, "bi-info-circle", path == sobre_url))
