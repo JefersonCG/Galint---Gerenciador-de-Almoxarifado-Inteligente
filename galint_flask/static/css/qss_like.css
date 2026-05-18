@@ -5,6 +5,8 @@
     --muted: #9aa0a6;
     --accent: #2563eb;
     --accent-2: #3b82f6;
+    --topbar-height: 96px;
+    --topbar-padding-x: clamp(1rem, 2vw, 2rem);
     --text-light: #f8fafc;
     --text-dark: #0f172a;
     --border: rgba(255, 255, 255, 0.08);
@@ -36,30 +38,78 @@ html {
 }
 
 .topbar {
-    height: 64px;
-    padding: 0 2rem;
+    min-height: var(--topbar-height);
+    padding: 0.9rem var(--topbar-padding-x);
     background: linear-gradient(120deg, #1e3a8a, #2563eb 58%, #38bdf8);
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
     color: var(--text-light);
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow: 0 10px 24px rgba(2, 6, 23, 0.22);
 }
 
+.topbar-main {
+    min-height: calc(var(--topbar-height) - 1.8rem);
+}
+
+.topbar-brand {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.18rem;
+}
+
 .topbar-brand .brand-title {
-    font-weight: 700;
-    letter-spacing: 0.22rem;
+    font-size: clamp(1.1rem, 0.95rem + 0.55vw, 1.42rem);
+    font-weight: 800;
+    letter-spacing: 0.28rem;
+    line-height: 1.1;
 }
 
 .topbar-brand small {
     color: rgba(239, 246, 255, 0.8) !important;
+    font-size: 0.96rem;
+    font-weight: 500;
+    line-height: 1.2;
 }
 
 .topbar-actions button,
 .topbar-actions a {
     border-color: rgba(255, 255, 255, 0.36);
     background: rgba(255, 255, 255, 0.06);
+}
+
+.topbar .btn {
+    min-height: 2.55rem;
+    padding: 0.5rem 0.95rem;
+    border-radius: 0.55rem;
+    font-size: 0.94rem;
+}
+
+.topbar .btn.rounded-circle {
+    width: 2.7rem;
+    min-width: 2.7rem;
+    height: 2.7rem;
+    padding: 0;
+    border-radius: 999px;
+}
+
+.topbar-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.8rem;
+    flex-wrap: wrap;
+}
+
+.topbar-user {
+    font-size: 1.02rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
 }
 
 .app-body {
@@ -549,6 +599,21 @@ html {
 }
 
 @media (max-width: 992px) {
+    .topbar {
+        min-height: auto;
+        padding: 0.85rem 1rem;
+    }
+
+    .topbar-main,
+    .topbar-actions {
+        width: 100%;
+        min-height: auto;
+    }
+
+    .topbar-actions {
+        justify-content: flex-start;
+    }
+
     .sidebar-column.collapsed {
         width: 0;
         min-width: 0;
