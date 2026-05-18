@@ -8,6 +8,7 @@ Cria:
 - 2 blocos demo com unidades dedicadas
 - 5 moradores ficticios (2 locatarios)
 - 5 empresas prestadoras ficticias
+- 5 funcionarios de prestadoras para a Portaria Digital
 """
 from __future__ import annotations
 
@@ -23,7 +24,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from galint_flask import create_app
 from galint_flask.extensions import db
-from galint_flask.models import CondominiumBuilding, CondominiumOwner, ServiceCompany
+from galint_flask.models import CondominiumBuilding, CondominiumOwner, ServiceCompany, ServiceProviderEmployee
 from galint_flask.services.condominium_service_providers import DOCUMENT_TYPE_OPTIONS
 from galint_flask.services.condominium_structure import generate_unit_layout, sync_building_units
 
@@ -80,6 +81,18 @@ class CompanySpec:
     contract_start_offset_days: int
     contract_end_offset_days: int
     monthly_contract_value: float
+
+
+@dataclass(frozen=True)
+class ProviderEmployeeSpec:
+    full_name: str
+    company_cnpj: str
+    role: str
+    cpf: str
+    phone: str
+    status: str = "ativo"
+    vehicle_plate: str | None = None
+    notes: str | None = None
 
 
 BUILDING_SPECS: tuple[BuildingSpec, ...] = (
@@ -285,6 +298,52 @@ COMPANY_SPECS: tuple[CompanySpec, ...] = (
 )
 
 
+PROVIDER_EMPLOYEE_SPECS: tuple[ProviderEmployeeSpec, ...] = (
+    ProviderEmployeeSpec(
+        full_name="Carlos Eduardo Martins",
+        company_cnpj="99000000000001",
+        role="Supervisor de limpeza",
+        cpf="91000000101",
+        phone="21982000101",
+        vehicle_plate="ABC1D23",
+    ),
+    ProviderEmployeeSpec(
+        full_name="Renato Alves Lima",
+        company_cnpj="99000000000002",
+        role="Tecnico de elevadores",
+        cpf="91000000102",
+        phone="21982000102",
+        vehicle_plate="DEF4G56",
+    ),
+    ProviderEmployeeSpec(
+        full_name="Simone Ribeiro Nunes",
+        company_cnpj="99000000000003",
+        role="Encarregada de obras",
+        cpf="91000000103",
+        phone="21982000103",
+        vehicle_plate="GHI7J89",
+    ),
+    ProviderEmployeeSpec(
+        full_name="Patricia Helena Souza",
+        company_cnpj="99000000000004",
+        role="Tecnica hidraulica",
+        cpf="91000000104",
+        phone="21982000104",
+        vehicle_plate="JKL0M12",
+    ),
+    ProviderEmployeeSpec(
+        full_name="Marcos Vinicius Rocha",
+        company_cnpj="99000000000005",
+        role="Tecnico de monitoramento",
+        cpf="91000000105",
+        phone="21982000105",
+        status="bloqueado",
+        vehicle_plate="MNO3P45",
+        notes="Bloqueado para demonstrar regra automatica da portaria.",
+    ),
+)
+
+
 def _compose_address(spec: ResidentSpec) -> str:
     return "\n".join(
         (
@@ -445,6 +504,29 @@ def _ensure_company(spec: CompanySpec, *, dry_run: bool) -> bool:
     return created
 
 
+def _ensure_provider_employee(spec: ProviderEmployeeSpec) -> bool:
+    company = ServiceCompany.query.filter_by(cnpj=spec.company_cnpj).first()
+    if company is None:
+        raise ValueError(f"Empresa demo nao encontrada para funcionario: {spec.company_cnpj}")
+
+    employee = ServiceProviderEmployee.query.filter_by(cpf=spec.cpf).first()
+    created = employee is None
+    if employee is None:
+        employee = ServiceProviderEmployee(cpf=spec.cpf, created_by_matricula=None)
+        db.session.add(employee)
+
+    employee.company = company
+    employee.full_name = spec.full_name
+    employee.role = spec.role
+    employee.phone = spec.phone
+    employee.status = spec.status
+    employee.vehicle_plate = spec.vehicle_plate
+    employee.notes = spec.notes or f"{SEED_TAG}\nFuncionario ficticio para validacao da Portaria Digital."
+    employee.lgpd_authorized = True
+    employee.updated_by_matricula = None
+    return created
+
+
 def _ensure_resident(spec: ResidentSpec, units_by_key: dict[tuple[str, str], object]) -> bool:
     unit = units_by_key.get((spec.building_code, spec.unit_number))
     if unit is None:
@@ -486,15 +568,25 @@ def _build_units_index(buildings: tuple[CondominiumBuilding, ...]) -> dict[tuple
     return units_by_key
 
 
-def _print_summary(*, dry_run: bool, created_buildings: int, created_companies: int, created_residents: int) -> None:
+def _print_summary(
+    *,
+    dry_run: bool,
+    created_buildings: int,
+    created_companies: int,
+    created_residents: int,
+    created_employees: int,
+) -> None:
     locatarios = sum(1 for spec in RESIDENT_SPECS if spec.relationship_type == "locatario")
     print("DRY RUN concluido." if dry_run else "Seed concluido com sucesso.")
     print(f"Blocos demo: {len(BUILDING_SPECS)} (novos: {created_buildings})")
     print(f"Empresas demo: {len(COMPANY_SPECS)} (novas: {created_companies})")
+    print(f"Funcionarios de prestadoras: {len(PROVIDER_EMPLOYEE_SPECS)} (novos: {created_employees})")
     print(f"Moradores demo: {len(RESIDENT_SPECS)} (novos: {created_residents}, locatarios: {locatarios})")
     print("Rotas para validacao manual:")
     print("- /administracao/condominio/cadastros")
     print("- /administracao/condominio/prestadores")
+    print("- /administracao/condominio/portaria")
+    print("- /administracao/condominio/operacao")
     print(f"Marcador de rastreio: {SEED_TAG}")
 
 
@@ -517,6 +609,11 @@ def main(argv: list[str] | None = None) -> int:
         created_companies = 0
         for spec in COMPANY_SPECS:
             created_companies += int(_ensure_company(spec, dry_run=args.dry_run))
+        db.session.flush()
+
+        created_employees = 0
+        for spec in PROVIDER_EMPLOYEE_SPECS:
+            created_employees += int(_ensure_provider_employee(spec))
 
         created_residents = 0
         for spec in RESIDENT_SPECS:
@@ -532,6 +629,7 @@ def main(argv: list[str] | None = None) -> int:
             created_buildings=created_buildings,
             created_companies=created_companies,
             created_residents=created_residents,
+            created_employees=created_employees,
         )
     return 0
 

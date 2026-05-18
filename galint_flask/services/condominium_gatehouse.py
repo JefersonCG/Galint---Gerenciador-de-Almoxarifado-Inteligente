@@ -8,7 +8,7 @@ from ..extensions import db
 from ..models import CondominiumAccessLog, CondominiumOwner, CondominiumUnit, ServiceCompany, ServiceProviderEmployee
 from .condominium_dossier import search_condominium_units
 from .condominium_schedule import today_local
-from .condominium_service_providers import service_company_document_summary
+from .condominium_service_providers import contract_status, service_company_document_summary
 
 
 DIRECTION_OPTIONS = (
@@ -59,6 +59,7 @@ def _provider_rows(query: str, *, limit: int = 12) -> list[dict[str, object]]:
     for employee in providers:
         company = employee.company
         document_summary = service_company_document_summary(company) if company else {"value": "pendente", "label": "Sem empresa", "css": "secondary"}
+        policy = provider_access_policy(employee)
         rows.append(
             {
                 "kind": "prestador",
@@ -68,9 +69,31 @@ def _provider_rows(query: str, *, limit: int = 12) -> list[dict[str, object]]:
                 "subtitle": company.display_name() if company else "Empresa nao vinculada",
                 "status": employee.status,
                 "document_summary": document_summary,
+                "policy": policy,
             }
         )
     return rows
+
+
+def provider_access_policy(employee: ServiceProviderEmployee | None) -> dict[str, object]:
+    if employee is None:
+        return {"allowed": False, "status": "bloqueado", "reason": "Prestador não encontrado."}
+    company = employee.company
+    if employee.status != "ativo":
+        return {"allowed": False, "status": "bloqueado", "reason": "Prestador não está ativo."}
+    if company is None:
+        return {"allowed": False, "status": "bloqueado", "reason": "Prestador sem empresa vinculada."}
+    if company.status != "ativo":
+        return {"allowed": False, "status": "bloqueado", "reason": "Empresa prestadora não está ativa."}
+    current_contract = contract_status(company)
+    if current_contract["value"] == "vencido":
+        return {"allowed": False, "status": "bloqueado", "reason": "Contrato da empresa está vencido."}
+    current_documents = service_company_document_summary(company)
+    if current_documents["value"] == "vencido":
+        return {"allowed": False, "status": "bloqueado", "reason": "Empresa possui documento vencido."}
+    if current_contract["value"] == "vencendo" or current_documents["value"] == "vencendo":
+        return {"allowed": True, "status": "observacao", "reason": "Atenção: contrato ou documento próximo do vencimento."}
+    return {"allowed": True, "status": "liberado", "reason": "Prestador liberado."}
 
 
 def gatehouse_search_results(*, query: str = "", status: str = "") -> dict[str, object]:
@@ -131,12 +154,25 @@ def save_gatehouse_access_from_form(form_data, *, actor_matricula: str | None = 
         person_name = person_name or provider.full_name
         document_number = document_number or provider.cpf
         vehicle_plate = vehicle_plate or provider.vehicle_plate
+        policy = provider_access_policy(provider)
+        if not policy["allowed"]:
+            access_status = "bloqueado"
+        elif access_status == "liberado" and policy["status"] == "observacao":
+            access_status = "observacao"
+        policy_reason = str(policy.get("reason") or "")
+        if policy_reason and policy_reason not in _clean(form_data.get("notes")):
+            base_notes = _clean(form_data.get("notes"))
+            form_notes = f"{base_notes} | {policy_reason}" if base_notes else policy_reason
+        else:
+            form_notes = _clean(form_data.get("notes"))
+    else:
+        form_notes = _clean(form_data.get("notes"))
 
     if not person_name:
         raise ValueError("Informe o nome da pessoa liberada na portaria.")
     if person_type == "morador" and unit is None:
         raise ValueError("Selecione a unidade do morador ou visitante.")
-    if access_status == "bloqueado" and not _clean(form_data.get("notes")):
+    if access_status == "bloqueado" and not form_notes:
         raise ValueError("Informe uma observacao para acesso bloqueado.")
 
     log = CondominiumAccessLog(
@@ -147,7 +183,7 @@ def save_gatehouse_access_from_form(form_data, *, actor_matricula: str | None = 
         document_number=document_number,
         vehicle_plate=vehicle_plate,
         purpose=_clean(form_data.get("purpose")) or None,
-        notes=_clean(form_data.get("notes")) or None,
+        notes=form_notes or None,
         unit=unit,
         owner=owner,
         service_company=provider.company if provider else None,

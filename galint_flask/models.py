@@ -326,6 +326,74 @@ class CondominiumAccessLog(db.Model):
         return labels.get(self.access_status, "Liberado")
 
 
+class CondominiumMaintenanceTicket(db.Model):
+    __tablename__ = "condominium_maintenance_tickets"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    opened_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    due_date: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    title: Mapped[str] = mapped_column(String(180), nullable=False, index=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    category: Mapped[str] = mapped_column(String(40), nullable=False, default="manutencao", index=True)
+    priority: Mapped[str] = mapped_column(String(20), nullable=False, default="normal", index=True)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="aberto", index=True)
+    unit_id: Mapped[int | None] = mapped_column(ForeignKey("condominium_units.id", ondelete="SET NULL"), nullable=True, index=True)
+    building_id: Mapped[int | None] = mapped_column(ForeignKey("condominium_buildings.id", ondelete="SET NULL"), nullable=True, index=True)
+    owner_id: Mapped[int | None] = mapped_column(ForeignKey("condominium_owners.id", ondelete="SET NULL"), nullable=True, index=True)
+    service_company_id: Mapped[int | None] = mapped_column(ForeignKey("service_companies.id", ondelete="SET NULL"), nullable=True, index=True)
+    service_employee_id: Mapped[int | None] = mapped_column(ForeignKey("service_provider_employees.id", ondelete="SET NULL"), nullable=True, index=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by_matricula: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True)
+    updated_by_matricula: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True)
+
+    unit: Mapped[CondominiumUnit | None] = relationship("CondominiumUnit")
+    building: Mapped[CondominiumBuilding | None] = relationship("CondominiumBuilding")
+    owner: Mapped[CondominiumOwner | None] = relationship("CondominiumOwner")
+    service_company: Mapped[ServiceCompany | None] = relationship("ServiceCompany")
+    service_employee: Mapped[ServiceProviderEmployee | None] = relationship("ServiceProviderEmployee")
+    created_by: Mapped["Usuario | None"] = relationship("Usuario", foreign_keys=[created_by_matricula])
+    updated_by: Mapped["Usuario | None"] = relationship("Usuario", foreign_keys=[updated_by_matricula])
+
+    def status_label(self) -> str:
+        labels = {
+            "aberto": "Aberto",
+            "em_andamento": "Em andamento",
+            "aguardando": "Aguardando",
+            "concluido": "Concluido",
+            "cancelado": "Cancelado",
+        }
+        return labels.get(self.status, "Aberto")
+
+
+class CondominiumPackageLog(db.Model):
+    __tablename__ = "condominium_package_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    received_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), index=True)
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="recebido", index=True)
+    recipient_name: Mapped[str] = mapped_column(String(180), nullable=False, index=True)
+    tracking_code: Mapped[str | None] = mapped_column(String(80), nullable=True, index=True)
+    carrier: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    package_type: Mapped[str] = mapped_column(String(40), nullable=False, default="encomenda", index=True)
+    unit_id: Mapped[int | None] = mapped_column(ForeignKey("condominium_units.id", ondelete="SET NULL"), nullable=True, index=True)
+    owner_id: Mapped[int | None] = mapped_column(ForeignKey("condominium_owners.id", ondelete="SET NULL"), nullable=True, index=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by_matricula: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True)
+    delivered_by_matricula: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True)
+
+    unit: Mapped[CondominiumUnit | None] = relationship("CondominiumUnit")
+    owner: Mapped[CondominiumOwner | None] = relationship("CondominiumOwner")
+    created_by: Mapped["Usuario | None"] = relationship("Usuario", foreign_keys=[created_by_matricula])
+    delivered_by: Mapped["Usuario | None"] = relationship("Usuario", foreign_keys=[delivered_by_matricula])
+
+    def status_label(self) -> str:
+        labels = {"recebido": "Recebido", "notificado": "Notificado", "retirado": "Retirado", "devolvido": "Devolvido"}
+        return labels.get(self.status, "Recebido")
+
+
 class Item(db.Model):
     __tablename__ = "itens"
 

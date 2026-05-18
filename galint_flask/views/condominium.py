@@ -9,6 +9,12 @@ from ..models import CondominiumBuilding, CondominiumOwner, CondominiumScheduleE
 from ..services.condominium_audit import record_condominium_audit
 from ..services.condominium_dossier import build_unit_dossier_context
 from ..services.condominium_gatehouse import build_gatehouse_context, save_gatehouse_access_from_form
+from ..services.condominium_operations import (
+    build_operations_context,
+    save_maintenance_ticket_from_form,
+    save_package_from_form,
+    update_package_status,
+)
 from ..services.condominium_service_providers import (
     COMPANY_STATUS_OPTIONS,
     DOCUMENT_TYPE_OPTIONS,
@@ -659,6 +665,66 @@ def admin_condominium_gatehouse():
     )
 
 
+@blueprint.route("/administracao/condominio/operacao", methods=["GET", "POST"])
+@login_required
+def admin_condominium_operations():
+    if not _has_management_access():
+        flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
+        return redirect(url_for("dashboard.index"))
+    if _is_messenger_session():
+        return redirect(url_for("pages.mensageria_maintenance"))
+
+    if request.method == "POST":
+        action = str(request.form.get("action") or "").strip()
+        try:
+            if action == "ticket_create":
+                ticket = save_maintenance_ticket_from_form(request.form, actor_matricula=_current_user_matricula())
+                db.session.flush()
+                record_condominium_audit(
+                    action="maintenance_ticket.create",
+                    entity_type="condominium_maintenance_ticket",
+                    entity_id=ticket.id,
+                    title=f"Chamado criado: {ticket.title}",
+                    actor_matricula=_current_user_matricula(),
+                    details={"unit_id": ticket.unit_id, "status": ticket.status, "priority": ticket.priority},
+                )
+                db.session.commit()
+                flash("Chamado de manutenção criado.", "success")
+            elif action == "package_create":
+                package = save_package_from_form(request.form, actor_matricula=_current_user_matricula())
+                db.session.flush()
+                record_condominium_audit(
+                    action="package.create",
+                    entity_type="condominium_package_log",
+                    entity_id=package.id,
+                    title=f"Recebimento registrado: {package.recipient_name}",
+                    actor_matricula=_current_user_matricula(),
+                    details={"unit_id": package.unit_id, "status": package.status, "tracking_code": package.tracking_code},
+                )
+                db.session.commit()
+                flash("Encomenda/correspondência registrada.", "success")
+            elif action == "package_status":
+                package = update_package_status(request.form.get("package_id", type=int), request.form.get("status"), actor_matricula=_current_user_matricula())
+                record_condominium_audit(
+                    action="package.status",
+                    entity_type="condominium_package_log",
+                    entity_id=package.id,
+                    title=f"Status de recebimento atualizado: {package.recipient_name}",
+                    actor_matricula=_current_user_matricula(),
+                    details={"status": package.status, "unit_id": package.unit_id},
+                )
+                db.session.commit()
+                flash("Status do recebimento atualizado.", "success")
+            else:
+                raise ValueError("Ação operacional inválida.")
+        except ValueError as exc:
+            db.session.rollback()
+            flash(str(exc), "danger")
+        return redirect(url_for("condominium.admin_condominium_operations"))
+
+    return render_template("condominium_operations.html", operations=build_operations_context())
+
+
 @blueprint.get("/configuracoes/condominio/cadastros")
 @login_required
 def legacy_admin_condominium_registry():
@@ -681,6 +747,12 @@ def legacy_admin_condominium_dossier():
 @login_required
 def legacy_admin_condominium_gatehouse():
     return redirect(url_for("condominium.admin_condominium_gatehouse"))
+
+
+@blueprint.get("/configuracoes/condominio/operacao")
+@login_required
+def legacy_admin_condominium_operations():
+    return redirect(url_for("condominium.admin_condominium_operations"))
 
 
 @blueprint.get("/configuracoes/condominio/prestadores")
