@@ -14,7 +14,7 @@ from openpyxl.utils import get_column_letter
 from sqlalchemy import func
 
 from ..extensions import db
-from ..models import DocumentoEntradaEstoqueItem, Entrada, FinanceLedgerEntry, InventarioEvento, Item, Saida, StockBalance, StockMovement
+from ..models import DocumentoEntradaEstoqueItem, Entrada, FinanceLedgerEntry, InventarioEvento, Item, ItemPotentialSupplierQuote, Saida, StockBalance, StockMovement
 from ..utils.report_branding import get_company_header_lines
 from .legacy_stock_normalizer import ignore_packaging_metadata_for_stock, resolve_canonical_unit, resolve_packaging_factor
 from .price_normalization import infer_document_quantity_unit_for_item, normalize_document_line, should_autofix_packaged_document_unit
@@ -72,6 +72,8 @@ class ScopeReportService:
         items = cls._collect_inventory_data(scoped_items)
         category_analysis = cls._analyze_by_category(items)
         brand_analysis = cls._analyze_by_brand(items)
+        usage_analysis = cls._analyze_operational_usage(scoped_items, items)
+        market_analysis = cls._analyze_market_opportunities(items)
         rankings = cls._generate_rankings(items)
         inconsistency_analysis = cls._build_inconsistency_analysis(scoped_items, items)
         timeline = cls._build_timeline(scoped_items)
@@ -81,6 +83,8 @@ class ScopeReportService:
         cls._create_executive_summary_sheet(wb, category_analysis, items, timeline, scope_label)
         cls._create_timeline_sheet(wb, timeline, scope_label)
         cls._create_brand_analysis_sheet(wb, brand_analysis, scope_label)
+        cls._create_replacement_market_sheet(wb, items, market_analysis, scope_label)
+        cls._create_operational_usage_sheet(wb, usage_analysis, scope_label)
         cls._create_rankings_sheet(wb, rankings, scope_label)
         cls._create_inconsistency_sheet(wb, inconsistency_analysis, scope_label)
         cls._create_detailed_sheet(wb, items, scope_label)
@@ -332,22 +336,128 @@ class ScopeReportService:
         return True
 
     @classmethod
+    def _looks_like_lot_price(cls, item: Item, *, kind: str) -> bool:
+        text_parts = [
+            getattr(item, f"preco_{kind}_fonte", None),
+            getattr(item, f"preco_{kind}_query", None),
+            getattr(item, f"preco_{kind}_url", None),
+        ]
+        text = " ".join(str(part or "").casefold() for part in text_parts)
+        if not text:
+            return False
+        return any(marker in text for marker in ("lote", "pacote", "caixa", "kit", "cartela", "cento"))
+
+    @classmethod
+    def _unit_looks_like_packaging(cls, item: Item, unit: str | None) -> bool:
+        unit_key = (unit or "").strip().casefold()
+        if not unit_key:
+            return False
+        packaging_units = {
+            "pacote",
+            "pct",
+            "caixa",
+            "cx",
+            "kit",
+            "cartela",
+            "rolo",
+            "saco",
+            "balde",
+            "lata",
+        }
+        packaging_type = (str(getattr(item, "tipo_embalagem_novo", None) or getattr(item, "tipo_embalagem", None) or "").strip().casefold())
+        if packaging_type:
+            packaging_units.add(packaging_type)
+        return unit_key in packaging_units
+
+    @classmethod
+    def _stored_price_reference(cls, item: Item, *, kind: str) -> dict[str, Any]:
+        raw_attr = f"preco_{kind}_unitario"
+        base_attr = f"preco_{kind}_unitario_base"
+        unit_attr = f"preco_{kind}_unidade_preco"
+        factor_attr = f"preco_{kind}_fator_base"
+
+        raw_value = cls._safe_float(getattr(item, raw_attr, None))
+        base_value = cls._safe_float(getattr(item, base_attr, None))
+        stored_factor = cls._safe_float(getattr(item, factor_attr, None))
+        stored_unit = (str(getattr(item, unit_attr, None) or "").strip().lower()) or None
+        packaging_factor = cls._safe_float(resolve_packaging_factor(item))
+        has_packaging_factor = packaging_factor > 1 and not ignore_packaging_metadata_for_stock(item)
+        factor_to_base = stored_factor if stored_factor > 0 else 1.0
+        unit_price_base = base_value if base_value > 0 else (raw_value if raw_value > 0 else None)
+        warning = None
+        blocked = False
+        correction = None
+
+        if raw_value > 0:
+            can_normalize_from_packaging = (
+                has_packaging_factor
+                and (
+                    stored_factor > 1
+                    or cls._unit_looks_like_packaging(item, stored_unit)
+                    or cls._looks_like_lot_price(item, kind=kind)
+                )
+            )
+            expected_factor = stored_factor if stored_factor > 1 else packaging_factor
+            expected_base = round(raw_value / expected_factor, 8) if expected_factor > 1 else raw_value
+            base_missing_or_raw = base_value <= 0 or abs(base_value - raw_value) <= 1e-8
+            base_mismatched = expected_factor > 1 and base_value > 0 and abs(base_value - expected_base) > 1e-6
+
+            if can_normalize_from_packaging and expected_factor > 1 and (base_missing_or_raw or base_mismatched):
+                unit_price_base = expected_base
+                factor_to_base = expected_factor
+                correction = "normalizado_por_fator"
+                warning = (
+                    f"Preço bruto de pacote/lote dividido por fator {expected_factor:g}; "
+                    f"base usada no XLS: R$ {expected_base:,.6f}."
+                )
+            elif (
+                kind == "reposicao"
+                and not has_packaging_factor
+                and cls._looks_like_lot_price(item, kind=kind)
+                and (base_value <= 0 or abs(base_value - raw_value) <= 1e-8)
+            ):
+                unit_price_base = None
+                factor_to_base = 1.0
+                blocked = True
+                correction = "bloqueado_lote_sem_fator"
+                warning = "Preço de mercado em lote/pacote sem fator confiável; valor bloqueado no consolidado para não inflar o estoque."
+
+        return {
+            "raw_price": raw_value or None,
+            "unit_price_base": unit_price_base,
+            "price_unit": stored_unit,
+            "factor_to_base": factor_to_base,
+            "warning": warning,
+            "blocked": blocked,
+            "correction": correction,
+        }
+
+    @classmethod
     def _resolve_item_price_context(cls, item: Item, override: dict[str, Any] | None) -> dict[str, Any]:
         kind = None
         unit_price_base = None
+        raw_price = None
         origin = "Sem preço"
         price_unit = None
         factor_to_base = None
         warning = None
+        blocked = False
+        correction = None
         override_applied = False
 
-        compra_base = getattr(item, "preco_compra_unitario_base", None) or getattr(item, "preco_compra_unitario", None)
-        reposicao_base = getattr(item, "preco_reposicao_unitario_base", None) or getattr(item, "preco_reposicao_unitario", None)
+        compra_ref = cls._stored_price_reference(item, kind="compra")
+        reposicao_ref = cls._stored_price_reference(item, kind="reposicao")
+        compra_base = compra_ref["unit_price_base"]
+        reposicao_base = reposicao_ref["unit_price_base"]
 
         if cls._safe_float(compra_base) > 0:
             unit_price_base = cls._safe_float(compra_base)
-            price_unit = (getattr(item, "preco_compra_unidade_preco", None) or "").strip().lower() or None
-            factor_to_base = cls._safe_float(getattr(item, "preco_compra_fator_base", None)) or 1.0
+            raw_price = compra_ref["raw_price"]
+            price_unit = compra_ref["price_unit"]
+            factor_to_base = cls._safe_float(compra_ref["factor_to_base"]) or 1.0
+            warning = compra_ref["warning"]
+            blocked = bool(compra_ref["blocked"])
+            correction = compra_ref["correction"]
             if getattr(item, "preco_compra_documento", None):
                 kind = "real"
                 origin = f"NF/Cupom: {item.preco_compra_documento}"
@@ -358,16 +468,29 @@ class ScopeReportService:
         elif cls._safe_float(reposicao_base) > 0:
             kind = "estimado"
             unit_price_base = cls._safe_float(reposicao_base)
-            price_unit = (getattr(item, "preco_reposicao_unidade_preco", None) or "").strip().lower() or None
-            factor_to_base = cls._safe_float(getattr(item, "preco_reposicao_fator_base", None)) or 1.0
+            raw_price = reposicao_ref["raw_price"]
+            price_unit = reposicao_ref["price_unit"]
+            factor_to_base = cls._safe_float(reposicao_ref["factor_to_base"]) or 1.0
+            warning = reposicao_ref["warning"]
+            blocked = bool(reposicao_ref["blocked"])
+            correction = reposicao_ref["correction"]
             fonte = getattr(item, "preco_reposicao_fonte", None) or "Desconhecida"
             origin = f"Especulativo ({fonte})"
+        elif reposicao_ref["blocked"]:
+            raw_price = reposicao_ref["raw_price"]
+            price_unit = reposicao_ref["price_unit"]
+            factor_to_base = reposicao_ref["factor_to_base"]
+            warning = reposicao_ref["warning"]
+            blocked = True
+            correction = reposicao_ref["correction"]
+            fonte = getattr(item, "preco_reposicao_fonte", None) or "Desconhecida"
+            origin = f"Especulativo bloqueado ({fonte})"
 
         suspect = False
         if kind == "real":
             suspect = cls._is_packaging_price_suspect(item, kind="compra")
-        elif kind == "estimado" and cls._safe_float(compra_base) > 0:
-            suspect = cls._is_packaging_price_suspect(item, kind="compra")
+        elif kind == "estimado":
+            suspect = cls._is_packaging_price_suspect(item, kind="reposicao")
 
         if override and (suspect or unit_price_base is None):
             unit_price_base = cls._safe_float(override.get("unit_price_base"))
@@ -376,25 +499,72 @@ class ScopeReportService:
             kind = override.get("kind") or kind or "real"
             origin = override.get("origin") or origin
             warning = override.get("warning")
+            blocked = False
+            correction = "historico_normalizado" if warning else correction
             override_applied = True
-        elif suspect:
+        elif suspect and not warning:
             warning = "Preço base armazenado sugere embalagem ainda não normalizada."
 
         return {
             "kind": kind,
             "unit_price_base": unit_price_base,
+            "raw_price": raw_price,
             "origin": origin,
             "price_unit": price_unit,
             "factor_to_base": factor_to_base,
             "warning": warning,
+            "blocked": blocked,
+            "correction": correction,
             "override_applied": override_applied,
         }
+
+    @classmethod
+    def _build_external_market_map(cls, item_map: dict[str, Item]) -> dict[str, dict[str, Any]]:
+        if not item_map:
+            return {}
+
+        quotes = (
+            ItemPotentialSupplierQuote.query
+            .filter(ItemPotentialSupplierQuote.codigo_item.in_(sorted(item_map)))
+            .all()
+        )
+        best_by_code: dict[str, dict[str, Any]] = {}
+        for quote in quotes:
+            code = str(quote.codigo_item or "").strip()
+            if code not in item_map:
+                continue
+            unit_price_base = cls._safe_float(quote.unit_price_base)
+            if unit_price_base <= 0:
+                factor = cls._safe_float(quote.factor_to_base) or 1.0
+                unit_price_base = cls._safe_float(quote.unit_price) / factor if factor > 0 else 0.0
+            if unit_price_base <= 0:
+                continue
+
+            supplier = quote.potential_supplier.display_name if quote.potential_supplier else (quote.source_name or "Fornecedor potencial")
+            current = best_by_code.get(code)
+            if current is not None and cls._safe_float(current.get("unit_price_base")) <= unit_price_base:
+                continue
+            best_by_code[code] = {
+                "unit_price_base": unit_price_base,
+                "raw_price": cls._safe_float(quote.unit_price) or None,
+                "price_unit": quote.price_unit or "-",
+                "factor_to_base": cls._safe_float(quote.factor_to_base) or 1.0,
+                "supplier": supplier,
+                "source": quote.source_name or "Fornecedor potencial",
+                "title": quote.offer_title or "-",
+                "url": quote.product_url or "",
+                "captured_at": quote.captured_at,
+                "freight_value": cls._safe_float(quote.freight_value) or None,
+                "lead_time_days": quote.lead_time_days,
+            }
+        return best_by_code
 
     @classmethod
     def _collect_inventory_data(cls, scoped_items: list[Item]) -> list[dict[str, Any]]:
         """Coleta dados do inventário com visão física por item e visão monetária saneada."""
         item_map = {str(item.codigo_item): item for item in scoped_items if item.codigo_item}
         price_overrides = cls._build_price_override_map(item_map)
+        external_market = cls._build_external_market_map(item_map)
 
         result: list[dict[str, Any]] = []
         for item_obj in scoped_items:
@@ -416,6 +586,14 @@ class ScopeReportService:
             valor_total_real = round(cls._safe_float(preco_real) * saldo_base, 2) if preco_real else 0.0
             valor_total_estimado = round(cls._safe_float(preco_estimado) * saldo_base, 2) if preco_estimado else 0.0
             valor_total = round(valor_total_real + valor_total_estimado, 2)
+            reposicao_context = cls._stored_price_reference(item_obj, kind="reposicao")
+            reposicao_base = cls._safe_float(reposicao_context["unit_price_base"])
+            valor_reposicao_total = round(reposicao_base * saldo_base, 2) if reposicao_base > 0 else 0.0
+            market_context = external_market.get(code) or {}
+            market_base = cls._safe_float(market_context.get("unit_price_base"))
+            valor_mercado_total = round(market_base * saldo_base, 2) if market_base > 0 else 0.0
+            comparison_base = cls._safe_float(price_context["unit_price_base"])
+            economia_potencial = round((comparison_base - market_base) * saldo_base, 2) if comparison_base > 0 and market_base > 0 and market_base < comparison_base else 0.0
 
             result.append({
                 "codigo": code,
@@ -438,13 +616,34 @@ class ScopeReportService:
                 "preco_estimado": preco_estimado,
                 "preco_tipo_label": "Documentado" if price_context["kind"] == "real" else ("Estimado" if price_context["kind"] == "estimado" else "Sem preço"),
                 "preco_unitario_base": cls._safe_float(price_context["unit_price_base"]) or None,
+                "preco_bruto": cls._safe_float(price_context["raw_price"]) or None,
                 "preco_unidade": price_context["price_unit"] or (resolve_canonical_unit(item_obj) or item_obj.unidade or "un"),
+                "preco_fator_base": cls._safe_float(price_context["factor_to_base"]) or 1.0,
                 "origem_preco": price_context["origin"],
                 "price_alert": price_context["warning"],
+                "price_blocked": bool(price_context["blocked"]),
+                "price_correction": price_context["correction"],
                 "has_price_alert": bool(price_context["warning"]),
                 "valor_total_real": valor_total_real,
                 "valor_total_estimado": valor_total_estimado,
                 "valor_total": valor_total,
+                "preco_reposicao_base": reposicao_base or None,
+                "preco_reposicao_bruto": cls._safe_float(reposicao_context["raw_price"]) or None,
+                "preco_reposicao_fator_base": cls._safe_float(reposicao_context["factor_to_base"]) or 1.0,
+                "preco_reposicao_unidade": reposicao_context["price_unit"] or "-",
+                "preco_reposicao_alerta": reposicao_context["warning"],
+                "preco_reposicao_bloqueado": bool(reposicao_context["blocked"]),
+                "valor_reposicao_total": valor_reposicao_total,
+                "mercado_menor_preco_base": market_base or None,
+                "mercado_valor_total": valor_mercado_total,
+                "mercado_fornecedor": market_context.get("supplier") or "",
+                "mercado_fonte": market_context.get("source") or "",
+                "mercado_titulo": market_context.get("title") or "",
+                "mercado_url": market_context.get("url") or "",
+                "mercado_capturado_em": market_context.get("captured_at"),
+                "mercado_frete": market_context.get("freight_value"),
+                "mercado_prazo_dias": market_context.get("lead_time_days"),
+                "economia_potencial": economia_potencial,
                 "url_fonte": item_obj.preco_reposicao_url or "",
             })
 
@@ -574,6 +773,95 @@ class ScopeReportService:
             current["valor_total"] += cls._safe_float(item["valor_total"])
             current["itens_com_alerta"] += 1 if item["has_price_alert"] else 0
         return brands
+
+    @classmethod
+    def _analyze_market_opportunities(cls, items: list[dict[str, Any]]) -> dict[str, Any]:
+        replacement_total = round(sum(cls._safe_float(item.get("valor_reposicao_total")) for item in items), 2)
+        market_total = round(sum(cls._safe_float(item.get("mercado_valor_total")) for item in items if cls._safe_float(item.get("mercado_menor_preco_base")) > 0), 2)
+        savings_total = round(sum(cls._safe_float(item.get("economia_potencial")) for item in items), 2)
+        blocked_lot_prices = [item for item in items if item.get("preco_reposicao_bloqueado") or item.get("price_blocked")]
+        opportunities = sorted(
+            [item for item in items if cls._safe_float(item.get("economia_potencial")) > 0],
+            key=lambda current: cls._safe_float(current.get("economia_potencial")),
+            reverse=True,
+        )
+        return {
+            "replacement_total": replacement_total,
+            "market_total": market_total,
+            "savings_total": savings_total,
+            "blocked_lot_prices": blocked_lot_prices,
+            "opportunities": opportunities,
+        }
+
+    @classmethod
+    def _analyze_operational_usage(
+        cls,
+        scoped_items: list[Item],
+        items: list[dict[str, Any]],
+    ) -> dict[str, list[dict[str, Any]]]:
+        item_data = {str(item.get("codigo") or "").strip(): item for item in items if str(item.get("codigo") or "").strip()}
+        code_set = {str(item.codigo_item or "").strip() for item in scoped_items if str(item.codigo_item or "").strip()}
+        by_context: dict[str, dict[str, Any]] = {}
+        by_activity: dict[str, dict[str, Any]] = {}
+
+        def normalize_label(value: object, fallback: str) -> str:
+            normalized = str(value or "").strip()
+            return normalized or fallback
+
+        def add(target: dict[str, dict[str, Any]], key: str, saida: Saida, item_summary: dict[str, Any]) -> None:
+            current = target.get(key)
+            if current is None:
+                current = {
+                    "label": key,
+                    "eventos": 0,
+                    "itens": set(),
+                    "categorias": set(),
+                    "valor_aproximado": 0.0,
+                    "ultima_saida_dt": None,
+                }
+                target[key] = current
+            current["eventos"] += 1
+            current["itens"].add(str(saida.codigo_item or "").strip())
+            current["categorias"].add(str(item_summary.get("categoria") or "Sem categoria"))
+            current["valor_aproximado"] += cls._safe_float(saida.quantidade) * cls._safe_float(item_summary.get("preco_unitario_base"))
+            if saida.data_saida and (current["ultima_saida_dt"] is None or saida.data_saida > current["ultima_saida_dt"]):
+                current["ultima_saida_dt"] = saida.data_saida
+
+        for saida in (
+            Saida.query
+            .filter(Saida.codigo_item.in_(sorted(code_set)))
+            .order_by(Saida.data_saida.desc())
+            .all()
+        ):
+            code = str(saida.codigo_item or "").strip()
+            item_summary = item_data.get(code)
+            if not item_summary:
+                continue
+            context_label = normalize_label(saida.local_servico, "Sem local informado")
+            activity_label = normalize_label(saida.atividade_operacional, "Sem atividade informada")
+            if saida.centro_custo:
+                context_label = f"{context_label} | CC {saida.centro_custo}"
+            add(by_context, context_label, saida, item_summary)
+            add(by_activity, activity_label, saida, item_summary)
+
+        def finalize(rows: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+            result = []
+            for row in rows.values():
+                result.append({
+                    "label": row["label"],
+                    "eventos": int(row["eventos"] or 0),
+                    "itens_distintos": len(row["itens"] or set()),
+                    "categorias_distintas": len(row["categorias"] or set()),
+                    "valor_aproximado": round(cls._safe_float(row["valor_aproximado"]), 2),
+                    "ultima_saida_dt": row["ultima_saida_dt"],
+                    "ultima_saida_label": cls._format_datetime(row["ultima_saida_dt"]),
+                })
+            return sorted(result, key=lambda current: (int(current["eventos"]), cls._safe_float(current["valor_aproximado"])), reverse=True)
+
+        return {
+            "contexts": finalize(by_context),
+            "activities": finalize(by_activity),
+        }
 
     @classmethod
     def _generate_rankings(cls, items: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
@@ -716,7 +1004,7 @@ class ScopeReportService:
                     }
                 )
 
-            if bool(summary.get("has_price_alert")):
+            if bool(summary.get("price_blocked")) or bool(summary.get("preco_reposicao_bloqueado")):
                 sections["probable"].append(
                     {
                         "codigo": code,
@@ -724,9 +1012,22 @@ class ScopeReportService:
                         "categoria": categoria,
                         "saldo_sistema": saldo_sistema,
                         "valor_total": valor_total,
-                        "signal": "Preco base com sinal de embalagem nao normalizada",
+                        "signal": "Preço de lote/pacote sem fator confiável",
+                        "reference": str(summary.get("price_alert") or summary.get("preco_reposicao_alerta") or summary.get("origem_preco") or "Sem detalhe"),
+                        "impact": "O valor foi bloqueado no consolidado para evitar multiplicar unidade interna por preço de pacote.",
+                    }
+                )
+            elif bool(summary.get("has_price_alert")):
+                sections["probable"].append(
+                    {
+                        "codigo": code,
+                        "descricao": item.descricao or code,
+                        "categoria": categoria,
+                        "saldo_sistema": saldo_sistema,
+                        "valor_total": valor_total,
+                        "signal": "Preço de pacote/lote normalizado no relatório" if summary.get("price_correction") else "Preco base com sinal de embalagem nao normalizada",
                         "reference": str(summary.get("price_alert") or summary.get("origem_preco") or "Sem detalhe"),
-                        "impact": "Pode inflar ou subestimar o valor em estoque no ranking monetario.",
+                        "impact": "O XLS usou preço por unidade interna; revise o cadastro para persistir o fator correto." if summary.get("price_correction") else "Pode inflar ou subestimar o valor em estoque no ranking monetario.",
                     }
                 )
 
@@ -923,7 +1224,10 @@ class ScopeReportService:
         ws = wb.create_sheet("Resumo Executivo")
         total_valor_real = round(sum(cls._safe_float(item["valor_total_real"]) for item in items), 2)
         total_valor_estimado = round(sum(cls._safe_float(item["valor_total_estimado"]) for item in items), 2)
+        total_reposicao = round(sum(cls._safe_float(item.get("valor_reposicao_total")) for item in items), 2)
+        total_economia_mercado = round(sum(cls._safe_float(item.get("economia_potencial")) for item in items), 2)
         total_alertas = sum(1 for item in items if item["has_price_alert"])
+        total_precos_bloqueados = sum(1 for item in items if item.get("price_blocked") or item.get("preco_reposicao_bloqueado"))
         total_itens_com_saldo = sum(1 for item in items if cls._safe_float(item["saldo_base"]) > 0)
         ultima_movimentacao = max((item.get("ultima_movimentacao_dt") for item in items if item.get("ultima_movimentacao_dt")), default=None)
 
@@ -944,7 +1248,10 @@ class ScopeReportService:
             ("Itens com saldo", str(total_itens_com_saldo)),
             ("Valor documentado", f"R$ {total_valor_real:,.2f}"),
             ("Valor estimado", f"R$ {total_valor_estimado:,.2f}"),
+            ("Reposição do saldo atual", f"R$ {total_reposicao:,.2f}"),
+            ("Economia potencial externa", f"R$ {total_economia_mercado:,.2f}"),
             ("Alertas de preco", str(total_alertas)),
+            ("Preços bloqueados", str(total_precos_bloqueados)),
             ("Ultima movimentacao", cls._format_datetime(ultima_movimentacao)),
         ]
 
@@ -967,7 +1274,14 @@ class ScopeReportService:
             right = ws.cell(row=row, column=7)
             left.value = label
             center.value = value
-            right.value = "" if label != "Alertas de preco" else "Linhas em alerta aparecem destacadas no detalhamento."
+            if label == "Alertas de preco":
+                right.value = "Linhas em alerta aparecem destacadas no detalhamento."
+            elif label == "Preços bloqueados":
+                right.value = "Preço de lote sem fator não entra no consolidado."
+            elif label == "Reposição do saldo atual":
+                right.value = "Custo para repor o saldo físico na data do download."
+            else:
+                right.value = ""
             left.font = Font(bold=True, color=cls.COLOR_TEXT)
             center.font = Font(bold=True, color=cls.COLOR_HEADER_DARK)
             right.font = Font(size=9, color=cls.COLOR_MUTED)
@@ -1148,6 +1462,210 @@ class ScopeReportService:
             "D": 15,
             "E": 16,
             "F": 10,
+        })
+
+    @classmethod
+    def _create_replacement_market_sheet(cls, wb: Workbook, items: list[dict[str, Any]], market_analysis: dict[str, Any], scope_label: str) -> None:
+        ws = wb.create_sheet("Reposicao e Mercado")
+        row = cls._apply_report_header(
+            ws,
+            title="RELATORIO DE ESCOPO - REPOSICAO E MERCADO",
+            scope_label=scope_label,
+            max_col=12,
+            meta_lines=[
+                "Custo para repor o saldo fisico atual na data do download e comparativo com cotacoes externas ja capturadas.",
+                "Precos de lote/pacote sem fator confiavel ficam bloqueados para nao inflar o total por unidade interna.",
+            ],
+        )
+
+        metrics = [
+            ("Custo de reposicao do saldo", round(cls._safe_float(market_analysis.get("replacement_total")), 2), "Valor estimado para recompor o estoque atual."),
+            ("Base externa capturada", round(cls._safe_float(market_analysis.get("market_total")), 2), "Soma dos itens com cotacao potencial normalizada."),
+            ("Economia potencial", round(cls._safe_float(market_analysis.get("savings_total")), 2), "Diferenca quando cotacao externa e menor que a referencia usada."),
+            ("Precos bloqueados", len(market_analysis.get("blocked_lot_prices") or []), "Itens com lote/pacote sem fator de conversao confiavel."),
+        ]
+        for label, value, note in metrics:
+            ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=3)
+            ws.merge_cells(start_row=row, start_column=4, end_row=row, end_column=5)
+            ws.merge_cells(start_row=row, start_column=6, end_row=row, end_column=12)
+            ws.cell(row=row, column=1, value=label)
+            ws.cell(row=row, column=4, value=value)
+            ws.cell(row=row, column=6, value=note)
+            if isinstance(value, float):
+                ws.cell(row=row, column=4).number_format = '"R$" #,##0.00'
+            for col in (1, 4, 6):
+                cell = ws.cell(row=row, column=col)
+                cell.font = Font(bold=True, color=cls.COLOR_HEADER_DARK if col != 6 else cls.COLOR_MUTED)
+                cell.fill = PatternFill(start_color=cls.COLOR_LIGHT_ALT, end_color=cls.COLOR_LIGHT_ALT, fill_type="solid")
+                cell.border = cls.BORDER_THIN
+                cell.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
+            row += 1
+
+        row += 1
+        headers = [
+            "Codigo",
+            "Descricao",
+            "Categoria",
+            "Saldo fisico",
+            "Preco reposicao base",
+            "Preco bruto",
+            "Fator",
+            "Valor reposicao",
+            "Menor externo base",
+            "Fornecedor externo",
+            "Economia potencial",
+            "Apoio / alerta",
+        ]
+        header_row = row
+        cls._style_table_header(ws, header_row, headers)
+        row += 1
+
+        sorted_items = sorted(items, key=lambda current: cls._safe_float(current.get("valor_reposicao_total")), reverse=True)
+        for item in sorted_items:
+            apoio_parts = []
+            if item.get("preco_reposicao_alerta"):
+                apoio_parts.append(str(item.get("preco_reposicao_alerta")))
+            if item.get("mercado_titulo"):
+                apoio_parts.append(f"Cotacao: {item.get('mercado_titulo')}")
+            if item.get("mercado_url"):
+                apoio_parts.append(str(item.get("mercado_url")))
+            ws.cell(row=row, column=1, value=item["codigo"])
+            ws.cell(row=row, column=2, value=item["descricao"])
+            ws.cell(row=row, column=3, value=item["categoria"])
+            ws.cell(row=row, column=4, value=item["saldo_display"])
+            ws.cell(row=row, column=5, value=round(cls._safe_float(item.get("preco_reposicao_base")), 6)).number_format = '"R$" #,##0.000000'
+            ws.cell(row=row, column=6, value=round(cls._safe_float(item.get("preco_reposicao_bruto")), 6)).number_format = '"R$" #,##0.000000'
+            ws.cell(row=row, column=7, value=round(cls._safe_float(item.get("preco_reposicao_fator_base")), 4)).number_format = "#,##0.0000"
+            ws.cell(row=row, column=8, value=round(cls._safe_float(item.get("valor_reposicao_total")), 2)).number_format = '"R$" #,##0.00'
+            ws.cell(row=row, column=9, value=round(cls._safe_float(item.get("mercado_menor_preco_base")), 6)).number_format = '"R$" #,##0.000000'
+            ws.cell(row=row, column=10, value=item.get("mercado_fornecedor") or "-")
+            ws.cell(row=row, column=11, value=round(cls._safe_float(item.get("economia_potencial")), 2)).number_format = '"R$" #,##0.00'
+            ws.cell(row=row, column=12, value=" | ".join(apoio_parts) or "-")
+            cls._style_table_row(ws, row, 12, alert=bool(item.get("preco_reposicao_bloqueado") or item.get("economia_potencial")))
+            for col in (5, 6, 7, 8, 9, 11):
+                ws.cell(row=row, column=col).alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+            row += 1
+
+        chart_end = min(row - 1, header_row + 10)
+        cls._add_ranking_chart(
+            ws,
+            title="Top reposicao por item",
+            header_row=header_row,
+            category_col=2,
+            value_col=8,
+            data_start_row=header_row + 1,
+            data_end_row=chart_end,
+            anchor="N8",
+            color=cls.COLOR_HEADER_DARK,
+            value_axis_title="Valor de reposicao (R$)",
+        )
+
+        ws.freeze_panes = f"A{header_row + 1}"
+        ws.auto_filter.ref = f"A{header_row}:L{max(row - 1, header_row)}"
+        cls._set_widths(ws, {
+            "A": 16,
+            "B": 42,
+            "C": 22,
+            "D": 26,
+            "E": 18,
+            "F": 16,
+            "G": 10,
+            "H": 18,
+            "I": 18,
+            "J": 24,
+            "K": 18,
+            "L": 56,
+            "N": 12,
+            "O": 12,
+            "P": 12,
+            "Q": 12,
+            "R": 12,
+        })
+
+    @classmethod
+    def _create_operational_usage_sheet(cls, wb: Workbook, usage_analysis: dict[str, list[dict[str, Any]]], scope_label: str) -> None:
+        ws = wb.create_sheet("Uso Operacional")
+        row = cls._apply_report_header(
+            ws,
+            title="RELATORIO DE ESCOPO - USO OPERACIONAL",
+            scope_label=scope_label,
+            max_col=8,
+            meta_lines=[
+                "Onde o estoque e mais usado, com leitura por local/centro de custo e por atividade operacional.",
+                "Valor de consumo e aproximado: quantidade registrada na saida multiplicada pelo preco base saneado.",
+            ],
+        )
+
+        sections = [
+            ("LOCAIS / CENTROS DE CUSTO COM MAIS SAIDAS", usage_analysis.get("contexts") or [], cls.COLOR_HEADER_DARK),
+            ("ATIVIDADES OPERACIONAIS COM MAIS SAIDAS", usage_analysis.get("activities") or [], cls.COLOR_SUCCESS),
+        ]
+        headers = ["#", "Contexto", "Saidas", "Itens distintos", "Categorias", "Valor aprox.", "Ultima saida", "Leitura"]
+
+        for title, rows, color in sections:
+            section_start = row
+            cls._style_section_banner(ws, row=row, max_col=8, title=title, color=color)
+            row += 1
+            header_row = row
+            cls._style_table_header(ws, header_row, headers)
+            row += 1
+            data_start = row
+            if not rows:
+                cls._merge_row(
+                    ws,
+                    row,
+                    8,
+                    "Nenhuma saida registrada para esta leitura.",
+                    font=Font(size=10, italic=True, color=cls.COLOR_MUTED),
+                    fill=PatternFill(start_color=cls.COLOR_LIGHT, end_color=cls.COLOR_LIGHT, fill_type="solid"),
+                    alignment=Alignment(horizontal="center", vertical="center"),
+                )
+                row += 2
+                continue
+            for index, data in enumerate(rows[:30], 1):
+                ws.cell(row=row, column=1, value=index)
+                ws.cell(row=row, column=2, value=data["label"])
+                ws.cell(row=row, column=3, value=int(data["eventos"] or 0))
+                ws.cell(row=row, column=4, value=int(data["itens_distintos"] or 0))
+                ws.cell(row=row, column=5, value=int(data["categorias_distintas"] or 0))
+                ws.cell(row=row, column=6, value=round(cls._safe_float(data["valor_aproximado"]), 2)).number_format = '"R$" #,##0.00'
+                ws.cell(row=row, column=7, value=data["ultima_saida_label"])
+                ws.cell(row=row, column=8, value="Priorize auditoria de consumo, par minimo e reposicao para contextos recorrentes.")
+                cls._style_table_row(ws, row, 8)
+                for col in (1, 3, 4, 5, 6):
+                    ws.cell(row=row, column=col).alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                row += 1
+            data_end = row - 1
+            cls._add_ranking_chart(
+                ws,
+                title=title.title(),
+                header_row=header_row,
+                category_col=2,
+                value_col=3,
+                data_start_row=data_start,
+                data_end_row=min(data_end, data_start + 9),
+                anchor=f"J{section_start}",
+                color=color,
+                value_axis_title="Saidas (eventos)",
+            )
+            row = max(row + 2, section_start + 24)
+
+        ws.freeze_panes = "A8"
+        cls._set_widths(ws, {
+            "A": 5,
+            "B": 42,
+            "C": 10,
+            "D": 14,
+            "E": 12,
+            "F": 16,
+            "G": 18,
+            "H": 48,
+            "J": 12,
+            "K": 12,
+            "L": 12,
+            "M": 12,
+            "N": 12,
+            "O": 12,
         })
 
     @classmethod
@@ -1387,9 +1905,9 @@ class ScopeReportService:
             ws,
             title="RELATORIO DE ESCOPO - DETALHAMENTO",
             scope_label=scope_label,
-            max_col=15,
+            max_col=20,
             meta_lines=[
-                "Detalhamento por item com saldo fisico exibido, eventos, origem de preco e sinalizacao de auditoria.",
+                "Detalhamento por item com saldo fisico, preco bruto, fator de conversao, preco base e sinalizacao de auditoria.",
             ],
         )
 
@@ -1404,11 +1922,16 @@ class ScopeReportService:
             "Saidas",
             "Ult. entrada",
             "Ult. saida",
-            "Preco base",
+            "Preco bruto",
             "Unidade preco",
+            "Fator preco",
+            "Preco base interno",
             "Valor estoque",
-            "Origem",
-            "Sinalizacao",
+            "Reposicao base",
+            "Valor reposicao",
+            "Menor externo",
+            "Economia potencial",
+            "Origem / sinalizacao",
         ]
         header_row = row
         cls._style_table_header(ws, header_row, headers)
@@ -1425,18 +1948,29 @@ class ScopeReportService:
             ws.cell(row=row, column=8, value=int(item["saida_eventos"] or 0))
             ws.cell(row=row, column=9, value=item["ultima_entrada_label"])
             ws.cell(row=row, column=10, value=item["ultima_saida_label"])
-            ws.cell(row=row, column=11, value=round(cls._safe_float(item["preco_unitario_base"]), 6) if item["preco_unitario_base"] else 0).number_format = '"R$" #,##0.000000'
+            ws.cell(row=row, column=11, value=round(cls._safe_float(item.get("preco_bruto")), 6)).number_format = '"R$" #,##0.000000'
             ws.cell(row=row, column=12, value=(item["preco_unidade"] or "-").upper())
-            ws.cell(row=row, column=13, value=round(cls._safe_float(item["valor_total"]), 2)).number_format = '"R$" #,##0.00'
-            ws.cell(row=row, column=14, value=item["origem_preco"])
-            ws.cell(row=row, column=15, value=item["price_alert"] or "-")
-            cls._style_table_row(ws, row, 15, alert=item["has_price_alert"])
-            for col in (6, 7, 8, 11, 13):
+            ws.cell(row=row, column=13, value=round(cls._safe_float(item.get("preco_fator_base")), 4)).number_format = "#,##0.0000"
+            ws.cell(row=row, column=14, value=round(cls._safe_float(item["preco_unitario_base"]), 6) if item["preco_unitario_base"] else 0).number_format = '"R$" #,##0.000000'
+            ws.cell(row=row, column=15, value=round(cls._safe_float(item["valor_total"]), 2)).number_format = '"R$" #,##0.00'
+            ws.cell(row=row, column=16, value=round(cls._safe_float(item.get("preco_reposicao_base")), 6)).number_format = '"R$" #,##0.000000'
+            ws.cell(row=row, column=17, value=round(cls._safe_float(item.get("valor_reposicao_total")), 2)).number_format = '"R$" #,##0.00'
+            ws.cell(row=row, column=18, value=round(cls._safe_float(item.get("mercado_menor_preco_base")), 6)).number_format = '"R$" #,##0.000000'
+            ws.cell(row=row, column=19, value=round(cls._safe_float(item.get("economia_potencial")), 2)).number_format = '"R$" #,##0.00'
+            signal_parts = [item["origem_preco"]]
+            if item.get("price_alert"):
+                signal_parts.append(f"Estoque: {item['price_alert']}")
+            repo_alert = item.get("preco_reposicao_alerta")
+            if repo_alert and repo_alert != item.get("price_alert"):
+                signal_parts.append(f"Reposição: {repo_alert}")
+            ws.cell(row=row, column=20, value=" | ".join(part for part in signal_parts if part) or "-")
+            cls._style_table_row(ws, row, 20, alert=item["has_price_alert"] or bool(item.get("preco_reposicao_bloqueado")))
+            for col in (6, 7, 8, 11, 13, 14, 15, 16, 17, 18, 19):
                 ws.cell(row=row, column=col).alignment = Alignment(horizontal="center", vertical="center")
             row += 1
 
         ws.freeze_panes = f"A{header_row + 1}"
-        ws.auto_filter.ref = f"A{header_row}:O{row - 1}"
+        ws.auto_filter.ref = f"A{header_row}:T{row - 1}"
         cls._set_widths(ws, {
             "A": 16,
             "B": 40,
@@ -1450,7 +1984,12 @@ class ScopeReportService:
             "J": 18,
             "K": 16,
             "L": 14,
-            "M": 16,
-            "N": 30,
-            "O": 34,
+            "M": 12,
+            "N": 18,
+            "O": 16,
+            "P": 16,
+            "Q": 18,
+            "R": 16,
+            "S": 18,
+            "T": 52,
         })
