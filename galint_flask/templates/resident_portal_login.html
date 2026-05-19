@@ -1,0 +1,68 @@
+{% set hide_navigation = true %}
+{% set hide_topbar = true %}
+{% set disable_global_tools = true %}
+{% extends "base.html" %}
+{% block title %}Portal do Morador{% endblock %}
+{% block body_class %}resident-portal-login-page{% endblock %}
+{% block extra_css %}
+<style>
+    body.resident-portal-login-page .app-body { min-height: 100vh; background: #eaf2f8; }
+    body.resident-portal-login-page .content-panel { width: 100%; max-width: none; padding: 0; background: #eaf2f8; }
+    .resident-login-shell { min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(22rem, 0.72fr); color: #0f172a; }
+    .resident-login-visual { position: relative; overflow: hidden; display: grid; align-content: end; min-height: 100vh; padding: clamp(1.2rem, 4vw, 3rem); background: #0f172a; color: #f8fafc; }
+    .resident-login-visual::before { content: ""; position: absolute; inset: 0; background: url("{{ system_image_url('administracao_dashboard_hero', '20260519-resident-portal') }}") center / cover no-repeat; opacity: 0.72; }
+    .resident-login-visual::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(15,23,42,0.9), rgba(15,118,110,0.62)); }
+    .resident-login-copy { position: relative; z-index: 1; max-width: 54rem; }
+    .resident-login-kicker { display: inline-flex; align-items: center; gap: 0.42rem; padding: 0.32rem 0.62rem; border-radius: 999px; background: rgba(255,255,255,0.1); border: 1px solid rgba(226,232,240,0.16); color: #99f6e4; font-size: 0.72rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; }
+    .resident-login-title { margin: 0.7rem 0 0; max-width: 42rem; font-size: clamp(2rem, 5vw, 4rem); line-height: 0.96; font-weight: 950; letter-spacing: 0; }
+    .resident-login-summary { margin: 0.8rem 0 0; max-width: 42rem; color: rgba(226,232,240,0.86); font-weight: 760; line-height: 1.5; }
+    .resident-login-panel { display: grid; align-content: center; padding: clamp(1rem, 3vw, 2rem); background: #f8fafc; }
+    .resident-login-card { display: grid; gap: 0.9rem; border: 1px solid rgba(148,163,184,0.24); border-radius: 18px; background: #fff; padding: clamp(1rem, 2.5vw, 1.35rem); box-shadow: 0 22px 52px rgba(15,23,42,0.12); }
+    .resident-login-card h1 { margin: 0; font-size: 1.35rem; font-weight: 950; }
+    .resident-login-card p { margin: 0; color: #475569; font-weight: 720; line-height: 1.48; }
+    .resident-login-form { display: grid; gap: 0.72rem; }
+    .resident-login-form .form-label { margin-bottom: 0.22rem; color: #334155; font-size: 0.78rem; font-weight: 850; }
+    .resident-login-form .form-control { min-height: 44px; border-radius: 12px; border-color: rgba(148,163,184,0.34); font-weight: 720; }
+    .resident-login-actions { display: flex; gap: 0.55rem; flex-wrap: wrap; align-items: center; }
+    .resident-login-submit { min-height: 44px; border: 0; border-radius: 12px; background: linear-gradient(135deg, #0f766e, #2563eb); color: #fff; font-weight: 900; padding: 0 1rem; }
+    .resident-login-link { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; padding: 0 0.85rem; border-radius: 12px; border: 1px solid rgba(148,163,184,0.32); color: #0f172a; text-decoration: none; font-weight: 850; }
+    @media (max-width: 991.98px) { .resident-login-shell { grid-template-columns: 1fr; } .resident-login-visual { min-height: 42vh; } }
+</style>
+{% endblock %}
+{% block content %}
+<div class="resident-login-shell">
+    <section class="resident-login-visual" aria-label="Portal do Morador">
+        <div class="resident-login-copy">
+            <span class="resident-login-kicker"><i class="bi bi-house-heart"></i> Portal do Morador</span>
+            <h1 class="resident-login-title">Sua unidade, encomendas e chamados em um painel privado.</h1>
+            <p class="resident-login-summary">Acesso restrito por documento, unidade e contato cadastrado. Cada morador visualiza somente o contexto operacional da propria unidade.</p>
+        </div>
+    </section>
+    <section class="resident-login-panel" aria-label="Identificacao do morador">
+        <div class="resident-login-card">
+            <div>
+                <h1>Identifique seu cadastro</h1>
+                <p>Use o CPF/CNPJ do titular, o numero da unidade e o e-mail ou telefone registrado na administracao.</p>
+            </div>
+            <form class="resident-login-form" method="post" action="{{ url_for('condominium_portal.login') }}" autocomplete="on">
+                <div>
+                    <label class="form-label" for="document_number">CPF ou CNPJ</label>
+                    <input class="form-control" id="document_number" name="document_number" inputmode="numeric" autocomplete="username" required>
+                </div>
+                <div>
+                    <label class="form-label" for="unit_number">Unidade</label>
+                    <input class="form-control" id="unit_number" name="unit_number" placeholder="Ex.: 402" required>
+                </div>
+                <div>
+                    <label class="form-label" for="contact">E-mail ou telefone cadastrado</label>
+                    <input class="form-control" id="contact" name="contact" autocomplete="email" required>
+                </div>
+                <div class="resident-login-actions">
+                    <button class="resident-login-submit" type="submit"><i class="bi bi-box-arrow-in-right me-1"></i> Entrar</button>
+                    <a class="resident-login-link" href="{{ url_for('auth.login_form') }}"><i class="bi bi-person-lock me-1"></i> Acesso equipe</a>
+                </div>
+            </form>
+        </div>
+    </section>
+</div>
+{% endblock %}

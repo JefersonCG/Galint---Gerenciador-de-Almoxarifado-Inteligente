@@ -645,6 +645,7 @@
         align-content: center;
         gap: 0.42rem;
         overflow: visible;
+        text-decoration: none;
         transition:
             color 0.24s ease,
             transform 0.24s ease;
@@ -725,6 +726,10 @@
 
     body.auth-login-page .login-module-button[data-module="administracao"] .login-module-icon {
         color: #4ade80;
+    }
+
+    body.auth-login-page .login-module-button[data-module="morador"] .login-module-icon {
+        color: #facc15;
     }
 
     body.auth-login-page .login-module-label {
@@ -1008,6 +1013,10 @@
         <span class="login-module-icon" aria-hidden="true"><img src="{{ login_module_user_icon_url }}" alt="" loading="lazy"></span>
         <span class="login-module-label">Administração</span>
     </button>
+    <a class="login-module-button" href="{{ url_for('condominium_portal.login') }}" data-module="morador" data-module-title="Portal do Morador" aria-label="Portal do Morador">
+        <span class="login-module-icon" aria-hidden="true"><i class="bi bi-house-heart-fill"></i></span>
+        <span class="login-module-label">Morador</span>
+    </a>
 </nav>
 
 <div class="login-shell is-portal-hidden" id="login-shell" aria-label="Painel de login arrastável e recolhível" aria-hidden="true">
@@ -1379,6 +1388,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     portalButtons.forEach(function (button) {
         button.addEventListener('click', function () {
+            if (button.tagName === 'A') {
+                return;
+            }
             const moduleName = button.dataset.module || '';
             const moduleTitle = button.dataset.moduleTitle || button.textContent.trim();
             button.classList.remove('is-waiting');

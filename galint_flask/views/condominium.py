@@ -14,6 +14,8 @@ from ..services.condominium import (
     lookup_company_owner_payload_by_cnpj,
     owner_attachment_count,
 )
+from ..services.condominium.dashboard import build_condominium_general_dashboard
+from ..services.condominium.portal import update_resident_request_status
 from ..services.condominium_audit import record_condominium_audit
 from ..services.condominium_dossier import build_unit_dossier_context
 from ..services.condominium_gatehouse import build_gatehouse_context, save_gatehouse_access_from_form
@@ -66,6 +68,49 @@ from .pages import (
 
 
 blueprint = Blueprint("condominium", __name__)
+
+
+@blueprint.get("/administracao/condominio/dashboard-geral")
+@login_required
+def admin_condominium_general_dashboard():
+    if not _has_management_access():
+        flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
+        return redirect(url_for("dashboard.index"))
+    if _is_messenger_session():
+        return redirect(url_for("pages.mensageria_maintenance"))
+    return render_template(
+        "condominium_general_dashboard.html",
+        dashboard=build_condominium_general_dashboard(),
+    )
+
+
+@blueprint.post("/administracao/condominio/portal/solicitacoes/<int:request_id>/status")
+@login_required
+def admin_condominium_resident_request_status(request_id: int):
+    if not _has_management_access():
+        flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
+        return redirect(url_for("dashboard.index"))
+    try:
+        resident_request = update_resident_request_status(
+            request_id,
+            request.form.get("status"),
+            response_notes=request.form.get("response_notes"),
+            actor_matricula=_current_user_matricula(),
+        )
+        record_condominium_audit(
+            action="resident_request.status",
+            entity_type="condominium_resident_request",
+            entity_id=resident_request.id,
+            title=f"Solicitacao do morador atualizada: {resident_request.title}",
+            actor_matricula=_current_user_matricula(),
+            details={"status": resident_request.status, "owner_id": resident_request.owner_id, "unit_id": resident_request.unit_id},
+        )
+        db.session.commit()
+        flash("Solicitação do morador atualizada.", "success")
+    except ValueError as exc:
+        db.session.rollback()
+        flash(str(exc), "danger")
+    return redirect(url_for("condominium.admin_condominium_general_dashboard"))
 
 
 @blueprint.route("/administracao/condominio/cadastros", methods=["GET", "POST"])

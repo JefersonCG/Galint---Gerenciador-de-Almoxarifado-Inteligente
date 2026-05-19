@@ -402,6 +402,45 @@ class CondominiumPackageLog(db.Model):
         return labels.get(self.status, "Recebido")
 
 
+class CondominiumResidentRequest(db.Model):
+    __tablename__ = "condominium_resident_requests"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    opened_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    request_type: Mapped[str] = mapped_column(String(40), nullable=False, default="atualizacao_cadastral", index=True)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="novo", index=True)
+    priority: Mapped[str] = mapped_column(String(20), nullable=False, default="normal", index=True)
+    title: Mapped[str] = mapped_column(String(180), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    requested_data_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    unit_id: Mapped[int | None] = mapped_column(ForeignKey("condominium_units.id", ondelete="SET NULL"), nullable=True, index=True)
+    owner_id: Mapped[int | None] = mapped_column(ForeignKey("condominium_owners.id", ondelete="SET NULL"), nullable=True, index=True)
+    handled_by_matricula: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True)
+    response_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    user_agent: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    unit: Mapped[CondominiumUnit | None] = relationship("CondominiumUnit")
+    owner: Mapped[CondominiumOwner | None] = relationship("CondominiumOwner")
+    handled_by: Mapped["Usuario | None"] = relationship("Usuario", foreign_keys=[handled_by_matricula])
+
+    def status_label(self) -> str:
+        labels = {"novo": "Novo", "em_analise": "Em analise", "resolvido": "Resolvido", "recusado": "Recusado"}
+        return labels.get(self.status, "Novo")
+
+    def request_type_label(self) -> str:
+        labels = {
+            "atualizacao_cadastral": "Atualizacao cadastral",
+            "documento": "Documento",
+            "manutencao": "Manutencao",
+            "mensageria": "Mensageria",
+            "outro": "Outro",
+        }
+        return labels.get(self.request_type, "Solicitacao")
+
+
 class Item(db.Model):
     __tablename__ = "itens"
 
