@@ -137,6 +137,13 @@
         align-items: flex-start;
     }
 
+    .scope-report-header-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: nowrap;
+    }
+
     .scope-report-modal .modal-title,
     .scope-report-modal .form-label {
         color: #f8fafc !important;
@@ -383,6 +390,12 @@
         min-width: 164px;
     }
 
+    .scope-report-submit--header {
+        min-width: 0;
+        padding: 0.72rem 1rem;
+        white-space: nowrap;
+    }
+
     .scope-report-submit-spinner {
         display: none;
         align-items: center;
@@ -427,6 +440,15 @@
 
         .scope-report-modal .modal-footer .btn {
             width: 100%;
+        }
+
+        .scope-report-header-actions {
+            width: 100%;
+            justify-content: space-between;
+        }
+
+        .scope-report-submit--header {
+            flex: 1 1 auto;
         }
     }
 
@@ -1057,7 +1079,16 @@
                         <div class="scope-report-kicker">Dark Hero XLS</div>
                         <h5 class="modal-title" id="scopeReportModalLabel">Relatório de Escopo</h5>
                     </div>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    <div class="scope-report-header-actions">
+                        <button class="btn category-admin-primary scope-report-submit scope-report-submit--header" type="submit" data-scope-report-submit>
+                            <span class="scope-report-submit-text" data-submit-label>Gerar XLS</span>
+                            <span class="scope-report-submit-spinner" data-submit-progress>
+                                <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                                Iniciando...
+                            </span>
+                        </button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
                 </div>
                 <div class="modal-body">
                     <div id="scope-report-category-admin" hidden></div>
@@ -1130,7 +1161,7 @@
         .map((option) => String(option.getAttribute('data-select-value') || '').trim())
         .filter(Boolean);
     const scopeReportFeaturedOption = scopeReportForm ? scopeReportForm.querySelector('[data-select-value=""]') : null;
-    const scopeReportSubmitButton = scopeReportForm ? scopeReportForm.querySelector('[data-scope-report-submit]') : null;
+    const scopeReportSubmitButtons = scopeReportForm ? Array.from(scopeReportForm.querySelectorAll('[data-scope-report-submit]')) : [];
     const scopeReportModal = scopeReportModalElement && window.bootstrap
         ? window.bootstrap.Modal.getOrCreateInstance(scopeReportModalElement)
         : null;
@@ -1141,9 +1172,9 @@
 
     const setScopeReportSubmitting = (isSubmitting) => {
         scopeReportForm.classList.toggle('is-submitting', isSubmitting);
-        if (scopeReportSubmitButton) {
-            scopeReportSubmitButton.disabled = isSubmitting;
-        }
+        scopeReportSubmitButtons.forEach((button) => {
+            button.disabled = isSubmitting;
+        });
     };
 
     const readSelectedScopeReportCategories = () => Array.from(scopeReportInputs.querySelectorAll('input[name="categoria"]'))
