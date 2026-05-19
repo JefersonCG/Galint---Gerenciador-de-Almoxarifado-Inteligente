@@ -3177,7 +3177,18 @@ def download_scope_report():
     """Gera e baixa o Relatório de Escopo executivo (apenas admin)."""
     _require_admin()
 
-    category_name = (request.args.get("categoria") or "").strip() or None
+    category_names: list[str] = []
+    seen_categories: set[str] = set()
+    for raw_value in request.args.getlist("categoria"):
+        normalized_value = str(raw_value or "").strip()
+        if not normalized_value:
+            continue
+        normalized_key = normalized_value.casefold()
+        if normalized_key in seen_categories:
+            continue
+        seen_categories.add(normalized_key)
+        category_names.append(normalized_value)
+
     redirect_target = request.referrer or url_for("inventory.list_items")
 
     try:
@@ -3185,11 +3196,16 @@ def download_scope_report():
         from ..utils.time_service import TimeService
 
         # Gerar relatório
-        buffer = ScopeReportService.generate_executive_scope_report(category_name=category_name)
+        buffer = ScopeReportService.generate_executive_scope_report(category_names=category_names or None)
 
         # Timestamp para nome do arquivo
         timestamp = TimeService.now_local().strftime("%Y%m%d_%H%M%S")
-        scope_name = _sanitize_filename_component(category_name or "geral")
+        if not category_names:
+            scope_name = "geral"
+        elif len(category_names) == 1:
+            scope_name = _sanitize_filename_component(category_names[0])
+        else:
+            scope_name = f"{len(category_names)}_categorias"
         filename = f"relatorio_escopo_{scope_name}_{timestamp}.xlsx"
 
         response = send_file(
@@ -3201,7 +3217,7 @@ def download_scope_report():
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
-        response.headers["X-GALINT-Report-Scope"] = category_name or "Geral"
+        response.headers["X-GALINT-Report-Scope"] = ", ".join(category_names) if category_names else "Geral"
         return response
     except Exception as exc:
         flash(f"Erro ao gerar Relatório de Escopo: {exc}", "danger")

@@ -50,14 +50,23 @@ class ScopeReportService:
     )
 
     @classmethod
-    def generate_executive_scope_report(cls, category_name: str | None = None) -> BytesIO:
+    def generate_executive_scope_report(
+        cls,
+        category_names: str | list[str] | tuple[str, ...] | None = None,
+    ) -> BytesIO:
         """Gera relatório executivo completo de escopo."""
-        scope_category = cls._normalize_scope_category(category_name)
-        scope_label = scope_category or "Geral"
-        scoped_items = cls._load_scope_items(scope_category)
+        scope_categories = cls._normalize_scope_categories(category_names)
+        scope_label = cls._build_scope_label(scope_categories)
+        scoped_items = cls._load_scope_items(scope_categories)
         if not scoped_items:
-            if scope_category:
-                raise ValueError(f"Nenhum item encontrado para a categoria '{scope_category}'.")
+            if scope_categories:
+                if len(scope_categories) == 1:
+                    raise ValueError(f"Nenhum item encontrado para a categoria '{scope_categories[0]}'.")
+                raise ValueError(
+                    "Nenhum item encontrado para as categorias selecionadas: "
+                    + ", ".join(scope_categories)
+                    + "."
+                )
             raise ValueError("Nenhum item encontrado para gerar o relatório.")
 
         items = cls._collect_inventory_data(scoped_items)
@@ -82,17 +91,55 @@ class ScopeReportService:
         return buffer
 
     @classmethod
-    def _normalize_scope_category(cls, category_name: str | None) -> str | None:
-        normalized = (category_name or "").strip()
-        return normalized or None
+    def _normalize_scope_categories(
+        cls,
+        category_names: str | list[str] | tuple[str, ...] | None,
+    ) -> list[str]:
+        if category_names is None:
+            return []
+
+        raw_values = [category_names] if isinstance(category_names, str) else list(category_names)
+        normalized_values: list[str] = []
+        seen_values: set[str] = set()
+
+        for value in raw_values:
+            normalized_value = str(value or "").strip()
+            if not normalized_value:
+                continue
+            normalized_key = normalized_value.casefold()
+            if normalized_key in seen_values:
+                continue
+            seen_values.add(normalized_key)
+            normalized_values.append(normalized_value)
+
+        return normalized_values
 
     @classmethod
-    def _load_scope_items(cls, category_name: str | None = None) -> list[Item]:
-        scope_category = cls._normalize_scope_category(category_name)
+    def _build_scope_label(cls, category_names: list[str]) -> str:
+        if not category_names:
+            return "Geral"
+        if len(category_names) == 1:
+            return category_names[0]
+
+        joined_label = ", ".join(category_names)
+        if len(joined_label) <= 80:
+            return joined_label
+
+        remaining_categories = len(category_names) - 1
+        remaining_label = "categoria" if remaining_categories == 1 else "categorias"
+        return f"{category_names[0]} + {remaining_categories} {remaining_label}"
+
+    @classmethod
+    def _load_scope_items(
+        cls,
+        category_names: str | list[str] | tuple[str, ...] | None = None,
+    ) -> list[Item]:
+        scope_categories = cls._normalize_scope_categories(category_names)
+        allowed_categories = {category_name.casefold() for category_name in scope_categories}
         scoped_items: list[Item] = []
         for item_obj in Item.query.order_by(Item.categoria.asc(), Item.descricao.asc()).all():
             category_label = str(item_obj.categoria or "Sem categoria").strip() or "Sem categoria"
-            if scope_category and category_label.casefold() != scope_category.casefold():
+            if allowed_categories and category_label.casefold() not in allowed_categories:
                 continue
             scoped_items.append(item_obj)
         return scoped_items

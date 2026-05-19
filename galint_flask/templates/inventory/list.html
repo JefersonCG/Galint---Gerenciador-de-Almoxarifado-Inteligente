@@ -1270,7 +1270,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                 </div>
                 <div class="modal-body">
-                    <input type="hidden" name="categoria" id="scope-report-category-list" value="">
+                    <div id="scope-report-category-list" hidden></div>
                     <div class="scope-report-shell">
                         <div class="scope-report-choice-shell">
                             <section class="scope-report-choice-group scope-report-choice-group--featured">
@@ -1295,18 +1295,18 @@
                                 <div class="scope-report-choice-heading">
                                     <div>
                                         <div class="scope-report-choice-title">Categorias específicas</div>
-                                        <div class="scope-report-choice-note">Selecione uma categoria para baixar um XLS filtrado só no recorte desejado.</div>
+                                        <div class="scope-report-choice-note">Selecione uma ou mais categorias para baixar um XLS filtrado só nos recortes desejados. Toque em Geral para limpar o filtro.</div>
                                     </div>
                                     <span class="scope-report-choice-count">{{ category_cards|length }} opções</span>
                                 </div>
 
-                                <div class="scope-report-choice-grid" data-scope-report-target="scope-report-category-list" role="listbox" aria-label="Categoria do relatório">
+                                <div class="scope-report-choice-grid" data-scope-report-target="scope-report-category-list" role="group" aria-label="Categorias do relatório">
                                     {% for category in category_cards %}
                                     <button class="scope-report-switch-option" type="button" data-select-value="{{ category.categoria }}" data-select-label="{{ category.categoria }}" aria-pressed="false">
                                         <span class="scope-report-switch-toggle" aria-hidden="true"></span>
                                         <span class="scope-report-switch-copy">
                                             <strong>{{ category.categoria }}</strong>
-                                            <small>Baixa somente esta categoria no relatório de escopo.</small>
+                                            <small>Inclui esta categoria no relatório de escopo.</small>
                                         </span>
                                     </button>
                                     {% endfor %}
@@ -1333,16 +1333,19 @@
 (() => {
     const scopeReportModalElement = document.getElementById('scopeReportModal');
     const scopeReportForm = document.getElementById('scope-report-form-list');
-    const scopeReportInput = document.getElementById('scope-report-category-list');
+    const scopeReportInputs = document.getElementById('scope-report-category-list');
     const scopeReportGroup = document.querySelector('[data-scope-report-target="scope-report-category-list"]');
     const scopeReportOptions = scopeReportGroup ? Array.from(scopeReportGroup.querySelectorAll('[data-select-value]')) : [];
+    const scopeReportOptionValues = scopeReportOptions
+        .map((option) => String(option.getAttribute('data-select-value') || '').trim())
+        .filter(Boolean);
     const scopeReportFeaturedOption = scopeReportForm ? scopeReportForm.querySelector('[data-select-value=""]') : null;
     const scopeReportSubmitButton = scopeReportForm ? scopeReportForm.querySelector('[data-scope-report-submit]') : null;
     const scopeReportModal = scopeReportModalElement && window.bootstrap
         ? window.bootstrap.Modal.getOrCreateInstance(scopeReportModalElement)
         : null;
     const allScopeReportOptions = [scopeReportFeaturedOption, ...scopeReportOptions].filter(Boolean);
-    if (!scopeReportForm || !scopeReportInput || !scopeReportGroup || !allScopeReportOptions.length) {
+    if (!scopeReportForm || !scopeReportInputs || !scopeReportGroup || !allScopeReportOptions.length) {
         return;
     }
 
@@ -1353,11 +1356,28 @@
         }
     };
 
+    const readSelectedScopeReportCategories = () => Array.from(scopeReportInputs.querySelectorAll('input[name="categoria"]'))
+        .map((input) => String(input.value || '').trim())
+        .filter(Boolean);
+
+    const writeSelectedScopeReportCategories = (categoryNames) => {
+        scopeReportInputs.innerHTML = '';
+        categoryNames.forEach((categoryName) => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'categoria';
+            input.value = categoryName;
+            scopeReportInputs.appendChild(input);
+        });
+    };
+
     const syncScopeReportCategory = () => {
-        const selectedCategory = String(scopeReportInput.value || '').trim();
+        const selectedCategories = new Set(readSelectedScopeReportCategories());
         allScopeReportOptions.forEach((option) => {
             const optionValue = String(option.getAttribute('data-select-value') || '').trim();
-            const isSelected = optionValue === selectedCategory;
+            const isSelected = optionValue
+                ? selectedCategories.has(optionValue)
+                : selectedCategories.size === 0;
             option.classList.toggle('is-selected', isSelected);
             option.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
         });
@@ -1365,7 +1385,23 @@
 
     allScopeReportOptions.forEach((option) => {
         option.addEventListener('click', () => {
-            scopeReportInput.value = String(option.getAttribute('data-select-value') || '').trim();
+            const optionValue = String(option.getAttribute('data-select-value') || '').trim();
+            if (!optionValue) {
+                writeSelectedScopeReportCategories([]);
+                syncScopeReportCategory();
+                return;
+            }
+
+            const selectedCategories = new Set(readSelectedScopeReportCategories());
+            if (selectedCategories.has(optionValue)) {
+                selectedCategories.delete(optionValue);
+            } else {
+                selectedCategories.add(optionValue);
+            }
+
+            writeSelectedScopeReportCategories(
+                scopeReportOptionValues.filter((categoryName) => selectedCategories.has(categoryName)),
+            );
             syncScopeReportCategory();
         });
 
