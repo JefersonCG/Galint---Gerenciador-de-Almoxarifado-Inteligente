@@ -177,8 +177,12 @@
     .scope-report-modal .modal-body {
         flex: 1 1 auto;
         min-height: 0;
-        overflow-y: auto;
+        overflow-y: hidden;
         padding: 1rem 1.35rem;
+    }
+
+    .scope-report-dialog--scroll-categories .scope-report-modal .modal-body {
+        overflow-y: auto;
     }
 
     .scope-report-modal .modal-footer {
@@ -1082,7 +1086,7 @@
     </div>
 </div>
 <div class="modal fade" id="scopeReportModal" tabindex="-1" aria-labelledby="scopeReportModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable scope-report-dialog">
+    <div class="modal-dialog modal-lg modal-dialog-centered{% if category_rows|length > 12 %} modal-dialog-scrollable scope-report-dialog--scroll-categories{% endif %} scope-report-dialog">
         <div class="modal-content scope-report-modal">
             <form method="get" action="/itens/categorias/relatorio-escopo" id="scope-report-form-admin" class="scope-report-form">
                 <div class="modal-header">
