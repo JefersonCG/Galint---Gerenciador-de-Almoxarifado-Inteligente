@@ -1433,6 +1433,64 @@
         });
     };
 
+    const getScopeReportDownloadName = (response) => {
+        const contentDisposition = response.headers.get('Content-Disposition') || '';
+        const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+        if (utf8Match) {
+            try {
+                return decodeURIComponent(utf8Match[1].replace(/\+/g, '%20'));
+            } catch (error) {
+                return utf8Match[1];
+            }
+        }
+
+        const filenameMatch = contentDisposition.match(/filename="?([^";]+)"?/i);
+        return filenameMatch ? filenameMatch[1] : 'relatorio_escopo.xlsx';
+    };
+
+    const closeScopeReportModal = () => {
+        if (scopeReportModal) {
+            scopeReportModal.hide();
+            return;
+        }
+        const closeButton = scopeReportModalElement ? scopeReportModalElement.querySelector('[data-bs-dismiss="modal"]') : null;
+        if (closeButton) {
+            closeButton.click();
+        }
+    };
+
+    const downloadScopeReport = async () => {
+        const requestUrl = new URL(scopeReportForm.action, window.location.origin);
+        const formData = new FormData(scopeReportForm);
+        formData.forEach((value, key) => {
+            requestUrl.searchParams.append(key, value);
+        });
+
+        const response = await fetch(requestUrl.toString(), {
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        });
+        if (!response.ok) {
+            throw new Error('Falha ao gerar o XLS do relatório de escopo.');
+        }
+        const contentType = response.headers.get('Content-Type') || '';
+        const contentDisposition = response.headers.get('Content-Disposition') || '';
+        if (!contentType.includes('spreadsheet') && !contentDisposition.includes('attachment')) {
+            throw new Error('A resposta do relatório não retornou um XLS.');
+        }
+
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const downloadLink = document.createElement('a');
+        downloadLink.href = downloadUrl;
+        downloadLink.download = getScopeReportDownloadName(response);
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        downloadLink.remove();
+        window.URL.revokeObjectURL(downloadUrl);
+        closeScopeReportModal();
+    };
+
     allScopeReportOptions.forEach((option) => {
         option.addEventListener('click', () => {
             const optionValue = String(option.getAttribute('data-select-value') || '').trim();
@@ -1467,16 +1525,17 @@
     syncScopeReportCategory();
 
     scopeReportForm.addEventListener('submit', (event) => {
+        event.preventDefault();
         if (scopeReportForm.classList.contains('is-submitting')) {
-                event.preventDefault();
             return;
         }
 
         syncScopeReportCategory();
         setScopeReportSubmitting(true);
-            if (scopeReportModal) {
-                scopeReportModal.hide();
-            }
+        downloadScopeReport().catch(() => {
+            scopeReportForm.submit();
+            closeScopeReportModal();
+        });
     });
 
     if (scopeReportModalElement) {
