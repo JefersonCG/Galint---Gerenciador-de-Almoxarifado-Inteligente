@@ -1,0 +1,150 @@
+{% set hide_navigation = true %}
+{% set hide_topbar = true %}
+{% set disable_global_tools = true %}
+{% extends "base.html" %}
+{% block title %}Painel do Morador{% endblock %}
+{% block body_class %}resident-portal-page{% endblock %}
+{% block extra_css %}
+<style>
+    body.resident-portal-page .app-body { background: #eef5fc; }
+    body.resident-portal-page .content-panel { width: 100%; max-width: none; min-height: 100vh; padding: clamp(0.8rem, 2vw, 1.2rem); background: #eef5fc; }
+    .resident-shell { display: grid; gap: 0.85rem; color: #0f172a; }
+    .resident-header { position: relative; overflow: hidden; display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; padding: clamp(1rem, 2.2vw, 1.45rem); min-height: 10rem; border-radius: 18px; background: #0f172a; color: #f8fafc; box-shadow: 0 24px 56px rgba(15,23,42,0.16); }
+    .resident-header::before { content: ""; position: absolute; inset: 0; background: url("{{ system_image_url('administracao_dashboard_hero', '20260519-resident-dashboard') }}") center / cover no-repeat; opacity: 0.68; }
+    .resident-header::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(15,23,42,0.9), rgba(37,99,235,0.48)); }
+    .resident-header > * { position: relative; z-index: 1; }
+    .resident-kicker { display: inline-flex; align-items: center; gap: 0.42rem; margin: 0 0 0.45rem; padding: 0.3rem 0.58rem; border-radius: 999px; background: rgba(255,255,255,0.1); border: 1px solid rgba(226,232,240,0.14); color: #bfdbfe; font-size: 0.68rem; font-weight: 900; letter-spacing: 0.07em; text-transform: uppercase; }
+    .resident-title { margin: 0; font-size: clamp(1.7rem, 3vw, 2.55rem); line-height: 1; font-weight: 950; letter-spacing: 0; }
+    .resident-summary { margin: 0.55rem 0 0; max-width: 54rem; color: rgba(226,232,240,0.86); font-weight: 760; line-height: 1.45; }
+    .resident-header-actions { display: flex; gap: 0.55rem; flex-wrap: wrap; align-items: start; }
+    .resident-card { border: 1px solid rgba(148,163,184,0.22); border-radius: 16px; background: #fff; box-shadow: 0 18px 42px rgba(15,23,42,0.08); padding: 0.85rem; }
+    .resident-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.65rem; }
+    .resident-kpi { display: grid; gap: 0.2rem; padding: 0.75rem; border-radius: 14px; border: 1px solid rgba(148,163,184,0.18); background: #f8fafc; }
+    .resident-kpi span { color: #64748b; font-size: 0.68rem; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; }
+    .resident-kpi strong { font-size: 1.28rem; line-height: 1; font-weight: 950; }
+    .resident-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.72fr); gap: 0.85rem; align-items: start; }
+    .resident-section-title { margin: 0 0 0.55rem; font-size: 1rem; font-weight: 950; }
+    .resident-list { display: grid; gap: 0.5rem; }
+    .resident-row { display: grid; gap: 0.28rem; padding: 0.62rem; border-radius: 12px; background: #f8fafc; border: 1px solid rgba(148,163,184,0.18); }
+    .resident-row-top { display: flex; justify-content: space-between; gap: 0.55rem; flex-wrap: wrap; }
+    .resident-muted { color: #64748b; font-size: 0.78rem; font-weight: 760; white-space: pre-line; }
+    .resident-tags { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+    .resident-tag { display: inline-flex; min-height: 1.55rem; align-items: center; gap: 0.25rem; padding: 0.18rem 0.45rem; border-radius: 999px; background: #e2e8f0; color: #0f172a; font-size: 0.68rem; font-weight: 900; }
+    .resident-tag.ok { background: #dcfce7; color: #166534; }
+    .resident-tag.warn { background: #fef9c3; color: #854d0e; }
+    .resident-empty { padding: 0.82rem; border-radius: 14px; border: 1px dashed rgba(148,163,184,0.44); background: #f8fafc; color: #475569; font-weight: 760; }
+    .resident-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.55rem; }
+    .resident-form-grid .wide { grid-column: 1 / -1; }
+    @media (max-width: 1199.98px) { .resident-grid, .resident-kpis { grid-template-columns: 1fr; } }
+    @media (max-width: 767.98px) { .resident-form-grid { grid-template-columns: 1fr; } .resident-form-grid .wide { grid-column: auto; } }
+</style>
+{% endblock %}
+{% block content %}
+{% set owner = portal.owner %}
+{% set unit = portal.unit %}
+{% set registry = portal.registry or {} %}
+{% set access = registry.get('access_security', {}) if registry else {} %}
+{% set access_raw = access.get('raw', {}) if access else {} %}
+<div class="resident-shell">
+    <header class="resident-header">
+        <div>
+            <p class="resident-kicker"><i class="bi bi-house-heart"></i> Portal do Morador</p>
+            <h1 class="resident-title">{{ unit.full_label() if unit else 'Unidade' }}</h1>
+            <p class="resident-summary">{{ owner.full_name }} acompanha dados da unidade, mensageria, chamados, agenda e solicitacoes sem acessar informacoes de outros cadastros.</p>
+        </div>
+        <div class="resident-header-actions">
+            <a class="btn btn-light rounded-pill px-4" href="{{ url_for('condominium_portal.dashboard') }}"><i class="bi bi-arrow-clockwise me-1"></i> Atualizar</a>
+            <form method="post" action="{{ url_for('condominium_portal.logout') }}"><button class="btn btn-outline-light rounded-pill px-4" type="submit"><i class="bi bi-box-arrow-right me-1"></i> Sair</button></form>
+        </div>
+    </header>
+
+    <section class="resident-kpis">
+        <div class="resident-kpi"><span>Encomendas pendentes</span><strong>{{ portal.summary.pending_packages }}</strong></div>
+        <div class="resident-kpi"><span>Chamados abertos</span><strong>{{ portal.summary.open_tickets }}</strong></div>
+        <div class="resident-kpi"><span>Solicitacoes abertas</span><strong>{{ portal.summary.open_requests }}</strong></div>
+        <div class="resident-kpi"><span>Documentos pendentes</span><strong>{{ portal.summary.pending_documents }}</strong></div>
+    </section>
+
+    <div class="resident-grid">
+        <main class="resident-list">
+            <section class="resident-card">
+                <h2 class="resident-section-title"><i class="bi bi-box-seam me-1"></i> Mensageria</h2>
+                <div class="resident-list">
+                    {% for package in portal.packages.pending %}
+                    <article class="resident-row">
+                        <div class="resident-row-top"><strong>{{ package.recipient_name }}</strong><span class="resident-tag warn">{{ package.status_label() }}</span></div>
+                        <div class="resident-muted">{{ package.package_type|title }}{% if package.carrier %} · {{ package.carrier }}{% endif %}{% if package.storage_location %} · {{ package.storage_location }}{% endif %}</div>
+                    </article>
+                    {% else %}
+                    <div class="resident-empty">Nao ha volumes pendentes para a unidade.</div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="resident-card">
+                <h2 class="resident-section-title"><i class="bi bi-wrench-adjustable me-1"></i> Chamados e manutencao</h2>
+                <div class="resident-list">
+                    {% for ticket in portal.tickets %}
+                    <article class="resident-row">
+                        <div class="resident-row-top"><strong>{{ ticket.title }}</strong><span class="resident-tag {{ 'warn' if ticket.status in ['aberto', 'em_andamento', 'aguardando'] else 'ok' }}">{{ ticket.status_label() }}</span></div>
+                        <div class="resident-muted">{{ ticket.priority|title }}{% if ticket.due_date %} · prazo {{ ticket.due_date.strftime('%d/%m/%Y') }}{% endif %}</div>
+                        {% if ticket.description %}<div class="resident-muted">{{ ticket.description }}</div>{% endif %}
+                    </article>
+                    {% else %}
+                    <div class="resident-empty">Nenhum chamado vinculado a unidade.</div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="resident-card">
+                <h2 class="resident-section-title"><i class="bi bi-send-plus me-1"></i> Abrir solicitacao</h2>
+                <form class="resident-form-grid" method="post" action="{{ url_for('condominium_portal.create_request') }}">
+                    <div><label class="form-label">Tipo</label><select class="form-select form-select-sm" name="request_type">{% for option in portal.request_type_options %}<option value="{{ option.value }}">{{ option.label }}</option>{% endfor %}</select></div>
+                    <div><label class="form-label">Contato preferencial</label><input class="form-control form-control-sm" name="preferred_contact" value="{{ owner.email or owner.phone or '' }}"></div>
+                    <div><label class="form-label">Novo e-mail</label><input class="form-control form-control-sm" name="new_email" type="email"></div>
+                    <div><label class="form-label">Novo telefone</label><input class="form-control form-control-sm" name="new_phone"></div>
+                    <div class="wide"><label class="form-label">Referencia de encomenda</label><input class="form-control form-control-sm" name="package_reference" placeholder="Codigo de rastreio ou identificacao do volume"></div>
+                    <div class="wide"><label class="form-label">Moradores</label><textarea class="form-control form-control-sm" name="residents_update" rows="2" placeholder="Nome | parentesco | documento"></textarea></div>
+                    <div class="wide"><label class="form-label">Veiculos</label><textarea class="form-control form-control-sm" name="vehicles_update" rows="2" placeholder="Marca | modelo | cor | placa | vaga"></textarea></div>
+                    <div class="wide"><label class="form-label">Descricao</label><textarea class="form-control form-control-sm" name="description" rows="3" required></textarea></div>
+                    <button class="btn btn-primary btn-sm" type="submit"><i class="bi bi-send me-1"></i> Enviar solicitacao</button>
+                </form>
+            </section>
+        </main>
+
+        <aside class="resident-list">
+            <section class="resident-card">
+                <h2 class="resident-section-title"><i class="bi bi-person-vcard me-1"></i> Cadastro da unidade</h2>
+                <div class="resident-list">
+                    <div class="resident-row"><strong>Titular</strong><div class="resident-muted">{{ owner.full_name }} · {{ owner.occupancy_status|replace('_', ' ')|title }}</div></div>
+                    <div class="resident-row"><strong>Contato</strong><div class="resident-muted">{{ owner.email or 'E-mail nao informado' }} · {{ owner.phone or 'telefone nao informado' }}</div></div>
+                    <div class="resident-row"><strong>Moradores</strong><div class="resident-muted">{{ access_raw.get('unit_residents_text') or 'Sem moradores adicionais registrados.' }}</div></div>
+                    <div class="resident-row"><strong>Veiculos</strong><div class="resident-muted">{{ access_raw.get('authorized_vehicles_text') or 'Sem veiculos registrados.' }}</div></div>
+                    <div class="resident-row"><strong>Documentos</strong><div class="resident-muted">{{ portal.document_summary.ok_count }} ok · {{ portal.document_summary.pending_count }} pendente(s) · {{ portal.document_summary.attachment_count }} anexo(s)</div></div>
+                </div>
+            </section>
+
+            <section class="resident-card">
+                <h2 class="resident-section-title"><i class="bi bi-calendar2-week me-1"></i> Agenda</h2>
+                <div class="resident-list">
+                    {% for event in portal.events %}
+                    <div class="resident-row"><strong>{{ event.date.strftime('%d/%m/%Y') if event.date else '' }} · {{ event.time_label }}</strong><div class="resident-muted">{{ event.title }} · {{ event.status_label }}</div></div>
+                    {% else %}<div class="resident-empty">Sem agenda ativa para os proximos dias.</div>{% endfor %}
+                </div>
+            </section>
+
+            <section class="resident-card">
+                <h2 class="resident-section-title"><i class="bi bi-list-check me-1"></i> Minhas solicitacoes</h2>
+                <div class="resident-list">
+                    {% for row in portal.requests %}
+                    <article class="resident-row">
+                        <div class="resident-row-top"><strong>{{ row.request_type_label() }}</strong><span class="resident-tag {{ 'ok' if row.status in ['resolvido'] else 'warn' }}">{{ row.status_label() }}</span></div>
+                        <div class="resident-muted">{{ row.opened_at.strftime('%d/%m/%Y %H:%M') if row.opened_at else '' }}{% if row.response_notes %} · {{ row.response_notes }}{% endif %}</div>
+                    </article>
+                    {% else %}<div class="resident-empty">Nenhuma solicitacao enviada ainda.</div>{% endfor %}
+                </div>
+            </section>
+        </aside>
+    </div>
+</div>
+{% endblock %}

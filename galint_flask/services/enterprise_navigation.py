@@ -50,10 +50,15 @@ def build_enterprise_sections(*, is_admin: bool) -> list[dict[str, Any]]:
             "bi-buildings",
             "enterpriseCondominioMenu",
             [
+                _item("Dashboard Geral", _optional_url("condominium.admin_condominium_general_dashboard"), "bi-clipboard-data", "ADM-004", "Gestão", "cyan"),
                 _item("Editor de Blocos", _optional_url("condominium.admin_condominium_blocks_editor"), "bi-building-gear", "ADM-000", "Estrutura", "cyan"),
                 _item("Cadastro Mestre", _optional_url("condominium.admin_condominium_registry"), "bi-person-vcard", "ADM-001", "Cadastro", "cyan"),
                 _item("Agendamentos", _optional_url("condominium.admin_condominium_schedule"), "bi-calendar2-week", "ADM-002", "Agenda", "amber"),
                 _item("Prestadores", _optional_url("condominium.admin_service_providers"), "bi-building-check", "ADM-003", "Serviços", "green"),
+                _item("Dossie Vivo", _optional_url("condominium.admin_condominium_dossier"), "bi-journal-richtext", "ADM-005", "Operação", "cyan"),
+                _item("Portaria", _optional_url("condominium.admin_condominium_gatehouse"), "bi-door-open", "ADM-006", "Operação", "amber"),
+                _item("Mensageria", _optional_url("condominium.admin_condominium_operations"), "bi-box-seam", "ADM-007", "Operação", "green"),
+                _item("Portal do Morador", _optional_url("condominium_portal.login"), "bi-house-heart", "ADM-008", "Morador", "violet"),
             ],
         ),
         _section(

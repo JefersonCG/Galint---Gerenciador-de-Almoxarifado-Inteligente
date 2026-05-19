@@ -73,11 +73,11 @@ Concluida.
   - status dos recebimentos.
 - Seed demo com transportadoras como Correios, Mercado Livre, Shopee, Amazon, DHL, FedEx, eBay e Jadlog.
 
-## Fases pendentes
+## Fases implantadas
 
 ### Fase 2 - Portal do Morador
 
-Pendente.
+Concluida na implantacao operacional do Portal do Morador.
 
 Objetivo: permitir que moradores, proprietarios e locatarios consultem informacoes da propria unidade.
 
@@ -90,9 +90,17 @@ Escopo previsto:
 - Comunicados e solicitacoes basicas.
 - Regras de privacidade para que cada morador veja apenas o proprio contexto.
 
+Entregas realizadas:
+
+- Sessao propria do morador, separada do login de funcionarios.
+- Autenticacao por documento, unidade e contato cadastrado.
+- Painel privado com dados da unidade, documentos, moradores, veiculos, encomendas, chamados e agenda.
+- Registro de solicitacoes basicas em tabela dedicada, com trilha de auditoria.
+- Triagem administrativa das solicitacoes pelo Dashboard Geral.
+
 ### Fase 2.1 - Dashboard Geral do Condominio
 
-Pendente.
+Concluida na implantacao do painel executivo condominial.
 
 Objetivo: criar uma visao executiva do funcionamento de todos os setores do condominio.
 
@@ -105,6 +113,15 @@ Escopo previsto:
 - Manutencao: chamados abertos, criticos, concluidos e tempo medio.
 - Prestadores: contratos vencendo, documentos vencidos e empresas suspensas.
 - Alertas executivos para gargalos, riscos e acumulado operacional.
+
+Entregas realizadas:
+
+- Dashboard por setor em `/administracao/condominio/dashboard-geral`.
+- Indicadores consolidados de administracao, portaria, mensageria, manutencao, prestadores e portal.
+- Alertas executivos de documentos pendentes, encomendas paradas, chamados criticos, bloqueios e riscos de prestadores.
+- Ranqueamento de unidades por demanda de mensageria e prestadores frequentes na portaria.
+
+## Fases pendentes
 
 ### Fase 3 - Financeiro condominial
 
@@ -132,9 +149,9 @@ Escopo previsto:
 
 ## Proxima etapa recomendada
 
-A proxima etapa logica e iniciar a Fase 2: Portal do Morador.
+A proxima etapa logica e iniciar a Fase 3: Financeiro condominial.
 
-A Mensageria ja esta forte o suficiente para alimentar o portal com valor real: o morador podera consultar recebimentos pendentes, historico de retirada e status operacional. Chamados e dados da unidade tambem ja possuem base para exposicao controlada.
+Com o Portal do Morador e o Dashboard Geral implantados, a base operacional ja cruza cadastro, mensageria, portaria, manutencao e prestadores. O Financeiro pode nascer usando a unidade como eixo central para rateios, cobrancas, inadimplencia e prestacao de contas.
 
 ## Criterios permanentes de validacao
 

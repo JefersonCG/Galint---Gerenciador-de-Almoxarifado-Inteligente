@@ -1,11 +1,21 @@
 """Rotas do dominio condominial do GALINT."""
 from __future__ import annotations
 
-from flask import Blueprint, flash, redirect, render_template, request, send_file, url_for
+from flask import Blueprint, flash, jsonify, redirect, render_template, request, send_file, url_for
 from flask_login import login_required
 
 from ..extensions import db
 from ..models import CondominiumBuilding, CondominiumOwner, CondominiumScheduleEvent, ServiceCompany, ServiceProviderEmployee
+from ..services.condominium import (
+    active_building_options,
+    condominium_owner_rows,
+    condominium_unit_options,
+    create_condominium_owner_from_form,
+    lookup_company_owner_payload_by_cnpj,
+    owner_attachment_count,
+)
+from ..services.condominium.dashboard import build_condominium_general_dashboard
+from ..services.condominium.portal import update_resident_request_status
 from ..services.condominium_audit import record_condominium_audit
 from ..services.condominium_dossier import build_unit_dossier_context
 from ..services.condominium_gatehouse import build_gatehouse_context, save_gatehouse_access_from_form
@@ -43,9 +53,6 @@ from .pages import (
     _building_form,
     _building_form_from_default,
     _building_summaries,
-    _condominium_owner_rows,
-    _condominium_unit_options,
-    _create_condominium_owner_from_request,
     _current_user_matricula,
     _default_admin_block,
     _form_int,
@@ -63,6 +70,49 @@ from .pages import (
 blueprint = Blueprint("condominium", __name__)
 
 
+@blueprint.get("/administracao/condominio/dashboard-geral")
+@login_required
+def admin_condominium_general_dashboard():
+    if not _has_management_access():
+        flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
+        return redirect(url_for("dashboard.index"))
+    if _is_messenger_session():
+        return redirect(url_for("pages.mensageria_maintenance"))
+    return render_template(
+        "condominium_general_dashboard.html",
+        dashboard=build_condominium_general_dashboard(),
+    )
+
+
+@blueprint.post("/administracao/condominio/portal/solicitacoes/<int:request_id>/status")
+@login_required
+def admin_condominium_resident_request_status(request_id: int):
+    if not _has_management_access():
+        flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
+        return redirect(url_for("dashboard.index"))
+    try:
+        resident_request = update_resident_request_status(
+            request_id,
+            request.form.get("status"),
+            response_notes=request.form.get("response_notes"),
+            actor_matricula=_current_user_matricula(),
+        )
+        record_condominium_audit(
+            action="resident_request.status",
+            entity_type="condominium_resident_request",
+            entity_id=resident_request.id,
+            title=f"Solicitacao do morador atualizada: {resident_request.title}",
+            actor_matricula=_current_user_matricula(),
+            details={"status": resident_request.status, "owner_id": resident_request.owner_id, "unit_id": resident_request.unit_id},
+        )
+        db.session.commit()
+        flash("Solicitação do morador atualizada.", "success")
+    except ValueError as exc:
+        db.session.rollback()
+        flash(str(exc), "danger")
+    return redirect(url_for("condominium.admin_condominium_general_dashboard"))
+
+
 @blueprint.route("/administracao/condominio/cadastros", methods=["GET", "POST"])
 @login_required
 def admin_condominium_registry():
@@ -73,17 +123,26 @@ def admin_condominium_registry():
         return redirect(url_for("pages.mensageria_maintenance"))
     if request.method == "POST":
         try:
-            owner = _create_condominium_owner_from_request()
+            owner = create_condominium_owner_from_form(
+                request.form,
+                request.files,
+                actor_matricula=_current_user_matricula(),
+            )
             record_condominium_audit(
                 action="owner.create",
                 entity_type="condominium_owner",
                 entity_id=owner.id,
                 title=f"Cadastro condominial criado: {owner.full_name}",
                 actor_matricula=_current_user_matricula(),
-                details={"unit_id": owner.unit_id, "relationship_type": owner.relationship_type},
+                details={
+                    "unit_id": owner.unit_id,
+                    "relationship_type": owner.relationship_type,
+                    "occupancy_status": owner.occupancy_status,
+                    "attachments": owner_attachment_count(owner),
+                },
             )
             db.session.commit()
-            flash("Cadastro mestre salvo e unidade marcada como ocupada.", "success")
+            flash("Cadastro mestre salvo com dossiê, anexos, LGPD e status da unidade atualizados.", "success")
             return redirect(url_for("condominium.admin_condominium_registry"))
         except ValueError as exc:
             db.session.rollback()
@@ -91,10 +150,25 @@ def admin_condominium_registry():
             return redirect(url_for("condominium.admin_condominium_registry"))
     return render_template(
         "condominium_owners.html",
-        units=_condominium_unit_options(),
-        owners=_condominium_owner_rows(),
+        buildings=active_building_options(),
+        units=condominium_unit_options(),
+        owners=condominium_owner_rows(),
         mask_sensitive_document=_mask_sensitive_document,
+        owner_attachment_count=owner_attachment_count,
     )
+
+
+@blueprint.get("/administracao/condominio/api/proprietario/cnpj/<cnpj>")
+@login_required
+def admin_condominium_owner_cnpj_lookup(cnpj: str):
+    if not _has_management_access():
+        return jsonify({"success": False, "message": "Acesso restrito."}), 403
+    try:
+        return jsonify(lookup_company_owner_payload_by_cnpj(cnpj))
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+    except RuntimeError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 502
 
 
 @blueprint.route("/administracao/condominio/editor-blocos", methods=["GET", "POST"])
@@ -275,17 +349,26 @@ def admin_condominium_owners():
 
     if request.method == "POST":
         try:
-            owner = _create_condominium_owner_from_request()
+            owner = create_condominium_owner_from_form(
+                request.form,
+                request.files,
+                actor_matricula=_current_user_matricula(),
+            )
             record_condominium_audit(
                 action="owner.create",
                 entity_type="condominium_owner",
                 entity_id=owner.id,
                 title=f"Cadastro condominial criado: {owner.full_name}",
                 actor_matricula=_current_user_matricula(),
-                details={"unit_id": owner.unit_id, "relationship_type": owner.relationship_type},
+                details={
+                    "unit_id": owner.unit_id,
+                    "relationship_type": owner.relationship_type,
+                    "occupancy_status": owner.occupancy_status,
+                    "attachments": owner_attachment_count(owner),
+                },
             )
             db.session.commit()
-            flash("Cadastro mestre salvo e unidade marcada como ocupada.", "success")
+            flash("Cadastro mestre salvo com dossiê, anexos, LGPD e status da unidade atualizados.", "success")
         except ValueError as exc:
             db.session.rollback()
             flash(str(exc), "danger")
@@ -703,14 +786,19 @@ def admin_condominium_operations():
                 db.session.commit()
                 flash("Recebimento da mensageria registrado.", "success")
             elif action == "package_status":
-                package = update_package_status(request.form.get("package_id", type=int), request.form.get("status"), actor_matricula=_current_user_matricula())
+                package = update_package_status(
+                    request.form.get("package_id", type=int),
+                    request.form.get("status"),
+                    actor_matricula=_current_user_matricula(),
+                    delivered_to=request.form.get("delivered_to"),
+                )
                 record_condominium_audit(
                     action="package.status",
                     entity_type="condominium_package_log",
                     entity_id=package.id,
                     title=f"Status de mensageria atualizado: {package.recipient_name}",
                     actor_matricula=_current_user_matricula(),
-                    details={"status": package.status, "unit_id": package.unit_id},
+                    details={"status": package.status, "unit_id": package.unit_id, "delivered_to": package.delivered_to},
                 )
                 db.session.commit()
                 flash("Status da mensageria atualizado.", "success")

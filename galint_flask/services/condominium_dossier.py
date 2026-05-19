@@ -7,17 +7,9 @@ from typing import Any
 from sqlalchemy import or_
 
 from ..models import CondominiumAuditLog, CondominiumBuilding, CondominiumOwner, CondominiumScheduleEvent, CondominiumUnit
+from .condominium.registry import DOCUMENT_LABELS
 from .condominium_schedule import ACTIVE_STATUSES, event_to_view, today_local
 from .condominium_structure import UNIT_STATUS_LABELS, unit_dashboard_status
-
-
-DOCUMENT_LABELS = {
-    "document_onus_reais": "Onus reais",
-    "document_itbi": "ITBI",
-    "document_escritura": "Escritura",
-    "document_owner_ids": "Documentos pessoais",
-    "document_proxy": "Procuracao",
-}
 
 
 def _digits(value: object) -> str:
@@ -81,28 +73,57 @@ def _matches_query(unit: CondominiumUnit, query: str) -> bool:
 
 def _owner_document_summary(owner: CondominiumOwner) -> dict[str, object]:
     checklist = owner.attachment_checklist_json if isinstance(owner.attachment_checklist_json, dict) else {}
+    documents = checklist.get("documents") if isinstance(checklist.get("documents"), dict) else {}
     items = []
     ok_count = 0
     pending_count = 0
     for key, label in DOCUMENT_LABELS.items():
-        present = bool(checklist.get(key))
+        document_payload = documents.get(key) if isinstance(documents.get(key), dict) else {}
+        present = bool(document_payload.get("present")) if document_payload else bool(checklist.get(key))
+        attachment_count = len(document_payload.get("files") or []) if document_payload else 0
         ok_count += int(present)
         pending_count += int(not present)
-        items.append({"key": key, "label": label, "present": present})
+        items.append({"key": key, "label": label, "present": present, "attachment_count": attachment_count})
     return {"items": items, "ok_count": ok_count, "pending_count": pending_count}
+
+
+def _access_rows_text(access_security: dict[str, object], key: str, fields: tuple[str, ...], *, raw_key: str = "") -> str:
+    rows = access_security.get(key)
+    if isinstance(rows, list) and rows:
+        formatted_rows = []
+        for row in rows:
+            if isinstance(row, dict):
+                values = [str(row.get(field) or "").strip() for field in fields]
+                line = " | ".join(value for value in values if value)
+                if line:
+                    formatted_rows.append(line)
+            elif row:
+                formatted_rows.append(str(row))
+        if formatted_rows:
+            return "\n".join(formatted_rows)
+    raw = access_security.get("raw") if isinstance(access_security.get("raw"), dict) else {}
+    if raw_key and raw.get(raw_key):
+        return str(raw.get(raw_key) or "").strip()
+    return ""
 
 
 def _owner_card(owner: CondominiumOwner) -> dict[str, object]:
     registry_data = owner.registry_data_json if isinstance(owner.registry_data_json, dict) else {}
     profile = registry_data.get("owner_profile") if isinstance(registry_data.get("owner_profile"), dict) else {}
+    access_security = registry_data.get("access_security") if isinstance(registry_data.get("access_security"), dict) else {}
+    residents = _access_rows_text(access_security, "residents", ("name", "relationship", "document"), raw_key="unit_residents_text")
+    vehicles = _access_rows_text(access_security, "vehicles", ("brand", "model", "color", "plate", "garage_space"), raw_key="authorized_vehicles_text")
+    private_staff = _access_rows_text(access_security, "private_staff", ("name", "document", "role", "frequency"), raw_key="private_staff_text")
+    pets = _access_rows_text(access_security, "pets", ("species", "breed", "size", "name"), raw_key="pets_text")
+    staff_and_pets = "\n".join(part for part in (private_staff, pets) if part)
     return {
         "owner": owner,
         "relationship_label": "Locatario" if owner.relationship_type == "locatario" else "Proprietario",
         "document_summary": _owner_document_summary(owner),
         "profile": profile,
-        "vehicles": _notes_section(owner.notes, "Veiculos e condutores"),
-        "linked_people": _notes_section(owner.notes, "Pessoas vinculadas"),
-        "authorized_visitors": _notes_section(owner.notes, "Visitantes autorizados"),
+        "vehicles": vehicles or _notes_section(owner.notes, "Veiculos autorizados") or _notes_section(owner.notes, "Veiculos e condutores"),
+        "linked_people": residents or _notes_section(owner.notes, "Moradores da unidade") or _notes_section(owner.notes, "Pessoas vinculadas"),
+        "authorized_visitors": staff_and_pets or _notes_section(owner.notes, "Funcionarios particulares") or _notes_section(owner.notes, "Visitantes autorizados"),
     }
 
 

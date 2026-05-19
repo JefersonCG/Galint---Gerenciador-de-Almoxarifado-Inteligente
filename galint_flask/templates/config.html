@@ -547,10 +547,12 @@
                 {% endif %}
             </div>
             <div class="admin-agenda-actions">
+                <a class="btn btn-primary rounded-pill px-4" href="{{ url_for('condominium.admin_condominium_general_dashboard') }}"><i class="bi bi-clipboard-data me-1"></i> Dashboard Geral</a>
                 <a class="btn btn-info rounded-pill px-4" href="{{ url_for('condominium.admin_condominium_schedule') }}"><i class="bi bi-calendar-plus me-1"></i> Abrir agenda</a>
                 <a class="btn btn-success rounded-pill px-4" href="{{ url_for('condominium.admin_condominium_gatehouse') }}"><i class="bi bi-door-open me-1"></i> Portaria</a>
                 <a class="btn btn-warning rounded-pill px-4" href="{{ url_for('condominium.admin_condominium_operations') }}"><i class="bi bi-box-seam me-1"></i> Mensageria</a>
                 <a class="btn btn-light rounded-pill px-4" href="{{ url_for('condominium.admin_condominium_dossier') }}"><i class="bi bi-search me-1"></i> Dossiê vivo</a>
+                <a class="btn btn-outline-light rounded-pill px-4" href="{{ url_for('condominium_portal.login') }}"><i class="bi bi-house-heart me-1"></i> Portal do Morador</a>
                 <a class="btn btn-outline-light rounded-pill px-4" href="{{ url_for('condominium.admin_condominium_registry') }}"><i class="bi bi-person-vcard me-1"></i> Cadastro</a>
             </div>
         </div>

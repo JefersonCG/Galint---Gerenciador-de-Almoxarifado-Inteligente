@@ -252,11 +252,20 @@ def save_package_from_form(form_data, *, actor_matricula: str | None = None) -> 
     return package
 
 
-def update_package_status(package_id: int, status: str, *, actor_matricula: str | None = None) -> CondominiumPackageLog:
+def update_package_status(
+    package_id: int | None,
+    status: str,
+    *,
+    actor_matricula: str | None = None,
+    delivered_to: str | None = None,
+) -> CondominiumPackageLog:
     package = CondominiumPackageLog.query.get(package_id)
     if package is None:
         raise ValueError("Recebimento não encontrado.")
     package.status = _normalize(status, {option["value"] for option in PACKAGE_STATUS_OPTIONS}, default=package.status)
+    delivered_to_name = _clean(delivered_to)
+    if delivered_to_name:
+        package.delivered_to = delivered_to_name
     if package.status == "armazenado" and package.stored_at is None:
         package.stored_at = datetime.utcnow()
         package.stored_by_matricula = actor_matricula
@@ -264,9 +273,10 @@ def update_package_status(package_id: int, status: str, *, actor_matricula: str 
         package.notified_at = datetime.utcnow()
         package.notified_by_matricula = actor_matricula
     if package.status in {"retirado", "devolvido"} and package.delivered_at is None:
+        if not package.delivered_to:
+            raise ValueError("Informe quem retirou ou recebeu a devolução da mensageria.")
         package.delivered_at = datetime.utcnow()
         package.delivered_by_matricula = actor_matricula
-        package.delivered_to = package.delivered_to or package.recipient_name
     return package
 
 
