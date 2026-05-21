@@ -8,7 +8,7 @@ O GALINT concentra fluxo operacional de almoxarifado, documentação fiscal, ras
 - Consolidado de arquitetura e operação: [README Principal](arquitetura/readme-principal.md)
 - Direção de evolução do produto: [Plano de Evolução](arquitetura/plano-evolucao.md)
 - Restore e migração de base: [ConversionEngine](operacao/conversionengine.md)
-- Regras de ledger e valor do estoque: [Ledger de Estoque](arquitetura/ledger-estoque.md) e [Valor de Estoque](arquitetura/valor-estoque.md)
+- Regras de ledger e valor do estoque: [Ledger de Estoque](arquitetura/ledger-estoque.md), [Ledger Inventory Balance](arquitetura/ledger-inventory-balance.md) e [Valor de Estoque](arquitetura/valor-estoque.md)
 - Patrimônio e kits de ferramenta: [Central de Kits](operacao/central-kits.md)
 - Saídas, devoluções e direção visual: [Personalização de Saídas e Devoluções](operacao/personalizacao-saidas-devolucoes.md)
 - Relatório de distribuição e leitura percentual: [Percentual de Movimentos](operacao/percentual-movimentos.md)
