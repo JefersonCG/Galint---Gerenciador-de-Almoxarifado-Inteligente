@@ -1,0 +1,1 @@
+--8<-- "_sources/arquitetura/README_IMAGENS_PRECOS_BACKUP_MOTORES.md"
