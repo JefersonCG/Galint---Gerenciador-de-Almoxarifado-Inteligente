@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from io import BytesIO
-from math import isfinite
+from math import ceil, isfinite
 from typing import Any
 
 from openpyxl import Workbook
@@ -30,6 +30,7 @@ from ..utils.report_branding import get_company_header_lines
 class PurchaseProjectionService:
     VALID_BASE_UNITS = {"kg", "l", "m", "un"}
     REQUEST_UNIT_ALIASES = {"un", "unidade", "unidades", "peca", "pecas", "peça", "peças"}
+    PACKAGING_REQUEST_TYPES = {"lata", "rolo", "pacote", "caixa", "fardo", "balde", "bombona", "saco"}
     DEFAULT_WINDOW_DAYS = 30
     DEFAULT_COVERAGE_DAYS = 30
     MAX_WINDOW_DAYS = 365
@@ -289,7 +290,20 @@ class PurchaseProjectionService:
         cart = dict(report.get("cart") or {})
         requested_by = dict(requested_by or {})
 
-        total_columns = 19
+        headers = [
+            "Fornecedor Fiscal",
+            "CNPJ Fiscal",
+            "Documento",
+            "Descricao",
+            "Marca",
+            "Categoria",
+            "Qtd. Pedido",
+            "Un. Pedido",
+            "Controle Interno",
+            "Preco Atual",
+            "Total Atual",
+        ]
+        total_columns = len(headers)
         end_column = get_column_letter(total_columns)
         border = Border(
             left=Side(style="thin", color="CBD5E1"),
@@ -331,27 +345,6 @@ class PurchaseProjectionService:
         requester_label = str(requested_by.get("nome") or "Solicitante nao informado").strip() or "Solicitante nao informado"
         requested_at_label = str(requested_by.get("requested_at") or report.get("generated_at") or "").strip()
 
-        headers = [
-            "Fornecedor Fiscal",
-            "CNPJ Fiscal",
-            "Descricao",
-            "Marca",
-            "Categoria",
-            "Pedido",
-            "Preco Atual",
-            "Total Atual",
-            "Potencial Fornecedor",
-            "Link Fornecedor",
-            "CNPJ Potencial",
-            "Link Produto",
-            "Preco Potencial",
-            "Total Potencial",
-            "Variacao",
-            "Economia Potencial",
-            "Fonte Cotacao",
-            "Contato",
-            "Endereco",
-        ]
         header_row = current_row
         for column_index, header in enumerate(headers, start=1):
             cell = sheet.cell(row=header_row, column=column_index, value=header)
@@ -359,7 +352,7 @@ class PurchaseProjectionService:
             cell.font = Font(bold=True, size=12, color="FFFFFF")
             cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
             cell.border = border
-            cell.protection = locked_protection if column_index in {6, 7, 8, 13, 14, 16} else unlocked_protection
+            cell.protection = locked_protection if column_index in {7, 10, 11} else unlocked_protection
         sheet.row_dimensions[header_row].height = 24
         sheet.freeze_panes = f"A{header_row + 1}"
 
@@ -397,67 +390,56 @@ class PurchaseProjectionService:
 
                 for item in items:
                     supplier = dict(item.get("supplier") or {})
-                    potential_quote = dict(item.get("selected_potential_quote") or {})
-                    potential_supplier = dict(potential_quote.get("supplier") or {})
-                    supplier_link = str(
-                        potential_supplier.get("contact_url")
-                        or potential_supplier.get("source_url")
-                        or potential_supplier.get("website")
-                        or potential_quote.get("product_url")
-                        or ""
-                    ).strip()
+                    document_type = str(item.get("price_reference_type") or "").strip()
+                    document_number = str(item.get("price_reference_document") or "").strip()
+                    document_reference = " ".join(part for part in [document_type, document_number] if part).strip()
+                    requested_quantity_display = str(item.get("requested_quantity_display") or "").strip()
+                    requested_base_display = str(item.get("requested_quantity_base_display") or "").strip()
+                    request_unit_label = str(item.get("request_quantity_unit_label_plural") or item.get("request_quantity_unit_label") or "").strip()
+                    internal_control = ""
+                    if requested_base_display and requested_base_display != requested_quantity_display:
+                        internal_control = f"equivale a {requested_base_display}"
                     row_index = current_data_row
                     values = [
                         str(supplier.get("name") or "Sem fornecedor identificado").strip() or "Sem fornecedor identificado",
                         str(supplier.get("cnpj") or "").strip(),
+                        document_reference,
                         str(item.get("descricao") or "").strip(),
                         str(item.get("marca") or "Sem marca").strip() or "Sem marca",
                         category_name,
                         cls._format_number_input_value(item.get("requested_quantity_input") or 0.0),
+                        request_unit_label,
+                        internal_control,
                         item.get("price_unit_request") if cls._is_positive_number(item.get("price_unit_request")) else item.get("price_unit_base"),
                         item.get("requested_total_value"),
-                        str(potential_supplier.get("display_name") or "").strip(),
-                        supplier_link,
-                        str(potential_supplier.get("cnpj") or "").strip(),
-                        str(potential_quote.get("product_url") or "").strip(),
-                        potential_quote.get("unit_price_base"),
-                        potential_quote.get("requested_total_value"),
-                        str(potential_quote.get("variation_display") or "").strip(),
-                        potential_quote.get("estimated_savings_total"),
-                        str(potential_quote.get("source_name") or "").strip(),
-                        str(potential_supplier.get("contact_url") or potential_quote.get("product_url") or "").strip(),
-                        str(potential_supplier.get("address_display") or "").strip(),
                     ]
                     for column_index, value in enumerate(values, start=1):
                         cell = sheet.cell(row=row_index, column=column_index, value=value)
                         cell.border = border
                         cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-                        cell.font = Font(size=12, bold=(column_index == 3), color="0F172A")
+                        cell.font = Font(size=12, bold=(column_index == 4), color="0F172A")
                         cell.protection = unlocked_protection
-                        if column_index == 6:
+                        if column_index == 7:
                             cell.alignment = Alignment(horizontal="center", vertical="center")
                             cell.protection = locked_protection
                             cell.font = Font(size=12, bold=True, color="0F172A")
-                        if column_index in {7, 8, 13, 14, 16}:
+                        if column_index in {10, 11}:
                             cell.alignment = Alignment(horizontal="right", vertical="center")
                             cell.protection = locked_protection
-                        if column_index in {7, 8, 13, 14, 16} and isinstance(value, (int, float)):
+                        if column_index in {10, 11} and isinstance(value, (int, float)):
                             cell.number_format = 'R$ #,##0.00'
                             cell.fill = value_fill
                             cell.font = Font(size=12, italic=True, color="0F172A")
-                        if column_index in {10, 12, 18} and value:
-                            cell.hyperlink = str(value)
-                            cell.style = "Hyperlink"
                     if row_index % 2 == 0:
                         for column_index in range(1, total_columns + 1):
-                            if column_index in {7, 8, 13, 14, 16}:
+                            if column_index in {10, 11}:
                                 continue
                             sheet.cell(row=row_index, column=column_index).fill = PatternFill(start_color="F8FAFC", end_color="F8FAFC", fill_type="solid")
                     sheet.row_dimensions[row_index].height = 24
                     current_data_row += 1
 
                 subtotal_row = current_data_row
-                sheet.merge_cells(start_row=subtotal_row, start_column=1, end_row=subtotal_row, end_column=5)
+                sheet.merge_cells(start_row=subtotal_row, start_column=1, end_row=subtotal_row, end_column=6)
                 subtotal_label_cell = sheet.cell(row=subtotal_row, column=1)
                 subtotal_label_cell.value = f"SUBTOTAL DA CATEGORIA: {category_name}"
                 subtotal_label_cell.fill = category_total_fill
@@ -466,55 +448,13 @@ class PurchaseProjectionService:
                 subtotal_label_cell.border = border
                 subtotal_label_cell.protection = unlocked_protection
 
-                subtotal_quantity_cell = sheet.cell(
-                    row=subtotal_row,
-                    column=6,
-                    value=cls._format_number_input_value(
-                        sum(float(item.get("requested_quantity_input") or 0.0) for item in items)
-                    ),
-                )
-                subtotal_quantity_cell.fill = category_total_fill
-                subtotal_quantity_cell.font = Font(bold=True, size=12, color="166534")
-                subtotal_quantity_cell.alignment = Alignment(horizontal="center", vertical="center")
-                subtotal_quantity_cell.border = border
-                subtotal_quantity_cell.protection = locked_protection
-
-                subtotal_price_cell = sheet.cell(row=subtotal_row, column=7, value="")
-                subtotal_price_cell.fill = category_total_fill
-                subtotal_price_cell.border = border
-                subtotal_price_cell.protection = locked_protection
-
-                subtotal_value_cell = sheet.cell(
-                    row=subtotal_row,
-                    column=8,
-                    value=float(category_group.get("requested_value_total") or 0.0),
-                )
-                subtotal_value_cell.fill = category_total_fill
-                subtotal_value_cell.font = Font(bold=True, size=12, color="166534")
-                subtotal_value_cell.alignment = Alignment(horizontal="right", vertical="center")
-                subtotal_value_cell.border = border
-                subtotal_value_cell.protection = locked_protection
-                subtotal_value_cell.number_format = 'R$ #,##0.00'
-
-                subtotal_potential_value = sum(
-                    float(((item.get("selected_potential_quote") or {}).get("requested_total_value")) or 0.0)
-                    for item in items
-                )
-                subtotal_savings_value = sum(
-                    float(((item.get("selected_potential_quote") or {}).get("estimated_savings_total")) or 0.0)
-                    for item in items
-                )
-                for column_index in range(9, total_columns + 1):
-                    value = ""
-                    if column_index == 14:
-                        value = subtotal_potential_value
-                    elif column_index == 16:
-                        value = subtotal_savings_value
+                for column_index in range(7, total_columns + 1):
+                    value = float(category_group.get("requested_value_total") or 0.0) if column_index == 11 else ""
                     cell = sheet.cell(row=subtotal_row, column=column_index, value=value)
                     cell.fill = category_total_fill
                     cell.border = border
                     cell.protection = locked_protection
-                    if column_index in {14, 16}:
+                    if column_index == 11:
                         cell.font = Font(bold=True, size=12, color="166534")
                         cell.alignment = Alignment(horizontal="right", vertical="center")
                         cell.number_format = 'R$ #,##0.00'
@@ -526,7 +466,7 @@ class PurchaseProjectionService:
             data_end_row = current_data_row - 1
 
         total_row = data_end_row + 1
-        sheet.merge_cells(start_row=total_row, start_column=1, end_row=total_row, end_column=5)
+        sheet.merge_cells(start_row=total_row, start_column=1, end_row=total_row, end_column=6)
         total_label_cell = sheet.cell(row=total_row, column=1)
         total_label_cell.value = "SUBTOTAL GERAL"
         total_label_cell.fill = total_fill
@@ -535,40 +475,16 @@ class PurchaseProjectionService:
         total_label_cell.border = border
         total_label_cell.protection = unlocked_protection
 
-        total_formulas = {
-            6: cls._format_number_input_value(
-                sum(float(item.get("requested_quantity_input") or 0.0) for group in export_categories for item in (group.get("items") or []))
-            ) if export_categories else "0",
-            7: "",
-            8: float(cart.get("requested_value_total") or 0.0) if export_categories else 0,
-            9: "",
-            10: "",
-            11: "",
-            12: "",
-            13: "",
-            14: sum(
-                float(((item.get("selected_potential_quote") or {}).get("requested_total_value")) or 0.0)
-                for group in export_categories
-                for item in (group.get("items") or [])
-            ) if export_categories else 0,
-            15: "",
-            16: sum(
-                float(((item.get("selected_potential_quote") or {}).get("estimated_savings_total")) or 0.0)
-                for group in export_categories
-                for item in (group.get("items") or [])
-            ) if export_categories else 0,
-            17: "",
-            18: "",
-            19: "",
-        }
-        for column_index in range(6, total_columns + 1):
-            cell = sheet.cell(row=total_row, column=column_index, value=total_formulas[column_index])
-            cell.fill = total_fill if column_index == 6 else value_fill
-            cell.font = Font(bold=True, size=16, color="0F172A") if column_index == 6 else Font(size=12, italic=True, color="0F172A")
-            cell.alignment = Alignment(horizontal="center", vertical="center") if column_index == 6 else Alignment(horizontal="right", vertical="center")
+        total_values = {column_index: "" for column_index in range(7, total_columns + 1)}
+        total_values[11] = float(cart.get("requested_value_total") or 0.0) if export_categories else 0
+        for column_index in range(7, total_columns + 1):
+            cell = sheet.cell(row=total_row, column=column_index, value=total_values[column_index])
+            cell.fill = total_fill if column_index == 11 else value_fill
+            cell.font = Font(bold=True, size=14, color="0F172A") if column_index == 11 else Font(size=12, italic=True, color="0F172A")
+            cell.alignment = Alignment(horizontal="right", vertical="center")
             cell.border = border
             cell.protection = locked_protection
-            if column_index in {8, 14, 16}:
+            if column_index == 11:
                 cell.number_format = 'R$ #,##0.00'
 
         footer_row = total_row + 3
@@ -584,23 +500,15 @@ class PurchaseProjectionService:
 
         sheet.column_dimensions["A"].width = 28
         sheet.column_dimensions["B"].width = 22
-        sheet.column_dimensions["C"].width = 44
-        sheet.column_dimensions["D"].width = 20
-        sheet.column_dimensions["E"].width = 24
-        sheet.column_dimensions["F"].width = 16
-        sheet.column_dimensions["G"].width = 20
-        sheet.column_dimensions["H"].width = 18
-        sheet.column_dimensions["I"].width = 30
-        sheet.column_dimensions["J"].width = 42
-        sheet.column_dimensions["K"].width = 20
-        sheet.column_dimensions["L"].width = 42
-        sheet.column_dimensions["M"].width = 18
-        sheet.column_dimensions["N"].width = 18
-        sheet.column_dimensions["O"].width = 14
-        sheet.column_dimensions["P"].width = 20
-        sheet.column_dimensions["Q"].width = 20
-        sheet.column_dimensions["R"].width = 42
-        sheet.column_dimensions["S"].width = 34
+        sheet.column_dimensions["C"].width = 22
+        sheet.column_dimensions["D"].width = 44
+        sheet.column_dimensions["E"].width = 20
+        sheet.column_dimensions["F"].width = 24
+        sheet.column_dimensions["G"].width = 16
+        sheet.column_dimensions["H"].width = 16
+        sheet.column_dimensions["I"].width = 28
+        sheet.column_dimensions["J"].width = 20
+        sheet.column_dimensions["K"].width = 18
         sheet.page_setup.orientation = "landscape"
         sheet.protection.sheet = True
         sheet.protection.enable()
@@ -897,12 +805,14 @@ class PurchaseProjectionService:
         coverage_days = int(filters.get("coverage_days") or cls.DEFAULT_COVERAGE_DAYS)
         consumption_average_base = consumption_window_base / float(window_days) if consumption_window_base > cls.BALANCE_TOLERANCE else 0.0
         days_remaining = (balance_base / consumption_average_base) if consumption_average_base > cls.BALANCE_TOLERANCE else None
-        suggested_quantity_base = max((consumption_average_base * float(coverage_days)) - balance_base, 0.0) if consumption_average_base > cls.BALANCE_TOLERANCE else 0.0
-        price_unit_base = (procurement.get("price") or {}).get("unit_price_base")
-        estimated_suggestion_value = round(float(price_unit_base) * suggested_quantity_base, 2) if cls._is_positive_number(price_unit_base) and suggested_quantity_base > cls.BALANCE_TOLERANCE else None
+        required_quantity_base = max((consumption_average_base * float(coverage_days)) - balance_base, 0.0) if consumption_average_base > cls.BALANCE_TOLERANCE else 0.0
         request_quantity_contract = cls._build_request_quantity_contract(item, unit_base)
         request_factor_base = float(request_quantity_contract.get("factor_base") or 1.0)
-        suggested_quantity_input = suggested_quantity_base / request_factor_base if request_factor_base > cls.BALANCE_TOLERANCE else suggested_quantity_base
+        suggested_quantity_input = required_quantity_base / request_factor_base if request_factor_base > cls.BALANCE_TOLERANCE else required_quantity_base
+        suggested_quantity_input = cls._normalize_suggested_request_quantity(suggested_quantity_input, request_quantity_contract)
+        suggested_quantity_base = suggested_quantity_input * request_factor_base if request_factor_base > cls.BALANCE_TOLERANCE else suggested_quantity_input
+        price_unit_base = (procurement.get("price") or {}).get("unit_price_base")
+        estimated_suggestion_value = round(float(price_unit_base) * suggested_quantity_base, 2) if cls._is_positive_number(price_unit_base) and suggested_quantity_base > cls.BALANCE_TOLERANCE else None
         request_unit_price = round(float(price_unit_base) * request_factor_base, 4) if cls._is_positive_number(price_unit_base) else None
         status = cls._classify_row_status(
             balance_base=balance_base,
@@ -968,6 +878,8 @@ class PurchaseProjectionService:
             "request_quantity_unit_label_plural": request_quantity_contract.get("unit_label_plural"),
             "request_quantity_short_label": request_quantity_contract.get("short_label"),
             "request_quantity_note": request_quantity_contract.get("note"),
+            "request_quantity_input_step": request_quantity_contract.get("input_step") or "any",
+            "request_quantity_whole_units": bool(request_quantity_contract.get("whole_units")),
             "requested_quantity_base": None,
             "requested_quantity_base_display": None,
             "requested_quantity_input": None,
@@ -1413,18 +1325,29 @@ class PurchaseProjectionService:
         if inferred_factor > cls.BALANCE_TOLERANCE:
             factor_base = inferred_factor
 
+        has_packaging_request = (
+            package_type in cls.PACKAGING_REQUEST_TYPES
+            and factor_base > cls.BALANCE_TOLERANCE
+            and (base_unit != "un" or factor_base > 1.0 + cls.BALANCE_TOLERANCE)
+        )
+        if has_packaging_request:
+            singular, plural = cls._resolve_request_packaging_labels(item, package_type)
+            factor_display = cls._format_simple_value(factor_base, base_label)
+            return {
+                "mode": "request_unit",
+                "factor_base": factor_base,
+                "unit_label": singular,
+                "unit_label_plural": plural,
+                "short_label": singular,
+                "note": f"1 {singular} = {factor_display}; unidade interna apenas para controle",
+                "whole_units": True,
+                "input_step": "1",
+            }
+
         use_request_units = False
-        helper_context: str | None = None
         if base_unit == "un":
             use_request_units = True
             factor_base = 1.0
-        elif package_type and factor_base > cls.BALANCE_TOLERANCE:
-            use_request_units = True
-            if package_type not in {"", "litro"}:
-                try:
-                    helper_context = item.get_nome_embalagem()
-                except Exception:
-                    helper_context = package_type
         elif unit_raw in cls.REQUEST_UNIT_ALIASES and factor_base > cls.BALANCE_TOLERANCE:
             use_request_units = True
 
@@ -1436,12 +1359,12 @@ class PurchaseProjectionService:
                 "unit_label_plural": base_label,
                 "short_label": base_label,
                 "note": f"pedido em unidade base: {base_label}",
+                "whole_units": False,
+                "input_step": "any",
             }
 
         factor_display = cls._format_simple_value(factor_base, base_label)
         note = f"1 unidade = {factor_display}"
-        if helper_context:
-            note = f"{note} ({helper_context})"
         return {
             "mode": "request_unit",
             "factor_base": factor_base,
@@ -1449,7 +1372,46 @@ class PurchaseProjectionService:
             "unit_label_plural": "unidades",
             "short_label": "un",
             "note": note,
+            "whole_units": False,
+            "input_step": "any",
         }
+
+    @classmethod
+    def _resolve_request_packaging_labels(cls, item: Item, package_type: str) -> tuple[str, str]:
+        try:
+            singular = str(item.get_nome_embalagem() or "").strip().lower()
+        except Exception:
+            singular = ""
+        try:
+            plural = str(item.get_nome_embalagem_plural() or "").strip().lower()
+        except Exception:
+            plural = ""
+        fallback = {
+            "lata": ("lata", "latas"),
+            "rolo": ("rolo", "rolos"),
+            "pacote": ("pacote", "pacotes"),
+            "caixa": ("caixa", "caixas"),
+            "fardo": ("fardo", "fardos"),
+            "balde": ("balde", "baldes"),
+            "bombona": ("bombona", "bombonas"),
+            "saco": ("saco", "sacos"),
+        }
+        fallback_singular, fallback_plural = fallback.get(package_type, ("embalagem", "embalagens"))
+        singular = singular or fallback_singular
+        plural = plural or fallback_plural
+        return singular, plural
+
+    @classmethod
+    def _normalize_suggested_request_quantity(cls, value: object, request_contract: dict[str, Any] | None) -> float:
+        try:
+            parsed = float(value or 0.0)
+        except (TypeError, ValueError):
+            return 0.0
+        if parsed <= cls.BALANCE_TOLERANCE:
+            return 0.0
+        if (request_contract or {}).get("whole_units"):
+            return float(ceil(parsed - cls.BALANCE_TOLERANCE))
+        return parsed
 
     @classmethod
     def _normalize_int(cls, value: object, *, default: int, minimum: int, maximum: int) -> int:

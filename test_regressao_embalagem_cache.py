@@ -23,6 +23,7 @@ from galint_flask.services.ledger_cutover import LedgerCutoverService
 from galint_flask.services.ledger_reconciliation import ReconciliationResult
 from galint_flask.services.legacy_stock_normalizer import infer_packaging_measure, is_legacy_liter_packaging_compatible, resolve_packaging_factor, resolve_packaging_quantity_and_unit, uses_packaging_legacy_normalization
 from galint_flask.services.price_normalization import infer_document_quantity_unit_for_item, infer_price_unit_for_item
+from galint_flask.services.purchase_projection_runtime_service import PurchaseProjectionService
 from galint_flask.services.telegram_service import TelegramService
 from galint_flask.views.inventory import _uses_packaging_system
 from galint_flask.views.nf import _apply_document_item_normalization, _build_nf_new_item_packaging_payload, _item_matches_seeded_nf_pre_registration, _mark_manual_nf_document_items_for_pre_registration, _normalize_nf_new_item_packaging_type
@@ -64,6 +65,9 @@ class MockPackagingItem:
             return nome
         return f"{nome}s"
 
+    def get_unidade_interna_display(self) -> str | None:
+        return self.unidade
+
     def get_saldo_atual(self) -> float:
         return (self.estoque_embalagens * float(self.unidades_por_embalagem or 0)) + float(self.estoque_unidades_soltas or 0)
 
@@ -100,6 +104,78 @@ class FakeReconciliationService:
     def reconcile_product(self, product_id: str) -> ReconciliationResult:
         assert product_id == self._result.product_id
         return self._result
+
+
+def test_projecao_compras_usa_pacote_como_unidade_de_pedido() -> None:
+    item = MockPackagingItem(codigo_item="PAPEL-TOALHA-TESTE", tipo_embalagem="pacote", unidades_por_embalagem=1000)
+
+    contract = PurchaseProjectionService._build_request_quantity_contract(item, "un")
+
+    assert contract["factor_base"] == 1000.0
+    assert contract["unit_label"] == "pacote"
+    assert contract["unit_label_plural"] == "pacotes"
+    assert contract["whole_units"] is True
+    assert PurchaseProjectionService._normalize_suggested_request_quantity(20.01, contract) == 21.0
+    assert PurchaseProjectionService._format_request_quantity_display(20, contract) == "20 pacotes"
+
+
+def test_projecao_compras_xls_final_remove_colunas_de_potenciais() -> None:
+    from openpyxl import load_workbook
+
+    report = {
+        "generated_at": "2026-05-22T10:31:00",
+        "filters": {},
+        "cart": {
+            "requested_value_total": 642.0,
+            "category_groups": [
+                {
+                    "category_name": "Materiais de Limpeza",
+                    "requested_value_total": 642.0,
+                    "items": [
+                        {
+                            "supplier": {"name": "INNOVA RIO DESCARTAVEIS", "cnpj": "34.894.910/0001-87"},
+                            "price_reference_type": "nf",
+                            "price_reference_document": "13173",
+                            "descricao": "PAPEL HIGIENICO XANDY",
+                            "marca": "XANDY",
+                            "requested_quantity_input": 7,
+                            "requested_quantity_display": "7 caixas",
+                            "request_quantity_unit_label": "caixa",
+                            "request_quantity_unit_label_plural": "caixas",
+                            "requested_quantity_base_display": "168 un",
+                            "price_unit_request": 91.7143,
+                            "requested_total_value": 642.0,
+                            "selected_potential_quote": {
+                                "supplier": {"display_name": "Fornecedor Web"},
+                                "product_url": "https://example.invalid/produto",
+                            },
+                        }
+                    ],
+                }
+            ],
+        },
+    }
+
+    workbook_buffer = PurchaseProjectionService.build_workbook(report, requested_by={"nome": "Teste", "requested_at": "22/05/2026 10:31"})
+    workbook = load_workbook(workbook_buffer)
+    sheet = workbook.active
+    header_row = next(row for row in sheet.iter_rows(values_only=True) if row and row[0] == "Fornecedor Fiscal")
+
+    assert header_row == (
+        "Fornecedor Fiscal",
+        "CNPJ Fiscal",
+        "Documento",
+        "Descricao",
+        "Marca",
+        "Categoria",
+        "Qtd. Pedido",
+        "Un. Pedido",
+        "Controle Interno",
+        "Preco Atual",
+        "Total Atual",
+    )
+    assert "Potencial Fornecedor" not in header_row
+    assert "Link Produto" not in header_row
 
 
 def test_sync_legacy_nao_transforma_unidades_em_pacotes_explodidos() -> None:

@@ -923,7 +923,8 @@
                 <h2 class="h5 mb-2">Regras operacionais</h2>
                 <ul class="small text-muted mb-0">
                     <li>Saldo é sempre a soma do ledger.</li>
-                    <li>Embalagem aparece só como apoio visual.</li>
+                    <li>Caixa, pacote e embalagem similar viram unidade principal do pedido quando houver quantidade interna.</li>
+                    <li>Unidade interna fica apenas como conferência visual.</li>
                     <li>Preço sempre é tratado por unidade base.</li>
                     <li>Fornecedor/preço sem coerência explícita viram alerta, não pedido automático.</li>
                     <li>O carrinho persiste entre categorias até você limpar ou exportar.</li>
@@ -1098,16 +1099,19 @@
                                 <div class="projection-muted">{{ brl(row.estimated_suggestion_value) }}</div>
                             </td>
                             <td>
-                                <input
-                                    class="form-control form-control-sm projection-manual-input"
-                                    data-projection-quantity
-                                    type="number"
-                                    min="0"
-                                    step="any"
-                                    inputmode="decimal"
-                                    name="manual_qty__{{ row.codigo_item }}"
-                                    value="{{ row.manual_quantity_value }}"
-                                >
+                                <div class="input-group input-group-sm projection-manual-input">
+                                    <input
+                                        class="form-control form-control-sm"
+                                        data-projection-quantity
+                                        type="number"
+                                        min="0"
+                                        step="{{ row.request_quantity_input_step or 'any' }}"
+                                        inputmode="decimal"
+                                        name="manual_qty__{{ row.codigo_item }}"
+                                        value="{{ row.manual_quantity_value }}"
+                                    >
+                                    <span class="input-group-text">{{ row.request_quantity_short_label or row.request_quantity_unit_label_plural or row.request_quantity_unit_label or row.unit_base_label }}</span>
+                                </div>
                                 <div class="projection-muted mt-1">{{ row.request_quantity_note }}</div>
                             </td>
                             <td>
