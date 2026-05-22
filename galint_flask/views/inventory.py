@@ -2943,6 +2943,29 @@ def purchase_projection_summary_duplicate(summary_id: int):
     return _purchase_projection_redirect(duplicated_summary.filters_json, anchor="projection-cart-history")
 
 
+@blueprint.post("/projecao-compras/resumos/<int:summary_id>/excluir")
+@login_required
+def purchase_projection_summary_delete(summary_id: int):
+    _require_admin_or_supervisor()
+    summary = PurchaseProjectionSummary.query.get(summary_id)
+    if not summary:
+        flash("Resumo salvo não encontrado para exclusão.", "warning")
+        return _purchase_projection_redirect(_request_purchase_projection_filters(request.form), anchor="projection-cart-history")
+
+    active_summary_id = _get_purchase_projection_active_summary_id()
+    deleted_title = str(summary.title or "Resumo sem título").strip() or "Resumo sem título"
+    redirect_filters = _request_purchase_projection_filters(request.form)
+
+    db.session.delete(summary)
+    db.session.commit()
+
+    if active_summary_id and int(active_summary_id) == int(summary_id):
+        _set_purchase_projection_active_summary_id(None)
+
+    flash(f"Resumo '{deleted_title}' excluído do histórico.", "success")
+    return _purchase_projection_redirect(redirect_filters, anchor="projection-cart-history")
+
+
 @blueprint.post("/projecao-compras/sync")
 @login_required
 def purchase_projection_sync():

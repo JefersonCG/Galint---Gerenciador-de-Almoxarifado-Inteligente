@@ -909,6 +909,10 @@
                                         {{ projection_hidden_filters(filters) }}
                                         <button class="btn btn-outline-secondary btn-sm" type="submit">Duplicar</button>
                                     </form>
+                                    <form method="post" action="{{ url_for('inventory.purchase_projection_summary_delete', summary_id=entry.id) }}" onsubmit="return confirm('Excluir permanentemente este resumo do histórico?');">
+                                        {{ projection_hidden_filters(filters) }}
+                                        <button class="btn btn-outline-danger btn-sm" type="submit">Excluir</button>
+                                    </form>
                                 </div>
                             </div>
                             {% endfor %}
