@@ -31,6 +31,16 @@ class PurchaseProjectionService:
     VALID_BASE_UNITS = {"kg", "l", "m", "un"}
     REQUEST_UNIT_ALIASES = {"un", "unidade", "unidades", "peca", "pecas", "peça", "peças"}
     PACKAGING_REQUEST_TYPES = {"lata", "rolo", "pacote", "caixa", "fardo", "balde", "bombona", "saco"}
+    PACKAGING_REQUEST_SHORT_LABELS = {
+        "lata": "lata",
+        "rolo": "rolo",
+        "pacote": "pct",
+        "caixa": "cx",
+        "fardo": "fardo",
+        "balde": "balde",
+        "bombona": "bombona",
+        "saco": "saco",
+    }
     DEFAULT_WINDOW_DAYS = 30
     DEFAULT_COVERAGE_DAYS = 30
     MAX_WINDOW_DAYS = 365
@@ -395,7 +405,12 @@ class PurchaseProjectionService:
                     document_reference = " ".join(part for part in [document_type, document_number] if part).strip()
                     requested_quantity_display = str(item.get("requested_quantity_display") or "").strip()
                     requested_base_display = str(item.get("requested_quantity_base_display") or "").strip()
-                    request_unit_label = str(item.get("request_quantity_unit_label_plural") or item.get("request_quantity_unit_label") or "").strip()
+                    request_unit_label = str(
+                        item.get("request_quantity_short_label")
+                        or item.get("request_quantity_unit_label_plural")
+                        or item.get("request_quantity_unit_label")
+                        or ""
+                    ).strip()
                     internal_control = ""
                     if requested_base_display and requested_base_display != requested_quantity_display:
                         internal_control = f"equivale a {requested_base_display}"
@@ -1338,7 +1353,7 @@ class PurchaseProjectionService:
                 "factor_base": factor_base,
                 "unit_label": singular,
                 "unit_label_plural": plural,
-                "short_label": singular,
+                "short_label": cls.PACKAGING_REQUEST_SHORT_LABELS.get(package_type, singular),
                 "note": f"1 {singular} = {factor_display}; unidade interna apenas para controle",
                 "whole_units": True,
                 "input_step": "1",

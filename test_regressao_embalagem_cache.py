@@ -114,9 +114,22 @@ def test_projecao_compras_usa_pacote_como_unidade_de_pedido() -> None:
     assert contract["factor_base"] == 1000.0
     assert contract["unit_label"] == "pacote"
     assert contract["unit_label_plural"] == "pacotes"
+    assert contract["short_label"] == "pct"
     assert contract["whole_units"] is True
     assert PurchaseProjectionService._normalize_suggested_request_quantity(20.01, contract) == 21.0
     assert PurchaseProjectionService._format_request_quantity_display(20, contract) == "20 pacotes"
+
+
+def test_projecao_compras_usa_cx_como_sigla_de_caixa() -> None:
+    item = MockPackagingItem(codigo_item="PAPEL-HIGIENICO-TESTE", tipo_embalagem="caixa", unidades_por_embalagem=24)
+
+    contract = PurchaseProjectionService._build_request_quantity_contract(item, "un")
+
+    assert contract["factor_base"] == 24.0
+    assert contract["unit_label"] == "caixa"
+    assert contract["unit_label_plural"] == "caixas"
+    assert contract["short_label"] == "cx"
+    assert PurchaseProjectionService._format_request_quantity_display(7, contract) == "7 caixas"
 
 
 def test_projecao_compras_xls_final_remove_colunas_de_potenciais() -> None:
@@ -142,6 +155,7 @@ def test_projecao_compras_xls_final_remove_colunas_de_potenciais() -> None:
                             "requested_quantity_display": "7 caixas",
                             "request_quantity_unit_label": "caixa",
                             "request_quantity_unit_label_plural": "caixas",
+                            "request_quantity_short_label": "cx",
                             "requested_quantity_base_display": "168 un",
                             "price_unit_request": 91.7143,
                             "requested_total_value": 642.0,
@@ -176,6 +190,11 @@ def test_projecao_compras_xls_final_remove_colunas_de_potenciais() -> None:
     )
     assert "Potencial Fornecedor" not in header_row
     assert "Link Produto" not in header_row
+
+    item_row = next(row for row in sheet.iter_rows(values_only=True) if row and row[3] == "PAPEL HIGIENICO XANDY")
+    assert item_row[6] == "7"
+    assert item_row[7] == "cx"
+    assert item_row[8] == "equivale a 168 un"
 
 
 def test_sync_legacy_nao_transforma_unidades_em_pacotes_explodidos() -> None:
