@@ -630,3 +630,66 @@ def download_avariados_template():
     response.headers["Content-Disposition"] = "attachment; filename=produtos-avariados.pdf"
     return response
 
+
+@blueprint.get("/api/timezone-sync")
+@login_required
+def timezone_sync():
+    """Sincroniza o relógio com a API Google Time Zone.
+
+    Parâmetros opcionais de query: lat (float), lng (float).
+    Padrão quando omitidos: Brasília (-15.7942, -47.8822).
+
+    Se ``GALINT_GOOGLE_MAPS_API_KEY`` estiver definido como variável de
+    ambiente, consulta a API do Google e devolve ``utc_offset_seconds``
+    (rawOffset + dstOffset, em segundos).  Caso contrário devolve apenas
+    ``server_iso`` para que o front-end sincronize com o horário do servidor.
+    """
+    import json
+    import os
+    import time
+    from urllib.parse import urlencode
+    from urllib.request import Request as UrlRequest
+    from urllib.request import urlopen
+
+    lat_raw = request.args.get("lat", "").strip()
+    lng_raw = request.args.get("lng", "").strip()
+    try:
+        lat = float(lat_raw) if lat_raw else -15.7942
+        lng = float(lng_raw) if lng_raw else -47.8822
+    except ValueError:
+        return jsonify({"ok": False, "message": "Coordenadas inválidas."}), 400
+
+    if not (-90.0 <= lat <= 90.0) or not (-180.0 <= lng <= 180.0):
+        return jsonify({"ok": False, "message": "Coordenadas fora do intervalo permitido."}), 400
+
+    api_key = os.environ.get("GALINT_GOOGLE_MAPS_API_KEY", "").strip()
+    now_local = TimeService.now_local()
+    utc_offset_seconds = None
+    timezone_id = None
+    timezone_name = None
+
+    if api_key:
+        try:
+            params = urlencode({
+                "location": f"{lat:.6f},{lng:.6f}",
+                "timestamp": int(time.time()),
+                "key": api_key,
+            })
+            url = f"https://maps.googleapis.com/maps/api/timezone/json?{params}"
+            with urlopen(UrlRequest(url), timeout=5) as resp:
+                data = json.loads(resp.read(4096).decode())
+            if data.get("status") == "OK":
+                utc_offset_seconds = int(data["rawOffset"]) + int(data["dstOffset"])
+                timezone_id = data.get("timeZoneId")
+                timezone_name = data.get("timeZoneName")
+        except Exception:
+            current_app.logger.exception("Falha ao consultar Google Time Zone API")
+
+    return jsonify({
+        "ok": True,
+        "server_iso": now_local.isoformat(),
+        "utc_offset_seconds": utc_offset_seconds,
+        "timezone_id": timezone_id,
+        "timezone_name": timezone_name,
+    })
+

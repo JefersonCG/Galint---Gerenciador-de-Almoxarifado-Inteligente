@@ -74,6 +74,45 @@
         min-width: 180px;
         text-align: center;
     }
+
+    .galint-tz-sync-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 42px;
+        height: 42px;
+        border: none;
+        border-radius: 10px;
+        background: #ffffff;
+        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+        font-size: 1.25rem;
+        color: #334155;
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s, transform 0.15s;
+    }
+
+    .galint-tz-sync-btn:hover {
+        background: #f1f5f9;
+        color: #0066cc;
+    }
+
+    .galint-tz-sync-btn:active {
+        transform: scale(0.95);
+    }
+
+    .galint-tz-sync-btn:disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+
+    .galint-tz-sync-spinning {
+        animation: galint-tz-spin 0.7s linear infinite;
+        display: inline-block;
+    }
+
+    @keyframes galint-tz-spin {
+        to { transform: rotate(360deg); }
+    }
 </style>
 {% endblock %}
 {% block page_header %}
@@ -91,6 +130,9 @@
             <strong id="dashboard-month-name">{{ dashboard_month_name }}</strong>
         </div>
         <div id="dashboard-clock" class="galint-clock" data-server-now="{{ dashboard_now_iso }}">{{ dashboard_clock_display }}</div>
+        <button id="tz-sync-btn" class="galint-tz-sync-btn" title="Sincronizar horário via Time Zone API" type="button">
+            <i class="bi bi-arrow-clockwise"></i>
+        </button>
     </div>
 </div>
 {% endblock %}
@@ -4200,6 +4242,55 @@
 
         updateClockAndMonth();
         setInterval(updateClockAndMonth, 1000);
+
+        // Botão de sincronização via Google Time Zone API
+        var tzSyncBtn = document.getElementById('tz-sync-btn');
+        if (tzSyncBtn) {
+            function doTzSync(lat, lng) {
+                var icon = tzSyncBtn.querySelector('i');
+                if (icon) icon.classList.add('galint-tz-sync-spinning');
+                tzSyncBtn.disabled = true;
+                var qs = (lat != null && lng != null) ? ('?lat=' + lat + '&lng=' + lng) : '';
+                fetch('/api/timezone-sync' + qs, { credentials: 'same-origin' })
+                    .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+                    .then(function (data) {
+                        if (!data.ok) return;
+                        if (data.utc_offset_seconds != null) {
+                            // Ajusta o offset para que o relógio mostre a hora local do fuso retornado
+                            serverOffsetMs = data.utc_offset_seconds * 1000
+                                - (new Date().getTimezoneOffset() * 60 * 1000);
+                        } else if (data.server_iso) {
+                            var parsed = new Date(data.server_iso);
+                            if (!Number.isNaN(parsed.getTime())) {
+                                serverOffsetMs = parsed.getTime() - Date.now();
+                            }
+                        }
+                        updateClockAndMonth();
+                    })
+                    .catch(function () {})
+                    .finally(function () {
+                        if (icon) icon.classList.remove('galint-tz-sync-spinning');
+                        tzSyncBtn.disabled = false;
+                    });
+            }
+
+            tzSyncBtn.addEventListener('click', function () {
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        function (pos) {
+                            doTzSync(
+                                pos.coords.latitude.toFixed(6),
+                                pos.coords.longitude.toFixed(6)
+                            );
+                        },
+                        function () { doTzSync(null, null); },
+                        { timeout: 5000 }
+                    );
+                } else {
+                    doTzSync(null, null);
+                }
+            });
+        }
     }());
 </script>
 <script>
