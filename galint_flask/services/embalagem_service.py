@@ -40,11 +40,17 @@ class EmbalagemService:
         if tipo_embalagem_novo == "rolo" and unidades_por_embalagem > 0:
             return False
 
+        legacy_type = str(getattr(item, "tipo_embalagem", None) or "").strip().lower()
+        legacy_reference = getattr(item, "grandeza_referencia", None)
+        try:
+            legacy_reference_value = float(legacy_reference)
+        except (TypeError, ValueError):
+            return False
+
         return (
-            item.tipo_embalagem is not None
-            and str(item.tipo_embalagem).strip().lower() == "rolo"
-            and item.grandeza_referencia is not None
-            and item.grandeza_referencia > 0
+            bool(legacy_type == "rolo")
+            and legacy_reference is not None
+            and legacy_reference_value > 0
         )
 
     @staticmethod

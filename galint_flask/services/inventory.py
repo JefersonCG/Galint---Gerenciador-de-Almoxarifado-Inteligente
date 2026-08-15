@@ -1917,10 +1917,15 @@ class InventoryService:
                     descricao=probe.descricao,
                     categoria=probe.categoria,
                 )
-                if inferred_unit_only and normalized_payload.get("unidade") in (None, ""):
+                current_unit_text = str(normalized_payload.get("unidade", getattr(current_item, "unidade", None)) or "").strip()
+                legacy_numeric_placeholder = bool(
+                    re.fullmatch(r"0+(?:[.,]0+)?", current_unit_text.replace(",", "."))
+                    or legacy_numeric_value <= 0
+                )
+                if inferred_unit_only:
                     normalized_payload["unidade"] = inferred_unit_only
-                elif inferred_unit_only and current_item is not None and normalized_payload.get("unidade", getattr(current_item, "unidade", None)) == getattr(current_item, "unidade", None):
-                    normalized_payload["unidade"] = inferred_unit_only
+                elif legacy_numeric_placeholder:
+                    normalized_payload["unidade"] = "Unidade"
                 elif normalized_payload.get("unidade") in (None, ""):
                     normalized_payload["unidade"] = "Unidade"
                 elif current_item is not None and normalized_payload.get("unidade", getattr(current_item, "unidade", None)) == getattr(current_item, "unidade", None):

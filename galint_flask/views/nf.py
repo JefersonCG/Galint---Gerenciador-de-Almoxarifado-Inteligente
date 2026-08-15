@@ -971,13 +971,20 @@ def _item_matches_seeded_nf_pre_registration(
     if item_model is None:
         return False
 
-    numero = (document_number or "").strip()
+    def _normalize_document_reference(value: Any) -> str:
+        digits = "".join(ch for ch in str(value or "") if ch.isdigit())
+        if not digits:
+            return ""
+        return digits.lstrip("0") or "0"
+
+    numero = _normalize_document_reference(document_number)
     if not numero:
         return False
 
     candidate_numbers = {
-        str(getattr(item_model, "nota_fiscal", "") or "").strip(),
-        str(getattr(item_model, "preco_compra_documento", "") or "").strip(),
+        _normalize_document_reference(getattr(item_model, "nota_fiscal", "")),
+        _normalize_document_reference(getattr(item_model, "preco_compra_documento", "")),
+        _normalize_document_reference(getattr(item_model, "codigo_item", "")),
     }
     candidate_numbers.discard("")
     if numero not in candidate_numbers:
@@ -1031,7 +1038,7 @@ def _mark_item_for_nf_pre_registration(
         item_model,
         document_number=document_number,
     )
-    needs_pre_registration = already_pending or seeded_by_document or (origin_nf and not finished_nf_pre_registration)
+    needs_pre_registration = force or already_pending or seeded_by_document or (origin_nf and not finished_nf_pre_registration)
     if not needs_pre_registration:
         return False
 
@@ -1094,7 +1101,7 @@ def _mark_manual_nf_document_items_for_pre_registration(
         if item_id is not None
     }
     if not normalized_forced_ids:
-        return _mark_document_items_for_nf_pre_registration(pending_items)
+        return _mark_document_items_for_nf_pre_registration(pending_items, force=True)
 
     forced_items: list[DocumentoEntradaEstoqueItem] = []
     regular_items: list[DocumentoEntradaEstoqueItem] = []
