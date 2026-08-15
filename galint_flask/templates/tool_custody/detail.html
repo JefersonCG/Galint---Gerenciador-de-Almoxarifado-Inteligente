@@ -1107,6 +1107,7 @@
                 <div class="modal-body">
                     <input type="hidden" name="matricula" value="{{ employee.matricula }}">
                     <input type="hidden" name="source" id="damageSource" value="saida">
+                    <input type="hidden" name="report_signed" id="damageReportSignedInput" value="0">
                     <p class="text-white">
                         Registrar que a ferramenta <strong id="damageToolName"></strong> foi quebrada ou danificada?
                     </p>
@@ -1120,6 +1121,15 @@
                         <label class="form-label text-white">Descrição do Dano (obrigatório)</label>
                         <textarea class="form-control" name="observacao" rows="3" required
                                   placeholder="Descreva o tipo de dano ou perda..."></textarea>
+                    </div>
+                    <div class="d-flex flex-column gap-2">
+                        <a href="#" class="btn btn-outline-light btn-sm" id="damagePdfButton" target="_blank" rel="noopener">
+                            <i class="bi bi-file-earmark-pdf"></i> Gerar relatório PDF
+                        </a>
+                        <div class="form-check form-switch ms-1">
+                            <input class="form-check-input" type="checkbox" id="damageReportSignedCheck" value="1">
+                            <label class="form-check-label text-white" for="damageReportSignedCheck">Funcionário assinou o relatório</label>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -2212,8 +2222,21 @@
     function showDamageModal(saidaId, toolName, toolCode, matricula, source) {
         document.getElementById('damageToolName').textContent = toolName;
         const damageSource = document.getElementById('damageSource');
+        const damagePdfButton = document.getElementById('damagePdfButton');
+        const damageReportSignedCheck = document.getElementById('damageReportSignedCheck');
+        const damageReportSignedInput = document.getElementById('damageReportSignedInput');
         if (damageSource) {
             damageSource.value = source || 'saida';
+        }
+        if (damagePdfButton) {
+            const sourceParam = (source || 'saida');
+            damagePdfButton.href = "{{ url_for('tool_custody.damage_tool_report', saida_id=0) }}".replace('0', saidaId) + '?source=' + encodeURIComponent(sourceParam);
+        }
+        if (damageReportSignedCheck) {
+            damageReportSignedCheck.checked = false;
+        }
+        if (damageReportSignedInput) {
+            damageReportSignedInput.value = '0';
         }
         const section = document.getElementById('damageBarcodeSection');
         const svg = document.getElementById('damageBarcodeSvg');
@@ -2227,6 +2250,16 @@
             "{{ url_for('tool_custody.damage_tool', saida_id=0) }}".replace('0', saidaId);
         new bootstrap.Modal(document.getElementById('damageModal')).show();
     }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const damageReportSignedCheck = document.getElementById('damageReportSignedCheck');
+        const damageReportSignedInput = document.getElementById('damageReportSignedInput');
+        if (damageReportSignedCheck && damageReportSignedInput) {
+            damageReportSignedCheck.addEventListener('change', function () {
+                damageReportSignedInput.value = this.checked ? '1' : '0';
+            });
+        }
+    });
     
     function showRepairModal(saidaId, toolName, toolCode, matricula) {
         document.getElementById('repairToolName').textContent = toolName;

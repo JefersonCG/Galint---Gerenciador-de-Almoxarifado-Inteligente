@@ -1263,20 +1263,18 @@ class ToolCustodyService:
             record_id=saida_id,
         )
 
-        ledger_result = None
-        if source_norm == "retirada_ferramenta":
-            ledger_result = inventory_service.mirror_legacy_movement(
-                product_id=codigo_item or "",
-                movement_type="ajuste",
-                quantity=-float(quantidade or 0),
-                payload=MovimentoPayload(
-                    codigo=codigo_item or "",
-                    quantidade=float(quantidade or 0),
-                    matricula=matricula,
-                    observacao=descricao_evento,
-                ),
-                metadata={"reference_type": "tool_custody_service", "legacy_event_type": "quebra_ferramenta"},
-            )
+        ledger_result = inventory_service.mirror_legacy_movement(
+            product_id=codigo_item or "",
+            movement_type="ajuste",
+            quantity=-float(quantidade or 0),
+            payload=MovimentoPayload(
+                codigo=codigo_item or "",
+                quantidade=float(quantidade or 0),
+                matricula=matricula,
+                observacao=descricao_evento,
+            ),
+            metadata={"reference_type": "tool_custody_service", "legacy_event_type": "quebra_ferramenta"},
+        )
 
         if retirada and retirada.status != "devolvida":
             retirada.registrar_devolucao(descricao_evento)
@@ -1292,7 +1290,6 @@ class ToolCustodyService:
         )
         
         db.session.add(evento)
-        # Não ajusta estoque - ferramenta foi perdida/quebrada
         db.session.commit()
         try:
             inventory_service.invalidate_realtime_views()

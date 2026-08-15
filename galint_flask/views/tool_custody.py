@@ -1,14 +1,16 @@
 """View para controle de custódia de ferramentas."""
 from __future__ import annotations
 
-from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify, send_file
+from flask import Blueprint, current_app, render_template, request, flash, redirect, url_for, jsonify, send_file
 from flask_login import login_required, current_user
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import or_
 
 from ..extensions import db
+from ..models import RetiradaFerramenta, Saida, Usuario
 from ..services.ferramentas import ferramentas_service
 from ..services.tool_custody_service import tool_custody_service
+from ..utils.time_service import TimeService
 
 bp = Blueprint("tool_custody", __name__, url_prefix="/controle-ferramentas")
 
@@ -207,6 +209,88 @@ def return_tool_api(saida_id: int):
         return jsonify({"success": False, "message": f"Erro ao registrar devolucao: {str(e)}"}), 500
 
 
+@bp.route("/quebra/<int:saida_id>/relatorio.pdf")
+@login_required
+def damage_tool_report(saida_id: int):
+    """Gera PDF de quebra/perda para assinatura do funcionário."""
+    from io import BytesIO
+
+    source = (request.args.get("source") or "saida").strip().lower()
+    kind = (request.args.get("kind") or "quebrada").strip().lower()
+    source_norm = "retirada_ferramenta" if source == "retirada_ferramenta" else "saida"
+    kind_label = "Perdida" if kind in {"perdida", "perda", "lost"} else "Quebrada"
+
+    saida = Saida.query.get(saida_id) if source_norm == "saida" else None
+    retirada = db.session.get(RetiradaFerramenta, saida_id) if source_norm == "retirada_ferramenta" else None
+
+    record = saida or retirada
+    if record is None:
+        flash("Registro de ferramenta não encontrado para gerar o relatório.", "danger")
+        return redirect(url_for("tool_custody.index"))
+
+    item = getattr(record, "item", None) or None
+    codigo_item = getattr(record, "codigo_item", None) or "N/D"
+    descricao = getattr(item, "descricao", None) or "Ferramenta"
+    matricula = getattr(record, "matricula", None) or ""
+    usuario = db.session.query(Usuario).filter_by(matricula=matricula).first() if matricula else None
+    local_servico = getattr(record, "local_servico", None) or "Não informado"
+    observacao = getattr(record, "observacao", None) or ""
+    data_retirada = getattr(record, "data_retirada", None) or getattr(record, "data_saida", None)
+    data_text = TimeService.format_local(data_retirada, "%d/%m/%Y %H:%M") if data_retirada else "N/D"
+
+    html = f"""
+    <!doctype html>
+    <html lang="pt-BR">
+    <head>
+      <meta charset="utf-8">
+      <title>Relatório de ferramenta {kind_label.lower()}</title>
+      <style>
+        body {{ font-family: Arial, sans-serif; margin: 32px; color: #111827; }}
+        h1 {{ font-size: 24px; margin-bottom: 10px; }}
+        .card {{ border: 1px solid #d1d5db; border-radius: 8px; padding: 18px; margin-top: 16px; }}
+        .grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }}
+        .label {{ font-size: 12px; color: #6b7280; text-transform: uppercase; margin-bottom: 4px; }}
+        .value {{ font-size: 15px; font-weight: 600; }}
+        .signature {{ border-top: 2px solid #111827; margin-top: 60px; padding-top: 10px; width: 300px; }}
+      </style>
+    </head>
+    <body>
+      <h1>Relatório de ferramenta {kind_label}</h1>
+      <p>Este documento registra a ocorrência de ferramenta {kind_label.lower()} e deve ser assinado pelo colaborador responsável.</p>
+      <div class="card">
+        <div class="grid">
+          <div><div class="label">Colaborador</div><div class="value">{(usuario.nome if usuario else matricula) or 'N/D'}</div></div>
+          <div><div class="label">Matrícula</div><div class="value">{matricula or 'N/D'}</div></div>
+          <div><div class="label">Ferramenta</div><div class="value">{descricao}</div></div>
+          <div><div class="label">Código</div><div class="value">{codigo_item}</div></div>
+          <div><div class="label">Data retirada</div><div class="value">{data_text}</div></div>
+          <div><div class="label">Local</div><div class="value">{local_servico}</div></div>
+        </div>
+        <div style="margin-top: 18px;"><div class="label">Motivo / observação</div><div class="value">{observacao or 'Motivo não informado'}</div></div>
+      </div>
+      <div class="signature">
+        <div>Assinatura do funcionário:</div>
+        <div style="height: 32px;"></div>
+      </div>
+    </body>
+    </html>
+    """
+
+    try:
+        from ..utils.html_pdf import render_html_to_pdf
+
+        result = render_html_to_pdf(html=html, base_url=current_app.root_path)
+        return send_file(
+            BytesIO(result.pdf_bytes),
+            mimetype="application/pdf",
+            as_attachment=True,
+            download_name=f"relatorio_ferramenta_{kind_label.lower()}_{saida_id}.pdf",
+        )
+    except Exception as exc:
+        flash(f"Não foi possível gerar o relatório PDF: {exc}", "danger")
+        return redirect(url_for("tool_custody.index"))
+
+
 @bp.route("/quebra/<int:saida_id>", methods=["POST"])
 @login_required
 def damage_tool(saida_id: int):
@@ -214,8 +298,12 @@ def damage_tool(saida_id: int):
     try:
         observacao = request.form.get("observacao", "").strip()
         source = (request.form.get("source") or "saida").strip().lower()
+        report_signed = request.form.get("report_signed") == "1"
+        if not report_signed:
+            flash("Primeiro gere o relatório em PDF e confirme que o funcionário assinou antes de registrar a perda/quebra.", "warning")
+            return redirect(request.referrer or url_for("tool_custody.index"))
         tool_custody_service.register_damage(saida_id, observacao or None, source=source)
-        flash("Quebra/dano registrado com sucesso!", "warning")
+        flash("Quebra/dano registrado com sucesso! O saldo foi ajustado no sistema.", "warning")
     except ValueError as e:
         flash(str(e), "danger")
     except SQLAlchemyError as e:
@@ -235,6 +323,9 @@ def damage_tool_api(saida_id: int):
         source = (request.form.get("source") or "saida").strip()
         kind = (request.form.get("kind") or request.form.get("tipo") or "quebrada").strip()
         observacao = request.form.get("observacao", "").strip()
+        report_signed = request.form.get("report_signed") == "1"
+        if not report_signed:
+            return jsonify({"success": False, "message": "É necessário gerar e assinar o relatório PDF antes de concluir a baixa."}), 400
         tool_custody_service.register_damage(saida_id, observacao or None, kind=kind, source=source)
         return jsonify({"success": True, "message": "Ferramenta registrada como quebrada/perdida"})
     except ValueError as e:
