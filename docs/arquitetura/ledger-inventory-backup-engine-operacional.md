@@ -1,0 +1,1 @@
+--8<-- "_sources/arquitetura/README_LEDGER_INVENTORY_BACKUP_ENGINE_OPERACIONAL.md"

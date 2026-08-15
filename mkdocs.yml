@@ -77,6 +77,7 @@ nav:
       - Organização da Raiz: arquitetura/organizacao-raiz.md
       - Plano de Evolução: arquitetura/plano-evolucao.md
       - Ledger de Estoque: arquitetura/ledger-estoque.md
+      - Ledger, Inventory e Backup Engine: arquitetura/ledger-inventory-backup-engine-operacional.md
       - Valor de Estoque: arquitetura/valor-estoque.md
   - Operação:
       - Estoque Unificado: operacao/estoque-unificado.md
