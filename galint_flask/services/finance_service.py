@@ -2855,10 +2855,18 @@ class FinanceService:
             "text": text,
         }
 
+    @staticmethod
+    def _is_tool_consumption_category(category: Any) -> bool:
+        return "ferrament" in str(category or "").strip().lower()
+
     @classmethod
     def _aggregate_consumption_entries(cls, entries: list[dict[str, Any]]) -> dict[str, Any]:
+        filtered_entries = [
+            row for row in entries
+            if not cls._is_tool_consumption_category(row.get("categoria"))
+        ]
         sorted_entries = sorted(
-            entries,
+            filtered_entries,
             key=lambda row: (
                 row.get("data_saida") or datetime.min,
                 int(row.get("saida_id") or 0),
@@ -3558,6 +3566,13 @@ class FinanceService:
                 continue
 
             item = item_map.get(code) or {}
+            categoria_nome = (
+                str(item.get("categoria") or "").strip()
+                or str(getattr(getattr(saida, "item", None), "categoria", "") or "").strip()
+                or "Sem categoria"
+            )
+            if FinanceService._is_tool_consumption_category(categoria_nome):
+                continue
             purchase = purchases_by_item.get(code, {})
             movement_info = movement_by_saida.get(str(getattr(saida, "id_saida", "") or "").strip(), {})
 
@@ -3602,11 +3617,6 @@ class FinanceService:
                 str(item.get("descricao") or "").strip()
                 or str(getattr(getattr(saida, "item", None), "descricao", "") or "").strip()
                 or code
-            )
-            categoria_nome = (
-                str(item.get("categoria") or "").strip()
-                or str(getattr(getattr(saida, "item", None), "categoria", "") or "").strip()
-                or "Sem categoria"
             )
             unidade_item = (
                 str(item.get("unidade") or "").strip()

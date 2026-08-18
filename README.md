@@ -22,11 +22,23 @@ A aplicação Flask é o núcleo do GALINT e cobre as áreas abaixo.
 - consolida KPIs do almoxarifado
 - mostra alertas operacionais e leituras rápidas de saúde do estoque
 - funciona como centro de navegação da operação
+- expõe cards de projeção por consumo, perdas/avarias e degradação de ferramentas
+- calcula consumo somente para materiais, excluindo ferramentas que retornam ao estoque
 
 Arquivos principais:
 
 - `galint_flask/templates/dashboard/index.html`
 - `galint_flask/views/dashboard.py`
+- `galint_flask/services/analytics_service.py`
+
+### Analytics e projeções operacionais
+
+- projeção de zeragem de estoque por tendência linear com base no histórico de saídas
+- alerta de perdas e avarias futuras por padrão de quebra/avaria recente
+- indicador de degradação de ferramentas com base no uso acumulado em relação ao estoque atual
+- regra de negócio aplicada para remover ferramentas do consumo de materiais, já que elas são custodiadas e devolvidas ao almoxarifado
+
+Essa camada analítica fica alinhada com a regra de operação do GALINT: ferramentas não são tratadas como material consumido, mas sim como ativo em custódia com retorno ao estoque.
 
 #### Lançamentos
 
