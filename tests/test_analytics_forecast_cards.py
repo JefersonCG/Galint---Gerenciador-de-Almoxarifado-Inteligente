@@ -1,7 +1,11 @@
 from datetime import datetime
 
+from galint_flask import create_app
 from galint_flask.services.analytics_service import AnalyticsService
 from galint_flask.services.finance_service import FinanceService
+from galint_flask.services import entrada_report_service as entrada_report_service_module
+from galint_flask.services.inventory import inventory_service
+from galint_flask.views import dashboard as dashboard_view
 
 
 def test_finance_service_excludes_tools_from_consumption_analytics():
@@ -53,3 +57,31 @@ def test_build_projection_cards_predicts_future_damage_and_degradation():
     assert perdas["item"] == "Chave inglesa"
     assert perdas["projected_count"] >= 0
     assert degradacao["item"] in {"Chave inglesa", "Serra circular"}
+
+
+def test_dashboard_context_exposes_projection_cards(monkeypatch):
+    app = create_app()
+    with app.app_context():
+        monkeypatch.setattr(inventory_service, "dashboard_snapshot", lambda: {
+            "resumo": [{"codigo": "F-100", "saldo": 7.0, "status": "OK", "descricao": "Martelo"}],
+            "total_quantity": 7,
+            "category_summary": [],
+        })
+        monkeypatch.setattr(dashboard_view.category_catalog_service, "list_visual_catalog", lambda include_inactive=True: [])
+        monkeypatch.setattr(entrada_report_service_module.entrada_report_service, "get_ultimo_ciclo_gerado", lambda: 4)
+        monkeypatch.setattr(entrada_report_service_module.entrada_report_service, "CONTADOR_CICLO", 10)
+        monkeypatch.setattr(dashboard_view.analytics_service, "get_dashboard_payload", lambda **kwargs: {
+            "projection_cards": [{
+                "type": "consumo_ferramentas",
+                "item": "Martelo",
+                "codigo": "F-100",
+                "date": "15/09/2026",
+                "status": "em_atenção",
+                "details": "Consumo médio de 1.2 und/dia; estoque previsto para zerar em 10 dias.",
+            }]
+        })
+
+        context = dashboard_view._dashboard_context()
+
+        assert context["projection_cards"]
+        assert context["projection_cards"][0]["item"] == "Martelo"

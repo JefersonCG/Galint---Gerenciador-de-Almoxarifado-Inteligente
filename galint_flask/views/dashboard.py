@@ -10,6 +10,7 @@ from typing import Any
 from flask import Blueprint, Response, abort, current_app, jsonify, render_template, url_for
 from flask_login import current_user, login_required
 
+from ..services.analytics_service import analytics_service
 from ..services.category_catalog import category_catalog_service
 from ..services.inventory import inventory_service
 from ..services.finance_service import finance_service
@@ -180,6 +181,10 @@ def _dashboard_context(
             "description": "Eventos registrados como avaria ou dano",
         },
     ]
+    try:
+        projection_cards = list((analytics_service.get_dashboard_payload().get("projection_cards") or []))
+    except Exception:
+        projection_cards = []
 
     return {
         "resumo": resumo,
@@ -191,6 +196,7 @@ def _dashboard_context(
         "faltam_entradas": faltam_entradas,
         "progresso_relatorio_pct": progresso_pct,
         "reports": reports,
+        "projection_cards": projection_cards,
         "category_summary": category_summary,
         "shared_view": shared_view,
         "can_view_finance": can_view_finance,

@@ -461,6 +461,55 @@
     </a>
     {% endif %}
 </div>
+
+{% if projection_cards %}
+<div class="galint-section-panel galint-section-panel-dark" style="margin-bottom: 1.5rem;">
+    <div class="galint-section-header">
+        <h2 class="galint-section-title">Projeções operacionais</h2>
+        <p class="galint-section-subtitle">Previsão de consumo, perdas e degradação com base no histórico recente</p>
+    </div>
+    <div class="galint-custody-feed-list">
+        {% for card in projection_cards %}
+            {% set card_status = card.status | default('estável') %}
+            {% set is_warning = card_status in ['alto', 'crítico', 'em_atenção'] %}
+            {% set is_alert = card_status == 'moderado' %}
+            <article class="galint-custody-card {% if is_warning %}alert-red{% elif is_alert %}alert-yellow{% else %}ok{% endif %}">
+                <div class="galint-custody-header">
+                    <div class="galint-custody-header-main">
+                        <div class="galint-custody-icon {{ 'red' if is_warning else 'amber' if is_alert else 'blue' }}">
+                            {% if card.type == 'consumo_ferramentas' %}📉
+                            {% elif card.type == 'perdas_avarias_futuras' %}🧰
+                            {% else %}⚙️
+                            {% endif %}
+                        </div>
+                        <div class="galint-custody-title-wrap">
+                            <div class="galint-custody-title">
+                                {% if card.type == 'consumo_ferramentas' %}Consumo de ferramentas
+                                {% elif card.type == 'perdas_avarias_futuras' %}Perdas e avarias futuras
+                                {% else %}Degradação de ferramentas
+                                {% endif %}
+                            </div>
+                            <div class="galint-custody-subtitle">{{ card.item or '-' }} • {{ card.codigo or '-' }}</div>
+                        </div>
+                    </div>
+                    <span class="galint-custody-pill {% if is_warning %}danger{% elif is_alert %}warning{% else %}info{% endif %}">{{ card_status }}</span>
+                </div>
+                <div class="galint-custody-metric-row">
+                    <div class="galint-custody-metric">
+                        <span class="galint-custody-metric-label">Previsão</span>
+                        <strong class="galint-custody-metric-value">{{ card.date or '-' }}</strong>
+                    </div>
+                    <div class="galint-custody-metric">
+                        <span class="galint-custody-metric-label">Status</span>
+                        <strong class="galint-custody-metric-value">{{ 'Crítico' if card_status == 'crítico' else 'Atenção' if card_status == 'em_atenção' else 'Moderado' if card_status == 'moderado' else 'Estável' if card_status == 'estável' else 'Alto' }}</strong>
+                    </div>
+                </div>
+                <p class="galint-custody-note">{{ card.details or 'Sem detalhe adicional disponível.' }}</p>
+            </article>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
 {% if category_summary %}
 <style>
     .galint-categories {
@@ -1824,6 +1873,131 @@
         min-width: 0;
         display: grid;
         gap: 0.3rem;
+    }
+
+    .galint-custody-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+        background: rgba(96, 165, 250, 0.16);
+        border: 1px solid rgba(147, 197, 253, 0.22);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        flex-shrink: 0;
+    }
+
+    .galint-custody-icon.red {
+        background: rgba(239, 68, 68, 0.15);
+        border-color: rgba(248, 113, 113, 0.26);
+    }
+
+    .galint-custody-icon.amber {
+        background: rgba(245, 158, 11, 0.15);
+        border-color: rgba(251, 191, 36, 0.26);
+    }
+
+    .galint-custody-icon.blue {
+        background: rgba(96, 165, 250, 0.18);
+        border-color: rgba(147, 197, 253, 0.24);
+    }
+
+    .galint-custody-title-wrap {
+        min-width: 0;
+        display: grid;
+        gap: 0.18rem;
+    }
+
+    .galint-custody-title {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        color: #f8fafc;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+    }
+
+    .galint-custody-subtitle {
+        margin: 0;
+        font-size: 0.8rem;
+        color: rgba(226, 232, 240, 0.72);
+        overflow-wrap: anywhere;
+    }
+
+    .galint-custody-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.42rem 0.7rem;
+        border-radius: 999px;
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        white-space: nowrap;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(255, 255, 255, 0.07);
+        color: rgba(226, 232, 240, 0.9);
+    }
+
+    .galint-custody-pill.info {
+        background: rgba(59, 130, 246, 0.14);
+        border-color: rgba(96, 165, 250, 0.2);
+        color: #dbeafe;
+    }
+
+    .galint-custody-pill.warning {
+        background: rgba(245, 158, 11, 0.14);
+        border-color: rgba(251, 191, 36, 0.22);
+        color: #fef3c7;
+    }
+
+    .galint-custody-pill.danger {
+        background: rgba(239, 68, 68, 0.12);
+        border-color: rgba(248, 113, 113, 0.22);
+        color: #fecaca;
+    }
+
+    .galint-custody-metric-row {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.7rem;
+        margin-bottom: 0.9rem;
+    }
+
+    .galint-custody-metric {
+        padding: 0.8rem 0.9rem;
+        border-radius: 16px;
+        background: rgba(15, 23, 42, 0.2);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        min-width: 0;
+    }
+
+    .galint-custody-metric-label {
+        display: block;
+        font-size: 0.68rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: rgba(148, 163, 184, 0.9);
+        margin-bottom: 0.3rem;
+    }
+
+    .galint-custody-metric-value {
+        display: block;
+        font-size: 0.97rem;
+        font-weight: 800;
+        color: #f8fafc;
+        overflow-wrap: anywhere;
+    }
+
+    .galint-custody-note {
+        margin: 0;
+        color: rgba(226, 232, 240, 0.78);
+        line-height: 1.55;
+        font-size: 0.86rem;
     }
 
     .galint-custody-overline {
