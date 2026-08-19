@@ -752,6 +752,23 @@
                 generatedAtElement.textContent = header.generated_at_label;
             }
 
+            const projectionCards = (payload.projection_cards || []).map((card) => {
+                const statusClass = card.status === 'alto' || card.status === 'crítico' || card.status === 'em_atenção' ? 'danger' : 'info';
+                const photoMarkup = card.photo_url ? `<img src="${escapeHtml(card.photo_url)}" alt="${escapeHtml(card.item || 'Item')}" style="width:100%;max-height:90px;object-fit:cover;border-radius:12px;margin-bottom:10px;">` : '';
+                const entryText = card.entry_date ? `Entrada ${escapeHtml(card.entry_date)}` : 'Entrada -';
+                const negativeText = card.negative_date || card.date || '-';
+                return `
+                    <article class="analytics-kpi">
+                        ${photoMarkup}
+                        <span class="analytics-kpi-label">${escapeHtml(card.type === 'consumo_ferramentas' ? 'Consumo de ferramentas' : card.type === 'perdas_avarias_futuras' ? 'Perdas e avarias futuras' : 'Degradação de ferramentas')}</span>
+                        <div class="analytics-kpi-value">${escapeHtml(card.item || '-')}</div>
+                        <div class="analytics-kpi-caption"><span class="analytics-pill text-${statusClass}">${escapeHtml(card.status || 'estável')}</span> • ${escapeHtml(card.codigo || '-')}</div>
+                        <div class="analytics-kpi-caption">${entryText} • Saldo negativo ${escapeHtml(negativeText)}</div>
+                        <div class="analytics-kpi-caption">${escapeHtml(card.details || '')}</div>
+                    </article>
+                `;
+            }).join('');
+
             const insightHtml = insights.length
                 ? insights.map((insight) => `
                     <div class="analytics-insight">
@@ -763,6 +780,10 @@
                 : '<div class="analytics-caption">Nenhum insight disponível.</div>';
 
             return `
+                <section class="analytics-kpis">
+                    ${projectionCards || '<article class="analytics-kpi"><span class="analytics-kpi-label">Projeções</span><div class="analytics-kpi-value">Sem dados</div><div class="analytics-kpi-caption">Nenhuma projeção disponível para o recorte atual.</div></article>'}
+                </section>
+
                 <section class="analytics-kpis">
                     <article class="analytics-kpi">
                         <span class="analytics-kpi-label">Movimentações</span>

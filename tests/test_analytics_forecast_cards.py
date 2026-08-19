@@ -59,6 +59,32 @@ def test_build_projection_cards_predicts_future_damage_and_degradation():
     assert degradacao["item"] in {"Chave inglesa", "Serra circular"}
 
 
+def test_build_projection_cards_includes_entry_date_and_photo():
+    exit_rows = [
+        {"codigo_item": "F-100", "descricao_item": "Martelo", "categoria": "Ferramentas", "quantidade_base": 2, "data_saida": datetime(2026, 8, 1, 8, 0)},
+        {"codigo_item": "F-100", "descricao_item": "Martelo", "categoria": "Ferramentas", "quantidade_base": 3, "data_saida": datetime(2026, 8, 3, 8, 0)},
+        {"codigo_item": "F-100", "descricao_item": "Martelo", "categoria": "Ferramentas", "quantidade_base": 2, "data_saida": datetime(2026, 8, 5, 8, 0)},
+        {"codigo_item": "F-100", "descricao_item": "Martelo", "categoria": "Ferramentas", "quantidade_base": 4, "data_saida": datetime(2026, 8, 7, 8, 0)},
+    ]
+    stock_snapshot = {
+        "resumo": [{
+            "codigo": "F-100",
+            "saldo": 7.0,
+            "descricao": "Martelo",
+            "status": "OK",
+            "data_entrada": "2026-07-01",
+            "foto_path": "images/ferramentas/martelo.jpg",
+        }]
+    }
+
+    cards = AnalyticsService.build_projection_cards(exit_rows, stock_snapshot)
+    consumo = next(card for card in cards if card["type"] == "consumo_ferramentas")
+
+    assert consumo["entry_date"] == "01/07/2026"
+    assert consumo["negative_date"]
+    assert consumo["photo_url"] == "/static/images/ferramentas/martelo.jpg"
+
+
 def test_dashboard_context_exposes_projection_cards(monkeypatch):
     app = create_app()
     with app.app_context():

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from time import monotonic
 from typing import Any
 
@@ -66,6 +66,29 @@ class AnalyticsService:
             return float(value or 0.0)
         except (TypeError, ValueError):
             return 0.0
+
+    @staticmethod
+    def _format_date_label(value: Any) -> str | None:
+        parsed = AnalyticsService._parse_date(value)
+        if parsed is None:
+            return None
+        return parsed.date().strftime("%d/%m/%Y")
+
+    @staticmethod
+    def _photo_url(photo_path: Any) -> str | None:
+        raw = str(photo_path or "").strip()
+        if not raw:
+            return None
+        normalized = raw.replace("\\", "/")
+        if normalized.startswith(("http://", "https://", "data:")):
+            return normalized
+        if normalized.startswith("/"):
+            return normalized
+        try:
+            from flask import url_for
+            return url_for("static", filename=normalized)
+        except Exception:
+            return f"/static/{normalized.lstrip('/')}"
 
     @staticmethod
     def _group_label(period_date: date, *, use_month: bool) -> str:
@@ -359,6 +382,173 @@ class AnalyticsService:
             ),
         }
 
+    @staticmethod
+    def _parse_date(value: Any) -> datetime | None:
+        if value is None:
+            return None
+        if isinstance(value, datetime):
+            return value
+        if isinstance(value, date):
+            return datetime.combine(value, datetime.min.time())
+        if isinstance(value, str):
+            raw = value.strip()
+            if not raw:
+                return None
+            for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d", "%d/%m/%Y %H:%M:%S", "%d/%m/%Y"):
+                try:
+                    return datetime.strptime(raw, fmt)
+                except ValueError:
+                    continue
+            try:
+                return datetime.fromisoformat(raw)
+            except ValueError:
+                return None
+        return None
+
+    @classmethod
+    def build_projection_cards(cls, exit_rows: list[dict[str, Any]], stock_snapshot: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+        stock_by_code: dict[str, float] = {}
+        metadata_by_code: dict[str, dict[str, Any]] = {}
+        for row in (stock_snapshot or {}).get("resumo") or []:
+            code = str(row.get("codigo") or "").strip()
+            if code:
+                stock_by_code[code] = cls._safe_float(row.get("saldo"))
+                metadata_by_code[code] = {
+                    "foto_path": row.get("foto_path") or row.get("photo_path"),
+                    "data_entrada": row.get("data_entrada") or row.get("entry_date") or row.get("data_cadastro"),
+                }
+
+        item_consumption: defaultdict[str, list[dict[str, Any]]] = defaultdict(list)
+        item_damage: defaultdict[str, list[dict[str, Any]]] = defaultdict(list)
+
+        for row in exit_rows or []:
+            code = str(row.get("codigo_item") or "").strip()
+            if not code:
+                continue
+            item = str(row.get("descricao_item") or code).strip() or code
+            dt = cls._parse_date(row.get("data_saida") or row.get("data") or row.get("data_saida_label"))
+            if dt is None:
+                continue
+            quantity = cls._safe_float(row.get("quantidade_base"))
+            item_consumption[code].append({"item": item, "date": dt, "quantity": quantity})
+            if bool(row.get("is_loss_damage")):
+                item_damage[code].append({
+                    "item": item,
+                    "date": dt,
+                    "kind": str(row.get("loss_damage_kind") or "quebrada").strip().lower(),
+                    "quantity": quantity,
+                })
+
+        def _estimate_zero_date(entries: list[dict[str, Any]], stock_balance: float) -> tuple[str | None, str, int, float]:
+            if not entries:
+                return None, "estável", 0, 0.0
+            ordered_entries = sorted(entries, key=lambda item: item["date"])
+            daily_usage: defaultdict[date, float] = defaultdict(float)
+            for entry in ordered_entries:
+                daily_usage[entry["date"].date()] += cls._safe_float(entry.get("quantity"))
+            values = sorted(daily_usage.items(), key=lambda item: item[0])
+            if len(values) < 2:
+                return None, "estável", 0, 0.0
+
+            x_values = list(range(len(values)))
+            y_values = [float(amount) for _, amount in values]
+            x_mean = sum(x_values) / len(x_values)
+            y_mean = sum(y_values) / len(y_values)
+            numerator = sum((x - x_mean) * (y - y_mean) for x, y in zip(x_values, y_values))
+            denominator = sum((x - x_mean) ** 2 for x in x_values)
+            slope = numerator / denominator if denominator else 0.0
+            if slope <= 0:
+                return None, "estável", 0, 0.0
+
+            last_day = values[-1][0]
+            days_to_zero = max(0.0, stock_balance / slope)
+            zero_date = last_day + timedelta(days=max(int(days_to_zero), 1))
+            status = "em_atenção" if days_to_zero <= 30 else "estável"
+            return zero_date.strftime("%d/%m/%Y"), status, int(days_to_zero), slope
+
+        cards: list[dict[str, Any]] = []
+
+        for code, entries in item_consumption.items():
+            item_name = entries[0]["item"]
+            stock_balance = stock_by_code.get(code, 0.0)
+            projected_date, status, days_to_zero, slope = _estimate_zero_date(entries, stock_balance)
+            if projected_date is None:
+                continue
+            metadata = metadata_by_code.get(code, {})
+            entry_date = cls._format_date_label(metadata.get("data_entrada"))
+            photo_url = cls._photo_url(metadata.get("foto_path"))
+            cards.append({
+                "type": "consumo_ferramentas",
+                "item": item_name,
+                "codigo": code,
+                "date": projected_date,
+                "negative_date": projected_date,
+                "entry_date": entry_date,
+                "status": status,
+                "forecast_days": days_to_zero,
+                "trend": round(slope, 2),
+                "stock_balance": round(stock_balance, 2),
+                "photo_url": photo_url,
+                "details": f"Consumo médio de {round(slope, 2)} und/dia; estoque previsto para zerar em {days_to_zero} dias.",
+            })
+
+        for code, entries in item_damage.items():
+            if not entries:
+                continue
+            item_name = entries[0]["item"]
+            ordered_dates = sorted(item["date"] for item in entries)
+            span_days = max((ordered_dates[-1] - ordered_dates[0]).days, 1)
+            total_damage = len(entries)
+            projected_count = max(0, round((total_damage / span_days) * 30))
+            projected_date = (ordered_dates[-1] + timedelta(days=30)).strftime("%d/%m/%Y")
+            cards.append({
+                "type": "perdas_avarias_futuras",
+                "item": item_name,
+                "codigo": code,
+                "date": projected_date,
+                "status": "alto" if projected_count >= 2 else "moderado",
+                "projected_count": projected_count,
+                "details": f"Risco estimado de {projected_count} ocorrência(s) em 30 dias com base no histórico recente.",
+            })
+
+        degradation_candidates: list[dict[str, Any]] = []
+        for code, entries in item_consumption.items():
+            if not entries:
+                continue
+            item_name = entries[0]["item"]
+            total_quantity = sum(item["quantity"] for item in entries)
+            stock_balance = stock_by_code.get(code, 0.0)
+            wear_index = round((total_quantity / max(stock_balance, 1.0)) * 100, 1)
+            if stock_balance <= 0:
+                wear_index = 100.0
+            latest_date = max(item["date"] for item in entries)
+            degradation_candidates.append({
+                "type": "degradacao_ferramentas",
+                "item": item_name,
+                "codigo": code,
+                "date": (latest_date + timedelta(days=30)).strftime("%d/%m/%Y"),
+                "status": "crítico" if wear_index >= 80 else "alerta",
+                "wear_index": wear_index,
+                "details": f"Uso acumulado equivale a {wear_index}% do estoque atual; degradação esperada em 30 dias.",
+            })
+
+        if degradation_candidates:
+            cards.append(sorted(degradation_candidates, key=lambda item: item["wear_index"], reverse=True)[0])
+
+        if not cards:
+            return [{
+                "type": "consumo_ferramentas",
+                "item": "Sem risco identificado",
+                "codigo": "-",
+                "date": datetime.now().strftime("%d/%m/%Y"),
+                "status": "estável",
+                "forecast_days": 0,
+                "details": "Sem histórico suficiente para projetar consumo crítico.",
+            }]
+
+        cards.sort(key=lambda item: (0 if item["type"] == "consumo_ferramentas" else 1 if item["type"] == "perdas_avarias_futuras" else 2, item.get("date") or ""))
+        return cards[:3]
+
     @classmethod
     def get_dashboard_payload(
         cls,
@@ -488,6 +678,7 @@ class AnalyticsService:
                 "entry_exit_balance": movement_balance,
             },
             "top_items": top_items,
+            "projection_cards": cls.build_projection_cards(exit_rows, stock),
             "insights": cls._build_operational_insights(
                 dataset,
                 top_items=top_items,
@@ -538,6 +729,7 @@ class AnalyticsService:
             "header": dict(payload.get("header") or {}),
             "context": dict(payload.get("context") or {}),
             "kpis": dict(payload.get("kpis") or {}),
+            "projection_cards": list(payload.get("projection_cards") or []),
             "insights": list(payload.get("insights") or []),
             "table_summary": {
                 "total_rows": ((payload.get("table") or {}).get("total_rows") or 0),

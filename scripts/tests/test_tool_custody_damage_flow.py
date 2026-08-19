@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 import unittest
 from datetime import datetime
 from unittest.mock import Mock, patch
@@ -7,6 +8,7 @@ from unittest.mock import Mock, patch
 from galint_flask import create_app
 from galint_flask.models import RetiradaFerramenta, Saida
 from galint_flask.services.tool_custody_service import ToolCustodyService
+from galint_flask.utils.html_pdf import render_html_to_pdf
 
 
 class ToolCustodyDamageFlowTests(unittest.TestCase):
@@ -54,6 +56,20 @@ class ToolCustodyDamageFlowTests(unittest.TestCase):
         self.assertEqual(kwargs["quantity"], -2.0)
         self.assertEqual(kwargs["metadata"]["legacy_event_type"], "quebra_ferramenta")
         self.assertEqual(kwargs["payload"].quantidade, 2.0)
+
+    def test_render_html_to_pdf_falls_back_to_reportlab_when_weasyprint_is_unavailable(self) -> None:
+        original_module = sys.modules.get("weasyprint")
+        sys.modules["weasyprint"] = None
+        try:
+            result = render_html_to_pdf(html="<h1>Relatório</h1><p>Teste de baixa</p>")
+        finally:
+            if original_module is None:
+                sys.modules.pop("weasyprint", None)
+            else:
+                sys.modules["weasyprint"] = original_module
+
+        self.assertEqual(result.engine, "reportlab-fallback")
+        self.assertTrue(result.pdf_bytes.startswith(b"%PDF"))
 
 
 if __name__ == "__main__":

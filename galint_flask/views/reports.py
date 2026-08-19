@@ -386,7 +386,7 @@ def _generate_item_report_pdf(*, item, saidas, period_days: int, time_service) -
     return buffer.getvalue()
 
 
-def _generate_usuario_report_pdf(*, usuario, saidas, period_days: int, time_service) -> bytes:
+def _generate_usuario_report_pdf(*, usuario, saidas, period_days: int, time_service, signature_required: bool = False) -> bytes:
     try:
         from reportlab.lib import colors
         from reportlab.lib.pagesizes import A4, landscape
@@ -431,15 +431,29 @@ def _generate_usuario_report_pdf(*, usuario, saidas, period_days: int, time_serv
     period_label = "Todo historico" if period_days <= 0 else f"Ultimos {period_days} dias"
     total_quantity = sum((row.get("quantidade", 0) if isinstance(row, dict) else getattr(row, "quantidade", 0)) for row in saidas) if saidas else 0
     story.append(Paragraph(f"Funcionario: <b>{_safe_text(usuario['nome'])}</b>", styles["Normal"]))
+    loss_damage_rows = [
+        row for row in saidas
+        if isinstance(row, dict) and row.get("is_loss_damage")
+    ]
+    lost_count = sum(1 for row in loss_damage_rows if row.get("loss_damage_kind") == "Perdida")
+    broken_count = len(loss_damage_rows) - lost_count
+
     story.append(Paragraph(f"Matricula: {_safe_text(usuario['matricula'])}", styles["Normal"]))
     story.append(Paragraph(f"Cargo: {_safe_text(usuario['cargo'])}", styles["Normal"]))
     story.append(Paragraph(f"Periodo: {period_label}", styles["Normal"]))
     story.append(Paragraph(f"Total de movimentacoes: {len(saidas)}", styles["Normal"]))
     story.append(Paragraph(f"Quantidade total movimentada: {total_quantity}", styles["Normal"]))
     story.append(Spacer(1, 0.4 * cm))
+    if loss_damage_rows:
+        story.append(Paragraph(
+            f"<b>ATENCAO:</b> {len(loss_damage_rows)} ocorrencia(s) destacada(s) em vermelho "
+            f"({lost_count} perdida(s) e {broken_count} avariada(s)/quebrada(s)).",
+            styles["Normal"],
 
+        ))
     header = ["Data", "Hora", "Item", "Codigo", "Qtd.", "Tipo", "Periodo", "Local"]
     data = [header]
+    highlighted_row_indexes: list[int] = []
     for saida in saidas:
         data_saida = saida.get("data") if isinstance(saida, dict) else getattr(saida, "data_saida", None)
         item_descricao = saida.get("item_descricao") if isinstance(saida, dict) else getattr(saida, "item_descricao", None)
@@ -453,6 +467,13 @@ def _generate_usuario_report_pdf(*, usuario, saidas, period_days: int, time_serv
             local_info = f"{local_info} | {str(observacao).strip()}"
         tipo_movimentacao = saida.get("tipo") if isinstance(saida, dict) else "Retirada"
 
+        is_loss_damage = bool(saida.get("is_loss_damage")) if isinstance(saida, dict) else False
+        if is_loss_damage:
+            kind_label = _safe_text(saida.get("loss_damage_kind") or "Avariada")
+            reason = _safe_text(saida.get("loss_damage_reason") or "Motivo nao informado")
+            tipo_movimentacao = f"FERRAMENTA {kind_label.upper()}"
+            local_info = f"{local_info} | OCORRENCIA {kind_label.upper()}: {reason}"
+
         data.append(
             [
                 time_service.format_local(data_saida, "%d/%m/%Y"),
@@ -465,6 +486,8 @@ def _generate_usuario_report_pdf(*, usuario, saidas, period_days: int, time_serv
                 Paragraph(_safe_text(local_info[:200]), body_style),
             ]
         )
+        if is_loss_damage:
+            highlighted_row_indexes.append(len(data) - 1)
 
     if len(data) == 1:
         story.append(Paragraph("Nenhuma retirada registrada para este funcionario.", styles["Italic"]))
@@ -494,7 +517,21 @@ def _generate_usuario_report_pdf(*, usuario, saidas, period_days: int, time_serv
             ]
         )
     )
+    if highlighted_row_indexes:
+        highlight_style = []
+        for row_index in highlighted_row_indexes:
+            highlight_style.extend([
+                ("BACKGROUND", (0, row_index), (-1, row_index), colors.HexColor("#fee2e2")),
+                ("TEXTCOLOR", (0, row_index), (-1, row_index), colors.HexColor("#991b1b")),
+                ("FONTNAME", (0, row_index), (-1, row_index), "Helvetica-Bold"),
+            ])
+        table.setStyle(TableStyle(highlight_style))
     story.append(table)
+    if signature_required:
+        story.append(Spacer(1, 1.2 * cm))
+        story.append(Paragraph("Declaracao de ciencia da ocorrencia destacada acima.", styles["Normal"]))
+        story.append(Spacer(1, 1.4 * cm))
+        story.append(Paragraph("________________________________________<br/>Assinatura do funcionario responsavel", styles["Normal"]))
     doc.build(story)
     return buffer.getvalue()
 

@@ -136,6 +136,7 @@ def _run_migrations(app: Flask) -> None:
         print("Aplicando migrations (upgrade)...")
         _upgrade(directory=str(migrations_dir))
         print("Migrações aplicadas com sucesso.")
+        
     except Exception as e:
         print(f"Erro ao executar migrações: {e}")
         raise

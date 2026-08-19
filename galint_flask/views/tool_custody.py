@@ -1,15 +1,18 @@
 """View para controle de custódia de ferramentas."""
 from __future__ import annotations
 
+from io import BytesIO
+from typing import Any
+
 from flask import Blueprint, current_app, render_template, request, flash, redirect, url_for, jsonify, send_file
 from flask_login import login_required, current_user
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import or_
 
 from ..extensions import db
-from ..models import RetiradaFerramenta, Saida, Usuario
+from ..models import InventarioEvento, Item, RetiradaFerramenta, Saida, Usuario
 from ..services.ferramentas import ferramentas_service
-from ..services.tool_custody_service import tool_custody_service
+from ..services.tool_custody_service import _loss_damage_label, _normalize_loss_damage_kind, _parse_loss_damage_description, tool_custody_service
 from ..utils.time_service import TimeService
 
 bp = Blueprint("tool_custody", __name__, url_prefix="/controle-ferramentas")
