@@ -414,9 +414,30 @@ class AnalyticsService:
             if code:
                 stock_by_code[code] = cls._safe_float(row.get("saldo"))
                 metadata_by_code[code] = {
-                    "foto_path": row.get("foto_path") or row.get("photo_path"),
+                    "foto_path": row.get("foto_path") or row.get("photo_path") or row.get("foto_url") or row.get("photo_url"),
+                    "foto_url": row.get("foto_url") or row.get("photo_url") or row.get("foto_path") or row.get("photo_path"),
                     "data_entrada": row.get("data_entrada") or row.get("entry_date") or row.get("data_cadastro"),
+                    "document_number": row.get("document_number") or row.get("numero_documento") or row.get("nota_fiscal") or row.get("preco_compra_documento"),
                 }
+
+        if metadata_by_code:
+            item_codes = [code for code in metadata_by_code if code]
+            try:
+                from flask import has_app_context
+                if has_app_context():
+                    from ..models import Item
+                    item_rows = Item.query.filter(Item.codigo_item.in_(item_codes)).all() if item_codes else []
+                    for item in item_rows:
+                        code = str(item.codigo_item or "").strip()
+                        if not code:
+                            continue
+                        metadata = metadata_by_code.setdefault(code, {})
+                        metadata.setdefault("foto_path", item.foto_path)
+                        metadata.setdefault("foto_url", item.foto_path)
+                        metadata.setdefault("data_entrada", item.data_entrada)
+                        metadata.setdefault("document_number", item.preco_compra_documento or item.nota_fiscal)
+            except Exception:
+                pass
 
         item_consumption: defaultdict[str, list[dict[str, Any]]] = defaultdict(list)
         item_damage: defaultdict[str, list[dict[str, Any]]] = defaultdict(list)
@@ -476,7 +497,8 @@ class AnalyticsService:
                 continue
             metadata = metadata_by_code.get(code, {})
             entry_date = cls._format_date_label(metadata.get("data_entrada"))
-            photo_url = cls._photo_url(metadata.get("foto_path"))
+            photo_url = cls._photo_url(metadata.get("foto_url") or metadata.get("foto_path"))
+            document_number = str(metadata.get("document_number") or "").strip() or "-"
             cards.append({
                 "type": "consumo_ferramentas",
                 "item": item_name,
@@ -484,6 +506,7 @@ class AnalyticsService:
                 "date": projected_date,
                 "negative_date": projected_date,
                 "entry_date": entry_date,
+                "document_number": document_number,
                 "status": status,
                 "forecast_days": days_to_zero,
                 "trend": round(slope, 2),

@@ -215,6 +215,15 @@ def index():
     return render_template("dashboard/index.html", **_dashboard_context(shared_view=False))
 
 
+@blueprint.get("/projecoes-futuras")
+@login_required
+def future_rupture_projection_page():
+    payload = analytics_service.get_dashboard_payload()
+    cards = list(payload.get("projection_cards") or [])
+    cards.sort(key=lambda card: (card.get("forecast_days") is None, card.get("forecast_days") or 999999, str(card.get("item") or "")))
+    return render_template("dashboard/future_rupture_projection.html", projection_cards=cards)
+
+
 @blueprint.get("/compartilhar/<token>")
 def share(token: str):
     configured = current_app.config.get("DASHBOARD_SHARE_TOKEN")
