@@ -1,4 +1,4 @@
-"""Validação rápida do filtro de PDF por aba (materiais/ferramentas).
+r"""Validação rápida do filtro de PDF por aba (materiais/ferramentas).
 
 Roda a função de rota (bypass login_required) em um request_context e imprime:
 - status_code

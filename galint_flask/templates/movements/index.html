@@ -262,31 +262,30 @@
     (function () {
         if (window.initLiquidFractionForms) {
             window.initLiquidFractionForms({
-                fractions: {{ liquid_fractions | tojson }
-    },
-        types: { { liquid_types | tojson } },
-    itemInfoUrlTemplate: "{{ url_for('movements.item_info', codigo='__codigo__') }}",
+                fractions: {{ liquid_fractions | tojson }},
+                types: {{ liquid_types | tojson }},
+                itemInfoUrlTemplate: "{{ url_for('movements.item_info', codigo='__codigo__') }}",
             });
         }
 
-    function playBeep() {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.frequency.value = 880;
-        gain.gain.value = 0.2;
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        setTimeout(() => {
-            osc.stop();
-            ctx.close();
-        }, 120);
-    }
+        function playBeep() {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.frequency.value = 880;
+            gain.gain.value = 0.2;
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            setTimeout(() => {
+                osc.stop();
+                ctx.close();
+            }, 120);
+        }
 
-    document.querySelectorAll('.scan-form').forEach((form) => {
-        form.addEventListener('submit', () => playBeep());
-    });
+        document.querySelectorAll('.scan-form').forEach((form) => {
+            form.addEventListener('submit', () => playBeep());
+        });
     }());
 </script>
 {% endblock %}

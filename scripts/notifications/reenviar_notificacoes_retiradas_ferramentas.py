@@ -1,4 +1,4 @@
-"""Reenvia (reenfileira) notificações de Telegram para retiradas de ferramentas.
+r"""Reenvia (reenfileira) notificações de Telegram para retiradas de ferramentas.
 
 Útil quando retiradas foram registradas antes da implementação de notificação.
 

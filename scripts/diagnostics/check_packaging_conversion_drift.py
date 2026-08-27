@@ -1,4 +1,4 @@
-"""Audita e corrige drift entre embalagem operacional, conversao dinamica e NF processada.
+r"""Audita e corrige drift entre embalagem operacional, conversao dinamica e NF processada.
 
 Uso:
   .\.venv\Scripts\python.exe check_packaging_conversion_drift.py

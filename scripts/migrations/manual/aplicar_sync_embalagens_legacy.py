@@ -1,4 +1,4 @@
-"""Aplica sincronização conservadora do estoque de embalagens a partir do saldo legado.
+r"""Aplica sincronização conservadora do estoque de embalagens a partir do saldo legado.
 
 Quando usar:
 - Itens com `tipo_embalagem_novo` configurado e `unidades_por_embalagem > 0`

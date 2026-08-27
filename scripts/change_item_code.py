@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Altera o código (EAN) de um item com segurança.
+r"""Altera o código (EAN) de um item com segurança.
 
 Uso:
   .\.venv\Scripts\python.exe scripts/change_item_code.py 7890983086224 7890988603224

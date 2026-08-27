@@ -1,4 +1,4 @@
-"""Diagnóstico: itens com embalagem com estoque novo incoerente vs saldo legado.
+r"""Diagnóstico: itens com embalagem com estoque novo incoerente vs saldo legado.
 
 Uso:
   .\.venv\Scripts\python.exe check_embalagens_inconsistentes.py

@@ -1,4 +1,4 @@
-"""Auditoria read-only da matematica de estoque e cobertura BI.
+r"""Auditoria read-only da matematica de estoque e cobertura BI.
 
 Uso:
     .venv\Scripts\python.exe check_bi_stock_math.py

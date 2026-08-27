@@ -120,10 +120,9 @@
     (function () {
         if (window.initLiquidFractionForms) {
             window.initLiquidFractionForms({
-                fractions: {{ liquid_fractions | tojson }
-    },
-        types: { { liquid_types | tojson } },
-    itemInfoUrlTemplate: "{{ url_for('movements.item_info', codigo='__codigo__') }}"
+                fractions: {{ liquid_fractions | tojson }},
+                types: {{ liquid_types | tojson }},
+                itemInfoUrlTemplate: "{{ url_for('movements.item_info', codigo='__codigo__') }}"
             });
         }
     }());

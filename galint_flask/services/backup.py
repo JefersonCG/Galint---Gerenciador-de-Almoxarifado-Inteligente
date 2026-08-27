@@ -153,7 +153,7 @@ class BackupService:
         env["PGOPTIONS"] = (existing + " " + extra).strip() if existing else extra
 
     def _windows_find_postgres_tool(self, tool: str) -> str | None:
-        """Tenta localizar ferramentas do PostgreSQL no Windows.
+        r"""Tenta localizar ferramentas do PostgreSQL no Windows.
 
         Procura em locais comuns como:
         - %ProgramFiles%\PostgreSQL\<versão>\bin

@@ -14,6 +14,8 @@ build/
 .venv/
 .venv_broken/
 .venv_build/
+.venv_py314_backup/
+.venv313_build/
 .venv_portable/
 venv/
 ENV/
@@ -93,6 +95,7 @@ galint-mobile/.expo/
 galint-mobile/build/
 galint-mobile/dist/
 galint-mobile/build_inspect/
+galint-mobile/build-output/
 
 # Mobile builds
 *.apk
@@ -102,6 +105,7 @@ galint-mobile/build_inspect/
 # Cache
 *.cache
 .cache/
+.pytest_cache/
 site/
 
 # Runtime / uploads (gerados pela aplicação)
