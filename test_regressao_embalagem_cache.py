@@ -24,6 +24,7 @@ from galint_flask.services.ledger_reconciliation import ReconciliationResult
 from galint_flask.services.legacy_stock_normalizer import infer_packaging_measure, is_legacy_liter_packaging_compatible, resolve_packaging_factor, resolve_packaging_quantity_and_unit, uses_packaging_legacy_normalization
 from galint_flask.services.price_normalization import infer_document_quantity_unit_for_item, infer_price_unit_for_item
 from galint_flask.services.purchase_projection_runtime_service import PurchaseProjectionService
+from galint_flask.services.scope_report_service import ScopeReportService
 from galint_flask.services.telegram_service import TelegramService
 from galint_flask.views.inventory import _uses_packaging_system
 from galint_flask.views.nf import _apply_document_item_normalization, _build_nf_new_item_packaging_payload, _item_matches_seeded_nf_pre_registration, _mark_manual_nf_document_items_for_pre_registration, _normalize_nf_new_item_packaging_type
@@ -646,6 +647,127 @@ def test_reconcile_normalized_item_prices_prefere_prova_historica_embalada() -> 
     assert item.preco_compra_unitario_base == 2.359
 
 
+def test_reconcile_normalized_item_prices_corrige_base_unitaria_legada_de_caixa() -> None:
+    item = MockPackagingItem(
+        codigo_item="CAIXA-PRECO-UNITARIO-LEGADO",
+        tipo_embalagem="caixa",
+        unidades_por_embalagem=16,
+        unidade="Unidade",
+    )
+    item.preco_compra_unitario = 40.0
+    item.preco_compra_unitario_base = 40.0
+    item.preco_compra_unidade_preco = "unidade"
+    item.preco_compra_fator_base = 1.0
+    item.preco_reposicao_unitario = None
+    item.preco_reposicao_unitario_base = None
+    item.preco_reposicao_unidade_preco = None
+    item.preco_reposicao_fator_base = None
+
+    changed = _reconcile_normalized_item_prices(item)
+
+    assert changed is True
+    assert item.preco_compra_unitario == 40.0
+    assert item.preco_compra_unidade_preco == "caixa"
+    assert item.preco_compra_fator_base == 16.0
+    assert item.preco_compra_unitario_base == 2.5
+
+
+def test_reconcile_normalized_item_prices_preserva_preco_unitario_baixo_de_parafuso() -> None:
+    item = MockPackagingItem(
+        codigo_item="PARAFUSO-PRECO-UNITARIO",
+        tipo_embalagem="caixa",
+        unidades_por_embalagem=500,
+        unidade="Unidade",
+    )
+    item.preco_compra_unitario = None
+    item.preco_compra_unitario_base = None
+    item.preco_compra_unidade_preco = None
+    item.preco_compra_fator_base = None
+    item.preco_reposicao_unitario = 0.09
+    item.preco_reposicao_unitario_base = 0.09
+    item.preco_reposicao_unidade_preco = "unidade"
+    item.preco_reposicao_fator_base = 1.0
+
+    changed = _reconcile_normalized_item_prices(item)
+
+    assert changed is False
+    assert item.preco_reposicao_unitario_base == 0.09
+    assert item.preco_reposicao_unidade_preco == "unidade"
+    assert item.preco_reposicao_fator_base == 1.0
+
+
+def test_scope_report_normaliza_preco_de_pacote_antes_de_multiplicar_saldo() -> None:
+    item = MockPackagingItem(
+        codigo_item="CAIXA-ESCOPO-PRECO-LEGADO",
+        tipo_embalagem="caixa",
+        unidades_por_embalagem=16,
+        unidade="Unidade",
+    )
+    item.preco_compra_unitario = 40.0
+    item.preco_compra_unitario_base = 40.0
+    item.preco_compra_unidade_preco = "unidade"
+    item.preco_compra_fator_base = 1.0
+    item.preco_compra_fonte = "cadastro"
+    item.preco_compra_documento = "NF-TESTE"
+
+    reference = ScopeReportService._stored_price_reference(item, kind="compra")
+
+    assert reference["unit_price_base"] == 2.5
+    assert reference["factor_to_base"] == 16.0
+    assert reference["correction"] == "normalizado_por_fator"
+    assert "evitar inflacao" in reference["warning"]
+
+
+def test_scope_report_preserva_preco_unitario_baixo_de_parafuso() -> None:
+    item = MockPackagingItem(
+        codigo_item="PARAFUSO-ESCOPO-UNITARIO",
+        tipo_embalagem="caixa",
+        unidades_por_embalagem=500,
+        unidade="Unidade",
+    )
+    item.preco_reposicao_unitario = 0.09
+    item.preco_reposicao_unitario_base = 0.09
+    item.preco_reposicao_unidade_preco = "unidade"
+    item.preco_reposicao_fator_base = 1.0
+    item.preco_reposicao_fonte = "cadastro"
+    item.preco_reposicao_query = ""
+    item.preco_reposicao_url = ""
+
+    reference = ScopeReportService._stored_price_reference(item, kind="reposicao")
+    context = ScopeReportService._resolve_item_price_context(item, override=None)
+
+    assert reference["unit_price_base"] == 0.09
+    assert reference["factor_to_base"] == 1.0
+    assert reference["correction"] is None
+    assert context["unit_price_base"] == 0.09
+    assert context["warning"] is None
+
+
+def test_scope_report_normaliza_cotacao_externa_de_pacote_por_fator() -> None:
+    item = MockPackagingItem(
+        codigo_item="CAIXA-ESCOPO-MERCADO",
+        tipo_embalagem="caixa",
+        unidades_por_embalagem=16,
+        unidade="Unidade",
+    )
+    quote = SimpleNamespace(
+        unit_price=160.0,
+        unit_price_base=160.0,
+        factor_to_base=1.0,
+        price_unit="unidade",
+        source_name="Fornecedor teste",
+        offer_title="Caixa com 16 unidades",
+        product_url="https://example.invalid/caixa-16",
+        capture_query="caixa 16 unidades",
+    )
+
+    reference = ScopeReportService._normalize_market_quote_reference(item, quote)
+
+    assert reference["unit_price_base"] == 10.0
+    assert reference["factor_to_base"] == 16.0
+    assert reference["correction"] == "mercado_normalizado_por_fator"
+
+
 def test_apply_document_item_normalization_corrige_linha_pendente_de_rolo_para_embalagem() -> None:
     item = MockPackagingItem(
         codigo_item="ROLO-NF-PENDENTE-TESTE",
@@ -1044,6 +1166,11 @@ def main() -> int:
     test_legacy_liter_packaging_compatible_rejeita_item_com_medida_em_gramas()
     test_reconcile_normalized_item_prices_corrige_preco_base_legado_de_pacote()
     test_reconcile_normalized_item_prices_infere_unidade_embalagem_quando_ausente()
+    test_reconcile_normalized_item_prices_corrige_base_unitaria_legada_de_caixa()
+    test_reconcile_normalized_item_prices_preserva_preco_unitario_baixo_de_parafuso()
+    test_scope_report_normaliza_preco_de_pacote_antes_de_multiplicar_saldo()
+    test_scope_report_preserva_preco_unitario_baixo_de_parafuso()
+    test_scope_report_normaliza_cotacao_externa_de_pacote_por_fator()
     test_apply_document_item_normalization_corrige_linha_pendente_de_rolo_para_embalagem()
     test_serialize_stock_document_mostra_conversao_documental_do_rolo()
     test_resolve_item_base_unit_label_prefere_unidade_canonica_do_rolo()

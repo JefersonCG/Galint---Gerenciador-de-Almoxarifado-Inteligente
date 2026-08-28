@@ -1154,6 +1154,21 @@ def _assign_normalized_item_price(item: Item, *, raw_price: object, kind: str, p
             unit_price=raw_value,
             price_unit=resolved_price_unit,
         )
+        if _should_prefer_packaging_price_unit(
+            item,
+            raw_value=float(raw_value),
+            stored_base=getattr(item, base_attr, None),
+            stored_factor=getattr(item, factor_attr, None),
+            stored_unit=resolved_price_unit,
+        ):
+            inferred_price_unit = infer_price_unit_for_item(item)
+            if not _price_unit_matches(resolved_price_unit, inferred_price_unit):
+                normalized = normalize_item_price(
+                    item,
+                    unit_price=raw_value,
+                    price_unit=inferred_price_unit,
+                )
+                resolved_price_unit = inferred_price_unit
     except Exception:
         fallback_price_unit = infer_price_unit_for_item(item)
         if fallback_price_unit != resolved_price_unit:
@@ -1186,6 +1201,45 @@ def _price_field_matches(current: object, expected: float | None, *, tolerance: 
 
 def _price_unit_matches(current: object, expected: str | None) -> bool:
     return _normalize_price_unit_value(current) == _normalize_price_unit_value(expected)
+
+
+def _price_unit_matches_internal_base(item: Item, unit: object) -> bool:
+    unit_key = unit_conversion_engine._normalize_unit_code(str(unit or "").strip().lower())
+    if not unit_key:
+        return True
+    base_key = unit_conversion_engine._normalize_unit_code(resolve_canonical_unit(item))
+    item_unit_key = unit_conversion_engine._normalize_unit_code(getattr(item, "unidade", None))
+    return unit_key in {base_key, item_unit_key}
+
+
+def _should_prefer_packaging_price_unit(
+    item: Item,
+    *,
+    raw_value: float,
+    stored_base: object,
+    stored_factor: object,
+    stored_unit: object,
+) -> bool:
+    packaging_factor = _coerce_price_value(resolve_packaging_factor(item))
+    if packaging_factor is None or packaging_factor <= 1:
+        return False
+    if ignore_packaging_metadata_for_stock(item):
+        return False
+
+    base_value = _coerce_price_value(stored_base)
+    base_missing_or_raw = base_value is None or base_value <= 0 or abs(float(base_value) - float(raw_value)) <= 1e-8
+    if not base_missing_or_raw:
+        return False
+
+    factor_value = _coerce_price_value(stored_factor)
+    if factor_value is not None and factor_value > 1:
+        return True
+
+    inferred_unit = _normalize_price_unit_value(infer_price_unit_for_item(item))
+    if not inferred_unit or not is_packaging_unit_code(inferred_unit):
+        return False
+
+    return raw_value >= 1.0 and _price_unit_matches_internal_base(item, stored_unit)
 
 
 def _resolve_effective_historical_line_units(
@@ -1356,6 +1410,34 @@ def _reconcile_normalized_item_price(item: Item, *, kind: str) -> bool:
                 ):
                     normalized = candidate
                     break
+        elif _should_prefer_packaging_price_unit(
+            item,
+            raw_value=float(raw_value),
+            stored_base=getattr(item, base_attr, None),
+            stored_factor=getattr(item, factor_attr, None),
+            stored_unit=stored_unit,
+        ):
+            inferred_unit = infer_price_unit_for_item(item)
+            for candidate in candidates:
+                if _price_unit_matches(candidate.price_unit, inferred_unit):
+                    normalized = candidate
+                    break
+
+    if (
+        _should_prefer_packaging_price_unit(
+            item,
+            raw_value=float(raw_value),
+            stored_base=getattr(item, base_attr, None),
+            stored_factor=getattr(item, factor_attr, None),
+            stored_unit=stored_unit,
+        )
+        and float(normalized.factor_to_base or 0.0) <= 1.0
+    ):
+        inferred_unit = infer_price_unit_for_item(item)
+        for candidate in candidates:
+            if _price_unit_matches(candidate.price_unit, inferred_unit):
+                normalized = candidate
+                break
 
     expected_base = float(normalized.unit_price_base)
     expected_unit = normalized.price_unit

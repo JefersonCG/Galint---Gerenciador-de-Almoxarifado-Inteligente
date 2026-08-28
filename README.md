@@ -145,6 +145,24 @@ Arquivos principais:
 - percentual de movimentos
 - PDFs e XLSX para operação, auditoria e prestação de contas
 
+#### XLS Relatório de Escopo e análise para venda
+
+O botão `XLS Relatório de Escopo`, na tela de Itens cadastrados, gera o relatório executivo do estoque e agrega uma visão de apoio para análise de itens que podem ser vendidos sem substituir o controle normal do almoxarifado.
+
+- `Fotografia Contabil`: primeira aba do arquivo, com quadro de corte do almoxarifado na data do download, totais financeiros, itens com saldo, alertas, movimentações e resumo por categoria para apoio a auditoria.
+- `Detalhamento`: mantém uma lista enxuta para análise operacional, sem as colunas intermediárias de unidade/fator de preço, preço base, valores de estoque/reposição, menor externo e economia potencial.
+- `Unidade medida`: coluna editável da aba `Detalhamento` com lista de opções padronizadas.
+- `Situação (Manter/Excesso)`: coluna da aba `Detalhamento` com validação de lista. O padrão é `Manter`; ao trocar para `Excesso`, o item passa a alimentar a análise de venda.
+- `Analise P Venda`: aba compatível com Excel para a visão solicitada como "Análise P/Venda"; a coluna `Usa no condomínio? (SIM/NÃO)` fica antes dos valores de mercado e `Nota fiscal/origem do valor` fica no final da tabela.
+- Espelhamento de excesso: o XLS usa uma coluna auxiliar oculta para numerar itens marcados como `Excesso` e alimentar a aba `Analise P Venda` com fórmulas simples de `INDEX`/`MATCH`.
+- `Marcas e Cobertura`: não é gerada neste XLS para manter o arquivo focado na análise de estoque e venda.
+- Preço de pacote/lote: quando o saldo interno está em unidades, metros, litros ou quilos, o relatório só multiplica por preço unitário base. Se o preço bruto vier de pacote/caixa/fardo/saco com fator confiável, o XLS divide pelo fator antes de totalizar; sem fator confiável, o valor fica bloqueado/sinalizado para não inflar a fotografia contábil.
+- `Qtd. para vender`: calculada por fórmula como saldo atual menos `Qtd. para manter`, sem aceitar resultado negativo.
+- `Valor estimado de venda`: calculado por fórmula como `Qtd. para vender` multiplicada pelo `Valor unitário de mercado`.
+- `Usa no condomínio? (SIM/NÃO)`: campo com validação de lista para apoiar a decisão de venda.
+
+Fluxo recomendado: clicar em `XLS Relatório de Escopo`, revisar a aba `Detalhamento`, marcar como `Excesso` apenas o que pode sair do estoque, preencher quantidade mínima a manter e valor de mercado, e então usar a aba `Analise P Venda` como visão filtrada dos itens vendáveis.
+
 Arquivos principais:
 
 - `galint_flask/templates/reports/index.html`
