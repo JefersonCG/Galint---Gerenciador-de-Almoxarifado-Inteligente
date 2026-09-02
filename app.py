@@ -1,5 +1,6 @@
 """WSGI entry point for the GALINT Flask application."""
 import argparse
+import atexit
 import os
 import sys
 from pathlib import Path
@@ -8,6 +9,40 @@ from typing import Any, cast
 from flask import Flask
 from galint_flask import create_app
 from galint_flask.services.barcode_studio_file_launcher import open_layout_file
+
+
+_SINGLE_INSTANCE_LOCK_HANDLE = None
+
+
+def _acquire_single_instance_lock():
+    """Acquire a process-held lock before initializing the Flask app."""
+    lock_path = Path(__file__).resolve().parent / "instance" / "galint.app.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    handle = lock_path.open("a+", encoding="ascii")
+    try:
+        handle.seek(0)
+        if os.name == "nt":
+            import msvcrt
+
+            handle.write("0")
+            handle.flush()
+            handle.seek(0)
+            msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        handle.seek(0)
+        handle.truncate()
+        handle.write(str(os.getpid()))
+        handle.flush()
+    except (OSError, BlockingIOError):
+        handle.close()
+        print("Outra instancia do GALINT ja esta em execucao.", file=sys.stderr)
+        raise SystemExit(1)
+
+    atexit.register(handle.close)
+    return handle
 
 
 def _bootstrap_command(argv: list[str] | None = None) -> str | None:
@@ -103,7 +138,12 @@ def _create_runtime_app() -> Flask:
     return runtime_app
 
 
-app: Flask | None = None if _bootstrap_command() else _create_runtime_app()
+if _bootstrap_command() is None:
+    if __name__ == "__main__":
+        _SINGLE_INSTANCE_LOCK_HANDLE = _acquire_single_instance_lock()
+    app: Flask | None = _create_runtime_app()
+else:
+    app = None
 
 
 def _load_migration_funcs():
