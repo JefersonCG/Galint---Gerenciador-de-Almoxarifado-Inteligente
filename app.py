@@ -275,4 +275,4 @@ if __name__ == "__main__":
     print("Iniciando servidor em modo HTTP")
     print(f"   URL: http://localhost:{port}")
     print(f"   LAN: http://SEU_IP:{port} (ex.: http://10.0.0.245:{port})")
-    app.run(host="0.0.0.0", port=port, debug=True, use_reloader=False, threaded=True)
+    app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False, threaded=True)
