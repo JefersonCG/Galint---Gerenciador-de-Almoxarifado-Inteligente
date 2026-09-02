@@ -486,7 +486,7 @@
             <h2 class="galint-section-title">Projeções operacionais</h2>
             <p class="galint-section-subtitle">Previsão de consumo, perdas e degradação com base no histórico recente</p>
         </div>
-        <a href="{{ url_for('dashboard.future_rupture_projection_page') }}" class="btn btn-sm btn-outline-light">Ver todas</a>
+        <a href="{{ url_for('dashboard.projecoes_futuras') }}" class="btn btn-sm btn-outline-light">Ver todas</a>
     </div>
     <div class="galint-custody-feed-list">
         {% for card in projection_cards %}
@@ -3511,6 +3511,10 @@
         }
 
         async function load(highlightNew = false) {
+            if (load.inFlight) {
+                return;
+            }
+            load.inFlight = true;
             try {
                 const response = await fetch(endpoint, {
                     headers: {
@@ -3527,6 +3531,8 @@
             } catch (error) {
                 console.error('Falha ao atualizar o feed de saídas:', error);
                 feedContainer.innerHTML = '<p class="text-danger mb-0">Erro ao carregar as movimentações. Tente novamente em instantes.</p>';
+            } finally {
+                load.inFlight = false;
             }
         }
 

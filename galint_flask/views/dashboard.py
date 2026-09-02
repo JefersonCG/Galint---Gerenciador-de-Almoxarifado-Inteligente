@@ -9,13 +9,14 @@ from typing import Any
 
 from flask import Blueprint, Response, abort, current_app, jsonify, render_template, url_for
 from flask_login import current_user, login_required
+from sqlalchemy import func
 
 from ..services.analytics_service import analytics_service
 from ..services.category_catalog import category_catalog_service
 from ..services.inventory import inventory_service
 from ..services.finance_service import finance_service
 from ..extensions import db
-from ..models import Entrada
+from ..models import Entrada, FinanceLedgerEntry, FinanceSupplier
 from ..utils.report_branding import get_company_header_lines
 from ..utils.time_service import TimeService
 from openpyxl import Workbook
@@ -89,37 +90,84 @@ def _build_dashboard_now_context() -> dict[str, str]:
 
 
 def _build_quick_panel_snapshots(competencia: str) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    cache_key = f"dashboard_quick_panels:{competencia}"
+    cached = finance_service._get_cached(cache_key)
+    if cached is not None:
+        return cached
+
     try:
-        finance_report = finance_service.get_stock_value_report()
-        supplier_report = finance_service.get_supplier_lab_report()
-        suppliers = supplier_report.get("suppliers") or []
-        supplier_summary = supplier_report.get("summary") or {}
-        active_suppliers = sum(1 for supplier in suppliers if supplier.get("ativo"))
-        top_supplier = next(
-            (supplier for supplier in suppliers if float(supplier.get("investido_total") or 0.0) > 0.0),
-            suppliers[0] if suppliers else None,
+        exercise = finance_service.resolve_exercise()
+        items = inventory_service.list_items(use_cache=True)
+        total_compra = sum(float(item.get("valor_estoque_compra_total") or 0.0) for item in items)
+        total_reposicao = sum(float(item.get("valor_estoque_reposicao_total") or 0.0) for item in items)
+        missing_compra = sum(1 for item in items if item.get("valor_estoque_compra_total") is None)
+        missing_reposicao = sum(1 for item in items if item.get("valor_estoque_reposicao_total") is None)
+        total_investido = db.session.query(func.sum(FinanceLedgerEntry.valor_total)).filter(
+            FinanceLedgerEntry.data_lancamento >= exercise["start_dt"],
+            FinanceLedgerEntry.data_lancamento <= exercise["end_dt"],
+        ).scalar()
+        total_sem_comprovacao = db.session.query(func.sum(FinanceLedgerEntry.valor_total)).filter(
+            FinanceLedgerEntry.data_lancamento >= exercise["start_dt"],
+            FinanceLedgerEntry.data_lancamento <= exercise["end_dt"],
+            FinanceLedgerEntry.comprovacao_status != "comprovado",
+        ).scalar()
+        supplier_totals = (
+            db.session.query(
+                FinanceLedgerEntry.fornecedor_id,
+                func.sum(FinanceLedgerEntry.valor_total).label("investido_total"),
+                func.count(func.distinct(FinanceLedgerEntry.codigo_item)).label("itens_distintos"),
+            )
+            .filter(FinanceLedgerEntry.data_lancamento >= exercise["start_dt"])
+            .filter(FinanceLedgerEntry.data_lancamento <= exercise["end_dt"])
+            .filter(FinanceLedgerEntry.fornecedor_id.isnot(None))
+            .group_by(FinanceLedgerEntry.fornecedor_id)
+            .order_by(func.sum(FinanceLedgerEntry.valor_total).desc())
+            .all()
         )
+        supplier_ids = [int(row.fornecedor_id) for row in supplier_totals]
+        suppliers = FinanceSupplier.query.filter(FinanceSupplier.id.in_(supplier_ids)).all() if supplier_ids else []
+        suppliers_by_id = {int(s.id): s for s in suppliers}
+        top_supplier_row = supplier_totals[0] if supplier_totals else None
+        top_supplier = suppliers_by_id.get(int(top_supplier_row.fornecedor_id)) if top_supplier_row else None
+        total_docs = (
+            db.session.query(FinanceLedgerEntry.tipo_documento, FinanceLedgerEntry.numero_documento)
+            .filter(FinanceLedgerEntry.data_lancamento >= exercise["start_dt"])
+            .filter(FinanceLedgerEntry.data_lancamento <= exercise["end_dt"])
+            .filter(FinanceLedgerEntry.fornecedor_id.isnot(None))
+            .distinct()
+            .count()
+        )
+        total_sem_loja = db.session.query(func.sum(FinanceLedgerEntry.valor_total)).filter(
+            FinanceLedgerEntry.data_lancamento >= exercise["start_dt"],
+            FinanceLedgerEntry.data_lancamento <= exercise["end_dt"],
+            FinanceLedgerEntry.fornecedor_id.is_(None),
+        ).scalar()
 
         finance_snapshot = {
-            "exercise_label": (finance_report.get("exercise") or {}).get("label") or competencia,
-            "total_compra": _format_brl(finance_report.get("total_compra")),
-            "total_reposicao": _format_brl(finance_report.get("total_reposicao")),
-            "total_investido": _format_brl(finance_report.get("total_investido_exercicio")),
-            "total_sem_comprovacao": _format_brl(finance_report.get("total_sem_comprovacao_exercicio")),
-            "missing_compra": int(finance_report.get("missing_compra") or 0),
-            "missing_reposicao": int(finance_report.get("missing_reposicao") or 0),
+            "exercise_label": str(exercise.get("label") or competencia),
+            "total_compra": _format_brl(total_compra),
+            "total_reposicao": _format_brl(total_reposicao),
+            "total_investido": _format_brl(total_investido),
+            "total_sem_comprovacao": _format_brl(total_sem_comprovacao),
+            "missing_compra": missing_compra,
+            "missing_reposicao": missing_reposicao,
         }
         supplier_snapshot = {
-            "total_lojas": int(supplier_summary.get("total_lojas") or 0),
-            "total_ativos": int(active_suppliers),
-            "total_docs": int(supplier_summary.get("total_docs") or 0),
-            "total_sem_loja": _format_brl(supplier_summary.get("total_sem_loja")),
-            "top_nome": (top_supplier or {}).get("nome_exibicao") or "Sem compras vinculadas",
-            "top_total": _format_brl((top_supplier or {}).get("investido_total")),
-            "top_itens": int((top_supplier or {}).get("itens_distintos") or 0),
+            "total_lojas": len(supplier_totals),
+            "total_ativos": sum(1 for supplier in suppliers if supplier.ativo),
+            "total_docs": int(total_docs),
+            "total_sem_loja": _format_brl(total_sem_loja),
+            "top_nome": top_supplier.nome_exibicao() if top_supplier else "Sem compras vinculadas",
+            "top_total": _format_brl(top_supplier_row.investido_total if top_supplier_row else 0),
+            "top_itens": int(top_supplier_row.itens_distintos if top_supplier_row else 0),
         }
-        return finance_snapshot, supplier_snapshot
+        return finance_service._set_cached(
+            cache_key,
+            (finance_snapshot, supplier_snapshot),
+            ttl_seconds=30.0,
+        )
     except Exception:
+        current_app.logger.exception("Falha ao montar paineis rapidos do dashboard")
         return None, None
 
 
@@ -215,7 +263,7 @@ def index():
     return render_template("dashboard/index.html", **_dashboard_context(shared_view=False))
 
 
-@blueprint.get("/projecoes-futuras")
+@blueprint.get("/projecoes-futuras", endpoint="projecoes_futuras")
 @login_required
 def future_rupture_projection_page():
     payload = analytics_service.get_dashboard_payload()
