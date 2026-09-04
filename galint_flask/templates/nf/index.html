@@ -1552,6 +1552,20 @@
         border: 1px solid rgba(148, 163, 184, 0.14);
     }
 
+    .docf-detail-image-box {
+        grid-column: 1 / -1;
+    }
+
+    .docf-detail-image-box img {
+        display: block;
+        width: 100%;
+        max-height: 220px;
+        object-fit: contain;
+        border-radius: 8px;
+        margin-top: 0.45rem;
+        background: #f8fafc;
+    }
+
     .docf-detail-label {
         display: block;
         font-size: 0.72rem;
@@ -2829,6 +2843,9 @@
                         <div class="docf-detail-box"><span class="docf-detail-label">Recebimento</span><span class="docf-detail-value">{{ nota_detalhes.data_recebimento.strftime('%d/%m/%Y') if nota_detalhes.data_recebimento|default(None, true) else 'Não informado' }}</span></div>
                         {% if nota_detalhes.tipo_documento == 'nf' %}
                         <div class="docf-detail-box"><span class="docf-detail-label">Chave</span><span class="docf-detail-value">{{ nota_detalhes.chave_acesso|default('Não informada', true) }}</span></div>
+                        {% if nota_detalhes.imagem_secundaria_path|default('', true) %}
+                        <div class="docf-detail-box docf-detail-image-box"><span class="docf-detail-label">Espelho de conferência</span><img src="{{ url_for('static', filename=nota_detalhes.imagem_secundaria_path) }}" alt="Imagem secundária do documento fiscal" loading="lazy"></div>
+                        {% endif %}
                         {% endif %}
                         <div class="docf-detail-box"><span class="docf-detail-label">Status</span><span class="docf-detail-value">{{ nota_detalhes.status_integracao|default('manual', true)|replace('_', ' ')|title }}</span></div>
                         <div class="docf-detail-box"><span class="docf-detail-label">Qtd. total</span><span class="docf-detail-value">{{ nota_detalhes.total_quantidade|number_br(2, True) }}</span></div>

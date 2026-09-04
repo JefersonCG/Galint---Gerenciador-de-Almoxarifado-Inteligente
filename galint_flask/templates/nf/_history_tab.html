@@ -191,6 +191,7 @@
                         <div class="docf-detail-box"><span class="docf-detail-label">Emissão</span><span class="docf-detail-value">{{ nota.data_emissao.strftime('%d/%m/%Y') if nota.data_emissao|default(None, true) else '—' }}</span></div>
                         <div class="docf-detail-box"><span class="docf-detail-label">Status</span><span class="docf-detail-value">{{ nota.status_integracao|default('manual', true)|replace('_', ' ')|title }}</span></div>
                         <div class="docf-detail-box"><span class="docf-detail-label">Valor</span><span class="docf-detail-value">{{ nota.total_valor|default(0, true)|currency_br }}</span></div>
+                        {% if nota.imagem_secundaria_path|default('', true) %}<div class="docf-detail-box docf-detail-image-box"><span class="docf-detail-label">Espelho de conferência</span><img src="{{ url_for('static', filename=nota.imagem_secundaria_path) }}" alt="Imagem secundária do documento fiscal" loading="lazy"></div>{% endif %}
                     </div>
                     {% if can_manage and nota.id_documento is defined and nota.id_documento is not none %}
                     <div class="mt-3">

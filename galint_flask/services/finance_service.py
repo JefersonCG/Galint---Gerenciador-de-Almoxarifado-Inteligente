@@ -1622,6 +1622,7 @@ class FinanceService:
             "data_recebimento": document.data_recebimento,
             "movimenta_estoque": bool(document.movimenta_estoque) if document.movimenta_estoque is not None else True,
             "chave_acesso": document.chave_acesso,
+            "imagem_secundaria_path": document.imagem_secundaria_path,
             "fornecedor_id": document.fornecedor_id,
             "fornecedor_nome": supplier_name,
             "cnpj_emitente": document.cnpj_emitente,

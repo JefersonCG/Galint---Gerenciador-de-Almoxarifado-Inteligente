@@ -6124,6 +6124,10 @@ class InventoryService:
             .all()
         ]
 
+        for document_item in DocumentoEntradaEstoqueItem.query.filter_by(codigo_item=codigo).all():
+            from .document_history_service import record_document_item
+            record_document_item(document_item, evento="item_excluido")
+
         if saidas_ids:
             TelegramOutbox.query.filter(TelegramOutbox.saida_id.in_(saidas_ids)).delete(
                 synchronize_session=False
@@ -6169,6 +6173,7 @@ class InventoryService:
         # Agora pode excluir o item (cascade vai excluir saídas e entradas)
         db.session.delete(item)
         db.session.commit()
+        self.invalidate_realtime_views()
         
 
     def registrar_entrada(self, payload: MovimentoPayload, skip_notification: bool = False) -> Any:

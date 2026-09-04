@@ -8,7 +8,7 @@ from flask import current_app, has_request_context, url_for
 from sqlalchemy import func, or_
 
 from ..extensions import db
-from ..models import InventarioEvento, Item, Saida, Usuario
+from ..models import EntradaFiscalHistorico, InventarioEvento, Item, Saida, Usuario
 from ..utils.time_service import TimeService
 
 
@@ -94,6 +94,20 @@ class GeneralSearchService:
             .all()
         )
 
+        archived = (
+            EntradaFiscalHistorico.query.filter(
+                or_(
+                    EntradaFiscalHistorico.descricao_item.ilike(f"%{search_term}%"),
+                    EntradaFiscalHistorico.codigo_item.ilike(f"%{search_term}%"),
+                    EntradaFiscalHistorico.numero_documento.ilike(f"%{search_term}%"),
+                    EntradaFiscalHistorico.chave_acesso.ilike(f"%{search_term}%"),
+                )
+            )
+            .order_by(EntradaFiscalHistorico.ocorrido_em.desc(), EntradaFiscalHistorico.id.desc())
+            .limit(max(int(limit or 0) * 2, 1))
+            .all()
+        )
+
         results: list[dict[str, Any]] = []
         for item in items:
             category = str(item.categoria or "Sem categoria").strip() or "Sem categoria"
@@ -112,6 +126,26 @@ class GeneralSearchService:
                     "photo_url": _photo_url(item.foto_path),
                 }
             )
+        known_codes = {str(result.get("codigo_item") or "") for result in results}
+        for record in archived:
+            if record.codigo_item in known_codes:
+                continue
+            title = record.descricao_item or record.codigo_item
+            results.append(
+                {
+                    "entity_type": "item_historico",
+                    "id": record.codigo_item,
+                    "codigo_item": record.codigo_item,
+                    "title": title,
+                    "subtitle": f"Codigo {_format_code(record.codigo_item)} • Documento {record.numero_documento}",
+                    "badge": "Historico fiscal",
+                    "photo_url": None,
+                    "historical": True,
+                }
+            )
+            known_codes.add(record.codigo_item)
+            if len(results) >= max(int(limit or 0), 1):
+                break
         return results
 
     def build_employee_payload(self, matricula: str) -> dict[str, Any]:
@@ -303,7 +337,13 @@ class GeneralSearchService:
             raise ValueError("Item nao informado")
 
         item = Item.query.get(item_code)
-        if item is None:
+        fiscal_history = (
+            EntradaFiscalHistorico.query
+            .filter(EntradaFiscalHistorico.codigo_item == item_code)
+            .order_by(EntradaFiscalHistorico.data_recebimento.desc().nullslast(), EntradaFiscalHistorico.id.desc())
+            .all()
+        )
+        if item is None and not fiscal_history:
             raise ValueError("Item nao encontrado")
 
         query = (
@@ -382,17 +422,20 @@ class GeneralSearchService:
         except Exception:
             current_balance = 0.0
 
+        reference = fiscal_history[0] if fiscal_history else None
+        item_payload = {
+            "codigo": item.codigo_item if item else item_code,
+            "codigo_curto": _format_code(item.codigo_item if item else item_code),
+            "descricao": (item.descricao if item else reference.descricao_item) or item_code,
+            "categoria": (item.categoria if item else reference.categoria_item) or "Sem categoria",
+            "marca": (item.marca if item else reference.marca_item) or "Sem marca",
+            "saldo_atual": current_balance if item else 0.0,
+            "photo_url": _photo_url(item.foto_path) if item else None,
+            "historical_only": item is None,
+        }
         return {
             "scope": "item",
-            "item": {
-                "codigo": item.codigo_item,
-                "codigo_curto": _format_code(item.codigo_item),
-                "descricao": item.descricao or item.codigo_item,
-                "categoria": item.categoria or "Sem categoria",
-                "marca": item.marca or "Sem marca",
-                "saldo_atual": current_balance,
-                "photo_url": _photo_url(item.foto_path),
-            },
+            "item": item_payload,
             "summary": {
                 "movement_count": len(movements),
                 "total_quantity": round(total_quantity, 3),
@@ -402,7 +445,24 @@ class GeneralSearchService:
             },
             "movements": movements,
             "daily_totals": daily_totals,
-            "download_url": _safe_url_for("reports.by_item_download", search=item.codigo_item, type="item", period=normalized_period),
+            "fiscal_history": [
+                {
+                    "evento": row.evento,
+                    "documento": row.numero_documento,
+                    "tipo_documento": row.tipo_documento,
+                    "chave_acesso": row.chave_acesso,
+                    "data_emissao": row.data_emissao.isoformat() if row.data_emissao else None,
+                    "data_recebimento": row.data_recebimento.isoformat() if row.data_recebimento else None,
+                    "quantidade": _safe_float(row.quantidade),
+                    "valor_unitario": row.valor_unitario,
+                    "valor_total": row.valor_total,
+                    "status_processamento": row.status_processamento,
+                    "motivo": row.motivo,
+                    "ocorrido_em": TimeService.isoformat_utc(row.ocorrido_em),
+                }
+                for row in fiscal_history
+            ],
+            "download_url": _safe_url_for("reports.by_item_download", search=item_code, type="item", period=normalized_period),
         }
 
     def build_daily_payload(self, *, selected_date: date, search_term: str = "") -> dict[str, Any]:

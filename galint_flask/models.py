@@ -954,6 +954,7 @@ class DocumentoEntradaEstoque(db.Model):
     observacao: Mapped[str | None] = mapped_column(Text, nullable=True)
     status_integracao: Mapped[str] = mapped_column(String(40), nullable=False, default="manual")
     mensagem_integracao: Mapped[str | None] = mapped_column(Text, nullable=True)
+    imagem_secundaria_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
     criado_por: Mapped[str | None] = mapped_column(String(100), nullable=True)
     criado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
     atualizado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
@@ -1002,6 +1003,38 @@ class DocumentoEntradaEstoqueItem(db.Model):
     item: Mapped[Item] = relationship("Item", foreign_keys=[codigo_item])
     stock_movement: Mapped["StockMovement | None"] = relationship("StockMovement")
     operation_log: Mapped["OperationLog | None"] = relationship("OperationLog")
+
+
+class EntradaFiscalHistorico(db.Model):
+    """Registro append-only de cada linha fiscal recebida ou removida."""
+    __tablename__ = "entradas_fiscais_historico"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    evento: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
+    ocorrido_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), index=True)
+    documento_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    documento_item_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    codigo_item: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    descricao_item: Mapped[str | None] = mapped_column(Text, nullable=True)
+    marca_item: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    categoria_item: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    tipo_documento: Mapped[str] = mapped_column(String(40), nullable=False)
+    numero_documento: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
+    chave_acesso: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    data_emissao: Mapped[date | None] = mapped_column(Date, nullable=True)
+    data_recebimento: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
+    quantidade: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    unidade_quantidade: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    quantidade_base: Mapped[float | None] = mapped_column(Float, nullable=True)
+    valor_unitario: Mapped[float | None] = mapped_column(Float, nullable=True)
+    valor_unitario_base: Mapped[float | None] = mapped_column(Float, nullable=True)
+    unidade_preco: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    valor_total: Mapped[float | None] = mapped_column(Float, nullable=True)
+    lote: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    data_validade: Mapped[date | None] = mapped_column(Date, nullable=True)
+    status_processamento: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    motivo: Mapped[str | None] = mapped_column(Text, nullable=True)
+    usuario_matricula: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
 
 class InventarioEvento(db.Model):

@@ -26,6 +26,8 @@ from ..services.category_catalog import DEFAULT_INVENTORY_CATEGORY_NAME, categor
 from ..services.document_integrity_service import allow_document_quantity_update
 from ..services.finance_service import MANUAL_INTERNAL_DOCUMENT_NUMBER, finance_service
 from ..services.item_foto_service import ItemFotoService
+from ..services.document_history_service import record_document_item
+from ..services.document_image_service import generate_document_illustration
 from ..services.nf_deletion_audit_sqlite import log_document_item_deletion
 from ..services.inventory import BASE_ITEM_UNIT_OPTIONS, ensure_base_item_unit, inventory_service, normalize_base_item_unit
 from ..services.price_normalization import (
@@ -179,6 +181,7 @@ def _document_model_preview(documento: DocumentoEntradaEstoque | None) -> dict[s
         "data_emissao": documento.data_emissao.isoformat() if documento.data_emissao else None,
         "data_recebimento": documento.data_recebimento.isoformat() if documento.data_recebimento else None,
         "chave_acesso": documento.chave_acesso,
+        "imagem_secundaria_path": documento.imagem_secundaria_path,
         "movimenta_estoque": bool(documento.movimenta_estoque),
         "status_integracao": documento.status_integracao,
         "mensagem_integracao": documento.mensagem_integracao,
@@ -1947,6 +1950,10 @@ def registrar_nf():
         )
         document_item = document_result.get("document_item")
         documento = document_result.get("document")
+        if document_item is not None:
+            record_document_item(document_item, evento="entrada_registrada", usuario=current_user.id)
+        if documento is not None and not documento.imagem_secundaria_path:
+            documento.imagem_secundaria_path = generate_document_illustration(documento, document_item)
         for duplicate_notice in document_result.get("duplicate_notices") or []:
             flash(duplicate_notice, "warning")
         pre_registration_count = 0
@@ -2498,6 +2505,7 @@ def excluir_item_documento(documento_id: int, documento_item_id: int):
         return redirect(_redirect_to_nf_context(numero_documento=numero_documento, fallback_tab="historico"))
 
     try:
+        record_document_item(item_row, evento="linha_excluida", usuario=current_user.id, motivo=motivo_exclusao)
         _purge_linked_entry(item_row.entrada_id)
         _purge_document_item_financial_entry(documento, item_row)
         db.session.delete(item_row)
@@ -2560,6 +2568,7 @@ def excluir_item_documento_por_erro_digitacao(documento_id: int, documento_item_
     }
 
     try:
+        record_document_item(item_row, evento="linha_estornada", usuario=current_user.id, motivo=motivo_exclusao)
         reversal_result = finance_service.delete_document_item_for_typo(
             item_row,
             usuario_matricula=current_user.id,
