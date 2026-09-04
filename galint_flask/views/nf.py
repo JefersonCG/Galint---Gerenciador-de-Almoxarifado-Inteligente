@@ -1041,7 +1041,7 @@ def _mark_item_for_nf_pre_registration(
         item_model,
         document_number=document_number,
     )
-    needs_pre_registration = force or already_pending or seeded_by_document or (origin_nf and not finished_nf_pre_registration)
+    needs_pre_registration = already_pending or seeded_by_document or (origin_nf and not finished_nf_pre_registration)
     if not needs_pre_registration:
         return False
 
