@@ -22,9 +22,10 @@ class SchemaCompatRule:
 RUNTIME_SCHEMA_COMPAT_RULES: tuple[SchemaCompatRule, ...] = (
     SchemaCompatRule(
         table_name="entrada_documentos",
-        required_columns=("movimenta_estoque",),
+        required_columns=("movimenta_estoque", "imagem_secundaria_path"),
         ddl_statements=(
             "ALTER TABLE entrada_documentos ADD COLUMN IF NOT EXISTS movimenta_estoque boolean NOT NULL DEFAULT true",
+            "ALTER TABLE entrada_documentos ADD COLUMN IF NOT EXISTS imagem_secundaria_path varchar(255)",
         ),
     ),
     SchemaCompatRule(
