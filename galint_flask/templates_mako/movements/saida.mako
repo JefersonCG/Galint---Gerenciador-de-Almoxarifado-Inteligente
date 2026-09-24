@@ -731,6 +731,25 @@
         color: #ffffff;
     }
 
+    .draft-autosave-status {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+        margin-top: 0.15rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #475569;
+    }
+
+    .draft-autosave-status i {
+        color: #059669;
+    }
+
+    .draft-autosave-status.is-saved {
+        color: #047857;
+    }
+
     .btn-express-return {
         cursor: pointer;
     }
@@ -1041,6 +1060,10 @@
         <button class="btn btn-register" type="button" id="btn-registrar" disabled>
             <i class="bi bi-check-circle me-2"></i>Registrar Saída
         </button>
+        <div class="draft-autosave-status" id="draft-autosave-status">
+            <i class="bi bi-cloud-check"></i>
+            <span id="draft-autosave-status-text">Salvamento automático ativo: a lista é guardada neste computador a cada 60 segundos.</span>
+        </div>
     </div>
     </div>
 </div>
@@ -1226,12 +1249,18 @@ ${parent.scripts()}
     // ou recarregamento da página. Fica só neste navegador e é apagado ao registrar a saída.
     const draftStorageKey = 'galint.saidaDraftState.v1';
     const draftMaxAgeMs = 24 * 60 * 60 * 1000;
+    // Guarda de 60 segundos: mesmo sem nenhum clique, a lista que ainda não foi
+    // registrada é salva sozinha, para nada se perder se a tela fechar de repente.
+    const draftAutoSaveIntervalMs = 60000;
     const draftBanner = document.getElementById('draft-restore-banner');
     const draftBannerDetail = document.getElementById('draft-restore-banner-detail');
     const btnDescartarRascunho = document.getElementById('btn-descartar-rascunho');
+    const draftAutoSaveStatus = document.getElementById('draft-autosave-status');
+    const draftAutoSaveStatusText = document.getElementById('draft-autosave-status-text');
     let draftRestoreRunning = false;
     let draftPersistDisabled = false;
     let draftPersistTimer = null;
+    let draftAutoSaveTimer = null;
 
     function buildDraftSnapshot() {
         return {
@@ -1256,7 +1285,7 @@ ${parent.scripts()}
 
     function persistDraftState() {
         if (draftRestoreRunning || draftPersistDisabled) {
-            return;
+            return false;
         }
         try {
             const temConteudo = items.length > 0
@@ -1264,12 +1293,61 @@ ${parent.scripts()}
                 || String(inputLocal.value || '').trim() !== '';
             if (!temConteudo) {
                 window.localStorage.removeItem(draftStorageKey);
-                return;
+                updateAutoSaveStatus(null);
+                return false;
             }
             window.localStorage.setItem(draftStorageKey, JSON.stringify(buildDraftSnapshot()));
+            updateAutoSaveStatus(new Date());
+            return true;
         } catch (error) {
             console.warn('Não foi possível salvar a lista de saída neste navegador:', error);
+            updateAutoSaveStatus(null, 'Não foi possível salvar a lista automaticamente neste navegador.');
+            return false;
         }
+    }
+
+    function updateAutoSaveStatus(savedAt, mensagemAlternativa) {
+        if (!draftAutoSaveStatus || !draftAutoSaveStatusText) {
+            return;
+        }
+        if (mensagemAlternativa) {
+            draftAutoSaveStatus.classList.remove('is-saved');
+            draftAutoSaveStatusText.textContent = mensagemAlternativa;
+            return;
+        }
+        if (!savedAt) {
+            draftAutoSaveStatus.classList.remove('is-saved');
+            draftAutoSaveStatusText.textContent = 'Salvamento automático ativo: a lista é guardada neste computador a cada 60 segundos.';
+            return;
+        }
+        const hora = savedAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        draftAutoSaveStatus.classList.add('is-saved');
+        draftAutoSaveStatusText.textContent = 'Lista salva automaticamente às ' + hora + '. Se a tela fechar, ela volta do jeito que está.';
+    }
+
+    function runDraftAutoSave() {
+        if (draftPersistDisabled || draftRestoreRunning) {
+            return;
+        }
+        if (items.length === 0) {
+            return;
+        }
+        persistDraftState();
+    }
+
+    function startDraftAutoSave() {
+        if (draftAutoSaveTimer) {
+            return;
+        }
+        draftAutoSaveTimer = setInterval(runDraftAutoSave, draftAutoSaveIntervalMs);
+    }
+
+    function stopDraftAutoSave() {
+        if (!draftAutoSaveTimer) {
+            return;
+        }
+        clearInterval(draftAutoSaveTimer);
+        draftAutoSaveTimer = null;
     }
 
     function schedulePersistDraftState() {
@@ -1284,6 +1362,7 @@ ${parent.scripts()}
         } catch (error) {
             console.warn('Não foi possível limpar a lista salva neste navegador:', error);
         }
+        updateAutoSaveStatus(null);
     }
 
     function readStoredDraft() {
@@ -3873,6 +3952,7 @@ ${parent.scripts()}
                     }));
                 }
                 draftPersistDisabled = true;
+                stopDraftAutoSave();
                 clearDraftState();
                 alert('✓ Saídas registradas com sucesso.');
                 window.location.reload();
@@ -3916,6 +3996,7 @@ ${parent.scripts()}
     });
 
     restoreDraftState();
+    startDraftAutoSave();
 
     if (window.GalintExpressReturnModal) {
         window.GalintExpressReturnModal.init({
