@@ -14,7 +14,7 @@
 <%block name="extra_css">
 <style>
     .page-header {
-        background: linear-gradient(120deg, var(--galint-azul-500) 0%, var(--galint-azul-400) 100%);
+        background: linear-gradient(120deg, var(--galint-azul-500, #2563eb) 0%, var(--galint-azul-400, #3b82f6) 100%);
         color: white;
         padding: 2rem;
         border-radius: 12px;
@@ -54,15 +54,15 @@
     }
     
     .stat-card.verde {
-        background: linear-gradient(135deg, var(--galint-sucesso-500) 0%, var(--galint-sucesso-600) 100%);
+        background: linear-gradient(135deg, var(--galint-sucesso-500, #10b981) 0%, var(--galint-sucesso-600, #059669) 100%);
     }
     
     .stat-card.vermelho {
-        background: linear-gradient(135deg, var(--galint-perigo-400) 0%, var(--galint-perigo-500) 100%);
+        background: linear-gradient(135deg, var(--galint-perigo-400, #ef4444) 0%, var(--galint-perigo-500, #dc2626) 100%);
     }
     
     .stat-card.amarelo {
-        background: linear-gradient(135deg, #f59e0b 0%, var(--galint-alerta-600) 100%);
+        background: linear-gradient(135deg, #f59e0b 0%, var(--galint-alerta-600, #d97706) 100%);
     }
     
     .stat-number {
@@ -89,12 +89,12 @@
     }
     
     .tool-card {
-        background: var(--galint-branco);
+        background: var(--galint-branco, #ffffff);
         border-radius: 12px;
         padding: 1.5rem;
         margin-bottom: 1rem;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-        border-left: 4px solid var(--galint-azul-400);
+        border-left: 4px solid var(--galint-azul-400, #3b82f6);
         transition: all 0.3s ease;
     }
     
@@ -104,13 +104,13 @@
     }
     
     .tool-card.atrasada {
-        border-left-color: var(--galint-perigo-400);
-        background: var(--galint-perigo-050);
+        border-left-color: var(--galint-perigo-400, #ef4444);
+        background: var(--galint-perigo-050, #fef2f2);
     }
     
     .tool-card.reparo {
         border-left-color: #f59e0b;
-        background: var(--galint-alerta-050);
+        background: var(--galint-alerta-050, #fffbeb);
     }
     
     .tool-header {
@@ -150,7 +150,7 @@
     }
     
     .info-icon {
-        color: var(--galint-azul-400);
+        color: var(--galint-azul-400, #3b82f6);
         font-size: 1.1rem;
     }
     
@@ -171,12 +171,12 @@
     }
     
     .btn-devolver {
-        background: var(--galint-sucesso-500);
+        background: var(--galint-sucesso-500, #10b981);
         color: white;
     }
     
     .btn-devolver:hover {
-        background: var(--galint-sucesso-600);
+        background: var(--galint-sucesso-600, #059669);
         transform: scale(1.05);
     }
     
@@ -186,7 +186,7 @@
     }
     
     .btn-reparo:hover {
-        background: var(--galint-alerta-600);
+        background: var(--galint-alerta-600, #d97706);
         transform: scale(1.05);
     }
     
@@ -204,7 +204,7 @@
     }
     
     .badge-atrasada {
-        background: var(--galint-perigo-100);
+        background: var(--galint-perigo-100, #fee2e2);
         color: #991b1b;
     }
     

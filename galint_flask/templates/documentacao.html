@@ -8,15 +8,15 @@
         background:
             radial-gradient(circle at 14% 14%, rgba(56, 189, 248, 0.1), transparent 24%),
             radial-gradient(circle at 86% 12%, rgba(14, 165, 233, 0.1), transparent 18%),
-            linear-gradient(180deg, var(--galint-noite-900) 0%, var(--galint-noite-850) 100%);
-        color: var(--galint-neutro-200);
+            linear-gradient(180deg, var(--galint-noite-900, #07111f) 0%, var(--galint-noite-850, #0b1729) 100%);
+        color: var(--galint-neutro-200, #e2e8f0);
     }
 
     .doc-hero {
         position: relative;
         overflow: hidden;
         background: linear-gradient(135deg, rgba(15, 23, 42, 0.96) 0%, rgba(30, 41, 59, 0.9) 50%, rgba(14, 165, 233, 0.54) 100%);
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
         border-radius: 26px;
         padding: 2rem 2.4rem;
         margin-bottom: 1.75rem;
@@ -78,7 +78,7 @@
     .doc-tabs .nav-link {
         border-radius: 12px;
         border: 1px solid rgba(148, 163, 184, 0.12);
-        color: var(--galint-neutro-300);
+        color: var(--galint-neutro-300, #cbd5e1);
         font-weight: 600;
         padding: 0.55rem 0.9rem;
         background: rgba(255, 255, 255, 0.04);
@@ -87,7 +87,7 @@
     .doc-tabs .nav-link.active {
         background: linear-gradient(135deg, rgba(37, 99, 235, 0.94), rgba(14, 165, 233, 0.9));
         border-color: rgba(125, 211, 252, 0.3);
-        color: var(--galint-azul-050);
+        color: var(--galint-azul-050, #eff6ff);
         box-shadow: 0 12px 30px rgba(37, 99, 235, 0.22);
     }
 
@@ -103,7 +103,7 @@
     .doc-section-card h4,
     .doc-section-card strong,
     .doc-section-card span {
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
     }
 
     .doc-section-card .text-muted {
@@ -126,7 +126,7 @@
 
     .doc-figure i {
         font-size: 1.8rem;
-        color: var(--galint-azul-500);
+        color: var(--galint-azul-500, #2563eb);
     }
 
     .doc-figure p {

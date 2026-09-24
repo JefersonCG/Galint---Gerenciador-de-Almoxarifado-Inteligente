@@ -7,8 +7,8 @@
 {% block extra_css %}
 <style>
     .central-operations-page .content-panel {
-        background: linear-gradient(180deg, #050c18 0%, var(--galint-noite-800) 100%);
-        color: var(--galint-neutro-200);
+        background: linear-gradient(180deg, #050c18 0%, var(--galint-noite-800, #0b1220) 100%);
+        color: var(--galint-neutro-200, #e2e8f0);
     }
 
     .central-operations-page .page-header {
@@ -52,7 +52,7 @@
 
     .operations-hero h2 {
         margin: 0;
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
         font-size: clamp(2rem, 3.3vw, 2.8rem);
         font-weight: 900;
         letter-spacing: -0.04em;
@@ -64,7 +64,7 @@
 
     .operations-shell {
         position: relative;
-        background: radial-gradient(circle at top left, rgba(37, 99, 235, 0.18), transparent 24%), radial-gradient(circle at top right, rgba(16, 185, 129, 0.14), transparent 20%), linear-gradient(180deg, var(--galint-noite-900) 0%, var(--galint-noite-800) 100%);
+        background: radial-gradient(circle at top left, rgba(37, 99, 235, 0.18), transparent 24%), radial-gradient(circle at top right, rgba(16, 185, 129, 0.14), transparent 20%), linear-gradient(180deg, var(--galint-noite-900, #07111f) 0%, var(--galint-noite-800, #0b1220) 100%);
         border: 1px solid rgba(148, 163, 184, 0.16);
         border-radius: 30px;
         padding: 1.5rem;
@@ -94,25 +94,25 @@
     }
 
     .operations-toolbar .btn-outline-primary {
-        color: var(--galint-azul-050);
+        color: var(--galint-azul-050, #eff6ff);
         border-color: rgba(56, 189, 248, 0.32);
         background: rgba(14, 165, 233, 0.16);
     }
 
     .operations-toolbar .btn-outline-primary:hover {
-        color: var(--galint-branco);
-        border-color: var(--galint-azul-300);
+        color: var(--galint-branco, #ffffff);
+        border-color: var(--galint-azul-300, #60a5fa);
         background: rgba(37, 99, 235, 0.24);
     }
 
     .operations-toolbar .btn-outline-secondary {
-        color: var(--galint-neutro-200);
+        color: var(--galint-neutro-200, #e2e8f0);
         border-color: rgba(148, 163, 184, 0.32);
         background: rgba(15, 23, 42, 0.3);
     }
 
     .operations-toolbar .btn-outline-secondary:hover {
-        color: var(--galint-branco);
+        color: var(--galint-branco, #ffffff);
         border-color: rgba(226, 232, 240, 0.8);
         background: rgba(51, 65, 85, 0.62);
     }
@@ -155,7 +155,7 @@
     .operations-panel .nav-tabs .nav-link {
         border: 1px solid rgba(148, 163, 184, 0.08);
         border-bottom-color: rgba(148, 163, 184, 0.14);
-        color: var(--galint-neutro-400);
+        color: var(--galint-neutro-400, #94a3b8);
         border-radius: 14px 14px 0 0;
         padding: 0.7rem 1.1rem;
         background: linear-gradient(180deg, rgba(15, 23, 42, 0.42) 0%, rgba(15, 23, 42, 0.2) 100%);
@@ -166,13 +166,13 @@
     }
 
     .operations-panel .nav-tabs .nav-link:hover {
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
         border-color: rgba(59, 130, 246, 0.35);
         background: rgba(37, 99, 235, 0.12);
     }
 
     .operations-panel .nav-tabs .nav-link.active {
-        color: var(--galint-branco);
+        color: var(--galint-branco, #ffffff);
         border-color: rgba(148, 163, 184, 0.14);
         border-bottom-color: transparent;
         background: linear-gradient(180deg, rgba(37, 99, 235, 0.18) 0%, rgba(15, 23, 42, 0.96) 38%, rgba(17, 24, 39, 0.94) 100%);
@@ -209,23 +209,23 @@
 
     .operations-panel .badge.bg-secondary {
         background: rgba(15, 23, 42, 0.45) !important;
-        color: var(--galint-neutro-200);
+        color: var(--galint-neutro-200, #e2e8f0);
         border: 1px solid rgba(148, 163, 184, 0.25);
     }
 
     .operations-table {
         margin-bottom: 0;
-        color: var(--galint-neutro-200);
+        color: var(--galint-neutro-200, #e2e8f0);
         --bs-table-bg: transparent;
-        --bs-table-color: var(--galint-neutro-200);
+        --bs-table-color: var(--galint-neutro-200, #e2e8f0);
         --bs-table-border-color: rgba(148, 163, 184, 0.16);
         --bs-table-hover-bg: rgba(37, 99, 235, 0.14);
-        --bs-table-hover-color: var(--galint-branco);
+        --bs-table-hover-color: var(--galint-branco, #ffffff);
     }
 
     .operations-table thead th {
         background: rgba(15, 23, 42, 0.88);
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
         font-size: 0.82rem;
         text-transform: uppercase;
         letter-spacing: 0.05em;
@@ -238,14 +238,14 @@
         padding-top: 0.95rem;
         padding-bottom: 0.95rem;
         vertical-align: middle;
-        color: var(--galint-neutro-200);
+        color: var(--galint-neutro-200, #e2e8f0);
     }
 
     .operations-table .product-code,
     .operations-table .payload-preview,
     .operations-table .empty-state,
     .operations-table .text-muted {
-        color: var(--galint-neutro-400) !important;
+        color: var(--galint-neutro-400, #94a3b8) !important;
     }
 
     .operations-table .payload-preview {

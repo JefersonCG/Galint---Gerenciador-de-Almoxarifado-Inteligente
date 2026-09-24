@@ -20,24 +20,24 @@
         --soft-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         --soft-shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         --inner-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
-        --primary-blue: var(--galint-azul-400);
-        --primary-blue-light: var(--galint-azul-100);
+        --primary-blue: var(--galint-azul-400, #3b82f6);
+        --primary-blue-light: var(--galint-azul-100, #dbeafe);
         --gray-50: #f9fafb;
         --gray-100: #f3f4f6;
         --gray-200: #e5e7eb;
         --gray-300: #d1d5db;
         --gray-700: #374151;
         --gray-900: #111827;
-        --success-green: var(--galint-sucesso-500);
+        --success-green: var(--galint-sucesso-500, #10b981);
         --warning-orange: #f59e0b;
-        --danger-red: var(--galint-perigo-400);
+        --danger-red: var(--galint-perigo-400, #ef4444);
         --border-radius: 12px;
         --border-radius-sm: 8px;
         --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     body {
-        background: linear-gradient(180deg, var(--galint-noite-900) 0%, var(--galint-noite-850) 100%);
+        background: linear-gradient(180deg, var(--galint-noite-900, #07111f) 0%, var(--galint-noite-850, #0b1729) 100%);
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     }
 
@@ -49,7 +49,7 @@
 
     /* Cards Soft Depth */
     .soft-depth-card {
-        background: linear-gradient(145deg, var(--galint-neutro-900) 0%, var(--galint-neutro-850) 100%);
+        background: linear-gradient(145deg, var(--galint-neutro-900, #0f172a) 0%, var(--galint-neutro-850, #1e293b) 100%);
         border-radius: 14px;
         box-shadow: 0 18px 40px rgba(2, 8, 23, 0.35);
         padding: 0;
@@ -65,8 +65,8 @@
     }
 
     .photo-assistant-modal {
-        background: linear-gradient(180deg, var(--galint-noite-800) 0%, #111b2e 100%);
-        color: var(--galint-azul-075);
+        background: linear-gradient(180deg, var(--galint-noite-800, #0b1220) 0%, #111b2e 100%);
+        color: var(--galint-azul-075, #e5eefc);
         border: 1px solid rgba(148, 163, 184, 0.16);
         border-radius: 18px;
         overflow: hidden;
@@ -78,7 +78,7 @@
         border-bottom: 1px solid rgba(148, 163, 184, 0.14);
         background:
             radial-gradient(circle at top right, rgba(56, 189, 248, 0.15), transparent 34%),
-            linear-gradient(135deg, #162033 0%, var(--galint-noite-800) 100%);
+            linear-gradient(135deg, #162033 0%, var(--galint-noite-800, #0b1220) 100%);
     }
 
     .photo-assistant-modal .modal-footer {
@@ -90,7 +90,7 @@
     .photo-assistant-modal .modal-title {
         font-size: 1.08rem;
         font-weight: 800;
-        color: var(--galint-branco);
+        color: var(--galint-branco, #ffffff);
         letter-spacing: 0.01em;
     }
 
@@ -109,7 +109,7 @@
     .photo-assistant-modal .form-label {
         font-size: 0.82rem;
         font-weight: 700;
-        color: var(--galint-azul-075);
+        color: var(--galint-azul-075, #e5eefc);
         margin-bottom: 0.35rem;
     }
 
@@ -118,7 +118,7 @@
         background: rgba(15, 23, 42, 0.82);
         border-color: rgba(148, 163, 184, 0.18);
         border-radius: 12px;
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
         box-shadow: none;
     }
 
@@ -126,7 +126,7 @@
         background: rgba(15, 23, 42, 0.92);
         border-color: rgba(96, 165, 250, 0.46);
         box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.16);
-        color: var(--galint-branco);
+        color: var(--galint-branco, #ffffff);
     }
 
     .photo-assistant-modal .form-control::placeholder {
@@ -144,16 +144,16 @@
     }
 
     .photo-assistant-modal .btn-primary {
-        background: linear-gradient(135deg, var(--galint-azul-500) 0%, var(--galint-azul-600) 100%);
+        background: linear-gradient(135deg, var(--galint-azul-500, #2563eb) 0%, var(--galint-azul-600, #1d4ed8) 100%);
         border: none;
-        color: var(--galint-branco);
+        color: var(--galint-branco, #ffffff);
         box-shadow: 0 10px 24px rgba(37, 99, 235, 0.24);
     }
 
     .photo-assistant-modal .btn-primary:hover,
     .photo-assistant-modal .btn-primary:focus-visible {
-        background: linear-gradient(135deg, var(--galint-azul-400) 0%, var(--galint-azul-500) 100%);
-        color: var(--galint-branco);
+        background: linear-gradient(135deg, var(--galint-azul-400, #3b82f6) 0%, var(--galint-azul-500, #2563eb) 100%);
+        color: var(--galint-branco, #ffffff);
         transform: translateY(-1px);
     }
 
@@ -161,7 +161,7 @@
     .photo-assistant-modal .btn-outline-secondary {
         background: rgba(148, 163, 184, 0.08);
         border-color: rgba(148, 163, 184, 0.22);
-        color: var(--galint-azul-075);
+        color: var(--galint-azul-075, #e5eefc);
     }
 
     .photo-assistant-modal .btn-secondary:hover,
@@ -170,7 +170,7 @@
     .photo-assistant-modal .btn-outline-secondary:focus-visible {
         background: rgba(148, 163, 184, 0.14);
         border-color: rgba(148, 163, 184, 0.34);
-        color: var(--galint-branco);
+        color: var(--galint-branco, #ffffff);
     }
 
     .photo-assistant-modal .btn-outline-primary {
@@ -183,7 +183,7 @@
     .photo-assistant-modal .btn-outline-primary:focus-visible {
         background: rgba(37, 99, 235, 0.24);
         border-color: rgba(96, 165, 250, 0.5);
-        color: var(--galint-branco);
+        color: var(--galint-branco, #ffffff);
     }
 
     .photo-assistant-modal .btn-outline-info {
@@ -196,7 +196,7 @@
     .photo-assistant-modal .btn-outline-info:focus-visible {
         background: rgba(8, 145, 178, 0.24);
         border-color: rgba(103, 232, 249, 0.44);
-        color: var(--galint-branco);
+        color: var(--galint-branco, #ffffff);
     }
 
     .photo-assistant-shell {
@@ -225,7 +225,7 @@
         font-size: 0.71rem;
         text-transform: uppercase;
         letter-spacing: 0.08em;
-        color: var(--galint-ciano-400);
+        color: var(--galint-ciano-400, #38bdf8);
         margin-bottom: 0.22rem;
         font-weight: 800;
     }
@@ -233,7 +233,7 @@
     .photo-assistant-title {
         font-size: 0.96rem;
         font-weight: 800;
-        color: var(--galint-azul-025);
+        color: var(--galint-azul-025, #f8fbff);
         line-height: 1.25;
     }
 
@@ -299,7 +299,7 @@
         font-weight: 800;
         letter-spacing: 0.08em;
         text-transform: uppercase;
-        color: var(--galint-ciano-300);
+        color: var(--galint-ciano-300, #7dd3fc);
     }
 
     .photo-assistant-inline-hint {
@@ -428,7 +428,7 @@
         padding: 0.875rem 1.25rem;
         font-size: 0.95rem;
         font-weight: 600;
-        color: var(--galint-neutro-300);
+        color: var(--galint-neutro-300, #cbd5e1);
         cursor: pointer;
         position: relative;
         transition: var(--transition);
@@ -493,14 +493,14 @@
     .form-title {
         font-size: 1.75rem;
         font-weight: 700;
-        color: var(--galint-neutro-900);
+        color: var(--galint-neutro-900, #0f172a);
         margin-bottom: 0.25rem;
         letter-spacing: -0.025em;
     }
 
     .form-subtitle {
         font-size: 0.95rem;
-        color: var(--galint-neutro-700);
+        color: var(--galint-neutro-700, #334155);
         margin-bottom: 1.5rem;
         font-weight: 400;
     }
@@ -517,7 +517,7 @@
     .section-title {
         font-size: 1.05rem;
         font-weight: 700;
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
         margin-bottom: 1rem;
         display: flex;
         align-items: center;
@@ -533,7 +533,7 @@
         display: block;
         font-size: 0.85rem;
         font-weight: 600;
-        color: var(--galint-neutro-200);
+        color: var(--galint-neutro-200, #e2e8f0);
         margin-bottom: 0.4rem;
     }
 
@@ -545,7 +545,7 @@
         border: 1px solid rgba(148,163,184,0.22);
         border-radius: 10px;
         background: rgba(15,23,42,0.82);
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
         transition: var(--transition);
         font-family: inherit;
     }
@@ -553,21 +553,21 @@
     .form-control:focus,
     .form-select:focus {
         outline: none;
-        border-color: var(--galint-azul-200);
+        border-color: var(--galint-azul-200, #93c5fd);
         box-shadow: 0 0 0 4px rgba(147, 197, 253, 0.35);
     }
 
     .form-control:disabled,
     .form-control:read-only {
         background: rgba(255,255,255,0.06);
-        color: var(--galint-neutro-400);
+        color: var(--galint-neutro-400, #94a3b8);
         cursor: not-allowed;
     }
 
     input.form-control[type="date"] {
-        background: var(--galint-branco);
-        color: var(--galint-neutro-900);
-        caret-color: var(--galint-neutro-900);
+        background: var(--galint-branco, #ffffff);
+        color: var(--galint-neutro-900, #0f172a);
+        caret-color: var(--galint-neutro-900, #0f172a);
         color-scheme: light;
     }
 
@@ -576,7 +576,7 @@
     input.form-control[type="date"]::-webkit-datetime-edit-month-field,
     input.form-control[type="date"]::-webkit-datetime-edit-day-field,
     input.form-control[type="date"]::-webkit-datetime-edit-year-field {
-        color: var(--galint-neutro-900);
+        color: var(--galint-neutro-900, #0f172a);
     }
 
     input.form-control[type="date"]::-webkit-calendar-picker-indicator {
@@ -588,12 +588,12 @@
     input.form-control[type="date"]:disabled,
     input.form-control[type="date"]:read-only {
         background: rgba(255,255,255,0.82);
-        color: var(--galint-neutro-600);
+        color: var(--galint-neutro-600, #475569);
     }
 
     .form-text {
         font-size: 0.8125rem;
-        color: var(--galint-azul-100);
+        color: var(--galint-azul-100, #dbeafe);
         margin-top: 0.375rem;
         display: block;
     }
@@ -622,7 +622,7 @@
 
     .form-check-label {
         font-size: 0.9375rem;
-        color: var(--galint-neutro-200);
+        color: var(--galint-neutro-200, #e2e8f0);
         cursor: pointer;
         user-select: none;
     }
@@ -632,7 +632,7 @@
     #advancedUnitsModal .form-text,
     #advancedUnitsModal .form-label,
     #advancedUnitsModal .form-check-label {
-        color: var(--galint-azul-050) !important;
+        color: var(--galint-azul-050, #eff6ff) !important;
     }
 
     .inventory-help-row {
@@ -668,7 +668,7 @@
     .inventory-help-icon:focus-visible {
         border-color: rgba(125, 211, 252, 0.44);
         background: rgba(14, 116, 144, 0.86);
-        color: var(--galint-branco);
+        color: var(--galint-branco, #ffffff);
         box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.16);
         outline: none;
     }
@@ -731,7 +731,7 @@
         padding: 0.08rem 0.16rem 0.08rem 0;
         border: none;
         background: transparent;
-        color: var(--galint-neutro-300);
+        color: var(--galint-neutro-300, #cbd5e1);
         font-size: 0.71rem;
         font-weight: 700;
         line-height: 1.1;
@@ -743,7 +743,7 @@
 
     .inventory-switch-option:hover,
     .inventory-switch-option:focus-visible {
-        color: var(--galint-branco);
+        color: var(--galint-branco, #ffffff);
         outline: none;
     }
 
@@ -766,13 +766,13 @@
         width: 8px;
         height: 8px;
         border-radius: 999px;
-        background: var(--galint-branco);
+        background: var(--galint-branco, #ffffff);
         transition: var(--transition);
         box-shadow: 0 1px 3px rgba(15, 23, 42, 0.24);
     }
 
     .inventory-switch-option.is-selected {
-        color: var(--galint-branco);
+        color: var(--galint-branco, #ffffff);
     }
 
     .inventory-switch-option.is-selected .inventory-switch-toggle {
@@ -796,7 +796,7 @@
         border: none;
         padding: 0;
         background: transparent;
-        color: var(--galint-azul-200);
+        color: var(--galint-azul-200, #93c5fd);
         font-weight: 700;
         text-decoration: none;
     }
@@ -807,15 +807,15 @@
     }
 
     .dynamic-units-help-link:hover {
-        color: var(--galint-azul-100);
+        color: var(--galint-azul-100, #dbeafe);
         text-decoration: underline;
     }
 
     .dynamic-units-help-modal .modal-content {
-        background: linear-gradient(180deg, var(--galint-noite-900) 0%, var(--galint-noite-800) 100%);
+        background: linear-gradient(180deg, var(--galint-noite-900, #07111f) 0%, var(--galint-noite-800, #0b1220) 100%);
         border: 1px solid rgba(148, 163, 184, 0.16);
         border-radius: 28px;
-        color: var(--galint-neutro-200);
+        color: var(--galint-neutro-200, #e2e8f0);
         box-shadow: 0 32px 72px rgba(2, 6, 23, 0.52);
         overflow: hidden;
     }
@@ -836,7 +836,7 @@
         background:
             radial-gradient(circle at top left, rgba(37, 99, 235, 0.18), transparent 24%),
             radial-gradient(circle at top right, rgba(16, 185, 129, 0.14), transparent 20%),
-            linear-gradient(180deg, var(--galint-noite-900) 0%, var(--galint-noite-800) 100%);
+            linear-gradient(180deg, var(--galint-noite-900, #07111f) 0%, var(--galint-noite-800, #0b1220) 100%);
     }
 
     .advanced-units-config-modal .modal-dialog {
@@ -844,10 +844,10 @@
     }
 
     .advanced-units-config-modal .modal-content {
-        background: linear-gradient(145deg, var(--galint-neutro-900) 0%, var(--galint-neutro-850) 100%);
+        background: linear-gradient(145deg, var(--galint-neutro-900, #0f172a) 0%, var(--galint-neutro-850, #1e293b) 100%);
         border: 1px solid rgba(148, 163, 184, 0.18);
         border-radius: 22px;
-        color: var(--galint-neutro-200);
+        color: var(--galint-neutro-200, #e2e8f0);
         box-shadow: 0 28px 70px rgba(2, 8, 23, 0.5);
         overflow: hidden;
     }
@@ -943,7 +943,7 @@
         font-size: clamp(1.7rem, 3vw, 2.4rem);
         font-weight: 900;
         letter-spacing: -0.04em;
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
     }
 
     .du-help-hero p {
@@ -968,7 +968,7 @@
 
     .du-help-card h3,
     .du-help-card h4 {
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
         font-weight: 800;
     }
 
@@ -1010,7 +1010,7 @@
         border-radius: 999px;
         background: rgba(15, 23, 42, 0.58);
         border: 1px solid rgba(148, 163, 184, 0.12);
-        color: var(--galint-neutro-200);
+        color: var(--galint-neutro-200, #e2e8f0);
         font-size: 0.82rem;
         font-weight: 700;
     }
@@ -1025,7 +1025,7 @@
 
     .du-help-callout strong,
     .du-help-example strong {
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
     }
 
     .du-help-example {
@@ -1042,7 +1042,7 @@
         background: rgba(8, 15, 28, 0.92);
         border: 1px solid rgba(56, 189, 248, 0.22);
         padding: 0.9rem 1rem;
-        color: var(--galint-neutro-200);
+        color: var(--galint-neutro-200, #e2e8f0);
         line-height: 1.65;
         white-space: pre-line;
         margin-top: 0.75rem;
@@ -1111,11 +1111,11 @@
     .advanced-editor-card .form-select {
         background: rgba(8, 15, 28, 0.92);
         border-color: rgba(148, 163, 184, 0.24);
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
     }
 
     .advanced-editor-card .form-label {
-        color: var(--galint-azul-100) !important;
+        color: var(--galint-azul-100, #dbeafe) !important;
         font-size: 0.8rem;
         font-weight: 700;
     }
@@ -1123,7 +1123,7 @@
     .advanced-editor-card .form-control[readonly] {
         background: rgba(15, 23, 42, 0.72);
         border-color: rgba(148, 163, 184, 0.16);
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
         cursor: default;
     }
@@ -1152,7 +1152,7 @@
 
     #advanced-unit-summary {
         background: linear-gradient(135deg, rgba(59, 130, 246, 0.22) 0%, rgba(14, 165, 233, 0.16) 100%);
-        color: var(--galint-azul-050);
+        color: var(--galint-azul-050, #eff6ff);
         border: 1px solid rgba(125, 211, 252, 0.3);
     }
 
@@ -1195,7 +1195,7 @@
         font-weight: 800;
         letter-spacing: 0.14em;
         text-transform: uppercase;
-        color: var(--galint-ciano-300);
+        color: var(--galint-ciano-300, #7dd3fc);
         margin-bottom: 0.35rem;
     }
 
@@ -1208,7 +1208,7 @@
         border-radius: 999px;
         border: 1px solid rgba(148, 163, 184, 0.22);
         background: rgba(15, 23, 42, 0.62);
-        color: var(--galint-azul-050);
+        color: var(--galint-azul-050, #eff6ff);
         font-size: 0.76rem;
         font-weight: 700;
         line-height: 1;
@@ -1250,17 +1250,17 @@
         font-weight: 800;
         letter-spacing: 0.1em;
         text-transform: uppercase;
-        color: var(--galint-ciano-300);
+        color: var(--galint-ciano-300, #7dd3fc);
     }
 
     .inventory-ops-projection-label {
-        color: var(--galint-neutro-300);
+        color: var(--galint-neutro-300, #cbd5e1);
         font-size: 0.78rem;
         line-height: 1.45;
     }
 
     .inventory-ops-projection-value {
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
         font-size: 1.02rem;
         font-weight: 800;
         line-height: 1.35;
@@ -1268,7 +1268,7 @@
     }
 
     .inventory-ops-projection-meta {
-        color: var(--galint-azul-100);
+        color: var(--galint-azul-100, #dbeafe);
         font-size: 0.78rem;
         line-height: 1.45;
         overflow-wrap: anywhere;
@@ -1276,7 +1276,7 @@
 
     .inventory-ops-caption {
         margin-top: 0.9rem;
-        color: var(--galint-neutro-300);
+        color: var(--galint-neutro-300, #cbd5e1);
         font-size: 0.84rem;
         line-height: 1.6;
     }
@@ -1372,14 +1372,14 @@
     .tab-studio-panel-title {
         font-size: 1.02rem;
         font-weight: 800;
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
         letter-spacing: -0.02em;
         margin: 0;
     }
 
     .tab-studio-panel-copy {
         margin: 0.38rem 0 0;
-        color: var(--galint-azul-100);
+        color: var(--galint-azul-100, #dbeafe);
         font-size: 0.84rem;
         line-height: 1.58;
     }
@@ -1389,7 +1389,7 @@
         border-radius: 18px;
         border: 1px solid rgba(148, 163, 184, 0.16);
         background: rgba(15, 23, 42, 0.54);
-        color: var(--galint-azul-100);
+        color: var(--galint-azul-100, #dbeafe);
         font-size: 0.84rem;
         line-height: 1.6;
     }
@@ -1397,7 +1397,7 @@
     .tab-studio-support strong {
         display: block;
         margin-bottom: 0.28rem;
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
         font-size: 0.88rem;
     }
 
@@ -1475,7 +1475,7 @@
         border-radius: 999px;
         border: 1px solid rgba(148, 163, 184, 0.2);
         background: rgba(15, 23, 42, 0.62);
-        color: var(--galint-azul-050);
+        color: var(--galint-azul-050, #eff6ff);
         font-size: 0.76rem;
         font-weight: 700;
         line-height: 1;
@@ -1531,12 +1531,12 @@
         font-weight: 800;
         letter-spacing: 0.08em;
         text-transform: uppercase;
-        color: var(--galint-ciano-300);
+        color: var(--galint-ciano-300, #7dd3fc);
     }
 
     .finance-studio-kpi-value {
         margin-top: 0.35rem;
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
         font-size: 0.96rem;
         font-weight: 800;
         line-height: 1.3;
@@ -1574,12 +1574,12 @@
     .finance-studio-summary-item strong {
         display: block;
         margin-bottom: 0.28rem;
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
         font-size: 0.84rem;
     }
 
     .finance-studio-summary-item span {
-        color: var(--galint-azul-100);
+        color: var(--galint-azul-100, #dbeafe);
         font-size: 0.83rem;
         line-height: 1.5;
         overflow-wrap: anywhere;
@@ -1618,7 +1618,7 @@
 
     .classification-field-note {
         margin: 0 0 0.15rem;
-        color: var(--galint-azul-100);
+        color: var(--galint-azul-100, #dbeafe);
         font-size: 0.86rem;
         line-height: 1.6;
     }
@@ -1665,13 +1665,13 @@
     .classification-live-title {
         font-size: 1.05rem;
         font-weight: 800;
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
         letter-spacing: -0.02em;
     }
 
     .classification-live-line {
         margin-top: 0.45rem;
-        color: var(--galint-azul-100);
+        color: var(--galint-azul-100, #dbeafe);
         font-size: 0.86rem;
         line-height: 1.6;
     }
@@ -1695,13 +1695,13 @@
 
     .classification-location-card .form-text {
         margin-top: 0.55rem;
-        color: var(--galint-neutro-300);
+        color: var(--galint-neutro-300, #cbd5e1);
         font-size: 0.82rem;
         line-height: 1.55;
     }
 
     .classification-location-note {
-        color: var(--galint-azul-100);
+        color: var(--galint-azul-100, #dbeafe);
         font-size: 0.84rem;
         line-height: 1.6;
     }
@@ -1709,7 +1709,7 @@
     .classification-location-note strong {
         display: block;
         margin-bottom: 0.28rem;
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
         font-size: 0.88rem;
     }
 
@@ -1737,7 +1737,7 @@
         border-radius: 18px;
         border: 1px solid rgba(148, 163, 184, 0.16);
         background: rgba(15, 23, 42, 0.54);
-        color: var(--galint-azul-100);
+        color: var(--galint-azul-100, #dbeafe);
         font-size: 0.84rem;
         line-height: 1.55;
     }
@@ -1746,7 +1746,7 @@
         display: block;
         margin-bottom: 0.32rem;
         font-size: 0.88rem;
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
     }
 
     .inventory-ops-note {
@@ -1755,7 +1755,7 @@
         border-radius: 18px;
         border: 1px solid rgba(148, 163, 184, 0.16);
         background: rgba(15, 23, 42, 0.62);
-        color: var(--galint-azul-100);
+        color: var(--galint-azul-100, #dbeafe);
         font-size: 0.84rem;
         line-height: 1.6;
     }
@@ -1815,7 +1815,7 @@
         border-radius: 16px;
         border: 1px solid rgba(148, 163, 184, 0.18);
         background: rgba(15, 23, 42, 0.62);
-        color: var(--galint-azul-100);
+        color: var(--galint-azul-100, #dbeafe);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -1830,7 +1830,7 @@
     .packaging-radio-card .form-check-input:checked + .form-check-label {
         border-color: rgba(125, 211, 252, 0.44);
         background: linear-gradient(135deg, rgba(37, 99, 235, 0.4), rgba(14, 165, 233, 0.34));
-        color: var(--galint-branco);
+        color: var(--galint-branco, #ffffff);
         transform: translateY(-1px);
         box-shadow: 0 14px 26px rgba(37, 99, 235, 0.16);
     }
@@ -1852,13 +1852,13 @@
     .packaging-live-title {
         font-size: 1.05rem;
         font-weight: 800;
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
         letter-spacing: -0.02em;
     }
 
     .packaging-live-line {
         margin-top: 0.45rem;
-        color: var(--galint-azul-100);
+        color: var(--galint-azul-100, #dbeafe);
         font-size: 0.86rem;
         line-height: 1.6;
     }
@@ -1875,7 +1875,7 @@
         border-radius: 18px;
         border: 1px solid rgba(125, 211, 252, 0.28);
         background: linear-gradient(135deg, rgba(8, 47, 73, 0.88), rgba(30, 64, 175, 0.44));
-        color: var(--galint-azul-050);
+        color: var(--galint-azul-050, #eff6ff);
         margin-top: 1rem !important;
     }
 
@@ -1922,8 +1922,8 @@
 
     /* Campos Condicionais com Destaque Dinâmico */
     .conditional-fields {
-        background: var(--galint-neutro-050);
-        border: 1px solid var(--galint-neutro-200);
+        background: var(--galint-neutro-050, #f8fafc);
+        border: 1px solid var(--galint-neutro-200, #e2e8f0);
         border-radius: 10px;
         padding: 1.25rem;
         margin-top: 1rem;
@@ -1948,7 +1948,7 @@
 
     /* Preview de Conversão - Card de Destaque */
     .conversion-preview {
-        background: linear-gradient(135deg, var(--galint-azul-100) 0%, #e0f2fe 100%);
+        background: linear-gradient(135deg, var(--galint-azul-100, #dbeafe) 0%, #e0f2fe 100%);
         border-left: 4px solid var(--primary-blue);
         border-radius: var(--border-radius-sm);
         padding: 1rem 1.25rem;
@@ -1997,7 +1997,7 @@
     }
 
     .alert-danger {
-        background: var(--galint-perigo-100);
+        background: var(--galint-perigo-100, #fee2e2);
         color: #991b1b;
         border-left-color: var(--danger-red);
     }
@@ -2025,7 +2025,7 @@
     }
 
     .btn-primary:hover {
-        background: var(--galint-azul-500);
+        background: var(--galint-azul-500, #2563eb);
         box-shadow: 0 4px 6px rgba(59, 130, 246, 0.4);
         transform: translateY(-1px);
     }
@@ -2044,8 +2044,8 @@
         left: 0;
         right: 0;
         top: calc(100% + 0.35rem);
-        background: var(--galint-branco);
-        border: 1px solid var(--galint-neutro-300);
+        background: var(--galint-branco, #ffffff);
+        border: 1px solid var(--galint-neutro-300, #cbd5e1);
         border-radius: 12px;
         box-shadow: 0 20px 30px rgba(15, 23, 42, 0.12);
         z-index: 50;
@@ -2060,7 +2060,7 @@
 
     .autocomplete-option {
         padding: 0.8rem 0.9rem;
-        border-bottom: 1px solid var(--galint-neutro-200);
+        border-bottom: 1px solid var(--galint-neutro-200, #e2e8f0);
         cursor: pointer;
     }
 
@@ -2069,7 +2069,7 @@
     }
 
     .autocomplete-option:hover {
-        background: var(--galint-azul-050);
+        background: var(--galint-azul-050, #eff6ff);
     }
 
     .button-group {
@@ -2136,19 +2136,19 @@
         padding: 1rem 1.1rem;
         border-radius: 14px;
         border: 1px solid rgba(148, 163, 184, 0.24);
-        background: linear-gradient(135deg, var(--galint-azul-050) 0%, var(--galint-neutro-050) 100%);
-        color: var(--galint-neutro-850);
+        background: linear-gradient(135deg, var(--galint-azul-050, #eff6ff) 0%, var(--galint-neutro-050, #f8fafc) 100%);
+        color: var(--galint-neutro-850, #1e293b);
         margin-bottom: 1.1rem;
     }
 
     .supplier-gate-summary .summary-title {
         font-weight: 700;
-        color: var(--galint-neutro-900);
+        color: var(--galint-neutro-900, #0f172a);
     }
 
     .supplier-gate-summary .summary-text {
         font-size: 0.88rem;
-        color: var(--galint-neutro-600);
+        color: var(--galint-neutro-600, #475569);
     }
 
     .supplier-gate-modal {
@@ -2187,13 +2187,13 @@
     .supplier-gate-tip {
         border-radius: 18px;
         padding: 1rem;
-        background: linear-gradient(135deg, var(--galint-neutro-900) 0%, var(--galint-neutro-850) 100%);
-        color: var(--galint-neutro-200);
+        background: linear-gradient(135deg, var(--galint-neutro-900, #0f172a) 0%, var(--galint-neutro-850, #1e293b) 100%);
+        color: var(--galint-neutro-200, #e2e8f0);
     }
 
     .supplier-gate-tip .tip-title {
         font-weight: 700;
-        color: var(--galint-branco);
+        color: var(--galint-branco, #ffffff);
         margin-bottom: 0.55rem;
     }
 
@@ -2243,19 +2243,19 @@
 
     .supplier-gate-item-title {
         font-weight: 700;
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
     }
 
     .supplier-gate-item-meta {
         font-size: 0.84rem;
-        color: var(--galint-neutro-500);
+        color: var(--galint-neutro-500, #64748b);
         margin-top: 0.2rem;
     }
 
     .supplier-gate-status {
         min-height: 1.2rem;
         font-size: 0.82rem;
-        color: var(--galint-neutro-500);
+        color: var(--galint-neutro-500, #64748b);
         margin-top: 0.55rem;
     }
 
@@ -2269,19 +2269,19 @@
 
     .modal-content.galint-bs-modal {
         --galint-modal-accent-rgb: 59, 130, 246;
-        --galint-modal-text: var(--galint-azul-075);
+        --galint-modal-text: var(--galint-azul-075, #e5eefc);
         --galint-modal-muted: #9fb2c9;
         --galint-modal-border: rgba(148, 163, 184, 0.16);
-        --bs-body-color: var(--galint-modal-text);
-        --bs-secondary-color: var(--galint-modal-muted);
-        --bs-border-color: var(--galint-modal-border);
+        --bs-body-color: var(--galint-modal-text, #e5eefc);
+        --bs-secondary-color: var(--galint-modal-muted, #9fb2c9);
+        --bs-border-color: var(--galint-modal-border, rgba(148, 163, 184, 0.16));
         --bs-border-color-translucent: rgba(148, 163, 184, 0.12);
         --bs-btn-font-weight: 700;
         background:
-            radial-gradient(circle at top right, rgba(var(--galint-modal-accent-rgb), 0.18), transparent 34%),
-            linear-gradient(180deg, var(--galint-noite-800) 0%, #111b2e 100%);
-        color: var(--galint-modal-text);
-        border: 1px solid var(--galint-modal-border);
+            radial-gradient(circle at top right, rgba(var(--galint-modal-accent-rgb, 59, 130, 246), 0.18), transparent 34%),
+            linear-gradient(180deg, var(--galint-noite-800, #0b1220) 0%, #111b2e 100%);
+        color: var(--galint-modal-text, #e5eefc);
+        border: 1px solid var(--galint-modal-border, rgba(148, 163, 184, 0.16));
         border-radius: 20px;
         box-shadow: 0 28px 72px rgba(2, 6, 23, 0.48);
         overflow: hidden;
@@ -2299,14 +2299,14 @@
         padding: 1.05rem 1.25rem;
         border-bottom: 1px solid rgba(148, 163, 184, 0.12);
         background:
-            radial-gradient(circle at top right, rgba(var(--galint-modal-accent-rgb), 0.18), transparent 34%),
-            linear-gradient(135deg, #162033 0%, var(--galint-noite-800) 100%);
+            radial-gradient(circle at top right, rgba(var(--galint-modal-accent-rgb, 59, 130, 246), 0.18), transparent 34%),
+            linear-gradient(135deg, #162033 0%, var(--galint-noite-800, #0b1220) 100%);
     }
 
     .modal-content.galint-bs-modal .modal-title {
         font-size: 1.08rem;
         font-weight: 800;
-        color: var(--galint-branco);
+        color: var(--galint-branco, #ffffff);
         letter-spacing: 0.01em;
     }
 
@@ -2336,16 +2336,16 @@
     .modal-content.galint-bs-modal :is(.form-control, .form-select, .input-group-text, textarea) {
         background: rgba(8, 15, 28, 0.76);
         border-color: rgba(148, 163, 184, 0.18);
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
         border-radius: 14px;
         box-shadow: none;
     }
 
     .modal-content.galint-bs-modal :is(.form-control, .form-select, textarea):focus {
         background: rgba(8, 15, 28, 0.9);
-        border-color: rgba(var(--galint-modal-accent-rgb), 0.52);
-        box-shadow: 0 0 0 3px rgba(var(--galint-modal-accent-rgb), 0.16);
-        color: var(--galint-branco);
+        border-color: rgba(var(--galint-modal-accent-rgb, 59, 130, 246), 0.52);
+        box-shadow: 0 0 0 3px rgba(var(--galint-modal-accent-rgb, 59, 130, 246), 0.16);
+        color: var(--galint-branco, #ffffff);
     }
 
     .modal-content.galint-bs-modal :is(.form-control, textarea)::placeholder {
@@ -2353,13 +2353,13 @@
     }
 
     .modal-content.galint-bs-modal :is(.form-text, .text-muted) {
-        color: var(--galint-modal-muted) !important;
+        color: var(--galint-modal-muted, #9fb2c9) !important;
     }
 
     .modal-content.galint-bs-modal .form-label,
     .modal-content.galint-bs-modal strong,
     .modal-content.galint-bs-modal .fw-semibold {
-        color: var(--galint-azul-025);
+        color: var(--galint-azul-025, #f8fbff);
     }
 
     .modal-content.galint-bs-modal .btn {
@@ -2368,51 +2368,51 @@
 
     .modal-content.galint-bs-modal .btn-primary,
     .modal-content.galint-bs-modal .btn-info {
-        --bs-btn-bg: rgb(var(--galint-modal-accent-rgb));
-        --bs-btn-border-color: rgb(var(--galint-modal-accent-rgb));
-        --bs-btn-hover-bg: rgba(var(--galint-modal-accent-rgb), 0.9);
-        --bs-btn-hover-border-color: rgba(var(--galint-modal-accent-rgb), 0.9);
-        --bs-btn-active-bg: rgba(var(--galint-modal-accent-rgb), 0.82);
-        --bs-btn-active-border-color: rgba(var(--galint-modal-accent-rgb), 0.82);
-        --bs-btn-color: var(--galint-branco);
-        --bs-btn-hover-color: var(--galint-branco);
-        --bs-btn-active-color: var(--galint-branco);
-        box-shadow: 0 10px 24px rgba(var(--galint-modal-accent-rgb), 0.22);
+        --bs-btn-bg: rgb(var(--galint-modal-accent-rgb, 59, 130, 246));
+        --bs-btn-border-color: rgb(var(--galint-modal-accent-rgb, 59, 130, 246));
+        --bs-btn-hover-bg: rgba(var(--galint-modal-accent-rgb, 59, 130, 246), 0.9);
+        --bs-btn-hover-border-color: rgba(var(--galint-modal-accent-rgb, 59, 130, 246), 0.9);
+        --bs-btn-active-bg: rgba(var(--galint-modal-accent-rgb, 59, 130, 246), 0.82);
+        --bs-btn-active-border-color: rgba(var(--galint-modal-accent-rgb, 59, 130, 246), 0.82);
+        --bs-btn-color: var(--galint-branco, #ffffff);
+        --bs-btn-hover-color: var(--galint-branco, #ffffff);
+        --bs-btn-active-color: var(--galint-branco, #ffffff);
+        box-shadow: 0 10px 24px rgba(var(--galint-modal-accent-rgb, 59, 130, 246), 0.22);
     }
 
     .modal-content.galint-bs-modal .btn-secondary,
     .modal-content.galint-bs-modal .btn-outline-secondary {
         --bs-btn-bg: rgba(148, 163, 184, 0.08);
         --bs-btn-border-color: rgba(148, 163, 184, 0.2);
-        --bs-btn-color: var(--galint-azul-075);
+        --bs-btn-color: var(--galint-azul-075, #e5eefc);
         --bs-btn-hover-bg: rgba(148, 163, 184, 0.16);
         --bs-btn-hover-border-color: rgba(148, 163, 184, 0.3);
-        --bs-btn-hover-color: var(--galint-branco);
+        --bs-btn-hover-color: var(--galint-branco, #ffffff);
         --bs-btn-active-bg: rgba(148, 163, 184, 0.18);
         --bs-btn-active-border-color: rgba(148, 163, 184, 0.34);
-        --bs-btn-active-color: var(--galint-branco);
+        --bs-btn-active-color: var(--galint-branco, #ffffff);
     }
 
     .modal-content.galint-bs-modal .btn-outline-primary {
-        --bs-btn-color: var(--galint-azul-100);
-        --bs-btn-border-color: rgba(var(--galint-modal-accent-rgb), 0.34);
-        --bs-btn-hover-bg: rgba(var(--galint-modal-accent-rgb), 0.18);
-        --bs-btn-hover-border-color: rgba(var(--galint-modal-accent-rgb), 0.5);
-        --bs-btn-hover-color: var(--galint-branco);
-        --bs-btn-active-bg: rgba(var(--galint-modal-accent-rgb), 0.22);
-        --bs-btn-active-border-color: rgba(var(--galint-modal-accent-rgb), 0.54);
-        --bs-btn-active-color: var(--galint-branco);
+        --bs-btn-color: var(--galint-azul-100, #dbeafe);
+        --bs-btn-border-color: rgba(var(--galint-modal-accent-rgb, 59, 130, 246), 0.34);
+        --bs-btn-hover-bg: rgba(var(--galint-modal-accent-rgb, 59, 130, 246), 0.18);
+        --bs-btn-hover-border-color: rgba(var(--galint-modal-accent-rgb, 59, 130, 246), 0.5);
+        --bs-btn-hover-color: var(--galint-branco, #ffffff);
+        --bs-btn-active-bg: rgba(var(--galint-modal-accent-rgb, 59, 130, 246), 0.22);
+        --bs-btn-active-border-color: rgba(var(--galint-modal-accent-rgb, 59, 130, 246), 0.54);
+        --bs-btn-active-color: var(--galint-branco, #ffffff);
     }
 
     .modal-content.galint-bs-modal .btn-outline-warning {
-        --bs-btn-color: var(--galint-alerta-200);
+        --bs-btn-color: var(--galint-alerta-200, #fde68a);
         --bs-btn-border-color: rgba(245, 158, 11, 0.36);
         --bs-btn-hover-bg: rgba(245, 158, 11, 0.16);
         --bs-btn-hover-border-color: rgba(245, 158, 11, 0.52);
-        --bs-btn-hover-color: var(--galint-branco);
+        --bs-btn-hover-color: var(--galint-branco, #ffffff);
         --bs-btn-active-bg: rgba(245, 158, 11, 0.2);
         --bs-btn-active-border-color: rgba(245, 158, 11, 0.56);
-        --bs-btn-active-color: var(--galint-branco);
+        --bs-btn-active-color: var(--galint-branco, #ffffff);
     }
 
     .modal-content.galint-bs-modal .btn-success {
@@ -2428,10 +2428,10 @@
     .modal-content.galint-bs-modal .btn-light {
         --bs-btn-bg: rgba(255, 255, 255, 0.08);
         --bs-btn-border-color: rgba(255, 255, 255, 0.08);
-        --bs-btn-color: var(--galint-azul-025);
+        --bs-btn-color: var(--galint-azul-025, #f8fbff);
         --bs-btn-hover-bg: rgba(255, 255, 255, 0.16);
         --bs-btn-hover-border-color: rgba(255, 255, 255, 0.16);
-        --bs-btn-hover-color: var(--galint-branco);
+        --bs-btn-hover-color: var(--galint-branco, #ffffff);
     }
 
     .modal-content.galint-bs-modal .alert-light,
@@ -2439,7 +2439,7 @@
     .modal-content.galint-bs-modal .alert-danger {
         background: rgba(255, 255, 255, 0.05);
         border-color: rgba(148, 163, 184, 0.16) !important;
-        color: var(--galint-azul-075);
+        color: var(--galint-azul-075, #e5eefc);
     }
 
     .galint-modal-panel {
@@ -2459,13 +2459,13 @@
         border-radius: 16px;
         border: 1px solid rgba(96, 165, 250, 0.22);
         background: rgba(59, 130, 246, 0.1);
-        color: var(--galint-azul-100);
+        color: var(--galint-azul-100, #dbeafe);
     }
 
     .galint-modal-note--amber {
         border-color: rgba(245, 158, 11, 0.22);
         background: rgba(245, 158, 11, 0.1);
-        color: var(--galint-alerta-200);
+        color: var(--galint-alerta-200, #fde68a);
     }
 
     .finance-guard-modal .modal-body {
@@ -2477,12 +2477,12 @@
     }
 
     .supplier-gate-modal .modal-title {
-        color: var(--galint-branco);
+        color: var(--galint-branco, #ffffff);
         font-weight: 800;
     }
 
     .supplier-gate-modal .text-primary {
-        color: var(--galint-ciano-300) !important;
+        color: var(--galint-ciano-300, #7dd3fc) !important;
     }
 
     .supplier-gate-tip .btn-light {
@@ -2512,7 +2512,7 @@
 
     .equivalent-item-modal .equivalent-item-card-title,
     .equivalent-item-modal .equivalent-item-modal-status {
-        color: var(--galint-branco);
+        color: var(--galint-branco, #ffffff);
     }
 
     .equivalent-item-modal .equivalent-item-code,
@@ -2522,7 +2522,7 @@
 
     .equivalent-item-modal .equivalent-item-category-chip {
         background: linear-gradient(180deg, var(--equivalent-soft, rgba(148, 163, 184, 0.22)), rgba(15, 23, 42, 0.28));
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
     }
 
     .equivalent-item-modal .equivalent-item-category-icon {
@@ -2539,8 +2539,8 @@
     }
 
     .equivalent-item-modal .form-check-input:checked {
-        background-color: var(--galint-azul-500);
-        border-color: var(--galint-azul-500);
+        background-color: var(--galint-azul-500, #2563eb);
+        border-color: var(--galint-azul-500, #2563eb);
     }
 
     @media (max-width: 768px) {
@@ -4199,14 +4199,14 @@ Conversão: 1 saco = 20 quilos</div>
         border: none;
         border-radius: 18px;
         overflow: hidden;
-        background: var(--galint-neutro-050);
+        background: var(--galint-neutro-050, #f8fafc);
         box-shadow: 0 24px 70px rgba(15, 23, 42, 0.35);
     }
 
     .price-suggest-modal .modal-header {
         border: none;
-        background: linear-gradient(135deg, var(--galint-neutro-900) 0%, var(--galint-neutro-850) 65%, var(--galint-neutro-700) 100%);
-        color: var(--galint-neutro-200);
+        background: linear-gradient(135deg, var(--galint-neutro-900, #0f172a) 0%, var(--galint-neutro-850, #1e293b) 65%, var(--galint-neutro-700, #334155) 100%);
+        color: var(--galint-neutro-200, #e2e8f0);
         padding: 1.25rem 1.5rem;
     }
 
@@ -4216,7 +4216,7 @@ Conversão: 1 saco = 20 quilos</div>
     }
 
     .price-suggest-modal .modal-body {
-        background: var(--galint-neutro-050);
+        background: var(--galint-neutro-050, #f8fafc);
         padding: 1.5rem;
     }
 
@@ -4265,7 +4265,7 @@ Conversão: 1 saco = 20 quilos</div>
 
     .equivalent-item-card-title {
         font-weight: 700;
-        color: var(--galint-neutro-900);
+        color: var(--galint-neutro-900, #0f172a);
     }
 
     .equivalent-item-card-meta {
@@ -4278,7 +4278,7 @@ Conversão: 1 saco = 20 quilos</div>
 
     .equivalent-item-code,
     .equivalent-item-brand {
-        color: var(--galint-neutro-500);
+        color: var(--galint-neutro-500, #64748b);
         font-size: 0.8rem;
     }
 
@@ -4291,7 +4291,7 @@ Conversão: 1 saco = 20 quilos</div>
         border-radius: 999px;
         border: 1px solid var(--equivalent-soft);
         background: linear-gradient(180deg, var(--equivalent-soft), rgba(255, 255, 255, 0.68));
-        color: var(--galint-neutro-900);
+        color: var(--galint-neutro-900, #0f172a);
         font-size: 0.76rem;
         font-weight: 700;
         line-height: 1;
@@ -4317,7 +4317,7 @@ Conversão: 1 saco = 20 quilos</div>
         padding: 0.3rem 0.68rem;
         border-radius: 999px;
         background: var(--equivalent-accent);
-        color: var(--galint-branco);
+        color: var(--galint-branco, #ffffff);
         font-size: 0.78rem;
         font-weight: 800;
         line-height: 1;
@@ -4334,9 +4334,9 @@ Conversão: 1 saco = 20 quilos</div>
     .price-suggest-modal .form-control,
     .price-suggest-modal .input-group-text {
         border-radius: 12px;
-        border: 1px solid var(--galint-neutro-200);
+        border: 1px solid var(--galint-neutro-200, #e2e8f0);
         background: rgba(15,23,42,0.82);
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
     }
 
     .price-suggest-modal .row.g-3.align-items-end > [class*="col-"] {
@@ -4346,13 +4346,13 @@ Conversão: 1 saco = 20 quilos</div>
 
     .price-suggest-modal .form-label {
         font-weight: 600;
-        color: var(--galint-neutro-300);
+        color: var(--galint-neutro-300, #cbd5e1);
         margin-bottom: 0.45rem;
     }
 
     .price-suggest-modal .btn-primary {
-        background: var(--galint-azul-500);
-        border-color: var(--galint-azul-500);
+        background: var(--galint-azul-500, #2563eb);
+        border-color: var(--galint-azul-500, #2563eb);
         box-shadow: 0 10px 22px rgba(37, 99, 235, 0.25);
     }
 
@@ -4362,8 +4362,8 @@ Conversão: 1 saco = 20 quilos</div>
     }
 
     .price-suggest-modal .btn-success {
-        background: var(--galint-sucesso-500);
-        border-color: var(--galint-sucesso-500);
+        background: var(--galint-sucesso-500, #10b981);
+        border-color: var(--galint-sucesso-500, #10b981);
         box-shadow: 0 10px 22px rgba(16, 185, 129, 0.25);
     }
 
@@ -4391,23 +4391,23 @@ Conversão: 1 saco = 20 quilos</div>
 
     .price-card:hover {
         transform: translateY(-2px);
-        border-color: var(--galint-azul-300);
+        border-color: var(--galint-azul-300, #60a5fa);
         box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
     }
 
     .price-card.selected {
-        border-color: var(--galint-azul-500);
+        border-color: var(--galint-azul-500, #2563eb);
         box-shadow: 0 12px 26px rgba(37, 99, 235, 0.25);
     }
 
     .price-amount {
         font-size: 1.1rem;
         font-weight: 700;
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
     }
 
     .price-meta {
-        color: var(--galint-neutro-300);
+        color: var(--galint-neutro-300, #cbd5e1);
         font-size: 0.85rem;
         margin-top: 0.25rem;
     }

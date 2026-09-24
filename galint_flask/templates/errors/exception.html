@@ -6,8 +6,8 @@
 {% block extra_css %}
 <style>
     .error-dashboard-shell .content-panel {
-        background: linear-gradient(180deg, #0c1119, var(--galint-neutro-900));
-        color: var(--galint-neutro-200);
+        background: linear-gradient(180deg, #0c1119, var(--galint-neutro-900, #0f172a));
+        color: var(--galint-neutro-200, #e2e8f0);
     }
 
     .error-dashboard-shell .page-header {
@@ -18,7 +18,7 @@
         position: relative;
         padding: 1.5rem;
         border-radius: 28px;
-        background: linear-gradient(135deg, var(--galint-neutro-900) 0%, var(--galint-neutro-850) 68%, var(--galint-neutro-700) 100%);
+        background: linear-gradient(135deg, var(--galint-neutro-900, #0f172a) 0%, var(--galint-neutro-850, #1e293b) 68%, var(--galint-neutro-700, #334155) 100%);
         border: 1px solid rgba(148, 163, 184, 0.22);
         box-shadow: 0 26px 60px rgba(15, 23, 42, 0.24);
         overflow: hidden;
@@ -44,7 +44,7 @@
         margin: 0;
         font-size: 1.8rem;
         font-weight: 800;
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
     }
 
     .galint-section-subtitle {
@@ -81,7 +81,7 @@
     .galint-custody-card {
         position: relative;
         overflow: hidden;
-        background: linear-gradient(135deg, var(--galint-neutro-900) 0%, var(--galint-neutro-850) 72%, var(--galint-neutro-700) 100%);
+        background: linear-gradient(135deg, var(--galint-neutro-900, #0f172a) 0%, var(--galint-neutro-850, #1e293b) 72%, var(--galint-neutro-700, #334155) 100%);
         border: 1px solid rgba(148, 163, 184, 0.24);
         border-radius: 20px;
         padding: 1rem;
@@ -131,7 +131,7 @@
         margin: 0;
         font-weight: 700;
         font-size: 0.98rem;
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
     }
 
     .galint-custody-badge {
@@ -172,7 +172,7 @@
     }
 
     .galint-custody-field-value {
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
         word-break: break-word;
     }
 
@@ -182,7 +182,7 @@
         border-radius: 16px;
         background: linear-gradient(135deg, rgba(239, 68, 68, 0.14) 0%, rgba(127, 29, 29, 0.12) 100%);
         border: 1px solid rgba(239, 68, 68, 0.2);
-        color: var(--galint-perigo-200);
+        color: var(--galint-perigo-200, #fecaca);
     }
 
     .error-message-title {
@@ -216,14 +216,14 @@
     }
 
     .galint-action-btn.primary {
-        background: linear-gradient(135deg, var(--galint-azul-500) 0%, var(--galint-azul-400) 100%);
-        color: var(--galint-branco);
+        background: linear-gradient(135deg, var(--galint-azul-500, #2563eb) 0%, var(--galint-azul-400, #3b82f6) 100%);
+        color: var(--galint-branco, #ffffff);
         box-shadow: 0 10px 20px rgba(37, 99, 235, 0.28);
     }
 
     .galint-action-btn.secondary {
         background: rgba(255, 255, 255, 0.06);
-        color: var(--galint-neutro-200);
+        color: var(--galint-neutro-200, #e2e8f0);
         border: 1px solid rgba(148, 163, 184, 0.18);
     }
 
@@ -235,7 +235,7 @@
         padding: 1rem 1.1rem;
         border-radius: 18px;
         background: rgba(15, 23, 42, 0.88);
-        color: var(--galint-neutro-200);
+        color: var(--galint-neutro-200, #e2e8f0);
         font: 0.88rem/1.6 Consolas, 'Courier New', monospace;
         white-space: pre-wrap;
         overflow: auto;

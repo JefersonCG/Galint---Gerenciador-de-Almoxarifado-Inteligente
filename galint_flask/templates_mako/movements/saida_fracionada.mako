@@ -12,7 +12,7 @@
     }
 
     .saida-shell {
-        background: linear-gradient(180deg, #eef2f7 0%, var(--galint-neutro-050) 100%);
+        background: linear-gradient(180deg, #eef2f7 0%, var(--galint-neutro-050, #f8fafc) 100%);
         border: 1px solid rgba(148, 163, 184, 0.18);
         border-radius: 30px;
         padding: 1.85rem;
@@ -22,7 +22,7 @@
     .page-header {
         position: relative;
         overflow: hidden;
-        background: linear-gradient(135deg, var(--galint-azul-900) 0%, var(--galint-azul-700) 45%, var(--galint-azul-500) 100%);
+        background: linear-gradient(135deg, var(--galint-azul-900, #020617) 0%, var(--galint-azul-700, #172554) 45%, var(--galint-azul-500, #2563eb) 100%);
         color: white;
         padding: 2rem;
         border-radius: 24px;
@@ -71,7 +71,7 @@
         padding: 0.45rem 1.05rem 0.45rem 0.5rem;
         border: none;
         background: linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(191, 219, 254, 0.08));
-        color: var(--galint-azul-025);
+        color: var(--galint-azul-025, #f8fbff);
         font-weight: 800;
         letter-spacing: 0.01em;
         text-decoration: none;
@@ -82,7 +82,7 @@
 
     .btn-mirror-screen:hover {
         background: linear-gradient(135deg, rgba(255, 255, 255, 0.24), rgba(147, 197, 253, 0.14));
-        color: var(--galint-branco);
+        color: var(--galint-branco, #ffffff);
         transform: translateY(-1px);
         box-shadow: 0 22px 42px rgba(15, 23, 42, 0.24);
     }
@@ -100,7 +100,7 @@
         height: 2.2rem;
         border-radius: 999px;
         background: rgba(255, 255, 255, 0.14);
-        color: var(--galint-branco);
+        color: var(--galint-branco, #ffffff);
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
         flex: 0 0 auto;
     }
@@ -119,7 +119,7 @@
     }
     
     .input-card {
-        background: linear-gradient(145deg, var(--galint-neutro-900) 0%, var(--galint-neutro-850) 100%);
+        background: linear-gradient(145deg, var(--galint-neutro-900, #0f172a) 0%, var(--galint-neutro-850, #1e293b) 100%);
         border-radius: 24px;
         padding: 1.5rem;
         box-shadow: 0 22px 48px rgba(15, 23, 42, 0.16);
@@ -129,7 +129,7 @@
     
     .input-card .form-label {
         font-weight: 600;
-        color: var(--galint-neutro-200);
+        color: var(--galint-neutro-200, #e2e8f0);
         margin-bottom: 0.5rem;
         font-size: 0.9rem;
     }
@@ -139,19 +139,19 @@
         border-radius: 8px;
         border: 1px solid rgba(148, 163, 184, 0.22);
         background: rgba(15, 23, 42, 0.82);
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
         padding: 0.75rem 1rem;
         transition: all 0.3s ease;
         font-size: 1rem;
     }
 
     .input-card .form-control::placeholder {
-        color: var(--galint-neutro-400);
+        color: var(--galint-neutro-400, #94a3b8);
     }
     
     .input-card .form-control:focus,
     .input-card .form-select:focus {
-        border-color: var(--galint-azul-400);
+        border-color: var(--galint-azul-400, #3b82f6);
         box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.15);
         background: rgba(15, 23, 42, 0.92);
     }
@@ -181,7 +181,7 @@
     .info-strip {
         background: linear-gradient(145deg, rgba(15, 23, 42, 0.94) 0%, rgba(30, 41, 59, 0.92) 100%);
         border: 1px solid rgba(56, 189, 248, 0.28);
-        color: var(--galint-azul-100);
+        color: var(--galint-azul-100, #dbeafe);
         border-radius: 18px;
         padding: 1rem;
         box-shadow: 0 16px 34px rgba(15, 23, 42, 0.14);
@@ -189,11 +189,11 @@
     }
 
     .info-strip strong {
-        color: var(--galint-branco);
+        color: var(--galint-branco, #ffffff);
     }
 
     .info-strip i {
-        color: var(--galint-ciano-300);
+        color: var(--galint-ciano-300, #7dd3fc);
     }
     
     .autocomplete-dropdown {
@@ -204,7 +204,7 @@
         max-height: 300px;
         overflow-y: auto;
         background: white;
-        border: 2px solid var(--galint-azul-400);
+        border: 2px solid var(--galint-azul-400, #3b82f6);
         border-top: none;
         border-radius: 0 0 8px 8px;
         z-index: 1000;
@@ -261,7 +261,7 @@
         border-radius: 12px;
         object-fit: cover;
         border: 1px solid #dbe4f0;
-        background: var(--galint-neutro-050);
+        background: var(--galint-neutro-050, #f8fafc);
         display: none;
     }
 
@@ -273,9 +273,9 @@
         width: 96px;
         height: 96px;
         border-radius: 12px;
-        border: 1px dashed var(--galint-neutro-300);
-        background: var(--galint-neutro-050);
-        color: var(--galint-neutro-500);
+        border: 1px dashed var(--galint-neutro-300, #cbd5e1);
+        background: var(--galint-neutro-050, #f8fafc);
+        color: var(--galint-neutro-500, #64748b);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -288,15 +288,15 @@
 
     .modal-kpi-line {
         margin: 0.2rem 0;
-        color: var(--galint-neutro-700);
+        color: var(--galint-neutro-700, #334155);
     }
 
     .modal-kpi-line strong {
-        color: var(--galint-neutro-900);
+        color: var(--galint-neutro-900, #0f172a);
     }
 
     .modal-live-summary {
-        background: var(--galint-neutro-050);
+        background: var(--galint-neutro-050, #f8fafc);
         border: 1px solid #dbe4f0;
         border-radius: 10px;
         padding: 0.85rem 1rem;
@@ -304,19 +304,19 @@
     }
 
     .modal-live-summary.invalid {
-        background: var(--galint-perigo-050);
-        border-color: var(--galint-perigo-200);
+        background: var(--galint-perigo-050, #fef2f2);
+        border-color: var(--galint-perigo-200, #fecaca);
     }
 
     .modal-live-summary .summary-line {
         margin: 0.15rem 0;
-        color: var(--galint-neutro-700);
+        color: var(--galint-neutro-700, #334155);
         font-size: 0.95rem;
     }
 
     .modal-live-summary.invalid .summary-line,
     .modal-live-summary.invalid .summary-warning {
-        color: var(--galint-perigo-600);
+        color: var(--galint-perigo-600, #b91c1c);
     }
 
     .summary-warning {
@@ -333,7 +333,7 @@
         display: grid;
         grid-template-columns: 220px 1fr;
         gap: 1.25rem;
-        background: linear-gradient(145deg, var(--galint-neutro-900) 0%, var(--galint-neutro-850) 100%);
+        background: linear-gradient(145deg, var(--galint-neutro-900, #0f172a) 0%, var(--galint-neutro-850, #1e293b) 100%);
         border: 1px solid rgba(148, 163, 184, 0.18);
         border-radius: 24px;
         padding: 1.25rem;
@@ -369,18 +369,18 @@
         align-items: center;
         justify-content: center;
         gap: 0.5rem;
-        color: var(--galint-neutro-300);
+        color: var(--galint-neutro-300, #cbd5e1);
         text-align: center;
         padding: 1.25rem;
     }
 
     .operation-preview-placeholder i {
         font-size: 3.25rem;
-        color: var(--galint-azul-300);
+        color: var(--galint-azul-300, #60a5fa);
     }
 
     .operation-preview-body {
-        color: var(--galint-neutro-200);
+        color: var(--galint-neutro-200, #e2e8f0);
         display: flex;
         flex-direction: column;
         gap: 0.85rem;
@@ -395,7 +395,7 @@
         border-radius: 999px;
         background: rgba(59, 130, 246, 0.16);
         border: 1px solid rgba(59, 130, 246, 0.24);
-        color: var(--galint-azul-150);
+        color: var(--galint-azul-150, #bfdbfe);
         font-size: 0.75rem;
         font-weight: 700;
         text-transform: uppercase;
@@ -404,14 +404,14 @@
 
     .operation-preview-title {
         margin: 0;
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
         font-size: 1.35rem;
         font-weight: 800;
         letter-spacing: -0.02em;
     }
 
     .operation-preview-subtitle {
-        color: var(--galint-azul-200);
+        color: var(--galint-azul-200, #93c5fd);
         font-size: 0.92rem;
     }
 
@@ -430,7 +430,7 @@
 
     .operation-preview-stat-label {
         display: block;
-        color: var(--galint-neutro-400);
+        color: var(--galint-neutro-400, #94a3b8);
         font-size: 0.78rem;
         margin-bottom: 0.25rem;
         text-transform: uppercase;
@@ -438,14 +438,14 @@
     }
 
     .operation-preview-stat-value {
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
         font-size: 1rem;
         font-weight: 700;
         line-height: 1.35;
     }
 
     .operation-preview-note {
-        color: var(--galint-neutro-300);
+        color: var(--galint-neutro-300, #cbd5e1);
         font-size: 0.88rem;
     }
 

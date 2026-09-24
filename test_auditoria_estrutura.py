@@ -131,3 +131,35 @@ def test_foco_da_tela_de_saida_nao_arrasta_a_pagina() -> None:
 
     assert "preventScroll: true" in fonte
     assert "restoreQuantityButtonFocus" in fonte
+
+
+def test_toda_variavel_de_cor_tem_valor_de_reserva() -> None:
+    """Sem fallback, uma tela que perca a folha de tokens fica ilegivel.
+
+    Aconteceu de verdade: o servidor estava com o base.html antigo em memoria
+    (sem o <link> dos tokens) enquanto ja servia o dashboard novo, que usava
+    var(). Os cartoes perderam o fundo escuro e o texto claro sumiu no branco.
+    """
+    sem_reserva: list[str] = []
+    alvos = list((RAIZ / "static" / "css").rglob("*.css"))
+    for pasta in (TEMPLATES, TEMPLATES_MAKO):
+        alvos += [p for p in pasta.rglob("*") if p.suffix in {".html", ".mako"}]
+
+    for caminho in alvos:
+        if caminho.name == "galint-tokens.css":
+            continue
+        for achado in re.finditer(r"var\((--galint-[\w-]+)\)", caminho.read_text(encoding="utf-8", errors="ignore")):
+            sem_reserva.append(f"{caminho.name}: var({achado.group(1)})")
+
+    assert sem_reserva == [], (
+        "use var(--token, valor-original) para a tela continuar legivel sem a folha de tokens: "
+        f"{sem_reserva[:10]}"
+    )
+
+
+def test_jinja_recarrega_template_alterado() -> None:
+    """Sem auto_reload, metade das telas fica na versao antiga apos uma atualizacao."""
+    fonte = (RAIZ / "__init__.py").read_text(encoding="utf-8-sig")
+
+    assert 'app.config["TEMPLATES_AUTO_RELOAD"] = True' in fonte
+    assert "app.jinja_env.auto_reload = True" in fonte

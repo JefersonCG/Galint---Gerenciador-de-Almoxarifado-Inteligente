@@ -8,8 +8,8 @@
         background:
             radial-gradient(circle at 12% 14%, rgba(56, 189, 248, 0.1), transparent 22%),
             radial-gradient(circle at 86% 10%, rgba(59, 130, 246, 0.1), transparent 18%),
-            linear-gradient(180deg, var(--galint-noite-900) 0%, var(--galint-noite-850) 100%);
-        color: var(--galint-neutro-200);
+            linear-gradient(180deg, var(--galint-noite-900, #07111f) 0%, var(--galint-noite-850, #0b1729) 100%);
+        color: var(--galint-neutro-200, #e2e8f0);
     }
 
     .contingency-hero-page .page-header {
@@ -75,7 +75,7 @@
         font-size: clamp(1.8rem, 3vw, 2.45rem);
         font-weight: 800;
         letter-spacing: -0.03em;
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
     }
 
     .contingency-subtitle {
@@ -93,7 +93,7 @@
         border-radius: 999px;
         background: rgba(14, 165, 233, 0.14);
         border: 1px solid rgba(125, 211, 252, 0.2);
-        color: var(--galint-ciano-100);
+        color: var(--galint-ciano-100, #bae6fd);
         font-size: 0.8rem;
         font-weight: 700;
         white-space: nowrap;
@@ -122,15 +122,15 @@
         border-radius: 999px;
         margin-bottom: 1rem;
         background: rgba(255, 255, 255, 0.06);
-        color: var(--galint-ciano-300);
+        color: var(--galint-ciano-300, #7dd3fc);
         font-size: 1.45rem;
     }
 
     .contingency-table {
         margin-bottom: 1.25rem;
-        color: var(--galint-neutro-200);
+        color: var(--galint-neutro-200, #e2e8f0);
         --bs-table-bg: transparent;
-        --bs-table-color: var(--galint-neutro-200);
+        --bs-table-color: var(--galint-neutro-200, #e2e8f0);
         --bs-table-border-color: rgba(148, 163, 184, 0.14);
         --bs-table-striped-bg: rgba(255, 255, 255, 0.03);
         --bs-table-hover-bg: rgba(125, 211, 252, 0.08);
@@ -138,7 +138,7 @@
 
     .contingency-table thead th {
         border-bottom-width: 1px;
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
         font-size: 0.78rem;
         font-weight: 800;
         letter-spacing: 0.06em;
@@ -160,7 +160,7 @@
         border-radius: 999px;
         background: rgba(59, 130, 246, 0.14);
         border: 1px solid rgba(96, 165, 250, 0.18);
-        color: var(--galint-azul-150);
+        color: var(--galint-azul-150, #bfdbfe);
         font-size: 0.78rem;
         font-weight: 700;
         text-transform: uppercase;
@@ -185,7 +185,7 @@
     }
 
     .contingency-primary-btn {
-        background: linear-gradient(135deg, var(--galint-azul-500), #0ea5e9);
+        background: linear-gradient(135deg, var(--galint-azul-500, #2563eb), #0ea5e9);
         border-color: transparent;
     }
 

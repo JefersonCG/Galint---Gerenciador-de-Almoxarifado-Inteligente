@@ -5,45 +5,45 @@
 <style>
     body.condominium-dossier-page .app-body { background: linear-gradient(180deg, #eef5fc 0%, #e3edf7 100%); }
     body.condominium-dossier-page .content-panel { background: rgba(239, 246, 255, 0.94); border-left: 1px solid rgba(148, 163, 184, 0.16); }
-    .condo-dossier-shell { display: grid; gap: 0.9rem; color: var(--galint-neutro-900); }
-    .condo-dossier-header { position: relative; overflow: hidden; display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; min-height: 11rem; padding: clamp(1rem, 2.1vw, 1.45rem); border-radius: 18px; border: 1px solid rgba(148, 163, 184, 0.2); background: var(--galint-neutro-900); color: var(--galint-neutro-050); box-shadow: 0 24px 56px rgba(15, 23, 42, 0.18); }
+    .condo-dossier-shell { display: grid; gap: 0.9rem; color: var(--galint-neutro-900, #0f172a); }
+    .condo-dossier-header { position: relative; overflow: hidden; display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; min-height: 11rem; padding: clamp(1rem, 2.1vw, 1.45rem); border-radius: 18px; border: 1px solid rgba(148, 163, 184, 0.2); background: var(--galint-neutro-900, #0f172a); color: var(--galint-neutro-050, #f8fafc); box-shadow: 0 24px 56px rgba(15, 23, 42, 0.18); }
     .condo-dossier-header::before { content: ""; position: absolute; inset: 0; background: url("{{ system_image_url('administracao_cadastro_hero', '20260506-cadastro-hero') }}") center / cover no-repeat; opacity: 0.68; }
     .condo-dossier-header::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(15, 23, 42, 0.9), rgba(30, 64, 175, 0.54)); }
     .condo-dossier-header > * { position: relative; z-index: 1; }
-    .condo-dossier-kicker { display: inline-flex; align-items: center; gap: 0.42rem; margin: 0 0 0.45rem; padding: 0.3rem 0.58rem; border-radius: 999px; background: rgba(255,255,255,0.09); border: 1px solid rgba(226,232,240,0.14); color: var(--galint-ciano-100); font-size: 0.68rem; font-weight: 900; letter-spacing: 0.07em; text-transform: uppercase; }
-    .condo-dossier-title { margin: 0; font-size: clamp(1.75rem, 2.8vw, 2.35rem); line-height: 1; font-weight: 950; letter-spacing: 0; color: var(--galint-neutro-050); }
+    .condo-dossier-kicker { display: inline-flex; align-items: center; gap: 0.42rem; margin: 0 0 0.45rem; padding: 0.3rem 0.58rem; border-radius: 999px; background: rgba(255,255,255,0.09); border: 1px solid rgba(226,232,240,0.14); color: var(--galint-ciano-100, #bae6fd); font-size: 0.68rem; font-weight: 900; letter-spacing: 0.07em; text-transform: uppercase; }
+    .condo-dossier-title { margin: 0; font-size: clamp(1.75rem, 2.8vw, 2.35rem); line-height: 1; font-weight: 950; letter-spacing: 0; color: var(--galint-neutro-050, #f8fafc); }
     .condo-dossier-summary { margin: 0.55rem 0 0; max-width: 56rem; color: rgba(226, 232, 240, 0.84); font-weight: 750; line-height: 1.42; }
     .condo-dossier-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: start; justify-content: flex-end; }
-    .condo-dossier-card { border: 1px solid rgba(148, 163, 184, 0.22); border-radius: 16px; background: var(--galint-branco); box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08); padding: 0.9rem; }
+    .condo-dossier-card { border: 1px solid rgba(148, 163, 184, 0.22); border-radius: 16px; background: var(--galint-branco, #ffffff); box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08); padding: 0.9rem; }
     .condo-dossier-search { display: grid; grid-template-columns: minmax(0, 1fr) minmax(10rem, 14rem) auto; gap: 0.65rem; align-items: end; }
     .condo-dossier-layout { display: grid; grid-template-columns: minmax(18rem, 0.42fr) minmax(0, 0.92fr); gap: 0.9rem; align-items: start; }
     .condo-dossier-results { display: grid; gap: 0.55rem; max-height: 48rem; overflow: auto; padding-right: 0.2rem; }
-    .condo-dossier-result { display: grid; gap: 0.45rem; padding: 0.7rem; border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.2); background: var(--galint-neutro-050); color: var(--galint-neutro-900); text-decoration: none; }
-    .condo-dossier-result:hover { color: var(--galint-neutro-900); border-color: rgba(59, 130, 246, 0.36); background: var(--galint-azul-050); }
-    .condo-dossier-result.is-selected { border-color: var(--galint-azul-500); box-shadow: inset 4px 0 0 var(--galint-azul-500); }
+    .condo-dossier-result { display: grid; gap: 0.45rem; padding: 0.7rem; border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.2); background: var(--galint-neutro-050, #f8fafc); color: var(--galint-neutro-900, #0f172a); text-decoration: none; }
+    .condo-dossier-result:hover { color: var(--galint-neutro-900, #0f172a); border-color: rgba(59, 130, 246, 0.36); background: var(--galint-azul-050, #eff6ff); }
+    .condo-dossier-result.is-selected { border-color: var(--galint-azul-500, #2563eb); box-shadow: inset 4px 0 0 var(--galint-azul-500, #2563eb); }
     .condo-dossier-result-title { font-weight: 950; }
-    .condo-dossier-muted { color: var(--galint-neutro-500); font-size: 0.78rem; font-weight: 760; }
+    .condo-dossier-muted { color: var(--galint-neutro-500, #64748b); font-size: 0.78rem; font-weight: 760; }
     .condo-dossier-tags { display: flex; gap: 0.35rem; flex-wrap: wrap; }
-    .condo-dossier-tag { display: inline-flex; min-height: 1.55rem; align-items: center; gap: 0.25rem; padding: 0.18rem 0.45rem; border-radius: 999px; background: var(--galint-neutro-200); color: var(--galint-neutro-900); font-size: 0.68rem; font-weight: 900; }
+    .condo-dossier-tag { display: inline-flex; min-height: 1.55rem; align-items: center; gap: 0.25rem; padding: 0.18rem 0.45rem; border-radius: 999px; background: var(--galint-neutro-200, #e2e8f0); color: var(--galint-neutro-900, #0f172a); font-size: 0.68rem; font-weight: 900; }
     .condo-dossier-tag.status-ocupado { background: #dcfce7; color: #166534; }
-    .condo-dossier-tag.status-vago, .condo-dossier-tag.status-sem_cadastro { background: var(--galint-perigo-100); color: #991b1b; }
+    .condo-dossier-tag.status-vago, .condo-dossier-tag.status-sem_cadastro { background: var(--galint-perigo-100, #fee2e2); color: #991b1b; }
     .condo-dossier-tag.status-reforma { background: #fef9c3; color: #854d0e; }
     .condo-dossier-detail { display: grid; gap: 0.75rem; }
     .condo-dossier-unit-head { display: flex; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; align-items: start; }
     .condo-dossier-unit-title { margin: 0; font-size: 1.35rem; font-weight: 950; }
     .condo-dossier-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.65rem; }
-    .condo-dossier-kpi { display: grid; gap: 0.18rem; padding: 0.75rem; border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.18); background: var(--galint-neutro-050); }
-    .condo-dossier-kpi span { color: var(--galint-neutro-500); font-size: 0.68rem; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; }
+    .condo-dossier-kpi { display: grid; gap: 0.18rem; padding: 0.75rem; border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.18); background: var(--galint-neutro-050, #f8fafc); }
+    .condo-dossier-kpi span { color: var(--galint-neutro-500, #64748b); font-size: 0.68rem; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; }
     .condo-dossier-kpi strong { font-size: 1.25rem; line-height: 1; font-weight: 950; }
     .condo-dossier-section-title { margin: 0 0 0.5rem; font-size: 1rem; font-weight: 950; }
-    .condo-dossier-owner { display: grid; gap: 0.55rem; padding: 0.75rem; border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.18); background: var(--galint-neutro-050); }
+    .condo-dossier-owner { display: grid; gap: 0.55rem; padding: 0.75rem; border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.18); background: var(--galint-neutro-050, #f8fafc); }
     .condo-dossier-owner-top { display: flex; justify-content: space-between; gap: 0.7rem; flex-wrap: wrap; }
     .condo-dossier-owner-name { font-weight: 950; }
     .condo-dossier-two-col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.65rem; }
     .condo-dossier-mini-list { display: grid; gap: 0.42rem; }
-    .condo-dossier-mini-item { padding: 0.62rem; border-radius: 12px; background: var(--galint-neutro-050); border: 1px solid rgba(148, 163, 184, 0.18); }
+    .condo-dossier-mini-item { padding: 0.62rem; border-radius: 12px; background: var(--galint-neutro-050, #f8fafc); border: 1px solid rgba(148, 163, 184, 0.18); }
     .condo-dossier-mini-item .condo-dossier-muted { white-space: pre-line; }
-    .condo-dossier-empty { padding: 0.85rem; border-radius: 14px; border: 1px dashed rgba(148, 163, 184, 0.44); background: var(--galint-neutro-050); color: var(--galint-neutro-600); font-weight: 760; }
+    .condo-dossier-empty { padding: 0.85rem; border-radius: 14px; border: 1px dashed rgba(148, 163, 184, 0.44); background: var(--galint-neutro-050, #f8fafc); color: var(--galint-neutro-600, #475569); font-weight: 760; }
     @media (max-width: 1199.98px) { .condo-dossier-layout { grid-template-columns: 1fr; } }
     @media (max-width: 767.98px) { .condo-dossier-search, .condo-dossier-grid, .condo-dossier-two-col { grid-template-columns: 1fr; } }
 </style>

@@ -102,6 +102,13 @@ def create_app(config_name: str | None = None) -> Flask:
 
     load_config(app, config_name)
     app.config["PROPAGATE_EXCEPTIONS"] = False
+    # O Mako já confere o disco a cada requisição (filesystem_checks=True). Sem isto,
+    # o Jinja mantinha em memória o template compilado na primeira vez em que foi
+    # usado: depois de uma atualização, telas abertas antes ficavam com a versão
+    # velha e telas abertas depois com a nova, misturando HTML novo com layout
+    # antigo (foi assim que o dashboard perdeu o fundo dos cartões).
+    app.config["TEMPLATES_AUTO_RELOAD"] = True
+    app.jinja_env.auto_reload = True
     register_extensions(app)
     install_document_integrity_guards()
     register_blueprints(app)

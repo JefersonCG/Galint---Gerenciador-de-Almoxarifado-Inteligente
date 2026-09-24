@@ -18,7 +18,7 @@
         padding: 1.1rem 1.2rem;
         margin-bottom: 1rem;
         color: #fff7ed;
-        background: linear-gradient(135deg, #2b0b0e 0%, var(--galint-perigo-700) 48%, #111827 100%);
+        background: linear-gradient(135deg, #2b0b0e 0%, var(--galint-perigo-700, #7f1d1d) 48%, #111827 100%);
         box-shadow: 0 20px 44px rgba(15, 23, 42, 0.22);
     }
     .admin-stock-hero::before {
@@ -48,7 +48,7 @@
     .admin-stock-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.85fr); gap: 0.9rem; }
     .admin-stock-card {
         background: linear-gradient(160deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.92));
-        color: var(--galint-neutro-200);
+        color: var(--galint-neutro-200, #e2e8f0);
         border: 1px solid rgba(148, 163, 184, 0.18);
         border-radius: 20px;
         box-shadow: 0 18px 36px rgba(15, 23, 42, 0.16);
@@ -74,15 +74,15 @@
     .admin-stock-card .form-check-input,
     .admin-stock-card textarea {
         background: rgba(15, 23, 42, 0.84);
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
         border-color: rgba(148, 163, 184, 0.22);
     }
     .admin-stock-card .form-control::placeholder,
-    .admin-stock-card textarea::placeholder { color: var(--galint-neutro-400); }
+    .admin-stock-card textarea::placeholder { color: var(--galint-neutro-400, #94a3b8); }
     .admin-stock-card .form-text,
     .admin-stock-card .text-muted,
     .admin-stock-card .form-label,
-    .admin-stock-card small { color: var(--galint-neutro-300) !important; }
+    .admin-stock-card small { color: var(--galint-neutro-300, #cbd5e1) !important; }
     .admin-stock-search {
         position: relative;
     }
@@ -93,7 +93,7 @@
         display: none;
         max-height: 280px;
         overflow-y: auto;
-        background: var(--galint-neutro-900);
+        background: var(--galint-neutro-900, #0f172a);
         border: 1px solid rgba(148, 163, 184, 0.18);
         border-radius: 18px;
         box-shadow: 0 18px 38px rgba(2, 8, 23, 0.4);
@@ -129,7 +129,7 @@
     .admin-stock-metric-value {
         font-size: 1rem;
         font-weight: 800;
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
     }
     .admin-stock-metric small {
         display: block;
@@ -172,13 +172,13 @@
     .admin-stock-mode-title {
         display: block;
         font-weight: 700;
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
         margin-bottom: 0.1rem;
         font-size: 0.9rem;
     }
     .admin-stock-mode-desc {
         display: block;
-        color: var(--galint-neutro-300);
+        color: var(--galint-neutro-300, #cbd5e1);
         font-size: 0.8rem;
         line-height: 1.35;
     }
@@ -209,7 +209,7 @@
     .admin-stock-balance-summary-value {
         font-size: 1.05rem;
         font-weight: 800;
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
         margin-bottom: 0.15rem;
     }
     .admin-stock-card .alert {

@@ -4,7 +4,7 @@
 {% block extra_css %}
 <style>
     .supplier-shell-wrap {
-        --supplier-text-primary: var(--galint-azul-025);
+        --supplier-text-primary: var(--galint-azul-025, #f8fbff);
         --supplier-text-secondary: rgba(222, 233, 247, 0.9);
         --supplier-text-muted: rgba(196, 211, 233, 0.86);
         --supplier-text-soft: rgba(168, 188, 217, 0.82);
@@ -15,11 +15,11 @@
     }
 
     .supplier-shell-wrap {
-        background: radial-gradient(circle at top left, rgba(37, 99, 235, 0.18), transparent 24%), radial-gradient(circle at top right, rgba(16, 185, 129, 0.14), transparent 20%), linear-gradient(180deg, var(--galint-noite-900) 0%, var(--galint-noite-800) 100%);
+        background: radial-gradient(circle at top left, rgba(37, 99, 235, 0.18), transparent 24%), radial-gradient(circle at top right, rgba(16, 185, 129, 0.14), transparent 20%), linear-gradient(180deg, var(--galint-noite-900, #07111f) 0%, var(--galint-noite-800, #0b1220) 100%);
         border: 1px solid var(--supplier-border-soft);
         border-radius: 30px;
         padding: 1.5rem;
-        color: var(--galint-neutro-200);
+        color: var(--galint-neutro-200, #e2e8f0);
         box-shadow: 0 22px 46px rgba(2, 6, 23, 0.42);
     }
 
@@ -33,7 +33,7 @@
         border-radius: 26px;
         padding: 1.65rem;
         background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(17, 24, 39, 0.96) 48%, rgba(3, 105, 161, 0.92) 100%);
-        color: var(--galint-neutro-200);
+        color: var(--galint-neutro-200, #e2e8f0);
         border: 1px solid rgba(125, 211, 252, 0.14);
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 22px 52px rgba(15, 23, 42, 0.34);
         margin-bottom: 1.5rem;
@@ -85,7 +85,7 @@
         font-weight: 800;
         letter-spacing: -0.03em;
         margin-top: 0.2rem;
-        color: var(--galint-branco);
+        color: var(--galint-branco, #ffffff);
     }
 
     .supplier-kpi-sub {
@@ -109,7 +109,7 @@
 
     .supplier-action-card .title {
         font-weight: 700;
-        color: var(--galint-branco);
+        color: var(--galint-branco, #ffffff);
         margin-bottom: 0.3rem;
     }
 
@@ -138,12 +138,12 @@
         padding: 1rem 1.1rem;
         background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(17, 24, 39, 0.94));
         border-bottom: 1px solid rgba(148, 163, 184, 0.14);
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
     }
 
     .supplier-card-body {
         padding: 1.05rem 1.1rem;
-        color: var(--galint-neutro-200);
+        color: var(--galint-neutro-200, #e2e8f0);
     }
 
     .supplier-header {
@@ -162,7 +162,7 @@
         font-size: 0.76rem;
         text-transform: uppercase;
         letter-spacing: 0.08em;
-        color: var(--galint-azul-200);
+        color: var(--galint-azul-200, #93c5fd);
         border-bottom-width: 1px;
     }
 
@@ -170,7 +170,7 @@
         vertical-align: middle;
         padding-top: 0.95rem;
         padding-bottom: 0.95rem;
-        color: var(--galint-neutro-200);
+        color: var(--galint-neutro-200, #e2e8f0);
     }
 
     .supplier-badge {
@@ -182,7 +182,7 @@
         font-size: 0.75rem;
         font-weight: 600;
         background: rgba(59, 130, 246, 0.16);
-        color: var(--galint-azul-150);
+        color: var(--galint-azul-150, #bfdbfe);
         border: 1px solid rgba(59, 130, 246, 0.28);
     }
 
@@ -192,7 +192,7 @@
         border-radius: 18px;
         padding: 0.9rem;
         margin-bottom: 1rem;
-        color: var(--galint-neutro-200);
+        color: var(--galint-neutro-200, #e2e8f0);
     }
 
     .supplier-search {
@@ -212,14 +212,14 @@
         border-radius: 999px;
         padding: 0.22rem 0.56rem;
         background: rgba(16, 185, 129, 0.12);
-        color: var(--galint-sucesso-700);
+        color: var(--galint-sucesso-700, #047857);
         border: 1px solid rgba(16, 185, 129, 0.18);
         margin-top: 0.35rem;
     }
 
     .supplier-row-status.off {
         background: rgba(239, 68, 68, 0.1);
-        color: var(--galint-perigo-600);
+        color: var(--galint-perigo-600, #b91c1c);
         border-color: rgba(239, 68, 68, 0.18);
     }
 
@@ -235,7 +235,7 @@
     .supplier-shell-wrap .form-control,
     .supplier-shell-wrap .form-control:focus {
         background: rgba(8, 15, 28, 0.92);
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
         border-color: rgba(148, 163, 184, 0.24);
         box-shadow: none;
         min-height: 42px;
@@ -281,10 +281,10 @@
 
     .supplier-shell-wrap .table {
         --bs-table-bg: transparent;
-        --bs-table-color: var(--galint-neutro-200);
+        --bs-table-color: var(--galint-neutro-200, #e2e8f0);
         --bs-table-border-color: rgba(148, 163, 184, 0.12);
         --bs-table-hover-bg: rgba(37, 99, 235, 0.12);
-        --bs-table-hover-color: var(--galint-neutro-050);
+        --bs-table-hover-color: var(--galint-neutro-050, #f8fafc);
     }
 
     @media (max-width: 1100px) {

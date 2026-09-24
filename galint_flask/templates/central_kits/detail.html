@@ -59,11 +59,11 @@
 {% block extra_css %}
 <style>
     :root {
-        --kit-detail-bg: linear-gradient(180deg, #edf3f7 0%, var(--galint-neutro-050) 100%);
+        --kit-detail-bg: linear-gradient(180deg, #edf3f7 0%, var(--galint-neutro-050, #f8fafc) 100%);
         --kit-detail-panel: linear-gradient(180deg, rgba(23, 32, 43, 0.98), rgba(18, 26, 35, 0.96));
         --kit-detail-soft: linear-gradient(180deg, rgba(24, 34, 45, 0.94), rgba(18, 25, 33, 0.92));
         --kit-detail-border: rgba(148, 163, 184, 0.14);
-        --kit-detail-text: var(--galint-neutro-200);
+        --kit-detail-text: var(--galint-neutro-200, #e2e8f0);
         --kit-detail-muted: rgba(203, 213, 225, 0.72);
     }
 
@@ -106,7 +106,7 @@
         background: radial-gradient(circle at top right, rgba(56, 189, 248, 0.18), transparent 30%),
                     radial-gradient(circle at bottom left, rgba(245, 158, 11, 0.14), transparent 30%),
                     linear-gradient(135deg, #14202b 0%, #1b2938 56%, #24384d 100%);
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
         border-radius: 28px;
         padding: 1.8rem;
         border: 1px solid rgba(148, 163, 184, 0.14);
@@ -153,7 +153,7 @@
     .kit-summary h3 {
         margin: 0;
         font-weight: 800;
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
     }
 
     .kit-profile p,
@@ -222,7 +222,7 @@
     }
 
     .kit-kpi strong {
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
         font-size: 1.22rem;
         line-height: 1.2;
     }
@@ -258,7 +258,7 @@
         margin: 0;
         font-size: 1.15rem;
         font-weight: 800;
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
     }
 
     .kit-surface-head p {
@@ -274,7 +274,7 @@
         padding: 0.36rem 0.78rem;
         border-radius: 999px;
         background: rgba(56, 189, 248, 0.1);
-        color: var(--galint-ciano-100);
+        color: var(--galint-ciano-100, #bae6fd);
         border: 1px solid rgba(56, 189, 248, 0.16);
         font-size: 0.78rem;
         font-weight: 700;
@@ -357,7 +357,7 @@
 
     .kit-item-head h4 {
         margin: 0;
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
         font-size: 1rem;
         font-weight: 800;
     }
@@ -369,7 +369,7 @@
     }
 
     .kit-item-value {
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
         font-size: 1rem;
         font-weight: 800;
         white-space: nowrap;
@@ -429,7 +429,7 @@
 
     .kit-timeline-item strong {
         display: block;
-        color: var(--galint-neutro-050);
+        color: var(--galint-neutro-050, #f8fafc);
         margin-bottom: 0.18rem;
     }
 
@@ -467,14 +467,14 @@
         border: none;
         border-radius: 22px;
         overflow: hidden;
-        background: var(--galint-neutro-050);
+        background: var(--galint-neutro-050, #f8fafc);
         box-shadow: 0 24px 70px rgba(15, 23, 42, 0.35);
     }
 
     .price-suggest-modal .modal-header {
         border: none;
-        background: linear-gradient(135deg, var(--galint-neutro-900) 0%, var(--galint-neutro-850) 65%, var(--galint-neutro-700) 100%);
-        color: var(--galint-neutro-200);
+        background: linear-gradient(135deg, var(--galint-neutro-900, #0f172a) 0%, var(--galint-neutro-850, #1e293b) 65%, var(--galint-neutro-700, #334155) 100%);
+        color: var(--galint-neutro-200, #e2e8f0);
         padding: 1.25rem 1.5rem;
     }
 
@@ -490,7 +490,7 @@
     }
 
     .price-suggest-modal .modal-body {
-        background: var(--galint-neutro-050);
+        background: var(--galint-neutro-050, #f8fafc);
         padding: 1.5rem;
     }
 
@@ -506,14 +506,14 @@
 
     .price-suggest-modal .form-label {
         font-weight: 700;
-        color: var(--galint-neutro-700);
+        color: var(--galint-neutro-700, #334155);
         margin-bottom: 0.45rem;
     }
 
     .price-suggest-modal .form-control,
     .price-suggest-modal .input-group-text {
         border-radius: 12px;
-        border: 1px solid var(--galint-neutro-200);
+        border: 1px solid var(--galint-neutro-200, #e2e8f0);
     }
 
     .kit-price-note {
@@ -522,7 +522,7 @@
         padding: 0.9rem 1rem;
         background: rgba(37, 99, 235, 0.08);
         border: 1px solid rgba(37, 99, 235, 0.14);
-        color: var(--galint-neutro-700);
+        color: var(--galint-neutro-700, #334155);
         line-height: 1.55;
     }
 
@@ -550,23 +550,23 @@
 
     .price-card:hover {
         transform: translateY(-2px);
-        border-color: var(--galint-azul-300);
+        border-color: var(--galint-azul-300, #60a5fa);
         box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
     }
 
     .price-card.selected {
-        border-color: var(--galint-azul-500);
+        border-color: var(--galint-azul-500, #2563eb);
         box-shadow: 0 12px 26px rgba(37, 99, 235, 0.25);
     }
 
     .price-amount {
         font-size: 1.1rem;
         font-weight: 700;
-        color: var(--galint-neutro-900);
+        color: var(--galint-neutro-900, #0f172a);
     }
 
     .price-meta {
-        color: var(--galint-neutro-600);
+        color: var(--galint-neutro-600, #475569);
         font-size: 0.85rem;
         margin-top: 0.25rem;
     }

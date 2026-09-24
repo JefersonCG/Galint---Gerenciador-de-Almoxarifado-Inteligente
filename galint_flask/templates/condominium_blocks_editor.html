@@ -5,54 +5,54 @@
 <style>
     body.condominium-editor-page .app-body { background: linear-gradient(180deg, #eef5fc 0%, #e3edf7 100%); }
     body.condominium-editor-page .content-panel { background: rgba(239, 246, 255, 0.92); border-left: 1px solid rgba(148, 163, 184, 0.16); }
-    .condo-editor-shell { position: relative; display: grid; gap: 1.1rem; color: var(--galint-neutro-900); }
+    .condo-editor-shell { position: relative; display: grid; gap: 1.1rem; color: var(--galint-neutro-900, #0f172a); }
     .condo-editor-shell::before { content: ""; position: absolute; inset: -1rem 0 auto; height: 260px; background: radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.12), transparent 32%), radial-gradient(circle at 88% 18%, rgba(16, 185, 129, 0.1), transparent 26%); pointer-events: none; z-index: 0; }
     .condo-editor-shell > * { position: relative; z-index: 1; }
-    .condo-editor-hero { position: relative; overflow: hidden; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; min-height: 13rem; padding: clamp(1.15rem, 2.4vw, 1.8rem); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 26px; background: var(--galint-neutro-900); color: var(--galint-neutro-050); box-shadow: 0 28px 68px rgba(15, 23, 42, 0.2); }
+    .condo-editor-hero { position: relative; overflow: hidden; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; min-height: 13rem; padding: clamp(1.15rem, 2.4vw, 1.8rem); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 26px; background: var(--galint-neutro-900, #0f172a); color: var(--galint-neutro-050, #f8fafc); box-shadow: 0 28px 68px rgba(15, 23, 42, 0.2); }
     .condo-editor-hero::before { content: ""; position: absolute; inset: 0; z-index: 0; background: url("{{ system_image_url('administracao_editor_hero', '20260506-editor-hero') }}") center center / cover no-repeat; opacity: 0.8; pointer-events: none; }
     .condo-editor-hero::after { content: ""; position: absolute; inset: 0; z-index: 0; background: linear-gradient(90deg, rgba(15, 23, 42, 0.78) 0%, rgba(15, 23, 42, 0.56) 42%, rgba(30, 64, 175, 0.48) 100%), linear-gradient(180deg, rgba(2, 6, 23, 0.24), rgba(2, 6, 23, 0.46)); pointer-events: none; }
     .condo-editor-hero > * { position: relative; z-index: 1; }
-    .condo-editor-kicker { display: inline-flex; align-items: center; gap: 0.45rem; width: fit-content; margin: 0 0 0.55rem; padding: 0.32rem 0.64rem; border-radius: 999px; background: rgba(255, 255, 255, 0.09); border: 1px solid rgba(226, 232, 240, 0.14); color: var(--galint-ciano-100); font-size: 0.68rem; font-weight: 850; letter-spacing: 0.08em; text-transform: uppercase; }
-    .condo-editor-title { margin: 0; font-size: clamp(1.75rem, 3vw, 2.45rem); line-height: 1; font-weight: 950; letter-spacing: 0; color: var(--galint-neutro-050); text-shadow: 0 8px 18px rgba(2, 6, 23, 0.28); }
+    .condo-editor-kicker { display: inline-flex; align-items: center; gap: 0.45rem; width: fit-content; margin: 0 0 0.55rem; padding: 0.32rem 0.64rem; border-radius: 999px; background: rgba(255, 255, 255, 0.09); border: 1px solid rgba(226, 232, 240, 0.14); color: var(--galint-ciano-100, #bae6fd); font-size: 0.68rem; font-weight: 850; letter-spacing: 0.08em; text-transform: uppercase; }
+    .condo-editor-title { margin: 0; font-size: clamp(1.75rem, 3vw, 2.45rem); line-height: 1; font-weight: 950; letter-spacing: 0; color: var(--galint-neutro-050, #f8fafc); text-shadow: 0 8px 18px rgba(2, 6, 23, 0.28); }
     .condo-editor-copy { max-width: 720px; margin: 0.55rem 0 0; color: rgba(226, 232, 240, 0.84); font-size: 0.94rem; font-weight: 750; }
     .condo-editor-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end; }
-    .condo-editor-action { min-height: 2.45rem; display: inline-flex; align-items: center; gap: 0.42rem; border-radius: 999px; border: 1px solid rgba(226, 232, 240, 0.16); background: rgba(15, 23, 42, 0.52); color: var(--galint-neutro-050); font-weight: 850; text-decoration: none; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 12px 24px rgba(15, 23, 42, 0.16); }
-    .condo-editor-action:hover { color: var(--galint-branco); border-color: rgba(125, 211, 252, 0.46); background: rgba(15, 23, 42, 0.68); }
+    .condo-editor-action { min-height: 2.45rem; display: inline-flex; align-items: center; gap: 0.42rem; border-radius: 999px; border: 1px solid rgba(226, 232, 240, 0.16); background: rgba(15, 23, 42, 0.52); color: var(--galint-neutro-050, #f8fafc); font-weight: 850; text-decoration: none; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 12px 24px rgba(15, 23, 42, 0.16); }
+    .condo-editor-action:hover { color: var(--galint-branco, #ffffff); border-color: rgba(125, 211, 252, 0.46); background: rgba(15, 23, 42, 0.68); }
     .condo-editor-grid { display: grid; grid-template-columns: minmax(20rem, 0.88fr) minmax(0, 1.12fr); gap: 0.85rem; align-items: start; }
-    .condo-editor-panel { border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 24px; background: var(--galint-branco); box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08); padding: 0.85rem; }
-    .condo-editor-panel.is-dark { color: var(--galint-neutro-200); background: linear-gradient(135deg, var(--galint-neutro-900) 0%, var(--galint-neutro-850) 68%, var(--galint-neutro-700) 100%); box-shadow: 0 26px 60px rgba(15, 23, 42, 0.18); }
+    .condo-editor-panel { border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 24px; background: var(--galint-branco, #ffffff); box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08); padding: 0.85rem; }
+    .condo-editor-panel.is-dark { color: var(--galint-neutro-200, #e2e8f0); background: linear-gradient(135deg, var(--galint-neutro-900, #0f172a) 0%, var(--galint-neutro-850, #1e293b) 68%, var(--galint-neutro-700, #334155) 100%); box-shadow: 0 26px 60px rgba(15, 23, 42, 0.18); }
     .condo-editor-panel-title { margin: 0 0 0.35rem; font-size: 1.02rem; font-weight: 900; }
     .condo-editor-panel-copy { margin: 0 0 0.7rem; color: rgba(226, 232, 240, 0.72); font-size: 0.82rem; line-height: 1.38; font-weight: 720; }
-    .condo-editor-panel-subcopy { margin: 0 0 0.8rem; color: var(--galint-neutro-500); font-size: 0.82rem; line-height: 1.45; font-weight: 720; }
-    .condo-editor-panel.is-dark .form-label { margin-bottom: 0.28rem; color: var(--galint-neutro-300); font-size: 0.78rem; font-weight: 800; }
+    .condo-editor-panel-subcopy { margin: 0 0 0.8rem; color: var(--galint-neutro-500, #64748b); font-size: 0.82rem; line-height: 1.45; font-weight: 720; }
+    .condo-editor-panel.is-dark .form-label { margin-bottom: 0.28rem; color: var(--galint-neutro-300, #cbd5e1); font-size: 0.78rem; font-weight: 800; }
     .condo-editor-panel.is-dark .form-control,
-    .condo-editor-panel.is-dark .form-select { min-height: 38px; border-radius: 10px; border: 1px solid rgba(148, 163, 184, 0.22); background: rgba(15, 23, 42, 0.54); color: var(--galint-neutro-050); box-shadow: none; }
+    .condo-editor-panel.is-dark .form-select { min-height: 38px; border-radius: 10px; border: 1px solid rgba(148, 163, 184, 0.22); background: rgba(15, 23, 42, 0.54); color: var(--galint-neutro-050, #f8fafc); box-shadow: none; }
     .condo-editor-panel.is-dark textarea.form-control { min-height: 78px; }
-    .condo-editor-panel.is-dark .form-control::placeholder { color: var(--galint-neutro-400); }
+    .condo-editor-panel.is-dark .form-control::placeholder { color: var(--galint-neutro-400, #94a3b8); }
     .condo-editor-panel.is-dark .form-check-label,
     .condo-editor-panel.is-dark .form-text { color: rgba(226, 232, 240, 0.72); }
-    .condo-editor-save { min-height: 42px; border-radius: 12px; border: 0; background: linear-gradient(135deg, #0ea5e9, #22c55e); color: var(--galint-branco); font-weight: 900; }
+    .condo-editor-save { min-height: 42px; border-radius: 12px; border: 0; background: linear-gradient(135deg, #0ea5e9, #22c55e); color: var(--galint-branco, #ffffff); font-weight: 900; }
     .condo-building-list { display: grid; gap: 0.75rem; }
-    .condo-building-card { display: grid; gap: 0.7rem; border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 18px; background: var(--galint-neutro-050); padding: 0.9rem; }
+    .condo-building-card { display: grid; gap: 0.7rem; border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 18px; background: var(--galint-neutro-050, #f8fafc); padding: 0.9rem; }
     .condo-building-card.is-preview { border-style: dashed; border-color: rgba(14, 165, 233, 0.42); background: linear-gradient(180deg, rgba(239, 246, 255, 0.95), rgba(248, 250, 252, 1)); }
     .condo-building-card.is-archived { opacity: 0.62; }
     .condo-building-top { display: flex; align-items: start; justify-content: space-between; gap: 0.75rem; }
-    .condo-building-top strong { display: block; font-size: 1rem; color: var(--galint-neutro-900); }
-    .condo-building-top span { display: block; color: var(--galint-neutro-500); font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
+    .condo-building-top strong { display: block; font-size: 1rem; color: var(--galint-neutro-900, #0f172a); }
+    .condo-building-top span { display: block; color: var(--galint-neutro-500, #64748b); font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
     .condo-building-stats { display: flex; gap: 0.42rem; flex-wrap: wrap; }
-    .condo-building-chip { display: inline-flex; align-items: center; gap: 0.35rem; min-height: 1.85rem; padding: 0.28rem 0.58rem; border-radius: 999px; background: var(--galint-neutro-200); color: var(--galint-neutro-900); font-size: 0.74rem; font-weight: 850; }
+    .condo-building-chip { display: inline-flex; align-items: center; gap: 0.35rem; min-height: 1.85rem; padding: 0.28rem 0.58rem; border-radius: 999px; background: var(--galint-neutro-200, #e2e8f0); color: var(--galint-neutro-900, #0f172a); font-size: 0.74rem; font-weight: 850; }
     .condo-building-card-actions { display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap; }
     .condo-preview-meta { display: grid; gap: 0.22rem; }
     .condo-preview-kicker { display: inline-flex; align-items: center; gap: 0.38rem; width: fit-content; min-height: 1.75rem; padding: 0.24rem 0.56rem; border-radius: 999px; background: rgba(14, 165, 233, 0.14); color: #0369a1; font-size: 0.7rem; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; }
-    .condo-preview-feedback { margin: 0; color: var(--galint-neutro-600); font-size: 0.78rem; font-weight: 720; }
+    .condo-preview-feedback { margin: 0; color: var(--galint-neutro-600, #475569); font-size: 0.78rem; font-weight: 720; }
     .condo-preview-feedback.is-warning { color: #b45309; }
     .condo-preview-floor-list { display: grid; gap: 0.45rem; }
     .condo-preview-floor-row { display: flex; align-items: start; justify-content: space-between; gap: 0.65rem; padding: 0.55rem 0.7rem; border-radius: 14px; background: rgba(226, 232, 240, 0.72); }
-    .condo-preview-floor-row strong { display: block; color: var(--galint-neutro-900); font-size: 0.82rem; font-weight: 900; }
-    .condo-preview-floor-row span { display: block; color: var(--galint-neutro-500); font-size: 0.74rem; font-weight: 720; }
-    .condo-preview-floor-count { color: var(--galint-neutro-900); font-size: 0.76rem; font-weight: 900; white-space: nowrap; }
-    .condo-preview-more { color: var(--galint-neutro-500); font-size: 0.76rem; font-weight: 800; text-align: center; }
-    .condo-empty-state { border: 1px dashed rgba(148, 163, 184, 0.44); border-radius: 18px; padding: 1rem; background: var(--galint-neutro-050); color: var(--galint-neutro-600); font-weight: 700; }
+    .condo-preview-floor-row strong { display: block; color: var(--galint-neutro-900, #0f172a); font-size: 0.82rem; font-weight: 900; }
+    .condo-preview-floor-row span { display: block; color: var(--galint-neutro-500, #64748b); font-size: 0.74rem; font-weight: 720; }
+    .condo-preview-floor-count { color: var(--galint-neutro-900, #0f172a); font-size: 0.76rem; font-weight: 900; white-space: nowrap; }
+    .condo-preview-more { color: var(--galint-neutro-500, #64748b); font-size: 0.76rem; font-weight: 800; text-align: center; }
+    .condo-empty-state { border: 1px dashed rgba(148, 163, 184, 0.44); border-radius: 18px; padding: 1rem; background: var(--galint-neutro-050, #f8fafc); color: var(--galint-neutro-600, #475569); font-weight: 700; }
     @media (max-width: 991.98px) { .condo-editor-grid { grid-template-columns: 1fr; } }
 </style>
 {% endblock %}

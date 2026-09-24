@@ -3,12 +3,12 @@
     --bg: #141822;
     --panel: #1f2128;
     --muted: #9aa0a6;
-    --accent: var(--galint-azul-500);
-    --accent-2: var(--galint-azul-400);
+    --accent: var(--galint-azul-500, #2563eb);
+    --accent-2: var(--galint-azul-400, #3b82f6);
     --topbar-height: 96px;
     --topbar-padding-x: clamp(1rem, 2vw, 2rem);
-    --text-light: var(--galint-neutro-050);
-    --text-dark: var(--galint-neutro-900);
+    --text-light: var(--galint-neutro-050, #f8fafc);
+    --text-dark: var(--galint-neutro-900, #0f172a);
     --border: rgba(255, 255, 255, 0.08);
     --shell-border: rgba(148, 163, 184, 0.16);
     --shell-border-strong: rgba(148, 163, 184, 0.24);
@@ -40,7 +40,7 @@ html {
 .topbar {
     min-height: var(--topbar-height);
     padding: 0.9rem var(--topbar-padding-x);
-    background: linear-gradient(120deg, #1e3a8a, var(--galint-azul-500) 58%, var(--galint-ciano-400));
+    background: linear-gradient(120deg, #1e3a8a, var(--galint-azul-500, #2563eb) 58%, var(--galint-ciano-400, #38bdf8));
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -115,7 +115,7 @@ html {
 .app-body {
     flex: 1;
     display: flex;
-    background: linear-gradient(180deg, #0c1119, var(--galint-neutro-900));
+    background: linear-gradient(180deg, #0c1119, var(--galint-neutro-900, #0f172a));
 }
 
 .sidebar-column {
@@ -140,7 +140,7 @@ html {
     height: 100%;
     display: flex;
     flex-direction: column;
-    background: linear-gradient(180deg, #0f1725, #111827 58%, var(--galint-neutro-900));
+    background: linear-gradient(180deg, #0f1725, #111827 58%, var(--galint-neutro-900, #0f172a));
     transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
 }
 
@@ -250,7 +250,7 @@ html {
 .sidebar-menu .collapse > .sidebar-link:hover {
     background: rgba(37, 99, 235, 0.14);
     border-color: rgba(96, 165, 250, 0.16);
-    color: var(--galint-azul-025);
+    color: var(--galint-azul-025, #f8fbff);
 }
 
 .sidebar-menu .collapse > .sidebar-link:hover::before {
@@ -258,14 +258,14 @@ html {
 }
 
 .sidebar-menu .collapse > .sidebar-link.active {
-    color: var(--galint-branco);
+    color: var(--galint-branco, #ffffff);
     background: linear-gradient(135deg, rgba(37, 99, 235, 0.3), rgba(59, 130, 246, 0.14));
     border-color: rgba(125, 211, 252, 0.28);
     box-shadow: 0 10px 22px rgba(15, 23, 42, 0.18);
 }
 
 .sidebar-menu .collapse > .sidebar-link.active::before {
-    background: var(--galint-ciano-300);
+    background: var(--galint-ciano-300, #7dd3fc);
     box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.16);
     transform: translateY(-50%) scale(1.05);
 }
@@ -329,7 +329,7 @@ html {
 .galint-dark-surface .modal-body,
 .galint-dark-surface .modal-header,
 .galint-dark-surface .modal-footer {
-    color: var(--galint-neutro-200);
+    color: var(--galint-neutro-200, #e2e8f0);
 }
 
 .galint-dark-surface .text-muted,
@@ -337,7 +337,7 @@ html {
 .galint-dark-surface small,
 .galint-dark-surface label,
 .galint-dark-surface .small.text-muted {
-    color: var(--galint-neutro-300) !important;
+    color: var(--galint-neutro-300, #cbd5e1) !important;
 }
 
 .page-header {
@@ -355,7 +355,7 @@ html {
 .summary-card {
     padding: 1.25rem;
     border-radius: 12px;
-    background: var(--galint-branco);
+    background: var(--galint-branco, #ffffff);
     box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
     color: var(--text-dark);
 }
@@ -381,7 +381,7 @@ html {
 }
 
 .section-panel {
-    background: var(--galint-branco);
+    background: var(--galint-branco, #ffffff);
     border-radius: 14px;
     padding: 1.5rem;
     box-shadow: 0 15px 35px rgba(15, 23, 42, 0.06);
@@ -446,7 +446,7 @@ html {
 .modal-content .galint-folder-tabs .nav-link {
     border: 1px solid rgba(148, 163, 184, 0.08) !important;
     border-bottom-color: rgba(148, 163, 184, 0.14) !important;
-    color: var(--galint-neutro-400) !important;
+    color: var(--galint-neutro-400, #94a3b8) !important;
     border-radius: 14px 14px 0 0 !important;
     padding: 0.7rem 1.1rem !important;
     margin: 0 0.1rem -1px !important;
@@ -460,7 +460,7 @@ html {
 
 .content-panel .galint-folder-tabs .nav-link:hover,
 .modal-content .galint-folder-tabs .nav-link:hover {
-    color: var(--galint-neutro-050) !important;
+    color: var(--galint-neutro-050, #f8fafc) !important;
     border-color: rgba(59, 130, 246, 0.35) !important;
     background: rgba(37, 99, 235, 0.12) !important;
 }
@@ -469,7 +469,7 @@ html {
 .content-panel .galint-folder-tabs .show > .nav-link,
 .modal-content .galint-folder-tabs .nav-link.active,
 .modal-content .galint-folder-tabs .show > .nav-link {
-    color: var(--galint-branco) !important;
+    color: var(--galint-branco, #ffffff) !important;
     border-color: rgba(148, 163, 184, 0.14) !important;
     border-bottom-color: transparent !important;
     background: linear-gradient(180deg, rgba(37, 99, 235, 0.18) 0%, rgba(15, 23, 42, 0.96) 38%, rgba(17, 24, 39, 0.94) 100%) !important;
@@ -525,7 +525,7 @@ html {
 .galint-folder-buttons > .galint-tab-btn {
     border: 1px solid rgba(148, 163, 184, 0.08) !important;
     border-bottom-color: rgba(148, 163, 184, 0.14) !important;
-    color: var(--galint-neutro-400) !important;
+    color: var(--galint-neutro-400, #94a3b8) !important;
     border-radius: 14px 14px 0 0 !important;
     padding: 0.7rem 1.1rem !important;
     background: linear-gradient(180deg, rgba(15, 23, 42, 0.42) 0%, rgba(15, 23, 42, 0.2) 100%) !important;
@@ -551,14 +551,14 @@ html {
 
 .galint-folder-buttons > .tab-button:hover,
 .galint-folder-buttons > .galint-tab-btn:hover {
-    color: var(--galint-neutro-050) !important;
+    color: var(--galint-neutro-050, #f8fafc) !important;
     border-color: rgba(59, 130, 246, 0.35) !important;
     background: rgba(37, 99, 235, 0.12) !important;
 }
 
 .galint-folder-buttons > .tab-button.active,
 .galint-folder-buttons > .galint-tab-btn.active {
-    color: var(--galint-branco) !important;
+    color: var(--galint-branco, #ffffff) !important;
     border-color: rgba(148, 163, 184, 0.14) !important;
     border-bottom-color: transparent !important;
     background: linear-gradient(180deg, rgba(37, 99, 235, 0.18) 0%, rgba(15, 23, 42, 0.96) 38%, rgba(17, 24, 39, 0.94) 100%) !important;
