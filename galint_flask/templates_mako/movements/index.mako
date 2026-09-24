@@ -16,7 +16,7 @@
         max-height: 300px;
         overflow-y: auto;
         background: white;
-        border: 2px solid #3b82f6;
+        border: 2px solid var(--galint-azul-400);
         border-top: none;
         border-radius: 0 0 8px 8px;
         z-index: 1000;

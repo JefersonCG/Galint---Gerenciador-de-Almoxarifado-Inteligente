@@ -78,7 +78,7 @@
 
 .modal-content.bg-dark .autocomplete-item-title,
 .bg-dark .autocomplete-item-title {
-    color: #ffffff;
+    color: var(--galint-branco);
 }
 
 .modal-content.bg-dark .autocomplete-item-details,

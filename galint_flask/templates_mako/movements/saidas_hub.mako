@@ -11,7 +11,7 @@
     }
 
     .hub-shell {
-        background: linear-gradient(180deg, #eef2f7 0%, #f8fafc 100%);
+        background: linear-gradient(180deg, #eef2f7 0%, var(--galint-neutro-050) 100%);
         border: 1px solid rgba(148, 163, 184, 0.18);
         border-radius: 30px;
         padding: 1.85rem;
@@ -25,7 +25,7 @@
         margin-bottom: 2rem;
         border-radius: 26px;
         padding: 2rem 1.5rem;
-        background: linear-gradient(135deg, #020617 0%, #172554 45%, #2563eb 100%);
+        background: linear-gradient(135deg, var(--galint-azul-900) 0%, var(--galint-azul-700) 45%, var(--galint-azul-500) 100%);
         box-shadow: 0 28px 64px rgba(15, 23, 42, 0.2);
     }
 
@@ -64,7 +64,7 @@
     .hub-header h2 {
         font-size: clamp(2rem, 3vw, 2.6rem);
         font-weight: 800;
-        color: #f8fafc;
+        color: var(--galint-neutro-050);
         margin-bottom: 0.55rem;
         letter-spacing: -0.03em;
     }
@@ -85,7 +85,7 @@
     .saida-card {
         position: relative;
         overflow: hidden;
-        background: linear-gradient(145deg, #0f172a 0%, #1e293b 68%, #334155 100%);
+        background: linear-gradient(145deg, var(--galint-neutro-900) 0%, var(--galint-neutro-850) 68%, var(--galint-neutro-700) 100%);
         border-radius: 24px;
         padding: 2rem;
         text-align: center;
@@ -140,7 +140,7 @@
     }
     
     .saida-card.materiais .saida-card-icon {
-        color: #3b82f6;
+        color: var(--galint-azul-400);
     }
     
     .saida-card.ferramentas .saida-card-icon {
@@ -148,7 +148,7 @@
     }
     
     .saida-card.fracionados .saida-card-icon {
-        color: #10b981;
+        color: var(--galint-sucesso-500);
     }
 
     .saida-card.devolucoes .saida-card-icon {
@@ -158,7 +158,7 @@
     .saida-card-title {
         font-size: 1.5rem;
         font-weight: 800;
-        color: #f8fafc;
+        color: var(--galint-neutro-050);
         margin-bottom: 0.75rem;
         letter-spacing: -0.02em;
     }
@@ -180,13 +180,13 @@
     
     .saida-card.materiais .saida-card-badge {
         background: rgba(59, 130, 246, 0.16);
-        color: #bfdbfe;
+        color: var(--galint-azul-150);
         border: 1px solid rgba(59, 130, 246, 0.24);
     }
     
     .saida-card.ferramentas .saida-card-badge {
         background: rgba(245, 158, 11, 0.16);
-        color: #fde68a;
+        color: var(--galint-alerta-200);
         border: 1px solid rgba(245, 158, 11, 0.24);
     }
     

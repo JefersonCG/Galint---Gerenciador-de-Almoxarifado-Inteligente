@@ -1,0 +1,203 @@
+/*
+ * Tokens visuais do GALINT (CSS3 custom properties).
+ *
+ * As telas repetiam os mesmos hexadecimais (#2563eb, #b91c1c, #0f172a...) e as
+ * mesmas sombras dezenas de vezes cada uma, então mudar a identidade visual
+ * exigia caçar valor por valor. Aqui ficam os valores de referência; as folhas
+ * de estilo e os blocos das telas devem consumir var(--galint-*).
+ */
+:root {
+    color-scheme: light;
+
+    /* Marca e ações */
+    --galint-azul-900: #020617;
+    --galint-azul-800: #0f172a;
+    --galint-azul-700: #172554;
+    --galint-azul-600: #1d4ed8;
+    --galint-azul-500: #2563eb;
+    --galint-azul-400: #3b82f6;
+    --galint-azul-300: #60a5fa;
+    --galint-azul-200: #93c5fd;
+    --galint-azul-150: #bfdbfe;
+    --galint-azul-100: #dbeafe;
+    --galint-azul-075: #e5eefc;
+    --galint-azul-050: #eff6ff;
+    --galint-azul-025: #f8fbff;
+    --galint-ciano-400: #38bdf8;
+    --galint-ciano-300: #7dd3fc;
+    --galint-ciano-100: #bae6fd;
+
+    /* Fundos escuros dos painéis */
+    --galint-noite-900: #07111f;
+    --galint-noite-850: #0b1729;
+    --galint-noite-800: #0b1220;
+
+    /* Neutros */
+    --galint-neutro-900: #0f172a;
+    --galint-neutro-850: #1e293b;
+    --galint-neutro-700: #334155;
+    --galint-neutro-600: #475569;
+    --galint-neutro-500: #64748b;
+    --galint-neutro-400: #94a3b8;
+    --galint-neutro-300: #cbd5e1;
+    --galint-neutro-200: #e2e8f0;
+    --galint-neutro-100: #f1f5f9;
+    --galint-neutro-050: #f8fafc;
+    --galint-branco: #ffffff;
+
+    /* Estados */
+    --galint-perigo-700: #7f1d1d;
+    --galint-perigo-600: #b91c1c;
+    --galint-perigo-500: #dc2626;
+    --galint-perigo-400: #ef4444;
+    --galint-perigo-200: #fecaca;
+    --galint-perigo-100: #fee2e2;
+    --galint-perigo-050: #fef2f2;
+    --galint-sucesso-700: #047857;
+    --galint-sucesso-600: #059669;
+    --galint-sucesso-500: #10b981;
+    --galint-sucesso-300: #6ee7b7;
+    --galint-sucesso-050: #ecfdf5;
+    --galint-alerta-600: #d97706;
+    --galint-alerta-200: #fde68a;
+    --galint-alerta-050: #fffbeb;
+    --galint-rosa-700: #9f1239;
+    --galint-rosa-050: #fff1f2;
+
+    /* Superfícies */
+    --galint-superficie: var(--galint-branco);
+    --galint-superficie-sutil: var(--galint-neutro-050);
+    --galint-superficie-escura: linear-gradient(145deg, #0f172a 0%, #1e293b 100%);
+    --galint-borda: rgba(148, 163, 184, 0.18);
+    --galint-borda-forte: rgba(148, 163, 184, 0.32);
+
+    /* Raios */
+    --galint-raio-sm: 8px;
+    --galint-raio-md: 14px;
+    --galint-raio-lg: 24px;
+    --galint-raio-xl: 30px;
+    --galint-raio-pill: 999px;
+
+    /* Sombras */
+    --galint-sombra-sm: 0 4px 12px rgba(15, 23, 42, 0.08);
+    --galint-sombra-md: 0 18px 36px rgba(15, 23, 42, 0.12);
+    --galint-sombra-lg: 0 24px 54px rgba(15, 23, 42, 0.16);
+    --galint-sombra-xl: 0 28px 64px rgba(15, 23, 42, 0.2);
+
+    /* Espaçamentos */
+    --galint-espaco-1: 0.25rem;
+    --galint-espaco-2: 0.5rem;
+    --galint-espaco-3: 0.75rem;
+    --galint-espaco-4: 1rem;
+    --galint-espaco-5: 1.5rem;
+    --galint-espaco-6: 2rem;
+
+    /* Movimento e foco */
+    --galint-transicao: 0.2s ease;
+    --galint-transicao-lenta: 0.35s ease;
+    --galint-anel-foco: 0 0 0 3px rgba(37, 99, 235, 0.35);
+    --galint-anel-foco-perigo: 0 0 0 3px rgba(185, 28, 28, 0.3);
+}
+
+/* Foco visível e consistente em todo o sistema, sem poluir o clique do mouse. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: none;
+    box-shadow: var(--galint-anel-foco);
+    border-radius: var(--galint-raio-sm);
+}
+
+/* Respeita quem configurou o sistema para reduzir animações. */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/*
+ * Ajustes gerais de CSS3 aplicados a todas as telas pelo layout base.
+ * Usam :where() para especificidade zero, então qualquer regra da tela vence.
+ */
+:where(html) {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
+:where(body) {
+    scrollbar-color: var(--galint-neutro-300) transparent;
+    scrollbar-width: thin;
+    -webkit-tap-highlight-color: rgba(37, 99, 235, 0.16);
+}
+
+/* Barra de rolagem discreta também no WebKit, que ignora scrollbar-width. */
+:where(body) ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+:where(body) ::-webkit-scrollbar-thumb {
+    background: var(--galint-neutro-300);
+    border-radius: var(--galint-raio-pill);
+}
+
+:where(body) ::-webkit-scrollbar-thumb:hover {
+    background: var(--galint-neutro-400);
+}
+
+::selection {
+    background: var(--galint-azul-200);
+    color: var(--galint-neutro-900);
+}
+
+/* Títulos com quebra equilibrada e tamanho fluido, sem media query por tela. */
+:where(h1, h2, h3, .page-header h2) {
+    text-wrap: balance;
+}
+
+:where(p, li, .form-text) {
+    text-wrap: pretty;
+}
+
+:where(.page-header) h2 {
+    font-size: clamp(1.35rem, 1.05rem + 1.1vw, 1.75rem);
+}
+
+/* Mídia nunca estoura o contêiner nas telas de item, etiqueta e painel. */
+:where(img, svg, video, canvas) {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Tabelas longas de estoque continuam legíveis ao rolar na horizontal. */
+:where(.table-responsive) {
+    scrollbar-width: thin;
+}
+
+@supports (scroll-behavior: smooth) {
+    :where(html) {
+        scroll-behavior: smooth;
+    }
+}
+
+/* Estado desabilitado uniforme em botões e campos de todo o sistema. */
+:where(button, .btn, input, select, textarea):disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+
+@media print {
+    .no-print,
+    .sidebar,
+    .topbar,
+    .page-header-actions {
+        display: none !important;
+    }
+
+    :where(body) {
+        background: var(--galint-branco);
+    }
+}

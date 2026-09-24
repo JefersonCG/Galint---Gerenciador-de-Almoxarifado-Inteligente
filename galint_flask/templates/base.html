@@ -15,7 +15,9 @@
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/galint-tokens.css', v='20260924') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/qss_like.css') }}">
+    <script src="{{ url_for('static', filename='js/galint-core.js', v='20260924') }}"></script>
     {% if general_search_available %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/general-search-modal.css', v='20260506-admin') }}">
     {% endif %}
@@ -28,7 +30,7 @@
             border-radius: 999px;
             border: 1px solid rgba(125, 211, 252, 0.2);
             background: rgba(14, 165, 233, 0.12);
-            color: #bae6fd;
+            color: var(--galint-ciano-100);
             font-size: 0.8rem;
             font-weight: 700;
             letter-spacing: 0.01em;
@@ -71,7 +73,7 @@
             border-radius: 1rem;
             overflow: hidden;
             background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.94));
-            color: #e2e8f0;
+            color: var(--galint-neutro-200);
             box-shadow: 0 20px 45px rgba(15, 23, 42, 0.28);
             backdrop-filter: blur(14px);
         }
@@ -79,7 +81,7 @@
         .galint-flash-toast .toast-header {
             padding: 0.8rem 1rem 0.65rem;
             background: transparent;
-            color: #f8fafc;
+            color: var(--galint-neutro-050);
             border-bottom: 1px solid rgba(148, 163, 184, 0.14);
         }
 
@@ -145,7 +147,7 @@
         .galint-flash-toast.toast-primary .galint-flash-toast-icon,
         .galint-flash-toast.toast-secondary .galint-flash-toast-icon {
             background: rgba(125, 211, 252, 0.16);
-            color: #bae6fd;
+            color: var(--galint-ciano-100);
         }
 
         .galint-flash-toast.toast-warning {
@@ -155,7 +157,7 @@
 
         .galint-flash-toast.toast-warning .galint-flash-toast-icon {
             background: rgba(251, 191, 36, 0.18);
-            color: #fde68a;
+            color: var(--galint-alerta-200);
         }
 
         .galint-flash-toast.toast-danger,
@@ -167,7 +169,7 @@
         .galint-flash-toast.toast-danger .galint-flash-toast-icon,
         .galint-flash-toast.toast-error .galint-flash-toast-icon {
             background: rgba(248, 113, 113, 0.16);
-            color: #fecaca;
+            color: var(--galint-perigo-200);
         }
 
         @media (max-width: 575.98px) {

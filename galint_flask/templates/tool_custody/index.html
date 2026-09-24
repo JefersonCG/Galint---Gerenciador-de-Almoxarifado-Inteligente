@@ -5,7 +5,7 @@
 {% block extra_css %}
 <style>
     .audit-shell {
-        background: #f8fafc;
+        background: var(--galint-neutro-050);
         border: 1px solid rgba(148, 163, 184, 0.18);
         border-radius: 16px;
         padding: 1.75rem;
@@ -15,10 +15,10 @@
     .audit-hero {
         position: relative;
         overflow: hidden;
-        background: linear-gradient(135deg, #111827 0%, #1f2937 58%, #334155 100%);
+        background: linear-gradient(135deg, #111827 0%, #1f2937 58%, var(--galint-neutro-700) 100%);
         border-radius: 12px;
         padding: 1.75rem;
-        color: #f8fafc;
+        color: var(--galint-neutro-050);
         margin-bottom: 1.5rem;
         box-shadow: 0 18px 38px rgba(15, 23, 42, 0.12);
     }
@@ -76,7 +76,7 @@
         background: linear-gradient(145deg, #111827 0%, #1f2937 100%);
         border-radius: 12px;
         padding: 1.2rem;
-        color: #f8fafc;
+        color: var(--galint-neutro-050);
         height: 100%;
         border: 1px solid rgba(148, 163, 184, 0.18);
         box-shadow: 0 14px 28px rgba(15, 23, 42, 0.12);
@@ -125,12 +125,12 @@
     }
 
     .filter-card {
-        background: #ffffff;
+        background: var(--galint-branco);
         border: 1px solid rgba(148, 163, 184, 0.18);
         border-radius: 12px;
         padding: 1.5rem;
         margin-bottom: 1.5rem;
-        color: #0f172a;
+        color: var(--galint-neutro-900);
         box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
     }
 
@@ -146,16 +146,16 @@
     .filter-card p,
     .filter-card h5,
     .filter-card span {
-        color: #334155 !important;
+        color: var(--galint-neutro-700) !important;
     }
 
     .filter-card h5,
     .filter-card .fw-bold {
-        color: #0f172a !important;
+        color: var(--galint-neutro-900) !important;
     }
 
     .filter-card .text-info {
-        color: #7dd3fc !important;
+        color: var(--galint-ciano-300) !important;
     }
 
     .filter-card .input-group-text,
@@ -205,24 +205,24 @@
         padding: 0.35rem;
         margin-bottom: 1.25rem;
         border-radius: 12px;
-        background: #e2e8f0;
+        background: var(--galint-neutro-200);
     }
 
     .audit-tabs .nav-link {
         border-radius: 8px;
-        color: #475569;
+        color: var(--galint-neutro-600);
         font-weight: 700;
         border: 0;
     }
 
     .audit-tabs .nav-link.active {
-        background: #ffffff;
-        color: #0f172a;
+        background: var(--galint-branco);
+        color: var(--galint-neutro-900);
         box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
     }
 
     .lost-broken-panel {
-        background: #ffffff;
+        background: var(--galint-branco);
         border: 1px solid rgba(148, 163, 184, 0.2);
         border-radius: 12px;
         box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
@@ -234,7 +234,7 @@
         justify-content: space-between;
         gap: 1rem;
         padding: 1rem 1.1rem;
-        border-bottom: 1px solid #e2e8f0;
+        border-bottom: 1px solid var(--galint-neutro-200);
         align-items: center;
     }
 
@@ -244,12 +244,12 @@
     }
 
     .lost-broken-table thead th {
-        background: #eff6ff;
-        color: #1e293b;
+        background: var(--galint-azul-050);
+        color: var(--galint-neutro-850);
         font-size: 0.76rem;
         text-transform: uppercase;
         letter-spacing: 0.04em;
-        border-bottom: 1px solid #dbeafe;
+        border-bottom: 1px solid var(--galint-azul-100);
     }
 
     .lost-tool-thumb {
@@ -257,8 +257,8 @@
         height: 52px;
         border-radius: 8px;
         object-fit: cover;
-        background: #e2e8f0;
-        border: 1px solid #cbd5e1;
+        background: var(--galint-neutro-200);
+        border: 1px solid var(--galint-neutro-300);
     }
 
     .lost-kind-badge {
@@ -269,7 +269,7 @@
         border-radius: 999px;
         font-size: 0.75rem;
         font-weight: 800;
-        background: #fee2e2;
+        background: var(--galint-perigo-100);
         color: #991b1b;
     }
 
@@ -304,7 +304,7 @@
     
     .employee-matricula {
         font-size: 0.8rem;
-        color: #94a3b8;
+        color: var(--galint-neutro-400);
     }
     
     .employee-info {
@@ -326,7 +326,7 @@
         padding: 0.4rem 0.8rem;
         border-radius: 999px;
         font-weight: 700;
-        background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+        background: linear-gradient(135deg, var(--galint-azul-500) 0%, var(--galint-azul-400) 100%);
         color: white;
     }
     
@@ -344,7 +344,7 @@
         padding: 0.25rem 0.55rem;
         border-radius: 999px;
         background-color: rgba(255, 255, 255, 0.1);
-        color: #e2e8f0;
+        color: var(--galint-neutro-200);
     }
     
     /* Busca rápida */
@@ -385,7 +385,7 @@
         border: 0;
         border-bottom: 1px solid rgba(148, 163, 184, 0.15);
         background: transparent;
-        color: #f8fafc;
+        color: var(--galint-neutro-050);
     }
 
     .search-results .result-item:hover,
@@ -397,7 +397,7 @@
     .empty-state {
         text-align: center;
         padding: 3rem;
-        color: #64748b;
+        color: var(--galint-neutro-500);
         background: rgba(255, 255, 255, 0.72);
         border: 1px dashed rgba(148, 163, 184, 0.24);
         border-radius: 24px;

@@ -7,7 +7,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="${url_for('static', filename='css/galint-tokens.css')}?v=20260924">
     <link rel="stylesheet" href="${url_for('static', filename='css/qss_like.css')}">
+    <script src="${url_for('static', filename='js/galint-core.js')}?v=20260924"></script>
     <%block name="extra_css"></%block>
 </head>
 
