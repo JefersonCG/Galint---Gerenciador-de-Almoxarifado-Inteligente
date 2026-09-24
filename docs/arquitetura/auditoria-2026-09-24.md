@@ -55,6 +55,32 @@ Ficaram deliberadamente em UTC, por serem timestamps técnicos: sessão web,
 backups, logs em SQLite, integrações externas e agendador. A lista está fixada
 em `test_horario_padrao_banco.py`.
 
+### Defeito adicional encontrado durante a validação: o relógio pulava 3 horas
+
+O `TimeService` sincroniza a hora pela internet. A primeira fonte
+(worldtimeapi) responde com fuso; a segunda (timeapi.io), usada quando a
+primeira falha, responde `2026-09-24T14:40:00` — já em UTC, **mas sem fuso**.
+O código fazia `.astimezone(timezone.utc)` sobre esse valor sem fuso, e o Python
+assume o fuso da máquina nesse caso: o horário era lido como 14:40 de Brasília,
+virava 17:40 UTC e o sistema inteiro passava a gravar **3 horas adiantado** até
+a próxima sincronização.
+
+Isso aparecia de forma intermitente — só quando a primeira fonte estava fora do
+ar — e foi flagrado por um teste que falhou duas vezes seguidas com
+`10798 segundos` (2h59m59s) de diferença.
+
+Três correções, todas com teste:
+
+1. Data sem fuso vinda de uma API passa a ser marcada como UTC.
+2. `sync()` recusa correções acima de 5 minutos (configurável em
+   `GALINT_TIME_MAX_OFFSET_SECONDS`) e registra o aviso no log: o relógio do
+   servidor é sincronizado pelo sistema operacional, então um pedido de ajuste
+   de horas vem de fonte mal interpretada.
+3. Quando o banco de fusos (`tzdata`) não está disponível — o caso do
+   executável empacotado —, o fuso de reserva passa a ser `-03:00` em vez de
+   UTC. Antes, um ambiente sem `tzdata` gravaria tudo 3 horas adiantado sem
+   nenhum aviso.
+
 ### O que não foi feito e por quê
 
 **Os registros antigos não foram convertidos.** A tabela `saidas` tem dados

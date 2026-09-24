@@ -137,3 +137,84 @@ def test_arquivos_alterados_continuam_com_sintaxe_valida() -> None:
 
 def test_fuso_do_projeto_e_sao_paulo() -> None:
     assert str(get_local_tz()) in {"America/Sao_Paulo", "UTC"}
+
+
+def test_fonte_de_hora_sem_fuso_e_lida_como_utc() -> None:
+    """timeapi.io responde `2026-09-24T14:40:00` (UTC, sem fuso).
+
+    Antes, `.astimezone()` sobre esse valor sem fuso fazia o Python assumir o
+    fuso da maquina: o relogio do sistema inteiro adiantava 3 horas sempre que
+    essa fonte era usada, de forma intermitente.
+    """
+    from galint_flask.utils.time_service import _parse_iso_utc
+
+    referencia = datetime(2026, 9, 24, 14, 40, tzinfo=timezone.utc)
+
+    assert _parse_iso_utc("2026-09-24T14:40:00") == referencia
+    assert _parse_iso_utc("2026-09-24T14:40:00Z") == referencia
+    assert _parse_iso_utc("2026-09-24T11:40:00-03:00") == referencia
+    assert _parse_iso_utc("") is None
+    assert _parse_iso_utc("isso nao e data") is None
+
+
+def test_sincronizacao_recusa_correcao_absurda() -> None:
+    """Uma fonte que peca 3 horas de ajuste esta errada, nao o relogio do servidor."""
+    from galint_flask.utils.time_service import NetworkTimeResult
+
+    offset_original = TimeService._offset_seconds
+    ultima_falha = TimeService._last_failure_monotonic
+    ultima_sync = TimeService._last_sync_monotonic
+    try:
+        TimeService._offset_seconds = 0.0
+        TimeService._last_failure_monotonic = 0.0
+        TimeService._last_sync_monotonic = 0.0
+
+        adiantada = datetime.now(timezone.utc) + timedelta(hours=3)
+        TimeService._sync_from_network = classmethod(  # type: ignore[method-assign]
+            lambda cls: NetworkTimeResult(utc_datetime=adiantada, source="fonte-de-teste")
+        )
+        TimeService.sync()
+
+        assert TimeService._offset_seconds == 0.0, "correcao de 3 horas deveria ter sido recusada"
+    finally:
+        del TimeService._sync_from_network  # type: ignore[attr-defined]
+        TimeService._offset_seconds = offset_original
+        TimeService._last_failure_monotonic = ultima_falha
+        TimeService._last_sync_monotonic = ultima_sync
+
+
+def test_sincronizacao_aceita_ajuste_pequeno() -> None:
+    from galint_flask.utils.time_service import NetworkTimeResult
+
+    offset_original = TimeService._offset_seconds
+    ultima_falha = TimeService._last_failure_monotonic
+    ultima_sync = TimeService._last_sync_monotonic
+    try:
+        TimeService._offset_seconds = 0.0
+        TimeService._last_failure_monotonic = 0.0
+        TimeService._last_sync_monotonic = 0.0
+
+        proxima = datetime.now(timezone.utc) + timedelta(seconds=12)
+        TimeService._sync_from_network = classmethod(  # type: ignore[method-assign]
+            lambda cls: NetworkTimeResult(utc_datetime=proxima, source="fonte-de-teste")
+        )
+        TimeService.sync()
+
+        assert 8 <= TimeService._offset_seconds <= 16
+    finally:
+        del TimeService._sync_from_network  # type: ignore[attr-defined]
+        TimeService._offset_seconds = offset_original
+        TimeService._last_failure_monotonic = ultima_falha
+        TimeService._last_sync_monotonic = ultima_sync
+
+
+def test_fuso_do_projeto_nunca_cai_para_utc() -> None:
+    """Sem o banco de fusos (tzdata), o fallback anterior era UTC — e o sistema
+
+    passaria a gravar tudo 3 horas adiantado sem ninguem perceber.
+    """
+    agora = TimeService.now_local()
+    deslocamento = agora.utcoffset()
+
+    assert deslocamento is not None
+    assert deslocamento == timedelta(hours=-3), f"fuso resolvido: {agora.tzinfo} ({deslocamento})"

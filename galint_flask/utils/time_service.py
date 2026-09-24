@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import logging
 import os
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from typing import Any, Callable, Mapping, cast
+
+logger = logging.getLogger(__name__)
 
 try:
     from zoneinfo import ZoneInfo
@@ -23,23 +26,46 @@ def _tz_name() -> str:
     return "America/Sao_Paulo"
 
 
+# Reserva usada quando o banco de fusos (tzdata) não está disponível — caso do
+# executável empacotado. O Brasil não tem horário de verão desde 2019, então
+# -03:00 vale o ano inteiro. O fallback anterior era UTC, e com ele o sistema
+# gravaria todos os lançamentos 3 horas adiantados sem ninguém perceber.
+_FUSO_RESERVA = timezone(timedelta(hours=-3), "America/Sao_Paulo")
+
+
 def get_local_tz():
     name = _tz_name()
     if ZoneInfo is None:
-        return timezone.utc
+        logger.warning("zoneinfo indisponível; usando o fuso fixo de São Paulo (-03:00).")
+        return _FUSO_RESERVA
     try:
         return ZoneInfo(name)
     except Exception:
-        return timezone.utc
+        logger.warning(
+            "Fuso %s não encontrado (falta o pacote tzdata?); usando o fuso fixo de São Paulo (-03:00).",
+            name,
+        )
+        return _FUSO_RESERVA
 
 
 def _parse_iso_utc(value: str) -> datetime | None:
+    """Lê uma data ISO vinda de um serviço de horário e devolve em UTC.
+
+    Quando a resposta não traz fuso (é o caso do timeapi.io, que responde
+    `2026-09-24T14:40:00` já em UTC), o valor tem de ser marcado como UTC.
+    Chamar `.astimezone()` num datetime sem fuso faz o Python assumir o fuso da
+    máquina e o relógio inteiro do sistema adiantava 3 horas sempre que essa
+    fonte era usada.
+    """
     if not value:
         return None
     try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(timezone.utc)
+        lido = datetime.fromisoformat(value.replace("Z", "+00:00"))
     except Exception:
         return None
+    if lido.tzinfo is None:
+        return lido.replace(tzinfo=timezone.utc)
+    return lido.astimezone(timezone.utc)
 
 
 def _fetch_time_via_json_api(
@@ -214,6 +240,14 @@ class TimeService:
         return None
 
     @classmethod
+    def _max_accepted_offset_seconds(cls) -> float:
+        """Limite de correção aceita de uma fonte externa, em segundos."""
+        try:
+            return float(os.environ.get("GALINT_TIME_MAX_OFFSET_SECONDS") or 300)
+        except Exception:
+            return 300.0
+
+    @classmethod
     def sync(cls) -> None:
         if not cls._should_sync():
             return
@@ -225,7 +259,24 @@ class TimeService:
 
         remote_epoch = result.utc_datetime.timestamp()
         local_epoch = time.time()
-        cls._offset_seconds = remote_epoch - local_epoch
+        offset = remote_epoch - local_epoch
+
+        # O relógio do servidor é sincronizado pelo próprio sistema operacional.
+        # Uma "correção" de horas vem de fonte mal interpretada, não de relógio
+        # atrasado, e faria todo lançamento nascer com a hora errada.
+        limite = cls._max_accepted_offset_seconds()
+        if limite > 0 and abs(offset) > limite:
+            logger.warning(
+                "Horário de %s descartado: diferença de %.0f s em relação ao relógio local "
+                "(limite aceito: %.0f s). Mantendo o relógio do servidor.",
+                result.source,
+                offset,
+                limite,
+            )
+            cls._last_failure_monotonic = time.monotonic()
+            return
+
+        cls._offset_seconds = offset
 
     @classmethod
     def now_utc(cls) -> datetime:
