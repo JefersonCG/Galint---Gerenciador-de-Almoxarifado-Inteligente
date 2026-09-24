@@ -19,6 +19,7 @@ from ..models import DocumentoEntradaEstoqueItem, Entrada, FinanceLedgerEntry, I
 from ..utils.report_branding import get_company_header_lines
 from .legacy_stock_normalizer import ignore_packaging_metadata_for_stock, resolve_canonical_unit, resolve_packaging_factor
 from .price_normalization import infer_document_quantity_unit_for_item, normalize_document_line, should_autofix_packaged_document_unit
+from ..utils.time_service import TimeService
 
 
 class ScopeReportService:
@@ -1297,7 +1298,7 @@ class ScopeReportService:
 
         for line in [
             f"Escopo: {scope_label}",
-            f"Gerado em: {datetime.now().strftime('%d/%m/%Y às %H:%M')}",
+            f"Gerado em: {TimeService.now_local().strftime('%d/%m/%Y às %H:%M')}",
             *((meta_lines or [])),
         ]:
             cls._merge_row(

@@ -18,6 +18,7 @@ from ..models import (
 from .galint_notify_service import GalintNotifyService
 from .operation_visual_payload import operation_visual_payload_service
 from .telegram_service import TelegramService
+from ..utils.time_service import TimeService
 
 
 logger = logging.getLogger(__name__)
@@ -60,7 +61,7 @@ class NotificationRouterService:
         config = config or NotificationRouterService.get_config()
         if config.telegram_unhealthy_until is None:
             return False
-        return config.telegram_unhealthy_until > datetime.utcnow()
+        return config.telegram_unhealthy_until > TimeService.now_db()
 
     @staticmethod
     def telegram_available(config: NotificationRouterConfig | None = None) -> bool:
@@ -79,7 +80,7 @@ class NotificationRouterService:
         config = config or NotificationRouterService.get_config()
         config.telegram_fail_count = 0
         config.telegram_last_error = None
-        config.telegram_last_success_at = datetime.utcnow()
+        config.telegram_last_success_at = TimeService.now_db()
         config.telegram_unhealthy_until = None
         db.session.commit()
 
@@ -88,14 +89,14 @@ class NotificationRouterService:
         config = config or NotificationRouterService.get_config()
         config.telegram_fail_count = int(config.telegram_fail_count or 0) + 1
         config.telegram_last_error = error[:1000]
-        config.telegram_last_failure_at = datetime.utcnow()
+        config.telegram_last_failure_at = TimeService.now_db()
 
         threshold = max(1, int(config.circuit_fail_threshold or 2))
         timeout_limit = max(1, int(config.circuit_timeout_seconds or 10))
         should_open = config.telegram_fail_count >= threshold or elapsed_seconds >= timeout_limit
         if should_open:
             cooldown = max(60, int(config.circuit_cooldown_seconds or 120))
-            config.telegram_unhealthy_until = datetime.utcnow() + timedelta(seconds=cooldown)
+            config.telegram_unhealthy_until = TimeService.now_db() + timedelta(seconds=cooldown)
         db.session.commit()
 
     @staticmethod
@@ -378,7 +379,7 @@ class NotificationRouterService:
                 "observacao": f"Documento {document_label}" if document_label else "Entrada registrada no estoque.",
             },
             source_label=source_label or "entrada documental",
-            generated_at=datetime.utcnow(),
+            generated_at=TimeService.now_db(),
         )
         quantity_display = (
             (visual_payload.get("movement") or {}).get("quantidade_display")

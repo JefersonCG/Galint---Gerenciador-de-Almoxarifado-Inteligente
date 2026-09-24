@@ -6,6 +6,7 @@ from typing import Any
 
 from ..extensions import db
 from ..models import OperationLog
+from ..utils.time_service import TimeService
 
 
 class OperationLogService:
@@ -42,7 +43,7 @@ class OperationLogService:
             source=(source or "").strip() or None,
             status="success",
             payload_json=payload_json or {},
-            created_at=created_at or datetime.utcnow(),
+            created_at=created_at or TimeService.now_db(),
         )
         db.session.add(log)
         db.session.flush()
@@ -77,7 +78,7 @@ class OperationLogService:
                 "requested_operation_type": (requested_operation_type or "").strip().lower() or None,
                 **(payload_json or {}),
             },
-            created_at=datetime.utcnow(),
+            created_at=TimeService.now_db(),
         )
         db.session.add(log)
         if commit:

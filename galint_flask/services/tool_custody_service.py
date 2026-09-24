@@ -218,7 +218,7 @@ class ToolCustodyService:
             if not active_tools:
                 continue
                 
-            days_oldest = (datetime.utcnow() - row.mais_antiga).days if row.mais_antiga else 0
+            days_oldest = (TimeService.now_db() - row.mais_antiga).days if row.mais_antiga else 0
             
             # Contar alertas apenas em ferramentas temporárias atrasadas.
             alerts = sum(1 for tool in active_tools if tool.get("is_alert", False))
@@ -314,7 +314,7 @@ class ToolCustodyService:
                 continue
 
             try:
-                dias_em_uso = int((datetime.utcnow() - retirada.data_retirada).days)
+                dias_em_uso = int((TimeService.now_db() - retirada.data_retirada).days)
             except Exception:
                 dias_em_uso = 0
 
@@ -582,7 +582,7 @@ class ToolCustodyService:
             )
             
             if not devolucao and not entrada_legado and not retirada_devolvida:
-                days_in_use = (datetime.utcnow() - saida.data_saida).days
+                days_in_use = (TimeService.now_db() - saida.data_saida).days
                 # Tratar NULL como 'temporaria' (getattr não trata None)
                 tipo_custodia = ToolCustodyService._infer_tipo_custodia(saida, days_in_use)
                 
@@ -780,7 +780,7 @@ class ToolCustodyService:
             raise ValueError("Transferência disponível apenas para quantidades inteiras de ferramentas")
 
         quantidade_int = int(quantidade_float)
-        days_in_use = max(0, int((datetime.utcnow() - saida.data_saida).days)) if saida.data_saida else 0
+        days_in_use = max(0, int((TimeService.now_db() - saida.data_saida).days)) if saida.data_saida else 0
         tipo_custodia = ToolCustodyService._infer_tipo_custodia(saida, days_in_use)
 
         local_final = (local_servico or saida.local_servico or "").strip() or None
@@ -926,7 +926,7 @@ class ToolCustodyService:
     @staticmethod
     def _get_employee_history(matricula: str, days: int = 30) -> list[dict[str, Any]]:
         """Retorna histórico de devoluções dos últimos N dias."""
-        cutoff = datetime.utcnow() - timedelta(days=days)
+        cutoff = TimeService.now_db() - timedelta(days=days)
         
         devolucoes = (
             db.session.query(InventarioEvento, Item, Usuario)
@@ -1077,7 +1077,7 @@ class ToolCustodyService:
                     quantidade=quantidade_evento,
                     tipo="devolucao_ferramenta",
                     descricao=descricao_base,
-                    data_evento=datetime.utcnow(),
+                    data_evento=TimeService.now_db(),
                 )
                 db.session.add(evento)
                 db.session.commit()
@@ -1121,7 +1121,7 @@ class ToolCustodyService:
                 quantidade=retirada.quantidade,
                 tipo="devolucao_ferramenta",
                 descricao=observacao or f"Devolução de Ferramenta: {retirada.item.descricao if retirada.item else 'Item'}",
-                data_evento=datetime.utcnow(),
+                data_evento=TimeService.now_db(),
             )
             db.session.add(evento)
             db.session.commit()
@@ -1184,7 +1184,7 @@ class ToolCustodyService:
             quantidade=retirada.quantidade,
             tipo="devolucao_ferramenta",
             descricao=observacao or f"Devolução de Ferramenta: {retirada.item.descricao if retirada.item else 'Item'}",
-            data_evento=datetime.utcnow(),
+            data_evento=TimeService.now_db(),
         )
         db.session.add(evento)
         db.session.commit()
@@ -1286,7 +1286,7 @@ class ToolCustodyService:
             quantidade=quantidade,
             tipo="quebra_ferramenta",
             descricao=descricao_evento,
-            data_evento=datetime.utcnow(),
+            data_evento=TimeService.now_db(),
         )
         
         db.session.add(evento)
@@ -1332,7 +1332,7 @@ class ToolCustodyService:
             quantidade=saida.quantidade,
             tipo="reparo_ferramenta",
             descricao=observacao or f"Enviada para reparo: {saida.item.descricao if saida.item else 'Item'}",
-            data_evento=datetime.utcnow(),
+            data_evento=TimeService.now_db(),
         )
         
         db.session.add(evento)
@@ -1357,7 +1357,7 @@ class ToolCustodyService:
         total_alerts = sum(e["alerts_count"] for e in employees)
         
         # Devoluções hoje
-        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_start = TimeService.now_db().replace(hour=0, minute=0, second=0, microsecond=0)
         returns_today = (
             db.session.query(func.count(InventarioEvento.id_evento))
             .filter(
@@ -1458,7 +1458,7 @@ class ToolCustodyService:
             from ..utils.time_service import TimeService
             from ..models import TelegramUser
             
-            days_late = (datetime.utcnow() - saida_obj.data_saida).days
+            days_late = (TimeService.now_db() - saida_obj.data_saida).days
             data_retirada = TimeService.format_local(saida_obj.data_saida, "%d/%m/%Y")
             
             mensagem = (

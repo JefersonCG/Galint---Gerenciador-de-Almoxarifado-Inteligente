@@ -303,7 +303,7 @@ def saidas_feed():
     if not bool(current_app.config.get("FEATURE_LIVE_FEED_ENABLED", False)):
         abort(404)
 
-    cutoff = datetime.utcnow() - timedelta(days=14)
+    cutoff = TimeService.now_db() - timedelta(days=14)
     registros = inventory_service.list_saidas_por_usuario(
         current_user.id,
         limit=25,

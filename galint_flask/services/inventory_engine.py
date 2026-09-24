@@ -16,6 +16,7 @@ from .balance_provider import balance_provider
 from .legacy_stock_normalizer import is_packaging_unit_code, resolve_canonical_unit, resolve_packaging_factor
 from .operation_log_service import operation_log_service
 from .unit_conversion_engine import ConversionResult, UnitConversionEngine, unit_conversion_engine
+from ..utils.time_service import TimeService
 
 
 class InventoryEngineError(ValueError):
@@ -481,7 +482,7 @@ class InventoryEngine:
             "conversion_path": conversion.conversion_path,
             "factor_applied": conversion.factor_applied,
         }
-        movement.created_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        movement.created_at = TimeService.now_db()
 
         self._sync_packaging_read_model_before_operation(
             item=item,

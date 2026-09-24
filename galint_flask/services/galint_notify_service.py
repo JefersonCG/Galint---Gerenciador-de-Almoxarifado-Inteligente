@@ -10,6 +10,7 @@ from flask import current_app
 
 from ..extensions import db
 from ..models import DevicePushToken, GalintNotifyMessage, GalintNotifyRecipient, Usuario
+from ..utils.time_service import TimeService
 
 
 logger = logging.getLogger(__name__)
@@ -127,7 +128,7 @@ class GalintNotifyService:
         if recipient is None:
             return None
         recipient.status = "read"
-        recipient.read_at = datetime.utcnow()
+        recipient.read_at = TimeService.now_db()
         db.session.commit()
         return recipient
 
@@ -198,7 +199,7 @@ class GalintNotifyService:
             for index, token in enumerate(expo_tokens):
                 result = results[index] if index < len(results) else {}
                 if result.get("status") == "ok":
-                    token.last_push_at = datetime.utcnow()
+                    token.last_push_at = TimeService.now_db()
                     token.last_error = None
                     sent += 1
                 else:
@@ -216,7 +217,7 @@ class GalintNotifyService:
             GalintNotifyRecipient.query.filter(
                 GalintNotifyRecipient.message_id == message.id,
                 GalintNotifyRecipient.matricula.in_(recipient_ids),
-            ).update({"delivered_at": datetime.utcnow()}, synchronize_session=False)
+            ).update({"delivered_at": TimeService.now_db()}, synchronize_session=False)
             db.session.commit()
 
         return {"success": sent > 0, "sent": sent, "error": last_error}

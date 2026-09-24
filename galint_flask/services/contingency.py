@@ -8,6 +8,7 @@ from typing import Any
 from ..extensions import db
 from ..models import ContingenciaCadastro
 from .inventory import MovimentoPayload, inventory_service
+from ..utils.time_service import TimeService
 
 
 class ContingencyService:
@@ -73,7 +74,7 @@ class ContingencyService:
                 sucesso += 1
             except ValueError as exc:
                 entry.attempts += 1
-                entry.last_attempt = datetime.utcnow()
+                entry.last_attempt = TimeService.now_db()
                 entry.status = "error"
                 entry.message = str(exc)
                 db.session.commit()

@@ -129,7 +129,7 @@ class EntradaReportService:
         """
         try:
             # Nome do arquivo
-            data_geracao = datetime.now().strftime("%d%m%Y")
+            data_geracao = TimeService.now_local().strftime("%d%m%Y")
             filename = f"Registros_de_Entradas_{data_geracao}_ciclo{ciclo}.pdf"
             filepath = str(self._get_pdf_dir() / filename)
             
@@ -208,7 +208,7 @@ class EntradaReportService:
             )
             
             subtitle = Paragraph(
-                f"Entradas de #{id_inicio} a #{id_fim} | Total: {len(entradas)} registros | Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}",
+                f"Entradas de #{id_inicio} a #{id_fim} | Total: {len(entradas)} registros | Gerado em: {TimeService.now_local().strftime('%d/%m/%Y %H:%M')}",
                 subtitle_style
             )
             elements.append(subtitle)
@@ -340,7 +340,7 @@ class EntradaReportService:
                 f"📊 <b>Relatório Automático de Entradas</b>\n\n"
                 f"🔢 Ciclo: {ciclo}\n"
                 f"📦 Entradas: {(ciclo - 1) * self.CONTADOR_CICLO + 1} a {ciclo * self.CONTADOR_CICLO}\n"
-                f"📅 Gerado em: {datetime.now().strftime('%d/%m/%Y às %H:%M')}\n\n"
+                f"📅 Gerado em: {TimeService.now_local().strftime('%d/%m/%Y às %H:%M')}\n\n"
                 f"<i>Este é um relatório automático gerado a cada 1000 entradas.</i>"
             )
             

@@ -10,6 +10,7 @@ from sqlalchemy.exc import IntegrityError
 
 from ..extensions import db
 from ..models import EquipamentoReparo, Item
+from ..utils.time_service import TimeService
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +61,7 @@ class ReparoService:
         reparo.prazo_previsto = prazo_previsto
         reparo.observacoes = observacoes
         reparo.status = "aguardando_orcamento"
-        reparo.data_envio = datetime.now()
+        reparo.data_envio = TimeService.now_db()
         
         try:
             db.session.add(reparo)
@@ -111,7 +112,7 @@ class ReparoService:
         # Atualizar campos
         reparo.status = novo_status
         reparo.atualizado_por = matricula_atualizador
-        reparo.atualizado_em = datetime.now()
+        reparo.atualizado_em = TimeService.now_db()
         
         if solucao_aplicada:
             reparo.solucao_aplicada = solucao_aplicada
@@ -125,7 +126,7 @@ class ReparoService:
         
         # Se concluído ou sem conserto, marcar data de retorno
         if novo_status in ["concluido", "sem_conserto"] and not reparo.data_retorno:
-            reparo.data_retorno = datetime.now()
+            reparo.data_retorno = TimeService.now_db()
         
         try:
             db.session.commit()

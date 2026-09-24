@@ -5,6 +5,7 @@ from datetime import date, datetime
 from sqlalchemy import func
 
 from ..extensions import db
+from ..utils.time_service import TimeService
 from ..models import (
     CondominiumMaintenanceTicket,
     CondominiumOwner,
@@ -208,7 +209,7 @@ def save_maintenance_ticket_from_form(form_data, *, actor_matricula: str | None 
         updated_by_matricula=actor_matricula,
     )
     if ticket.status in {"concluido", "cancelado"}:
-        ticket.closed_at = datetime.utcnow()
+        ticket.closed_at = TimeService.now_db()
     db.session.add(ticket)
     return ticket
 
@@ -239,13 +240,13 @@ def save_package_from_form(form_data, *, actor_matricula: str | None = None) -> 
         created_by_matricula=actor_matricula,
     )
     if package.status == "armazenado":
-        package.stored_at = datetime.utcnow()
+        package.stored_at = TimeService.now_db()
         package.stored_by_matricula = actor_matricula
     if package.status == "notificado":
-        package.notified_at = datetime.utcnow()
+        package.notified_at = TimeService.now_db()
         package.notified_by_matricula = actor_matricula
     if package.status in {"retirado", "devolvido"}:
-        package.delivered_at = datetime.utcnow()
+        package.delivered_at = TimeService.now_db()
         package.delivered_by_matricula = actor_matricula
         package.delivered_to = package.delivered_to or recipient_name
     db.session.add(package)
@@ -267,15 +268,15 @@ def update_package_status(
     if delivered_to_name:
         package.delivered_to = delivered_to_name
     if package.status == "armazenado" and package.stored_at is None:
-        package.stored_at = datetime.utcnow()
+        package.stored_at = TimeService.now_db()
         package.stored_by_matricula = actor_matricula
     if package.status == "notificado" and package.notified_at is None:
-        package.notified_at = datetime.utcnow()
+        package.notified_at = TimeService.now_db()
         package.notified_by_matricula = actor_matricula
     if package.status in {"retirado", "devolvido"} and package.delivered_at is None:
         if not package.delivered_to:
             raise ValueError("Informe quem retirou ou recebeu a devolução da mensageria.")
-        package.delivered_at = datetime.utcnow()
+        package.delivered_at = TimeService.now_db()
         package.delivered_by_matricula = actor_matricula
     return package
 

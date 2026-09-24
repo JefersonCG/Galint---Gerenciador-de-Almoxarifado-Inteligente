@@ -572,13 +572,13 @@ def generate_tool_report():
         if date_from_str:
             date_from = datetime.strptime(date_from_str, "%Y-%m-%d")
         else:
-            date_from = datetime.utcnow() - timedelta(days=30)
+            date_from = TimeService.now_db() - timedelta(days=30)
         
         if date_to_str:
             date_to = datetime.strptime(date_to_str, "%Y-%m-%d")
             date_to = date_to.replace(hour=23, minute=59, second=59)
         else:
-            date_to = datetime.utcnow()
+            date_to = TimeService.now_db()
     except ValueError:
         flash("Formato de data inválido.", "danger")
         return _redirect_back()

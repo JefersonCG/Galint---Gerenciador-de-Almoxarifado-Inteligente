@@ -8,6 +8,7 @@ from sqlalchemy import func, and_
 
 from ..extensions import db
 from ..models import Entrada, Item, EntradaRegistro30Dias
+from ..utils.time_service import TimeService
 
 
 # Renomeando para 90 dias mas mantendo compatibilidade com modelo existente
@@ -30,7 +31,7 @@ class CicloEntradasService:
     @staticmethod
     def criar_novo_ciclo() -> EntradaRegistro30Dias:
         """Cria um novo ciclo de entradas."""
-        agora = datetime.now()
+        agora = TimeService.now_db()
         ciclo = EntradaRegistro30Dias()
         ciclo.data_inicio = agora
         ciclo.data_fim = None
@@ -55,7 +56,7 @@ class CicloEntradasService:
         if not ciclo:
             return False
         
-        dias_passados = (datetime.now() - ciclo.data_inicio).days
+        dias_passados = (TimeService.now_db() - ciclo.data_inicio).days
         return dias_passados >= DIAS_CICLO
     
     @staticmethod
@@ -74,7 +75,7 @@ class CicloEntradasService:
         if not ciclo:
             return DIAS_CICLO
         
-        dias_passados = (datetime.now() - ciclo.data_inicio).days
+        dias_passados = (TimeService.now_db() - ciclo.data_inicio).days
         return max(0, DIAS_CICLO - dias_passados)
     
     @staticmethod
@@ -170,7 +171,7 @@ class CicloEntradasService:
         resumo = CicloEntradasService.gerar_resumo_ciclo()
         
         # Marcar ciclo como fechado
-        ciclo.data_fim = datetime.now()
+        ciclo.data_fim = TimeService.now_db()
         ciclo.ativo = False
         db.session.commit()
         
@@ -228,7 +229,7 @@ class CicloEntradasService:
         if not ciclo:
             return []
         
-        data_fim = ciclo.data_fim or datetime.now()
+        data_fim = ciclo.data_fim or TimeService.now_db()
         
         entradas = (
             db.session.query(Entrada)

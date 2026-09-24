@@ -28,6 +28,7 @@ from ..models import (
 )
 from .category_catalog import category_catalog_service
 from .legacy_stock_normalizer import infer_packaging_measure, ignore_packaging_metadata_for_stock, resolve_canonical_unit, resolve_packaging_factor
+from ..utils.time_service import TimeService
 from .price_normalization import (
     infer_document_quantity_unit_for_item,
     normalize_document_line,
@@ -1429,7 +1430,7 @@ class FinanceService:
                     continue
                 mapped = mapper(payload)
                 mapped["api_origem"] = source
-                mapped["data_consulta_cnpj"] = datetime.utcnow()
+                mapped["data_consulta_cnpj"] = TimeService.now_db()
                 return mapped
             except Exception as exc:
                 errors.append(f"{source}: {exc}")
@@ -2070,7 +2071,7 @@ class FinanceService:
                 data_validade=data_validade,
                 observacao=(observacao or "").strip() or None,
                 status_processamento="processado" if linked_entry_id is not None else "pendente",
-                processado_em=datetime.utcnow() if linked_entry_id is not None else None,
+                processado_em=TimeService.now_db() if linked_entry_id is not None else None,
             )
             db.session.add(item_row)
             db.session.flush()
@@ -2089,12 +2090,12 @@ class FinanceService:
             item_row.observacao = (observacao or "").strip() or None
             if reused_equivalent_document_item and item_row.stock_movement_id is not None:
                 item_row.status_processamento = "processado"
-                item_row.processado_em = item_row.processado_em or datetime.utcnow()
+                item_row.processado_em = item_row.processado_em or TimeService.now_db()
             elif linked_entry_id is not None and item_row.entrada_id is None:
                 item_row.entrada_id = linked_entry_id
             if not reused_equivalent_document_item and item_row.entrada_id is not None:
                 item_row.status_processamento = "processado"
-                item_row.processado_em = item_row.processado_em or datetime.utcnow()
+                item_row.processado_em = item_row.processado_em or TimeService.now_db()
             elif not reused_equivalent_document_item:
                 item_row.status_processamento = "pendente"
                 item_row.processado_em = None
@@ -2176,7 +2177,7 @@ class FinanceService:
                     repaired_packaging_read_model = False
             if (item_row.status_processamento or "").strip().lower() != "processado":
                 item_row.status_processamento = "processado"
-                item_row.processado_em = item_row.processado_em or datetime.utcnow()
+                item_row.processado_em = item_row.processado_em or TimeService.now_db()
                 item_row.erro_processamento = None
                 db.session.commit()
             elif repaired_packaging_read_model or state_repaired:
@@ -2287,7 +2288,7 @@ class FinanceService:
             item_row.stock_movement_id = result.movement_id
             item_row.operation_log_id = result.operation_log_id
             item_row.status_processamento = "processado"
-            item_row.processado_em = datetime.utcnow()
+            item_row.processado_em = TimeService.now_db()
             item_row.erro_processamento = None
             db.session.commit()
 
@@ -2458,7 +2459,7 @@ class FinanceService:
 
         item_row.stock_movement_id = canonical.id
         item_row.status_processamento = "processado"
-        item_row.processado_em = item_row.processado_em or datetime.utcnow()
+        item_row.processado_em = item_row.processado_em or TimeService.now_db()
         item_row.erro_processamento = None
         db.session.commit()
         return {
@@ -2708,7 +2709,7 @@ class FinanceService:
 
         when: datetime
         if data_lancamento is None:
-            when = datetime.utcnow()
+            when = TimeService.now_db()
         elif isinstance(data_lancamento, date) and not isinstance(data_lancamento, datetime):
             when = datetime.combine(data_lancamento, time.min)
         else:

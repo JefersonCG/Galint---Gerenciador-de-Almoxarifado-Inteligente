@@ -223,14 +223,6 @@ def _ensure_mirror_panel_html_access(mode: str):
     return redirect(url_for("auth.login_form", next=request.url))
 
 
-def _ensure_utc(dt: datetime | None) -> datetime:
-    if dt is None:
-        return datetime.now(timezone.utc)
-    if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
-    return dt
-
-
 def _normalize_text(value: str | None) -> str:
     value = (value or "").strip().lower()
     if not value:
@@ -1048,7 +1040,7 @@ def registrar_saida_multipla():
                 saida.codigo_item = item.codigo_item
                 saida.quantidade = quantidade_convertida
                 saida.matricula = usuario.matricula
-                saida.data_saida = datetime.now(timezone.utc)
+                saida.data_saida = TimeService.now_db()
                 saida.observacao = str(observacao or "").upper() if observacao else None
                 saida.local_servico = str(local_servico_geral or "").upper() if local_servico_geral else None
                 apply_operational_context(

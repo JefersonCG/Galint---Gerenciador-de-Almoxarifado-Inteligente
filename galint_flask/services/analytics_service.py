@@ -6,6 +6,7 @@ from time import monotonic
 from typing import Any
 
 from .analytics_read_service import analytics_read_service
+from ..utils.time_service import TimeService
 
 
 class AnalyticsService:
@@ -355,7 +356,7 @@ class AnalyticsService:
                 "period_mode": period.get("mode") or "exercise",
                 "start_date_label": period.get("start_date_label") or "-",
                 "end_date_label": period.get("end_date_label") or "-",
-                "generated_at_label": datetime.utcnow().strftime("%d/%m/%Y %H:%M"),
+                "generated_at_label": TimeService.now_db().strftime("%d/%m/%Y %H:%M"),
             },
             "filters": {
                 "search": str(search or "").strip(),
@@ -563,7 +564,7 @@ class AnalyticsService:
                 "type": "consumo_ferramentas",
                 "item": "Sem risco identificado",
                 "codigo": "-",
-                "date": datetime.now().strftime("%d/%m/%Y"),
+                "date": TimeService.now_local().strftime("%d/%m/%Y"),
                 "status": "estável",
                 "forecast_days": 0,
                 "details": "Sem histórico suficiente para projetar consumo crítico.",

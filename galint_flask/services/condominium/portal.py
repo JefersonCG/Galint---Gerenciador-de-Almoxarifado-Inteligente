@@ -17,6 +17,7 @@ from ...models import (
 )
 from ..condominium_schedule import ACTIVE_STATUSES, event_to_view, today_local
 from .registry import DOCUMENT_LABELS, owner_attachment_count
+from ...utils.time_service import TimeService
 
 RESIDENT_SESSION_OWNER_ID = "condominium_resident_owner_id"
 
@@ -281,7 +282,7 @@ def update_resident_request_status(
     resident_request.response_notes = _clean(response_notes) or resident_request.response_notes
     resident_request.handled_by_matricula = actor_matricula
     if normalized_status in {"resolvido", "recusado"}:
-        resident_request.closed_at = resident_request.closed_at or datetime.utcnow()
+        resident_request.closed_at = resident_request.closed_at or TimeService.now_db()
     else:
         resident_request.closed_at = None
     return resident_request

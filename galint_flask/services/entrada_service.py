@@ -46,7 +46,7 @@ class EntradaService:
         db.session.query(EntradaRegistro30Dias).filter(EntradaRegistro30Dias.ativo.is_(True)).update({'ativo': False})
         
         new_cycle = EntradaRegistro30Dias(
-            data_inicio=datetime.now(timezone.utc),
+            data_inicio=TimeService.now_db(),
             ativo=True
         )
         db.session.add(new_cycle)
@@ -69,11 +69,11 @@ class EntradaService:
         data_inicio = cycle.data_inicio
         if data_inicio and data_inicio.tzinfo is None:
             data_inicio = data_inicio.replace(tzinfo=timezone.utc)
-        days_passed = (datetime.now(timezone.utc) - data_inicio).days
+        days_passed = (TimeService.now_db() - TimeService.as_db_naive(data_inicio)).days
         
         if days_passed >= 30 and not cycle.pdf_gerado:
             # Finaliza o ciclo gerando PDF
-            end_dt = datetime.now(timezone.utc)
+            end_dt = TimeService.now_db()
             pdf_info = self.generate_pdf_for_cycle(cycle, end_dt=end_dt)
             
             # Marca ciclo como finalizado
@@ -81,7 +81,7 @@ class EntradaService:
             cycle.pdf_gerado = True
             cycle.pdf_caminho = pdf_info['path']
             cycle.pdf_nome_arquivo = pdf_info['filename']
-            cycle.data_geracao_pdf = datetime.now(timezone.utc)
+            cycle.data_geracao_pdf = TimeService.now_db()
             cycle.ativo = False
             db.session.commit()
             
@@ -148,7 +148,7 @@ class EntradaService:
         if start_dt.tzinfo is None:
             start_dt = start_dt.replace(tzinfo=timezone.utc)
         if end_dt is None:
-            end_dt = cycle.data_fim or datetime.now(timezone.utc)
+            end_dt = cycle.data_fim or TimeService.now_db()
         if end_dt.tzinfo is None:
             end_dt = end_dt.replace(tzinfo=timezone.utc)
 
@@ -289,7 +289,7 @@ class EntradaService:
             alignment=TA_CENTER
         )
         
-        footer_text = f"Gerado automaticamente em {datetime.utcnow().strftime('%d/%m/%Y às %H:%M:%S')} | GALINT - Sistema de Gestão"
+        footer_text = f"Gerado automaticamente em {TimeService.now_db().strftime('%d/%m/%Y às %H:%M:%S')} | GALINT - Sistema de Gestão"
         elements.append(Spacer(1, 0.3*inch))
         elements.append(Paragraph(footer_text, footer_style))
         
@@ -313,7 +313,7 @@ class EntradaService:
 
     def generate_alertas_estoque_pdf(self) -> Dict[str, str]:
         """Gera PDF simples com itens em baixa no estoque."""
-        filename = f"alertas_estoque_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.pdf"
+        filename = f"alertas_estoque_{TimeService.now_db().strftime('%Y%m%d_%H%M%S')}.pdf"
         pdf_dir = self._get_pdf_dir()
         filepath = os.path.join(pdf_dir, filename)
         
@@ -410,7 +410,7 @@ class EntradaService:
             elements.append(table)
         
         # Rodapé
-        footer_text = f"Gerado em {datetime.utcnow().strftime('%d/%m/%Y às %H:%M:%S')} | GALINT"
+        footer_text = f"Gerado em {TimeService.now_db().strftime('%d/%m/%Y às %H:%M:%S')} | GALINT"
         elements.append(Spacer(1, 0.3*inch))
         elements.append(Paragraph(footer_text, ParagraphStyle('Footer', parent=styles['Normal'], fontSize=8, alignment=TA_CENTER)))
         

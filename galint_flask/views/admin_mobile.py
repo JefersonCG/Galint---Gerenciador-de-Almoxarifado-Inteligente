@@ -10,6 +10,7 @@ from flask_login import current_user, login_required
 from sqlalchemy import func
 
 from ..extensions import db
+from ..utils.time_service import TimeService
 from ..models import (
     ApkAuditLog,
     ApkVersion,
@@ -90,7 +91,7 @@ def _mobile_user_assignment_map() -> dict[str, FeatureAssignment]:
     if not flag:
         return {}
 
-    now = datetime.utcnow()
+    now = TimeService.now_db()
     assignments = (
         FeatureAssignment.query.filter_by(feature_flag_id=flag.id, target_type="user")
         .filter(FeatureAssignment.deleted_at.is_(None))
@@ -116,7 +117,7 @@ def _diagnose_device(device: Device, version_context: dict[str, object] | None =
 
     issues: list[str] = []
     score = 100
-    now = datetime.utcnow()
+    now = TimeService.now_db()
     last_heartbeat = device.last_heartbeat_at
     heartbeat_age_minutes = None
 
@@ -424,7 +425,7 @@ def block_mobile_user(matricula: str):
         assignment.is_enabled = False
         assignment.override_value = reason
         assignment.assigned_by = current_user.matricula
-        assignment.assigned_at = datetime.utcnow()
+        assignment.assigned_at = TimeService.now_db()
 
     active_sessions = DeviceSession.query.filter_by(user_id=user.matricula, status="active").all()
     for session in active_sessions:
@@ -621,11 +622,11 @@ def list_audit_logs():
     if time_range:
         cutoff = None
         if time_range == "24h":
-            cutoff = datetime.utcnow() - timedelta(hours=24)
+            cutoff = TimeService.now_db() - timedelta(hours=24)
         elif time_range == "7d":
-            cutoff = datetime.utcnow() - timedelta(days=7)
+            cutoff = TimeService.now_db() - timedelta(days=7)
         elif time_range == "30d":
-            cutoff = datetime.utcnow() - timedelta(days=30)
+            cutoff = TimeService.now_db() - timedelta(days=30)
         
         if cutoff:
             query = query.filter(ApkAuditLog.occurred_at >= cutoff)

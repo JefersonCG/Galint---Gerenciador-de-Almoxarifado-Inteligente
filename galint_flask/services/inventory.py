@@ -1650,7 +1650,7 @@ def _sync_missing_item_purchase_price_from_history(item: Item) -> bool:
         changed = True
 
     if changed:
-        item.preco_compra_atualizado_em = datetime.utcnow()
+        item.preco_compra_atualizado_em = TimeService.now_db()
         if _is_blank_text(getattr(item, "preco_compra_atualizado_por", None)):
             item.preco_compra_atualizado_por = "auditoria_documentos_fiscais"
     return changed
@@ -2675,7 +2675,7 @@ class InventoryService:
         reference_columns = self._get_item_code_reference_columns()
         trigger_tables = sorted({table_name for table_name, _ in reference_columns})
         updated_tables: dict[str, int] = {}
-        timestamp_now = datetime.utcnow()
+        timestamp_now = TimeService.now_db()
 
         try:
             for table_name in trigger_tables:
@@ -3124,7 +3124,7 @@ class InventoryService:
                 tipo=ADMIN_BALANCE_ADJUSTMENT_TYPE,
                 quantidade=float(legacy_delta),
                 descricao=adjustment_description,
-                data_evento=datetime.utcnow(),
+                data_evento=TimeService.now_db(),
             )
             db.session.add(event)
 
@@ -3149,7 +3149,7 @@ class InventoryService:
                     "displayed_balance_before": displayed_before,
                     "description": adjustment_description,
                 },
-                created_at=datetime.utcnow(),
+                created_at=TimeService.now_db(),
             )
             db.session.add(movement)
 
@@ -4291,7 +4291,7 @@ class InventoryService:
             tipo="devolucao_material",
             quantidade=float(quantidade_legacy),
             descricao=descricao,
-            data_evento=datetime.utcnow(),
+            data_evento=TimeService.now_db(),
         )
         db.session.add(evento)
         db.session.flush()
@@ -5706,7 +5706,7 @@ class InventoryService:
                 except ValueError:
                     data_entrada = None
         if not data_entrada:
-            data_entrada = datetime.now().date()
+            data_entrada = TimeService.now_db().date()
         
         # Lote: manual quando informado, automático apenas quando solicitado
         auto_lote = bool(payload.get("gerar_lote_automatico"))
@@ -6023,7 +6023,7 @@ class InventoryService:
             elif isinstance(data_entrada, date):
                 item.data_entrada = data_entrada
         elif item.data_entrada is None:
-            item.data_entrada = datetime.now().date()
+            item.data_entrada = TimeService.now_db().date()
 
         auto_lote = bool(payload.get("gerar_lote_automatico"))
         lote_manual = (payload.get("lote") or "").strip() or None
@@ -6195,7 +6195,7 @@ class InventoryService:
                         pass
                 elif isinstance(raw_recebimento, date):
                     item.preco_compra_data_recebimento = raw_recebimento
-            item.preco_compra_atualizado_em = payload.get("preco_compra_atualizado_em") or datetime.utcnow()
+            item.preco_compra_atualizado_em = payload.get("preco_compra_atualizado_em") or TimeService.now_db()
             item.preco_compra_atualizado_por = payload.get("preco_compra_atualizado_por") or payload.get("ultima_edicao_por")
 
         repos_keys = {
@@ -6222,7 +6222,7 @@ class InventoryService:
                 item.preco_reposicao_query = payload.get("preco_reposicao_query") or None
             if "preco_reposicao_url" in payload:
                 item.preco_reposicao_url = payload.get("preco_reposicao_url") or None
-            item.preco_reposicao_atualizado_em = payload.get("preco_reposicao_atualizado_em") or datetime.utcnow()
+            item.preco_reposicao_atualizado_em = payload.get("preco_reposicao_atualizado_em") or TimeService.now_db()
             item.preco_reposicao_atualizado_por = payload.get("preco_reposicao_atualizado_por") or payload.get("ultima_edicao_por")
 
         normalization_keys = {
@@ -6975,7 +6975,7 @@ class InventoryService:
 
         # Evitar eventos duplicados na mesma janela de tempo.
         try:
-            cutoff = datetime.utcnow() - timedelta(seconds=60)
+            cutoff = TimeService.now_db() - timedelta(seconds=60)
             existe_duplicado = (
                 InventarioEvento.query
                 .filter(InventarioEvento.codigo_item == codigo)

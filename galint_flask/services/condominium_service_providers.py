@@ -13,6 +13,7 @@ from werkzeug.utils import secure_filename
 
 from ..extensions import db
 from ..models import ServiceCompany, ServiceProviderEmployee
+from ..utils.time_service import TimeService
 
 
 SERVICE_TYPE_OPTIONS: tuple[dict[str, str], ...] = (
@@ -207,7 +208,7 @@ def _store_provider_document(file: Any, company_id: int, document_key: str) -> d
     return {
         "file_path": relative_path.as_posix(),
         "original_name": filename,
-        "uploaded_at": datetime.utcnow().isoformat(timespec="seconds"),
+        "uploaded_at": TimeService.now_db().isoformat(timespec="seconds"),
     }
 
 

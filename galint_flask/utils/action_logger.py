@@ -13,6 +13,7 @@ from __future__ import annotations
 import threading
 from datetime import datetime
 from pathlib import Path
+from .time_service import TimeService
 
 LOCK = threading.Lock()
 ROOT = Path(__file__).resolve().parents[2]
@@ -24,7 +25,7 @@ LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _timestamp() -> str:
-    return datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+    return TimeService.now_db().strftime("%Y-%m-%d %H:%M:%S UTC")
 
 
 def log_action(message: str) -> None:

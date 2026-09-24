@@ -12,6 +12,7 @@ from werkzeug.utils import secure_filename
 
 from ..extensions import db
 from ..models import EmpresaConfig, RelatorioConfig
+from ..utils.time_service import TimeService
 
 
 class ConfigService:
@@ -139,7 +140,7 @@ class ConfigService:
             if campo in data:
                 setattr(config, campo, data[campo])
         
-        config.atualizado_em = datetime.utcnow()
+        config.atualizado_em = TimeService.now_db()
         db.session.commit()
         
         return config
@@ -381,7 +382,7 @@ class ConfigService:
         """Define o logo da empresa."""
         config = ConfigService.get_empresa_config()
         config.logo_path = logo_path
-        config.atualizado_em = datetime.utcnow()
+        config.atualizado_em = TimeService.now_db()
         db.session.commit()
         
         return config
@@ -420,7 +421,7 @@ class ConfigService:
             if campo in data:
                 setattr(config, campo, data[campo])
         
-        config.atualizado_em = datetime.utcnow()
+        config.atualizado_em = TimeService.now_db()
         db.session.commit()
         
         return config
@@ -473,7 +474,7 @@ class ConfigService:
         config = ConfigService.get_empresa_config()
         config.primeira_execucao = False
         config.setup_completo = True
-        config.atualizado_em = datetime.utcnow()
+        config.atualizado_em = TimeService.now_db()
         db.session.commit()
     
     @staticmethod

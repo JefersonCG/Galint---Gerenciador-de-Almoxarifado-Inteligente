@@ -859,7 +859,7 @@ def by_item_download():
             .filter(Saida.codigo_item == item.codigo_item)
         )
         if period_days > 0:
-            cutoff = datetime.utcnow() - timedelta(days=period_days)
+            cutoff = TimeService.now_db() - timedelta(days=period_days)
             query = query.filter(Saida.data_saida >= cutoff)
         saidas = query.order_by(Saida.data_saida.desc()).all()
 

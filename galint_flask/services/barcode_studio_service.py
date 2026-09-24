@@ -10,6 +10,7 @@ from typing import Any
 from werkzeug.utils import secure_filename
 
 from ..paths import get_data_dir
+from ..utils.time_service import TimeService
 
 
 class BarcodeStudioService:
@@ -134,7 +135,7 @@ class BarcodeStudioService:
         if created_at:
             created_dt = cls._parse_iso_timestamp(created_at)
             if created_dt is not None:
-                age_seconds = (datetime.utcnow() - created_dt).total_seconds()
+                age_seconds = (TimeService.now_db() - created_dt).total_seconds()
                 if age_seconds > cls.PENDING_IMPORT_MAX_AGE_SECONDS:
                     raise FileNotFoundError(str(token))
         document = cls._normalize_layout_document(payload.get("document"), fallback_name=payload.get("source_name") or "Layout importado")
@@ -294,7 +295,7 @@ class BarcodeStudioService:
     @classmethod
     def _build_pdf_filename(cls, raw_name: Any) -> str:
         base_name = cls._slugify_name(str(raw_name or "").strip() or "etiquetas-a4")
-        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        timestamp = TimeService.now_db().strftime("%Y%m%d_%H%M%S")
         return f"{base_name}_{timestamp}.pdf"
 
     @classmethod
@@ -589,7 +590,7 @@ class BarcodeStudioService:
 
     @classmethod
     def _cleanup_expired_pending_imports(cls) -> None:
-        now = datetime.utcnow()
+        now = TimeService.now_db()
         for path in cls.get_pending_imports_dir().glob("*.json"):
             try:
                 age_seconds = (now - datetime.utcfromtimestamp(path.stat().st_mtime)).total_seconds()
@@ -623,7 +624,7 @@ class BarcodeStudioService:
 
     @staticmethod
     def _utcnow_iso() -> str:
-        return datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+        return TimeService.now_db().replace(microsecond=0).isoformat() + "Z"
 
     @staticmethod
     def _stat_timestamp(path: Path) -> str:

@@ -1135,14 +1135,14 @@ def _sync_finance_section_snapshot(
             usuario_matricula=usuario_id,
             quantidade=0.0,
             valor_total=0.0,
-            data_lancamento=datetime.utcnow(),
+            data_lancamento=TimeService.now_db(),
         )
         db.session.add(latest_entry)
 
     latest_entry.fornecedor_id = int(finance_payload["supplier_id"]) if finance_payload.get("supplier_id") else None
     latest_entry.usuario_matricula = usuario_id
     latest_entry.categoria_nome = str(categoria or latest_entry.categoria_nome or "Sem categoria")
-    latest_entry.data_lancamento = datetime.utcnow()
+    latest_entry.data_lancamento = TimeService.now_db()
     latest_entry.valor_unitario = unit_price
     latest_entry.valor_unitario_base = unit_price_base
     latest_entry.unidade_preco = unidade_preco
@@ -3395,7 +3395,7 @@ def create_item():
             {
                 "pre_cadastro_pendente": True,
                 "pre_cadastro_origem": "nf",
-                "pre_cadastro_criado_em": datetime.utcnow(),
+                "pre_cadastro_criado_em": TimeService.now_db(),
                 "pre_cadastro_finalizado_em": None,
             }
         )
@@ -3420,10 +3420,10 @@ def create_item():
         )
         
         if payload.get("preco_compra_unitario") is not None:
-            payload["preco_compra_atualizado_em"] = datetime.utcnow()
+            payload["preco_compra_atualizado_em"] = TimeService.now_db()
             payload["preco_compra_atualizado_por"] = current_user.nome if hasattr(current_user, "nome") else current_user.id
         if payload.get("preco_reposicao_unitario") is not None:
-            payload["preco_reposicao_atualizado_em"] = datetime.utcnow()
+            payload["preco_reposicao_atualizado_em"] = TimeService.now_db()
             payload["preco_reposicao_atualizado_por"] = current_user.nome if hasattr(current_user, "nome") else current_user.id
 
         # Processar upload de foto (se enviado)
@@ -3663,7 +3663,7 @@ def update_item(codigo: str):
         "unidades_por_embalagem": unidades_var,
         
         # Histórico
-        "ultima_edicao_em": datetime.now(),
+        "ultima_edicao_em": TimeService.now_db(),
         "ultima_edicao_por": current_user.nome if hasattr(current_user, 'nome') else current_user.id,
         # Campos de Equipamento
         "voltagem": form.get("voltagem", "").strip() or None,
@@ -3699,7 +3699,7 @@ def update_item(codigo: str):
         payload.update(
             {
                 "pre_cadastro_pendente": False,
-                "pre_cadastro_finalizado_em": datetime.utcnow(),
+                "pre_cadastro_finalizado_em": TimeService.now_db(),
             }
         )
 
@@ -3728,7 +3728,7 @@ def update_item(codigo: str):
             "finance_comprovacao_status": finance_payload.get("comprovacao_status"),
             "finance_observacao": finance_payload.get("observacao"),
         })
-        payload["preco_compra_atualizado_em"] = datetime.utcnow()
+        payload["preco_compra_atualizado_em"] = TimeService.now_db()
         payload["preco_compra_atualizado_por"] = current_user.nome if hasattr(current_user, "nome") else current_user.id
 
     # Preservar campos antigos se não forem substituídos pelo novo sistema?
@@ -4103,9 +4103,9 @@ def salvar_preco_reposicao(codigo: str):
     item.preco_reposicao_uf = uf
     item.preco_reposicao_query = query
     item.preco_reposicao_url = url
-    item.preco_reposicao_atualizado_em = datetime.utcnow()
+    item.preco_reposicao_atualizado_em = TimeService.now_db()
     item.preco_reposicao_atualizado_por = current_user.nome if hasattr(current_user, "nome") else current_user.id
-    item.ultima_edicao_em = datetime.utcnow()
+    item.ultima_edicao_em = TimeService.now_db()
     item.ultima_edicao_por = item.preco_reposicao_atualizado_por
     try:
         db.session.commit()
@@ -5224,8 +5224,8 @@ def finalize_pre_registered_item_api(codigo: str):
 
     try:
         item_model.pre_cadastro_pendente = False
-        item_model.pre_cadastro_finalizado_em = datetime.utcnow()
-        item_model.ultima_edicao_em = datetime.utcnow()
+        item_model.pre_cadastro_finalizado_em = TimeService.now_db()
+        item_model.ultima_edicao_em = TimeService.now_db()
         item_model.ultima_edicao_por = getattr(current_user, "nome", None) or getattr(current_user, "id", None)
         db.session.flush()
 

@@ -9,6 +9,7 @@ from sqlalchemy import func
 from ..extensions import db
 from ..models import Entrada, InventarioEvento, Item, Saida, StockBalance, StockMovement, stock_balance_supports_read_model_ready
 from .legacy_stock_normalizer import build_normalized_legacy_movements, resolve_canonical_unit
+from ..utils.time_service import TimeService
 
 LEGACY_REBUILD_REFERENCE_TYPES = (
     "entrada",
@@ -471,7 +472,7 @@ class LedgerBackfillService:
             "source": metadata.get("source") or "ledger_backfill",
             "user_id": metadata.get("user_id") or metadata.get("matricula"),
         }
-        movement.created_at = created_at or datetime.utcnow()
+        movement.created_at = created_at or TimeService.now_db()
         db.session.add(movement)
         db.session.flush()
         return "created"

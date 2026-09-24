@@ -2478,12 +2478,25 @@ ${parent.scripts()}
         }
     }
 
+    // preventScroll mantém o leitor de código ativo sem arrastar a página de volta ao topo
+    // quando o operador está mexendo na lista mais abaixo.
+    function focusWithoutScroll(element) {
+        if (!element || typeof element.focus !== 'function') {
+            return;
+        }
+        try {
+            element.focus({ preventScroll: true });
+        } catch (error) {
+            element.focus();
+        }
+    }
+
     function focusScannerField() {
         window.setTimeout(function() {
             if (!inputCodigo) return;
             const activeModal = document.querySelector('.modal.show');
             if (!activeModal) {
-                inputCodigo.focus();
+                focusWithoutScroll(inputCodigo);
             }
         }, 40);
     }
@@ -3729,14 +3742,14 @@ ${parent.scripts()}
                     '</td>' +
                     '<td class="text-center">' +
                         '<div class="qty-adjust-wrap">' +
-                            '<button type="button" class="btn-qty-adjust" title="Diminuir quantidade" onclick="adjustQueuedItemQuantity(' + item.id + ', -1)"' + (getQueuedItemDisplayQuantity(item) <= 1 ? ' disabled' : '') + '><i class="bi bi-dash"></i></button>' +
+                            '<button type="button" class="btn-qty-adjust" title="Diminuir quantidade" data-item-action="qty" data-item-id="' + item.id + '" data-item-delta="-1"' + (getQueuedItemDisplayQuantity(item) <= 1 ? ' disabled' : '') + '><i class="bi bi-dash"></i></button>' +
                             '<span class="badge-qty">' + (item.quantidade_exibicao || item.quantidade) + (item.unidade_label ? ' ' + item.unidade_label : '') + '</span>' +
-                            '<button type="button" class="btn-qty-adjust" title="Aumentar quantidade" onclick="adjustQueuedItemQuantity(' + item.id + ', 1)"><i class="bi bi-plus"></i></button>' +
+                            '<button type="button" class="btn-qty-adjust" title="Aumentar quantidade" data-item-action="qty" data-item-id="' + item.id + '" data-item-delta="1"><i class="bi bi-plus"></i></button>' +
                         '</div>' +
                     '</td>' +
                     '<td class="text-end item-value-cell">' + buildItemValueHtml(item) + '</td>' +
                     '<td class="text-end">' +
-                        '<button type="button" class="btn-remove-item" onclick="removeItem(' + item.id + ')">' +
+                        '<button type="button" class="btn-remove-item" data-item-action="remove" data-item-id="' + item.id + '">' +
                             '<i class="bi bi-trash me-1"></i>Remover' +
                         '</button>' +
                     '</td>' +
@@ -3817,9 +3830,42 @@ ${parent.scripts()}
         currentPreviewItem = { ...item };
         renderCurrentPreview(currentPreviewItem, 'queued');
         renderItems();
-        focusScannerField();
+        // A tabela é redesenhada a cada ajuste; devolve o foco ao mesmo botão sem
+        // arrastar a página, para o operador continuar clicando em + / - no lugar.
+        restoreQuantityButtonFocus(id, delta);
     };
-    
+
+    function restoreQuantityButtonFocus(id, delta) {
+        if (!itemsList) {
+            return;
+        }
+        const seletor = '[data-item-action="qty"][data-item-id="' + id + '"][data-item-delta="'
+            + (Number(delta) >= 0 ? '1' : '-1') + '"]';
+        const botao = itemsList.querySelector(seletor);
+        if (botao && !botao.disabled) {
+            focusWithoutScroll(botao);
+            return;
+        }
+        focusScannerField();
+    }
+
+    itemsList?.addEventListener('click', function(event) {
+        const botao = event.target instanceof Element ? event.target.closest('[data-item-action]') : null;
+        if (!botao || !itemsList.contains(botao)) {
+            return;
+        }
+        event.preventDefault();
+        const id = Number(botao.getAttribute('data-item-id'));
+        if (!Number.isFinite(id)) {
+            return;
+        }
+        if (botao.getAttribute('data-item-action') === 'remove') {
+            window.removeItem(id);
+            return;
+        }
+        window.adjustQueuedItemQuantity(id, Number(botao.getAttribute('data-item-delta')) || 0);
+    });
+
     window.removeItem = function(id) {
         const index = items.findIndex(item => item.id === id);
         if (index > -1) {

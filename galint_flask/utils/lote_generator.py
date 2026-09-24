@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Optional
 from galint_flask.extensions import db
 from sqlalchemy import text
+from .time_service import TimeService
 
 
 def generate_lote(data_entrada: Optional[datetime] = None) -> str:
@@ -25,7 +26,7 @@ def generate_lote(data_entrada: Optional[datetime] = None) -> str:
         'LOTE-20260115-0001'
     """
     if data_entrada is None:
-        data_entrada = datetime.now()
+        data_entrada = TimeService.now_db()
     
     # Formatar data como YYYYMMDD
     data_str = data_entrada.strftime('%Y%m%d')

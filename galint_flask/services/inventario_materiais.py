@@ -17,6 +17,7 @@ from openpyxl.utils import get_column_letter
 from ..extensions import db
 from ..models import DescarteAutorizacao, MaterialInventario, Saida
 from ..utils.report_branding import get_company_header_lines, get_company_header_text
+from ..utils.time_service import TimeService
 
 
 class MaterialInventoryService:
@@ -92,7 +93,7 @@ class MaterialInventoryService:
         if not gerente:
             raise ValueError("Informe o gerente responsável pela autorização")
 
-        now = datetime.utcnow()
+        now = TimeService.now_db()
         workbook = self._build_report_workbook(gerente, comentario, relatorio_html, entries, now)
         reports_dir = self._ensure_reports_dir()
         file_name = f"produtos-avariados-{now.strftime('%Y%m%d%H%M%S')}.xlsx"

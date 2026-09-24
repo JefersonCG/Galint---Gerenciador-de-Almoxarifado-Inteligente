@@ -9,6 +9,7 @@ from pathlib import Path
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
+from ..utils.time_service import TimeService
 
 logger = logging.getLogger(__name__)
 
@@ -212,7 +213,7 @@ class SchedulerService:
         """Remove arquivos de relatórios com mais de `days` dias."""
         with app.app_context():
             try:
-                cutoff = datetime.utcnow() - timedelta(days=days)
+                cutoff = TimeService.now_db() - timedelta(days=days)
                 reports_dir = Path(app.instance_path) / "reports"
                 temp_reports_dir = Path(tempfile.gettempdir()) / "galint_reports"
                 deleted = 0
@@ -247,7 +248,7 @@ class SchedulerService:
 
         with app.app_context():
             try:
-                cutoff = datetime.utcnow() - timedelta(days=days)
+                cutoff = TimeService.now_db() - timedelta(days=days)
                 # tabelas e colunas de data a serem limpas
                 from ..models import (
                     Saida,

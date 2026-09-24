@@ -362,7 +362,7 @@ class GeneralSearchService:
 
         normalized_period = int(period_days or 0)
         if normalized_period > 0:
-            cutoff = datetime.utcnow() - timedelta(days=normalized_period)
+            cutoff = TimeService.now_db() - timedelta(days=normalized_period)
             query = query.filter(Saida.data_saida >= cutoff)
 
         rows = query.order_by(Saida.data_saida.desc(), Saida.id_saida.desc()).all()

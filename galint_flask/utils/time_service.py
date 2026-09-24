@@ -238,17 +238,39 @@ class TimeService:
         return cls.now_utc().astimezone(get_local_tz())
 
     @classmethod
+    def now_db(cls) -> datetime:
+        """Instante atual no padrão gravado no banco: hora de São Paulo, sem tzinfo.
+
+        Fonte única de escrita de data/hora. Use este metodo em todo `default=`,
+        atribuição de coluna e comparação com coluna de data. Nunca use
+        `datetime.now()`, `datetime.utcnow()`, `datetime.now(timezone.utc)` ou
+        `func.now()` para gravar: cada um deles grava em um fuso diferente e foi
+        a causa de registros com 3 horas de diferença entre tabelas.
+        """
+        return cls.now_local().replace(tzinfo=None)
+
+    @classmethod
+    def as_db_naive(cls, dt: datetime | None) -> datetime | None:
+        """Normaliza qualquer datetime para o padrão do banco (local, sem tzinfo)."""
+        if dt is None:
+            return None
+        if dt.tzinfo is None:
+            return dt
+        return dt.astimezone(get_local_tz()).replace(tzinfo=None)
+
+    @classmethod
     def to_local(cls, dt: datetime) -> datetime:
         tz = get_local_tz()
         if dt.tzinfo is None:
-            # padrão do projeto: datetimes do banco são UTC sem tzinfo
-            dt = dt.replace(tzinfo=timezone.utc)
+            # Convenção do projeto: datetime sem tzinfo é hora local de São Paulo,
+            # que é como as tabelas de operação (saidas, retiradas, eventos) gravam.
+            return dt.replace(tzinfo=tz)
         return dt.astimezone(tz)
 
     @classmethod
     def to_utc(cls, dt: datetime) -> datetime:
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
+            dt = dt.replace(tzinfo=get_local_tz())
         return dt.astimezone(timezone.utc)
 
     @classmethod
@@ -275,9 +297,6 @@ class TimeService:
         Returns:
             True se estiver entre start_hour:00 e end_hour:00 (exclusive)
         """
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        
         local_dt = cls.to_local(dt)
         hour = local_dt.hour
         

@@ -38,6 +38,7 @@ from ..services.price_normalization import (
     should_autofix_packaged_document_unit,
 )
 from ..services.price_suggestion_service import price_suggestion_service
+from ..utils.time_service import TimeService
 
 blueprint = Blueprint("nf", __name__, url_prefix="/nf")
 
@@ -237,9 +238,9 @@ def _apply_manual_replacement_price_to_item(
     item.preco_reposicao_uf = (uf or item.preco_reposicao_uf or "").strip().upper() or None
     item.preco_reposicao_query = (query or _build_manual_replacement_query(item=item) or item.preco_reposicao_query).strip() or None
     item.preco_reposicao_url = (url or item.preco_reposicao_url or "").strip() or None
-    item.preco_reposicao_atualizado_em = datetime.utcnow()
+    item.preco_reposicao_atualizado_em = TimeService.now_db()
     item.preco_reposicao_atualizado_por = actor
-    item.ultima_edicao_em = datetime.utcnow()
+    item.ultima_edicao_em = TimeService.now_db()
     item.ultima_edicao_por = actor
 
 
@@ -755,7 +756,7 @@ def _sync_document_financial_entries(documento: DocumentoEntradaEstoque) -> dict
                 quantidade=quantidade,
                 valor_unitario=valor_unitario,
                 valor_total=valor_total,
-                data_lancamento=documento.data_recebimento or documento.data_emissao or datetime.utcnow(),
+                data_lancamento=documento.data_recebimento or documento.data_emissao or TimeService.now_db(),
                 fornecedor_id=documento.fornecedor_id,
                 entrada_id=item_row.entrada_id,
                 usuario_matricula=current_user.id,
@@ -782,7 +783,7 @@ def _sync_document_financial_entries(documento: DocumentoEntradaEstoque) -> dict
         ledger_entry.categoria_nome = ledger_entry.categoria_nome or (
             item_row.item.categoria if item_row.item and item_row.item.categoria else "Sem categoria"
         )
-        ledger_entry.data_lancamento = ledger_entry.data_lancamento or datetime.utcnow()
+        ledger_entry.data_lancamento = ledger_entry.data_lancamento or TimeService.now_db()
         ledger_entry.quantidade = quantidade
         ledger_entry.unidade_quantidade = item_row.unidade_quantidade
         ledger_entry.quantidade_base = item_row.quantidade_base
@@ -817,7 +818,7 @@ def _sync_document_financial_entries(documento: DocumentoEntradaEstoque) -> dict
             item_row.item.preco_compra_data_emissao = documento.data_emissao
             item_row.item.preco_compra_data_recebimento = documento.data_recebimento
             item_row.item.preco_compra_fonte = auto_origin or item_row.item.preco_compra_fonte or "compra_nf"
-            item_row.item.preco_compra_atualizado_em = datetime.utcnow()
+            item_row.item.preco_compra_atualizado_em = TimeService.now_db()
             item_row.item.preco_compra_atualizado_por = current_user.id
             if valor_unitario is not None:
                 item_row.item.preco_compra_unitario = valor_unitario
@@ -1059,7 +1060,7 @@ def _mark_item_for_nf_pre_registration(
         changed = True
 
     if item_model.pre_cadastro_criado_em is None:
-        item_model.pre_cadastro_criado_em = datetime.utcnow()
+        item_model.pre_cadastro_criado_em = TimeService.now_db()
         changed = True
 
     if item_model.pre_cadastro_finalizado_em is not None:
@@ -1894,7 +1895,7 @@ def registrar_nf():
                 "preco_reposicao_query": preco_reposicao_query or _build_manual_replacement_query(descricao=nova_descricao, marca=nova_marca) or None,
                 "pre_cadastro_pendente": True,
                 "pre_cadastro_origem": "nf",
-                "pre_cadastro_criado_em": datetime.utcnow(),
+                "pre_cadastro_criado_em": TimeService.now_db(),
                 "pre_cadastro_finalizado_em": None,
             }
             if foto_url:
@@ -2068,7 +2069,7 @@ def fechar_periodo_compras():
         total_valor=total_valor,
         observacao=observacao,
         fechado_por=current_user.id,
-        fechado_em=datetime.utcnow(),
+        fechado_em=TimeService.now_db(),
     )
     db.session.add(fechamento)
     db.session.commit()
@@ -2092,7 +2093,7 @@ def reabrir_periodo_compras(fechamento_id: int):
 
     fechamento.status = "reaberto"
     fechamento.reaberto_por = current_user.id
-    fechamento.reaberto_em = datetime.utcnow()
+    fechamento.reaberto_em = TimeService.now_db()
     db.session.commit()
     flash("Período reaberto para revisão.", "success")
     return redirect(

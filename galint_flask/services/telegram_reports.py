@@ -89,7 +89,7 @@ class TelegramReportService:
         Returns:
             Lista de dicts com dados das retiradas
         """
-        cutoff = datetime.utcnow() - timedelta(days=TelegramReportService.get_period_days(months))
+        cutoff = TimeService.now_db() - timedelta(days=TelegramReportService.get_period_days(months))
         
         q = db.session.query(
             Saida.id_saida,
@@ -271,7 +271,7 @@ class TelegramReportService:
             ).join(
                 Item, Saida.codigo_item == Item.codigo_item, isouter=True
             ).filter(
-                Saida.data_saida >= datetime.utcnow() - timedelta(days=TelegramReportService.get_period_days(months))
+                Saida.data_saida >= TimeService.now_db() - timedelta(days=TelegramReportService.get_period_days(months))
             )
 
             if scope == "tools":

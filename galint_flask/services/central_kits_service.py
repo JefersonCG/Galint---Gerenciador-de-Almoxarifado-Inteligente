@@ -249,7 +249,7 @@ class CentralKitsService:
         quantity = cls._to_float(saida.quantidade)
         unit_value = cls._resolve_unit_value(item)
         total_value = round(quantity * unit_value, 2)
-        days_in_use = max(0, (datetime.utcnow() - saida.data_saida).days) if saida.data_saida else 0
+        days_in_use = max(0, (TimeService.now_db() - saida.data_saida).days) if saida.data_saida else 0
         tipo_custodia = (
             "permanente"
             if ToolCustodyService.is_permanent_custody(
@@ -380,7 +380,7 @@ class CentralKitsService:
 
     @classmethod
     def _load_recent_occurrences(cls, matricula: str, *, days: int = 60) -> list[dict[str, Any]]:
-        cutoff = datetime.utcnow() - timedelta(days=days)
+        cutoff = TimeService.now_db() - timedelta(days=days)
         rows = (
             db.session.query(InventarioEvento, Item)
             .join(Item, InventarioEvento.codigo_item == Item.codigo_item)

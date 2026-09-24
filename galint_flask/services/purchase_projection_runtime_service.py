@@ -25,6 +25,7 @@ from .legacy_stock_normalizer import infer_packaging_measure, resolve_canonical_
 from .operation_visual_payload import OperationVisualPayloadService
 from .potential_supplier_service import potential_supplier_service
 from ..utils.report_branding import get_company_header_lines
+from ..utils.time_service import TimeService
 
 
 class PurchaseProjectionService:
@@ -130,7 +131,7 @@ class PurchaseProjectionService:
     def get_architecture_compatibility(cls) -> dict[str, Any]:
         return {
             **cls.ARCHITECTURE_COMPATIBILITY,
-            "checked_at": datetime.utcnow().isoformat(),
+            "checked_at": TimeService.now_db().isoformat(),
         }
 
     @classmethod
@@ -281,7 +282,7 @@ class PurchaseProjectionService:
         )
         return {
             "compatibility": cls.get_architecture_compatibility(),
-            "generated_at": datetime.utcnow().isoformat(),
+            "generated_at": TimeService.now_db().isoformat(),
             "filters": filters,
             "filter_options": filter_options,
             "summary": cls._build_summary(rows, visible_rows, cart),
@@ -599,7 +600,7 @@ class PurchaseProjectionService:
     def _load_window_consumption(cls, product_ids: list[str], *, window_days: int) -> dict[str, dict[str, Any]]:
         if not product_ids:
             return {}
-        cutoff = datetime.utcnow() - timedelta(days=window_days)
+        cutoff = TimeService.now_db() - timedelta(days=window_days)
         rows = (
             db.session.query(
                 StockMovement.product_id,

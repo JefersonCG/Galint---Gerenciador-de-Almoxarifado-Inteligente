@@ -12,6 +12,7 @@ from .analytics_read_service import analytics_read_service
 from .inventory import inventory_service
 from .operation_visual_payload import operation_visual_payload_service
 from .tool_custody_service import ToolCustodyService
+from ..utils.time_service import TimeService
 
 
 class MirrorInsightsService:
@@ -132,7 +133,7 @@ class MirrorInsightsService:
         for withdrawal in active_withdrawals:
             if withdrawal.status == "devolvida":
                 continue
-            days_in_use = max((datetime.now() - withdrawal.data_retirada).days, 0) if withdrawal.data_retirada else 0
+            days_in_use = max((TimeService.now_db() - withdrawal.data_retirada).days, 0) if withdrawal.data_retirada else 0
             if not withdrawal.verificar_atraso() and days_in_use <= 0:
                 continue
             overdue_count += 1
@@ -764,7 +765,7 @@ class MirrorInsightsService:
 
         payload = {
             "rotation_seconds": cls.ROTATION_SECONDS,
-            "generated_at": datetime.utcnow().isoformat(),
+            "generated_at": TimeService.now_db().isoformat(),
             "items": filtered,
         }
         return cls._set_cached(cache_key, dict(payload), ttl_seconds=30.0)

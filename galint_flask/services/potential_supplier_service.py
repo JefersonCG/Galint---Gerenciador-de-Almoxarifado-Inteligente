@@ -12,6 +12,7 @@ from ..extensions import db
 from ..models import Item, ItemPotentialSupplierQuote, PotentialSupplier
 from ..utils.formatters import format_currency_br
 from .price_normalization import infer_price_unit_for_item, normalize_item_price
+from ..utils.time_service import TimeService
 
 
 def _clean_text(value: object, *, max_length: int | None = None) -> str | None:
@@ -206,7 +207,7 @@ class PotentialSupplierService:
                 "seller_missing_fields": self._seller_missing_fields(suggestion),
             }
             quote.captured_by_matricula = actor_matricula
-            quote.captured_at = datetime.utcnow()
+            quote.captured_at = TimeService.now_db()
             captured.append(quote)
 
         db.session.flush()

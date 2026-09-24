@@ -89,7 +89,7 @@ def buscar_movimentacoes_saida(user_matricula: str | None, is_admin: bool) -> Li
     """
     q = db.session.query(Saida)
     if not is_admin:
-        cutoff = datetime.now() - timedelta(days=180)
+        cutoff = TimeService.now_db() - timedelta(days=180)
         q = q.filter(Saida.data_saida >= cutoff)
         if user_matricula:
             q = q.filter(Saida.matricula == user_matricula)
@@ -109,7 +109,7 @@ def enviar_relatorio_falta(bot, chat_id: str) -> dict:
     """
     reports_dir = Path("/tmp")
     reports_dir.mkdir(parents=True, exist_ok=True)
-    fname = f"galint_estoque_baixo_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+    fname = f"galint_estoque_baixo_{TimeService.now_db().strftime('%Y%m%d_%H%M%S')}.csv"
     target = reports_dir / fname
 
     items = Item.query.order_by(Item.codigo_item).all()

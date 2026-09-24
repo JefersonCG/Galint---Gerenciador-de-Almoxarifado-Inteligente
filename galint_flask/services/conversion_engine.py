@@ -32,6 +32,7 @@ from werkzeug.utils import secure_filename
 from .backup import BackupService
 from ..extensions import db
 from ..paths import get_version
+from ..utils.time_service import TimeService
 
 
 class _AppWithContext(Protocol):
@@ -288,7 +289,7 @@ class ConversionEngineService:
                 "Formato não suportado. Envie um .sql, um .zip com .sql/.sqlite/.db ou uma base SQLite (.sqlite/.db)."
             )
 
-        stored_name = f"{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{uuid4().hex[:10]}_{filename}"
+        stored_name = f"{TimeService.now_db().strftime('%Y%m%d_%H%M%S')}_{uuid4().hex[:10]}_{filename}"
         destination = self.sources_dir / stored_name
         upload.save(destination)
 
@@ -303,7 +304,7 @@ class ConversionEngineService:
 
     def register_existing_backup(self, backup_name: str) -> dict[str, str]:
         source = self.backup_service.get_backup_path(backup_name)
-        stored_name = f"{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{uuid4().hex[:10]}_{source.name}"
+        stored_name = f"{TimeService.now_db().strftime('%Y%m%d_%H%M%S')}_{uuid4().hex[:10]}_{source.name}"
         destination = self.sources_dir / stored_name
         shutil.copy2(source, destination)
         return {
@@ -383,7 +384,7 @@ class ConversionEngineService:
 
     def prepare_source_for_analysis(self, *, source_path: Path, source_name: str, reporter) -> dict[str, Any]:
         source_suffix = source_path.suffix.lower()
-        stage_token = f"stage_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{uuid4().hex[:8]}"
+        stage_token = f"stage_{TimeService.now_db().strftime('%Y%m%d_%H%M%S')}_{uuid4().hex[:8]}"
         stage_dir = self.staging_dir / stage_token
         stage_dir.mkdir(parents=True, exist_ok=True)
 
@@ -915,7 +916,7 @@ class ConversionEngineService:
         profile: dict[str, Any],
         assessment: dict[str, Any],
     ) -> dict[str, Any]:
-        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        timestamp = TimeService.now_db().strftime("%Y%m%d_%H%M%S")
         summary = assessment["summary"]
         base_name = f"conversionengine_{timestamp}_{uuid4().hex[:8]}"
 

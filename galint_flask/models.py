@@ -28,12 +28,12 @@ class InventoryCategory(db.Model):
     sistema: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     criada_por: Mapped[str | None] = mapped_column(String(100), nullable=True)
     atualizada_por: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    criado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    criado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
     atualizado_em: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=TimeService.now_db,
+        onupdate=TimeService.now_db,
     )
 
     def to_dict(self) -> dict[str, object]:
@@ -72,8 +72,8 @@ class CondominiumBuilding(db.Model):
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
     created_by_matricula: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True)
     updated_by_matricula: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, onupdate=TimeService.now_db)
 
     units: Mapped[list["CondominiumUnit"]] = relationship(
         "CondominiumUnit",
@@ -105,8 +105,8 @@ class CondominiumUnit(db.Model):
     unit_type: Mapped[str] = mapped_column(String(30), nullable=False, default="residencial")
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, onupdate=TimeService.now_db)
 
     building: Mapped[CondominiumBuilding] = relationship("CondominiumBuilding", back_populates="units")
     owners: Mapped[list["CondominiumOwner"]] = relationship("CondominiumOwner", back_populates="unit", order_by="CondominiumOwner.full_name.asc()")
@@ -140,8 +140,8 @@ class CondominiumOwner(db.Model):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_by_matricula: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True)
     updated_by_matricula: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, onupdate=TimeService.now_db)
 
     unit: Mapped[CondominiumUnit | None] = relationship("CondominiumUnit", back_populates="owners")
     created_by: Mapped["Usuario | None"] = relationship("Usuario", foreign_keys=[created_by_matricula])
@@ -172,8 +172,8 @@ class CondominiumScheduleEvent(db.Model):
     notification_acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_by_matricula: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True)
     updated_by_matricula: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, onupdate=TimeService.now_db)
 
     building: Mapped[CondominiumBuilding | None] = relationship("CondominiumBuilding")
     unit: Mapped[CondominiumUnit | None] = relationship("CondominiumUnit")
@@ -223,8 +223,8 @@ class ServiceCompany(db.Model):
     lgpd_authorized: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_by_matricula: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True)
     updated_by_matricula: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, onupdate=TimeService.now_db)
 
     employees: Mapped[list["ServiceProviderEmployee"]] = relationship(
         "ServiceProviderEmployee",
@@ -262,8 +262,8 @@ class ServiceProviderEmployee(db.Model):
     lgpd_authorized: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_by_matricula: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True)
     updated_by_matricula: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, onupdate=TimeService.now_db)
 
     company: Mapped[ServiceCompany] = relationship("ServiceCompany", back_populates="employees")
     created_by: Mapped["Usuario | None"] = relationship("Usuario", foreign_keys=[created_by_matricula])
@@ -274,7 +274,7 @@ class CondominiumAuditLog(db.Model):
     __tablename__ = "condominium_audit_logs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    occurred_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), index=True)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, index=True)
     actor_matricula: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True, index=True)
     action: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     entity_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
@@ -296,7 +296,7 @@ class CondominiumAccessLog(db.Model):
     __tablename__ = "condominium_access_logs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    occurred_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), index=True)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, index=True)
     direction: Mapped[str] = mapped_column(String(20), nullable=False, default="entrada", index=True)
     access_status: Mapped[str] = mapped_column(String(24), nullable=False, default="liberado", index=True)
     person_type: Mapped[str] = mapped_column(String(30), nullable=False, default="visitante", index=True)
@@ -310,7 +310,7 @@ class CondominiumAccessLog(db.Model):
     service_company_id: Mapped[int | None] = mapped_column(ForeignKey("service_companies.id", ondelete="SET NULL"), nullable=True, index=True)
     service_employee_id: Mapped[int | None] = mapped_column(ForeignKey("service_provider_employees.id", ondelete="SET NULL"), nullable=True, index=True)
     authorized_by_matricula: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True, index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
 
     unit: Mapped[CondominiumUnit | None] = relationship("CondominiumUnit")
     owner: Mapped[CondominiumOwner | None] = relationship("CondominiumOwner")
@@ -330,8 +330,8 @@ class CondominiumMaintenanceTicket(db.Model):
     __tablename__ = "condominium_maintenance_tickets"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    opened_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), index=True)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    opened_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, onupdate=TimeService.now_db)
     due_date: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
     closed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     title: Mapped[str] = mapped_column(String(180), nullable=False, index=True)
@@ -371,7 +371,7 @@ class CondominiumPackageLog(db.Model):
     __tablename__ = "condominium_package_logs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    received_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), index=True)
+    received_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, index=True)
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     stored_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     notified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
@@ -406,8 +406,8 @@ class CondominiumResidentRequest(db.Model):
     __tablename__ = "condominium_resident_requests"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    opened_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), index=True)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    opened_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, onupdate=TimeService.now_db)
     closed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     request_type: Mapped[str] = mapped_column(String(40), nullable=False, default="atualizacao_cadastral", index=True)
     status: Mapped[str] = mapped_column(String(24), nullable=False, default="novo", index=True)
@@ -457,7 +457,7 @@ class Item(db.Model):
     modelo: Mapped[str | None] = mapped_column(String, nullable=True)
     
     # Campos de rastreabilidade
-    data_entrada: Mapped[date | None] = mapped_column(Date, nullable=True, server_default=func.now())
+    data_entrada: Mapped[date | None] = mapped_column(Date, nullable=True, default=lambda: TimeService.now_db().date(), server_default=func.now())
     lote: Mapped[str | None] = mapped_column(String(50), nullable=True)
     data_fabricacao: Mapped[date | None] = mapped_column(Date, nullable=True)
     data_validade: Mapped[date | None] = mapped_column(Date, nullable=True)
@@ -901,7 +901,7 @@ class Saida(db.Model):
     id_saida: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     codigo_item: Mapped[str | None] = mapped_column(ForeignKey("itens.codigo_item"))
     matricula: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula"))
-    data_saida: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    data_saida: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
     quantidade: Mapped[float] = mapped_column(Float, nullable=False)
     observacao: Mapped[str | None] = mapped_column(Text, nullable=True)
     tipo_produto: Mapped[str | None] = mapped_column(String, nullable=True)
@@ -929,7 +929,7 @@ class Entrada(db.Model):
     id_entrada: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     codigo_item: Mapped[str | None] = mapped_column(ForeignKey("itens.codigo_item"))
     matricula: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula"))
-    data_entrada: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    data_entrada: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
     quantidade: Mapped[float] = mapped_column(Float, nullable=False)
     nota_fiscal: Mapped[str | None] = mapped_column(Text, nullable=True)
 
@@ -956,8 +956,8 @@ class DocumentoEntradaEstoque(db.Model):
     mensagem_integracao: Mapped[str | None] = mapped_column(Text, nullable=True)
     imagem_secundaria_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
     criado_por: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    criado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
-    atualizado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    criado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, onupdate=TimeService.now_db)
 
     fornecedor: Mapped["FinanceSupplier | None"] = relationship("FinanceSupplier")
     itens: Mapped[list["DocumentoEntradaEstoqueItem"]] = relationship(
@@ -996,7 +996,7 @@ class DocumentoEntradaEstoqueItem(db.Model):
     erro_processamento: Mapped[str | None] = mapped_column(Text, nullable=True)
     stock_movement_id: Mapped[int | None] = mapped_column(ForeignKey("stock_movements.id", ondelete="SET NULL"), nullable=True, index=True)
     operation_log_id: Mapped[int | None] = mapped_column(ForeignKey("operation_logs.id", ondelete="SET NULL"), nullable=True, index=True)
-    criado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
+    criado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
 
     documento: Mapped[DocumentoEntradaEstoque] = relationship("DocumentoEntradaEstoque", back_populates="itens")
     entrada: Mapped[Entrada | None] = relationship("Entrada")
@@ -1011,7 +1011,7 @@ class EntradaFiscalHistorico(db.Model):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     evento: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
-    ocorrido_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), index=True)
+    ocorrido_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, index=True)
     documento_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
     documento_item_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
     codigo_item: Mapped[str] = mapped_column(String, nullable=False, index=True)
@@ -1046,7 +1046,7 @@ class InventarioEvento(db.Model):
     tipo: Mapped[str] = mapped_column(String, nullable=False)
     quantidade: Mapped[float] = mapped_column(Float, nullable=False)
     descricao: Mapped[str | None] = mapped_column(Text, nullable=True)
-    data_evento: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    data_evento: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
 
 
 class OperationLog(db.Model):
@@ -1063,7 +1063,7 @@ class OperationLog(db.Model):
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="success", index=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     payload_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, index=True)
 
     item: Mapped[Item | None] = relationship("Item")
     user: Mapped[Usuario | None] = relationship("Usuario")
@@ -1126,7 +1126,7 @@ class StockMovement(db.Model):
     reference_type: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
     reference_id: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
     metadata_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, index=True)
 
     item: Mapped[Item] = relationship("Item", back_populates="stock_movements")
 
@@ -1152,7 +1152,7 @@ class WithdrawalIntention(db.Model):
     is_compatible: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
     metadata_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     viewed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, index=True)
 
     user: Mapped["Usuario | None"] = relationship("Usuario", foreign_keys=[user_matricula])
 
@@ -1163,7 +1163,7 @@ class StockBalance(db.Model):
     product_id: Mapped[str] = mapped_column(ForeignKey("itens.codigo_item", ondelete="CASCADE"), primary_key=True)
     quantity_base: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     read_model_ready: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, onupdate=TimeService.now_db)
 
     item: Mapped[Item] = relationship("Item", back_populates="stock_balance")
 
@@ -1238,7 +1238,7 @@ class ChatMessage(db.Model):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     matricula: Mapped[str | None] = mapped_column(String, nullable=True)
     mensagem: Mapped[str] = mapped_column(Text, nullable=False)
-    data_envio: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    data_envio: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
 
 
 class MaterialInventario(db.Model):
@@ -1252,7 +1252,7 @@ class MaterialInventario(db.Model):
     quantidade: Mapped[int] = mapped_column(Integer, nullable=False)
     descricao: Mapped[str | None] = mapped_column(Text, nullable=True)
     observacoes: Mapped[str | None] = mapped_column(Text, nullable=True)
-    data_registro: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    data_registro: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
 
     saida: Mapped[Saida | None] = relationship("Saida", backref="material_inventario")
 
@@ -1265,7 +1265,7 @@ class DescarteAutorizacao(db.Model):
     comentario: Mapped[str | None] = mapped_column(Text, nullable=True)
     conteudo: Mapped[str | None] = mapped_column(Text, nullable=True)
     arquivo_relatorio: Mapped[str] = mapped_column(String, nullable=False)
-    data_autorizacao: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    data_autorizacao: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
 
 
 class TelegramConfig(db.Model):
@@ -1278,7 +1278,7 @@ class TelegramConfig(db.Model):
     alert_weekday_time: Mapped[str | None] = mapped_column(String, nullable=True, default="16:20")
     alert_saturday_time: Mapped[str | None] = mapped_column(String, nullable=True, default="11:00")
     alert_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    last_updated: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_updated: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, onupdate=TimeService.now_db)
     # Low stock notifications
     low_stock_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     low_stock_weekly_count: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
@@ -1305,7 +1305,7 @@ class TelegramUser(db.Model):
         Boolean, nullable=False, default=False,
         comment="Permite que o usuário edite itens existentes via Telegram"
     )
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
     last_notification: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     usuario: Mapped[Usuario] = relationship("Usuario", backref=backref("telegram_config", cascade="all, delete-orphan"))
@@ -1416,9 +1416,9 @@ class TelegramNotificationPreferences(db.Model):
         comment="Receber notificações de devolução de EPIs"
     )
     
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, nullable=False, default=TimeService.now_db, onupdate=TimeService.now_db
     )
 
     # Relacionamento
@@ -1490,8 +1490,8 @@ class TelegramConversation(db.Model):
     nome_informado: Mapped[str | None] = mapped_column(String, nullable=True)
     cargo_informado: Mapped[str | None] = mapped_column(String, nullable=True)
     celular_informado: Mapped[str | None] = mapped_column(String, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, onupdate=TimeService.now_db)
 
 
 class TelegramNotification(db.Model):
@@ -1505,7 +1505,7 @@ class TelegramNotification(db.Model):
     status: Mapped[str] = mapped_column(String, nullable=False)  # 'sent', 'failed'
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     saida_id: Mapped[int | None] = mapped_column(ForeignKey("saidas.id_saida"), nullable=True)
-    sent_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    sent_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
 
     saida: Mapped[Saida | None] = relationship("Saida", backref="telegram_notifications")
 
@@ -1529,8 +1529,8 @@ class TelegramOutbox(db.Model):
     idempotency_key: Mapped[str] = mapped_column(String, nullable=False, unique=True)
 
     status: Mapped[str] = mapped_column(String, nullable=False, default="pending")  # pending/failed/sent/dead
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
-    available_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
+    available_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
     last_attempt_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     max_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # 0 = ilimitado
@@ -1577,7 +1577,7 @@ class NotificationRouterConfig(db.Model):
     telegram_last_failure_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     telegram_last_success_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     telegram_unhealthy_until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, onupdate=TimeService.now_db)
 
 
 class GalintNotifyMessage(db.Model):
@@ -1589,7 +1589,7 @@ class GalintNotifyMessage(db.Model):
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False)
     payload: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
 
 
 class GalintNotifyRecipient(db.Model):
@@ -1601,7 +1601,7 @@ class GalintNotifyRecipient(db.Model):
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="unread")
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     read_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
 
     __table_args__ = (
         UniqueConstraint("message_id", "matricula", name="uq_notify_message_recipient"),
@@ -1625,8 +1625,8 @@ class DevicePushToken(db.Model):
     ativo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
     last_push_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, onupdate=TimeService.now_db)
 
     __table_args__ = (
         UniqueConstraint("device_uuid", "provider", name="uq_device_push_provider"),
@@ -1636,8 +1636,8 @@ class DevicePushToken(db.Model):
 
 
 class TimestampMixin:
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, onupdate=TimeService.now_db)
 
 
 class SoftDeleteMixin:
@@ -1648,7 +1648,7 @@ class SoftDeleteMixin:
         return self.deleted_at is not None
 
     def soft_delete(self) -> None:
-        self.deleted_at = func.now()
+        self.deleted_at = TimeService.now_db()
 
     @classmethod
     def active_query(cls):
@@ -1676,7 +1676,7 @@ class Device(db.Model, TimestampMixin, SoftDeleteMixin):
         ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True
     )
 
-    first_seen_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
     last_heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     last_ip_address: Mapped[str | None] = mapped_column(INET, nullable=True)
 
@@ -1699,16 +1699,16 @@ class Device(db.Model, TimestampMixin, SoftDeleteMixin):
     def is_online(self) -> bool:
         if not self.last_heartbeat_at:
             return False
-        cutoff = datetime.utcnow() - timedelta(minutes=5)
+        cutoff = TimeService.now_db() - timedelta(minutes=5)
         return self.last_heartbeat_at >= cutoff
 
     def block(self, reason: str, admin_id: str | None) -> None:
         self.status = "blocked"
-        self.blocked_at = func.now()
+        self.blocked_at = TimeService.now_db()
         self.blocked_reason = reason
         self.blocked_by = admin_id
         DeviceSession.query.filter_by(device_id=self.id, status="active").update(
-            {"status": "revoked", "revoked_at": func.now()}
+            {"status": "revoked", "revoked_at": TimeService.now_db()}
         )
         ApkAuditLog.log_action(
             action_type="block_device",
@@ -1733,7 +1733,7 @@ class DeviceSession(db.Model, TimestampMixin):
     session_token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     refresh_token_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
-    logged_in_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
+    logged_in_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
     logged_out_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
@@ -1764,7 +1764,7 @@ class DeviceSession(db.Model, TimestampMixin):
 
     def revoke(self, reason: str, admin_id: str | None = None) -> None:
         self.status = "revoked"
-        self.revoked_at = func.now()
+        self.revoked_at = TimeService.now_db()
         self.revoke_reason = reason
         self.revoked_by = admin_id
         ApkAuditLog.log_action(
@@ -1781,7 +1781,7 @@ class DeviceSession(db.Model, TimestampMixin):
             cls.query.filter(
                 cls.session_token_hash == token_hash,
                 cls.status == "active",
-                cls.expires_at > func.now(),
+                cls.expires_at > TimeService.now_db(),
             )
             .first()
         )
@@ -1869,7 +1869,7 @@ class FeatureAssignment(db.Model, TimestampMixin, SoftDeleteMixin):
     override_value: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     assigned_by: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True)
-    assigned_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
+    assigned_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     feature_flag: Mapped[FeatureFlag] = relationship("FeatureFlag", back_populates="assignments")
@@ -1884,7 +1884,7 @@ class ApkAuditLog(db.Model):
     __tablename__ = "apk_audit_logs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    occurred_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
+    occurred_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
 
     user_id: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True)
     device_id: Mapped[int | None] = mapped_column(ForeignKey("devices.id", ondelete="SET NULL"), nullable=True)
@@ -1899,7 +1899,7 @@ class ApkAuditLog(db.Model):
     apk_version: Mapped[str | None] = mapped_column(String(20), nullable=True)
     session_id: Mapped[int | None] = mapped_column(ForeignKey("device_sessions.id", ondelete="SET NULL"), nullable=True)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
 
     user: Mapped[Usuario | None] = relationship("Usuario", foreign_keys=[user_id])
     admin: Mapped[Usuario | None] = relationship("Usuario", foreign_keys=[admin_id])
@@ -1944,7 +1944,7 @@ class RetiradaFerramenta(db.Model):
     local_servico: Mapped[str | None] = mapped_column(Text, nullable=True)
     observacao: Mapped[str | None] = mapped_column(Text, nullable=True)
     
-    data_retirada: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
+    data_retirada: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
     data_devolucao: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     data_prevista_devolucao: Mapped[date | None] = mapped_column(Date, nullable=True)
     
@@ -1957,8 +1957,8 @@ class RetiradaFerramenta(db.Model):
     observacao_devolucao: Mapped[str | None] = mapped_column(Text, nullable=True)
     observacao_reparo: Mapped[str | None] = mapped_column(Text, nullable=True)
     
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, onupdate=TimeService.now_db)
     
     # Relationships
     item: Mapped[Item] = relationship("Item")
@@ -1996,7 +1996,7 @@ class RetiradaFerramenta(db.Model):
             "status": self.status,
             "observacao_devolucao": self.observacao_devolucao,
             "observacao_reparo": self.observacao_reparo,
-            "dias_em_uso": (datetime.now() - self.data_retirada).days if not self.data_devolucao else 0,
+            "dias_em_uso": (TimeService.now_db() - self.data_retirada).days if not self.data_devolucao else 0,
             "esta_atrasada": self.verificar_atraso(),
         }
     
@@ -2007,11 +2007,11 @@ class RetiradaFerramenta(db.Model):
         if self.data_prevista_devolucao:
             return date.today() > self.data_prevista_devolucao
         # Se não tem data prevista, considera atrasada se passou de 1 dia
-        return (datetime.now() - self.data_retirada).days > 0
+        return (TimeService.now_db() - self.data_retirada).days > 0
     
     def registrar_devolucao(self, observacao: str | None = None):
         """Registra a devolução da ferramenta."""
-        self.data_devolucao = datetime.now()
+        self.data_devolucao = TimeService.now_db()
         self.status = 'devolvida'
         if observacao:
             self.observacao_devolucao = observacao
@@ -2021,7 +2021,7 @@ class RetiradaFerramenta(db.Model):
         self.status = 'para_reparo'
         self.observacao_reparo = observacao
         if not self.data_devolucao:
-            self.data_devolucao = datetime.now()
+            self.data_devolucao = TimeService.now_db()
 
 
 class EntradaRegistro30Dias(db.Model):
@@ -2036,7 +2036,7 @@ class EntradaRegistro30Dias(db.Model):
     pdf_nome_arquivo: Mapped[str | None] = mapped_column(Text, nullable=True)
     data_geracao_pdf: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     ativo: Mapped[bool] = mapped_column(Boolean, default=True)
-    data_criacao: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    data_criacao: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
 
 
 class FerramentaEmUso(db.Model):
@@ -2047,7 +2047,7 @@ class FerramentaEmUso(db.Model):
     codigo_item: Mapped[str] = mapped_column(ForeignKey("itens.codigo_item", ondelete="CASCADE"), nullable=False)
     codigo_patrimonial: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
     matricula: Mapped[str] = mapped_column(ForeignKey("usuarios.matricula", ondelete="CASCADE"), nullable=False)
-    data_retirada: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    data_retirada: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
     data_devolucao: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     observacao: Mapped[str | None] = mapped_column(Text, nullable=True)
     saida_id: Mapped[int | None] = mapped_column(ForeignKey("saidas.id_saida", ondelete="SET NULL"), nullable=True)
@@ -2112,8 +2112,8 @@ class EmpresaConfig(db.Model):
     versao_instalada: Mapped[str | None] = mapped_column(String(20), nullable=True)
     
     # Metadados
-    criado_em: Mapped[datetime] = mapped_column(DateTime, default=func.now())
-    atualizado_em: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
+    criado_em: Mapped[datetime] = mapped_column(DateTime, default=TimeService.now_db)
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime, default=TimeService.now_db, onupdate=TimeService.now_db)
     
     def to_dict(self) -> dict[str, object]:
         """Converte para dicionário."""
@@ -2191,8 +2191,8 @@ class RelatorioConfig(db.Model):
     fonte_tabelas: Mapped[str] = mapped_column(String(50), default="Courier")
     
     # Metadados
-    criado_em: Mapped[datetime] = mapped_column(DateTime, default=func.now())
-    atualizado_em: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
+    criado_em: Mapped[datetime] = mapped_column(DateTime, default=TimeService.now_db)
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime, default=TimeService.now_db, onupdate=TimeService.now_db)
     
     def to_dict(self) -> dict[str, object]:
         """Converte para dicionário."""
@@ -2227,7 +2227,7 @@ class FinanceConfig(db.Model):
     destacar_sem_comprovacao: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     permitir_fechamento_manual: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     titulo_relatorio_anual: Mapped[str | None] = mapped_column(String(200), nullable=True)
-    atualizado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, onupdate=TimeService.now_db)
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -2264,8 +2264,8 @@ class FinanceSupplier(db.Model):
     data_consulta_cnpj: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     observacoes: Mapped[str | None] = mapped_column(Text, nullable=True)
     ativo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    criado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
-    atualizado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    criado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, onupdate=TimeService.now_db)
 
     def nome_exibicao(self) -> str:
         return (self.nome_fantasia or self.razao_social or "Fornecedor sem nome").strip()
@@ -2323,7 +2323,7 @@ class FinanceSupplierPreference(db.Model):
     fornecedor_id: Mapped[int] = mapped_column(ForeignKey("finance_fornecedores.id"), nullable=False)
     ultima_origem: Mapped[str | None] = mapped_column(String(40), nullable=True)
     atualizado_por: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    atualizado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, onupdate=TimeService.now_db)
 
     item: Mapped["Item"] = relationship("Item", backref=backref("finance_supplier_preference", uselist=False))
     fornecedor: Mapped[FinanceSupplier] = relationship("FinanceSupplier")
@@ -2356,8 +2356,8 @@ class PotentialSupplier(db.Model):
     metadata_json: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     created_by_matricula: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True)
     updated_by_matricula: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, onupdate=TimeService.now_db)
 
     quotes: Mapped[list["ItemPotentialSupplierQuote"]] = relationship(
         "ItemPotentialSupplierQuote",
@@ -2422,8 +2422,8 @@ class ItemPotentialSupplierQuote(db.Model):
     capture_query: Mapped[str | None] = mapped_column(Text, nullable=True)
     metadata_json: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     captured_by_matricula: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True)
-    captured_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, index=True)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    captured_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, onupdate=TimeService.now_db)
 
     item: Mapped["Item"] = relationship("Item", backref=backref("potential_supplier_quotes", cascade="all, delete-orphan"))
     potential_supplier: Mapped[PotentialSupplier] = relationship("PotentialSupplier", back_populates="quotes")
@@ -2450,7 +2450,7 @@ class CompraPeriodoFechamento(db.Model):
     fechado_em: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     reaberto_por: Mapped[str | None] = mapped_column(String(100), nullable=True)
     reaberto_em: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    criado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    criado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
 
     fornecedor: Mapped[FinanceSupplier | None] = relationship("FinanceSupplier")
 
@@ -2480,8 +2480,8 @@ class PurchaseProjectionSummary(db.Model):
         nullable=True,
         index=True,
     )
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), index=True)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now(), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, onupdate=TimeService.now_db, index=True)
 
     created_by: Mapped["Usuario | None"] = relationship("Usuario", foreign_keys=[created_by_matricula])
     updated_by: Mapped["Usuario | None"] = relationship("Usuario", foreign_keys=[updated_by_matricula])
@@ -2521,7 +2521,7 @@ class PurchaseProjectionSummaryRevision(db.Model):
         nullable=True,
         index=True,
     )
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, index=True)
 
     summary: Mapped[PurchaseProjectionSummary] = relationship("PurchaseProjectionSummary", back_populates="revisions")
     created_by: Mapped["Usuario | None"] = relationship("Usuario", foreign_keys=[created_by_matricula])
@@ -2537,7 +2537,7 @@ class FinanceLedgerEntry(db.Model):
     fornecedor_id: Mapped[int | None] = mapped_column(ForeignKey("finance_fornecedores.id"), nullable=True)
     usuario_matricula: Mapped[str | None] = mapped_column(String(100), nullable=True)
     categoria_nome: Mapped[str] = mapped_column(String(120), nullable=False)
-    data_lancamento: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    data_lancamento: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
     quantidade: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     unidade_quantidade: Mapped[str | None] = mapped_column(String(30), nullable=True)
     quantidade_base: Mapped[float | None] = mapped_column(Float, nullable=True)
@@ -2554,7 +2554,7 @@ class FinanceLedgerEntry(db.Model):
     data_recebimento_documento: Mapped[date | None] = mapped_column(Date, nullable=True)
     comprovacao_status: Mapped[str] = mapped_column(String(30), nullable=False, default="sem_comprovacao")
     observacao: Mapped[str | None] = mapped_column(Text, nullable=True)
-    criado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
+    criado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
 
     item: Mapped["Item"] = relationship("Item")
     entrada: Mapped["Entrada | None"] = relationship("Entrada")
@@ -2598,7 +2598,7 @@ class EquipamentoReparo(db.Model):
     
     # Responsável e datas
     matricula_responsavel: Mapped[str] = mapped_column(String(100), ForeignKey("usuarios.matricula"), nullable=False)
-    data_envio: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
+    data_envio: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, server_default=func.now())
     data_retorno: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     prazo_previsto: Mapped[date | None] = mapped_column(Date, nullable=True)
     
@@ -2618,8 +2618,8 @@ class EquipamentoReparo(db.Model):
     observacoes: Mapped[str | None] = mapped_column(Text, nullable=True)
     
     # Timestamps de auditoria
-    criado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
-    atualizado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
+    criado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, server_default=func.now())
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, server_default=func.now(), onupdate=TimeService.now_db)
     atualizado_por: Mapped[str | None] = mapped_column(String(100), ForeignKey("usuarios.matricula"), nullable=True)
     
     # Relacionamentos
@@ -2655,7 +2655,7 @@ class EquipamentoReparo(db.Model):
         """Calcula dias desde o envio até retorno (ou hoje se ainda em reparo)."""
         if self.data_retorno:
             return (self.data_retorno.date() - self.data_envio.date()).days
-        return (datetime.now().date() - self.data_envio.date()).days
+        return (TimeService.now_db().date() - self.data_envio.date()).days
     
     @property
     def status_display(self) -> str:

@@ -127,7 +127,7 @@ def _mobile_user_block_info(user: Usuario | None) -> tuple[bool, str | None]:
     if not flag:
         return False, None
 
-    now = datetime.utcnow()
+    now = TimeService.now_db()
     assignment = (
         FeatureAssignment.query.filter_by(
             feature_flag_id=flag.id,
@@ -159,7 +159,7 @@ def _validate_mobile_session_token(token: str, user: Usuario | None) -> tuple[bo
     if session.status != "active":
         return False, "Sessão revogada. Faça login novamente."
 
-    if session.expires_at and session.expires_at <= datetime.utcnow():
+    if session.expires_at and session.expires_at <= TimeService.now_db():
         return False, "Sessão expirada. Faça login novamente."
 
     return True, None
@@ -298,7 +298,7 @@ def _get_or_create_device(payload: dict[str, Any], user: Usuario | None) -> Devi
         payload.get("apk_channel") or payload.get("apkChannel") or device.apk_channel or "production",
         20,
     )
-    device.last_heartbeat_at = datetime.utcnow()
+    device.last_heartbeat_at = TimeService.now_db()
     device.last_ip_address = _get_client_ip()
     if user:
         device.current_user_id = user.matricula
@@ -690,7 +690,7 @@ def mobile_login():
         token = jwt.encode(
             {
                 "matricula": user.matricula,
-                "exp": datetime.utcnow() + timedelta(days=30),
+                "exp": TimeService.now_db() + timedelta(days=30),
             },
             current_app.config.get("SECRET_KEY"),
             algorithm="HS256",
@@ -715,7 +715,7 @@ def mobile_login():
                 device_id=device.id,
                 user_id=user.matricula,
                 session_token_hash=session_token_hash,
-                expires_at=datetime.utcnow() + timedelta(days=30),
+                expires_at=TimeService.now_db() + timedelta(days=30),
                 ip_address=_get_client_ip(),
                 user_agent=request.headers.get("User-Agent"),
                 status="active",
@@ -806,7 +806,7 @@ def mobile_features():
 
     flags = FeatureFlag.active_query().all()
     flag_ids = [flag.id for flag in flags]
-    now = datetime.utcnow()
+    now = TimeService.now_db()
 
     assignments_query = FeatureAssignment.query.filter(
         FeatureAssignment.feature_flag_id.in_(flag_ids),
@@ -1194,7 +1194,7 @@ def retirar_multipla_mobile(current_user: Usuario):
             saida.codigo_item = item.codigo_item
             saida.quantidade = quantidade_operacao
             saida.matricula = retirante_user.matricula
-            saida.data_saida = datetime.utcnow()
+            saida.data_saida = TimeService.now_db()
 
             saida.observacao = str(obs_final or "").upper()
             saida.local_servico = str(local_servico_geral or "").upper()
@@ -1388,7 +1388,7 @@ def devolver_multipla_ferramentas_mobile(current_user: Usuario):
                     obs_final
                     or f"Devolução de Ferramenta (mobile múltipla): {item.descricao or 'Item'}"
                 ),
-                data_evento=datetime.utcnow(),
+                data_evento=TimeService.now_db(),
             )
             db.session.add(evento)
 
@@ -1402,7 +1402,7 @@ def devolver_multipla_ferramentas_mobile(current_user: Usuario):
 
                 for retirada in retiradas:
                     retirada.status = 'devolvida'
-                    retirada.data_devolucao = datetime.utcnow()
+                    retirada.data_devolucao = TimeService.now_db()
             except Exception:
                 pass
 
@@ -1595,7 +1595,7 @@ def listar_ferramentas_ativas_mobile(current_user: Usuario, matricula: str):
             # Calcular dias em uso
             dias_em_uso = 0
             if retirada.data_retirada:
-                dias_em_uso = (datetime.utcnow() - retirada.data_retirada).days
+                dias_em_uso = (TimeService.now_db() - retirada.data_retirada).days
 
             ferramentas_data.append({
                 'codigo_barras': item.codigo_item,
@@ -1867,7 +1867,7 @@ def retirar_mobile(current_user: Usuario):
         saida.codigo_item = item.codigo_item
         saida.quantidade = quantidade_operacao
         saida.matricula = retirante_user.matricula
-        saida.data_saida = datetime.utcnow()
+        saida.data_saida = TimeService.now_db()
         saida.observacao = str(observacao or "").upper()
         saida.local_servico = str(local_servico or "").upper()
         apply_operational_context(
@@ -2113,7 +2113,7 @@ def devolver_ferramenta_mobile(current_user: Usuario):
 
         for retirada in retiradas_ativas:
             retirada.status = 'devolvida'
-            retirada.data_devolucao = datetime.utcnow()
+            retirada.data_devolucao = TimeService.now_db()
 
         # Registrar devolução como evento de inventário (evita tratar como adição/Entrada)
         ledger_result = inventory_service.mirror_legacy_movement(
@@ -2138,7 +2138,7 @@ def devolver_ferramenta_mobile(current_user: Usuario):
             quantidade=float(quantidade_int),
             tipo="devolucao_ferramenta",
             descricao=f"Devolução de Ferramenta (mobile): {item.descricao or 'Item'}",
-            data_evento=datetime.utcnow(),
+            data_evento=TimeService.now_db(),
         )
         db.session.add(evento)
         db.session.commit()
@@ -2241,7 +2241,7 @@ def devolver_material_mobile(current_user: Usuario):
 
             for retirada in retiradas_ativas:
                 retirada.status = 'devolvida'
-                retirada.data_devolucao = datetime.utcnow()
+                retirada.data_devolucao = TimeService.now_db()
 
             ledger_result = inventory_service.mirror_legacy_movement(
                 product_id=item.codigo_item,
@@ -2265,7 +2265,7 @@ def devolver_material_mobile(current_user: Usuario):
                 quantidade=float(quantidade_int),
                 tipo="devolucao_ferramenta",
                 descricao=f"Devolução de Ferramenta (mobile via /devolver_material): {item.descricao or 'Item'}",
-                data_evento=datetime.utcnow(),
+                data_evento=TimeService.now_db(),
             )
             db.session.add(evento)
             db.session.commit()
@@ -3230,7 +3230,7 @@ def mobile_registrar_documento_fiscal():
                 "quantidade": 0,
                 "pre_cadastro_pendente": True,
                 "pre_cadastro_origem": "nf",
-                "pre_cadastro_criado_em": datetime.utcnow(),
+                "pre_cadastro_criado_em": TimeService.now_db(),
                 "pre_cadastro_finalizado_em": None,
             }
             create_payload.update(
@@ -3287,7 +3287,7 @@ def mobile_registrar_documento_fiscal():
                     quantidade=float(document_item.quantidade or 0.0),
                     valor_unitario=float(document_item.valor_unitario) if document_item.valor_unitario not in (None, "") else None,
                     valor_total=float(document_item.valor_total) if document_item.valor_total not in (None, "") else None,
-                    data_lancamento=documento.data_recebimento or documento.data_emissao or datetime.utcnow(),
+                    data_lancamento=documento.data_recebimento or documento.data_emissao or TimeService.now_db(),
                     fornecedor_id=documento.fornecedor_id,
                     entrada_id=document_item.entrada_id,
                     usuario_matricula=actor_id,

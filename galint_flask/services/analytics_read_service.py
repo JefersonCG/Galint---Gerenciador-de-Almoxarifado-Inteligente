@@ -12,6 +12,7 @@ from ..extensions import db
 from ..models import Entrada, Item, Saida, Usuario
 from .finance_service import FinanceService
 from .inventory import OPERATIONAL_ACTIVITY_LABELS, inventory_service, normalize_operational_activity
+from ..utils.time_service import TimeService
 
 
 class AnalyticsReadService:
@@ -160,7 +161,7 @@ class AnalyticsReadService:
         normalized = cls._normalize_period_preset(preset_value)
         if not normalized:
             return None
-        today = datetime.utcnow().date()
+        today = TimeService.now_db().date()
         if normalized == "today":
             start_date = today
             end_date = today

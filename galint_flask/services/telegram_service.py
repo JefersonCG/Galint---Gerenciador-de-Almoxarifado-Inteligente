@@ -259,7 +259,7 @@ class TelegramService:
 
         """Evita processar o mesmo callback duas vezes."""
 
-        now = datetime.utcnow()
+        now = TimeService.now_db()
 
         # Limpeza simples do cache
 
@@ -475,7 +475,7 @@ class TelegramService:
         Usado para recuperar rapidamente após retorno de internet.
         """
 
-        now = datetime.utcnow()
+        now = TimeService.now_db()
 
         try:
 
@@ -576,7 +576,7 @@ class TelegramService:
 
             dedupe_window = TelegramService._outbox_dedupe_window_seconds()
 
-            cutoff = datetime.utcnow() - timedelta(seconds=int(dedupe_window))
+            cutoff = TimeService.now_db() - timedelta(seconds=int(dedupe_window))
 
             recent_same = (
 
@@ -719,7 +719,7 @@ class TelegramService:
                 media_payload=media_payload,
             ),
 
-            available_at=datetime.utcnow(),
+            available_at=TimeService.now_db(),
 
             attempt_count=0,
 
@@ -833,7 +833,7 @@ class TelegramService:
 
         try:
 
-            now = datetime.utcnow()
+            now = TimeService.now_db()
 
             totals = {"attempted": 0, "sent": 0, "failed": 0, "dead": 0}
 
@@ -893,7 +893,7 @@ class TelegramService:
 
                                 if released.get("success") and int(released.get("released", 0) or 0) > 0:
 
-                                    now = datetime.utcnow()
+                                    now = TimeService.now_db()
 
                                     continue
 
@@ -941,7 +941,7 @@ class TelegramService:
 
                                 msg.notification.error_message = msg.last_error
 
-                                msg.notification.sent_at = datetime.utcnow()
+                                msg.notification.sent_at = TimeService.now_db()
 
                         except Exception:
 
@@ -967,7 +967,7 @@ class TelegramService:
 
 
 
-                    msg.last_attempt_at = datetime.utcnow()
+                    msg.last_attempt_at = TimeService.now_db()
 
                     msg.attempt_count = attempt_count + 1
 
@@ -981,7 +981,7 @@ class TelegramService:
 
                         msg.provider_message_id = res.get("message_id")
 
-                        msg.available_at = datetime.utcnow()
+                        msg.available_at = TimeService.now_db()
 
                         totals["sent"] += 1
                         logger.info(f"[process_outbox] Mensagem enviada com sucesso: outbox_id={msg.id}, chat_id={msg.chat_id}, saida_id={getattr(msg, 'saida_id', None)}, message_type={msg.message_type}")
@@ -994,7 +994,7 @@ class TelegramService:
 
                                 msg.notification.error_message = None
 
-                                msg.notification.sent_at = datetime.utcnow()
+                                msg.notification.sent_at = TimeService.now_db()
 
                         except Exception:
 
@@ -1008,7 +1008,7 @@ class TelegramService:
 
                         backoff = TelegramService._compute_backoff_seconds(msg.attempt_count)
 
-                        msg.available_at = datetime.utcnow() + timedelta(seconds=int(backoff))
+                        msg.available_at = TimeService.now_db() + timedelta(seconds=int(backoff))
 
                         totals["failed"] += 1
 
@@ -1020,7 +1020,7 @@ class TelegramService:
 
                                 msg.notification.error_message = msg.last_error
 
-                                msg.notification.sent_at = datetime.utcnow()
+                                msg.notification.sent_at = TimeService.now_db()
 
                         except Exception:
 
@@ -1048,7 +1048,7 @@ class TelegramService:
 
 
 
-                now = datetime.utcnow()
+                now = TimeService.now_db()
 
 
 
@@ -1582,7 +1582,7 @@ class TelegramService:
 
 
 
-        cutoff = datetime.utcnow() - timedelta(hours=int(within_hours))
+        cutoff = TimeService.now_db() - timedelta(hours=int(within_hours))
 
 
 
@@ -1680,7 +1680,7 @@ class TelegramService:
 
                 else:
 
-                    recent_cutoff = datetime.utcnow() - timedelta(minutes=15)
+                    recent_cutoff = TimeService.now_db() - timedelta(minutes=15)
 
                     dup = (
 
@@ -1738,7 +1738,7 @@ class TelegramService:
 
                 n.error_message = None
 
-                n.sent_at = datetime.utcnow()
+                n.sent_at = TimeService.now_db()
 
                 resent += 1
 
@@ -4409,7 +4409,7 @@ class TelegramService:
 
         time_window = timedelta(seconds=60)
 
-        return (datetime.utcnow() - last_time) < time_window
+        return (TimeService.now_db() - last_time) < time_window
 
 
 
@@ -4425,7 +4425,7 @@ class TelegramService:
 
         TelegramService._pending_withdrawals[session_key].append(saida_id)
 
-        TelegramService._last_withdrawal_time[session_key] = datetime.utcnow()
+        TelegramService._last_withdrawal_time[session_key] = TimeService.now_db()
 
 
 
@@ -6071,7 +6071,7 @@ class TelegramService:
 
                 if queued.get("success"):
 
-                    admin.last_notification = datetime.utcnow()
+                    admin.last_notification = TimeService.now_db()
 
                     results["queued"].append(str(admin.chat_id))
 
@@ -6212,7 +6212,7 @@ class TelegramService:
 
             from datetime import datetime
 
-            data_cadastro = TimeService.format_local(datetime.now())
+            data_cadastro = TimeService.format_local(TimeService.now_db())
 
 
 
@@ -7294,7 +7294,7 @@ class TelegramService:
 
             # Em modo "always", permitir múltiplos envios por dia (mas ainda idempotente por execução).
 
-            run_scope = datetime.utcnow().isoformat().replace(":", "").replace(".", "")
+            run_scope = TimeService.now_db().isoformat().replace(":", "").replace(".", "")
 
 
 
@@ -9526,11 +9526,11 @@ class TelegramService:
 
         from sqlalchemy import func
 
-        six_months = datetime.utcnow() - timedelta(days=180)
+        six_months = TimeService.now_db() - timedelta(days=180)
 
         # total hoje
 
-        today = datetime.utcnow().date()
+        today = TimeService.now_db().date()
 
 
 
@@ -9572,7 +9572,7 @@ class TelegramService:
 
         from sqlalchemy import func
 
-        cutoff = datetime.utcnow() - timedelta(days=180)
+        cutoff = TimeService.now_db() - timedelta(days=180)
 
         q = db.session.query(Saida).filter(Saida.data_saida >= cutoff)
 
@@ -9612,7 +9612,7 @@ class TelegramService:
 
         """Envia lista de devoluções (entradas vinculadas a saídas) nos últimos 6 meses."""
 
-        cutoff = datetime.utcnow() - timedelta(days=180)
+        cutoff = TimeService.now_db() - timedelta(days=180)
 
         entries = db.session.query(Entrada).filter(Entrada.data_entrada >= cutoff).order_by(Entrada.data_entrada.desc()).limit(200).all()
 
@@ -10072,7 +10072,7 @@ class TelegramService:
 
         digest = hashlib.sha1(
 
-            image_bytes + str(chat_id).encode("utf-8") + str(datetime.utcnow().timestamp()).encode("ascii")
+            image_bytes + str(chat_id).encode("utf-8") + str(TimeService.now_db().timestamp()).encode("ascii")
 
         ).hexdigest()[:18]
 
@@ -11705,7 +11705,7 @@ class TelegramService:
 
         try:
 
-            cutoff = datetime.utcnow() - timedelta(minutes=2)
+            cutoff = TimeService.now_db() - timedelta(minutes=2)
 
             recent = (
 
