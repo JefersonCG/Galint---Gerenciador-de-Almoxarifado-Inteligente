@@ -653,6 +653,84 @@
         color: #b91c1c;
     }
 
+    .autocomplete-item-custody {
+        margin-top: 0.2rem;
+        font-size: 0.76rem;
+        color: #9f1239;
+    }
+
+    .items-table tbody tr.item-row-zerado td {
+        background: #fef2f2;
+        color: #7f1d1d;
+    }
+
+    .items-table tbody tr.item-row-zerado:hover td {
+        background: #fee2e2;
+    }
+
+    .items-table tbody tr.item-row-zerado strong,
+    .items-table tbody tr.item-row-zerado code,
+    .items-table tbody tr.item-row-zerado .item-desc-meta {
+        color: #b91c1c;
+    }
+
+    .items-table tbody tr.item-row-zerado .badge-qty {
+        background: linear-gradient(120deg, #b91c1c 0%, #ef4444 100%);
+    }
+
+    .item-row-flag {
+        display: block;
+        margin-top: 0.3rem;
+        font-size: 0.76rem;
+        font-weight: 700;
+        color: #b91c1c;
+    }
+
+    .draft-restore-banner {
+        display: flex;
+        align-items: center;
+        gap: 0.9rem;
+        flex-wrap: wrap;
+        background: #ecfdf5;
+        border: 1px solid #6ee7b7;
+        border-left: 6px solid #059669;
+        border-radius: 14px;
+        padding: 0.9rem 1.15rem;
+        margin-bottom: 1.25rem;
+        color: #065f46;
+    }
+
+    .draft-restore-banner i {
+        font-size: 1.3rem;
+        color: #059669;
+    }
+
+    .draft-restore-banner-text {
+        flex: 1 1 18rem;
+        font-size: 0.92rem;
+    }
+
+    .draft-restore-banner-text strong {
+        display: block;
+        font-size: 1rem;
+    }
+
+    .btn-draft-discard {
+        border: 1px solid #b91c1c;
+        background: #fff1f2;
+        color: #b91c1c;
+        border-radius: 999px;
+        padding: 0.35rem 0.95rem;
+        font-size: 0.85rem;
+        font-weight: 700;
+        transition: all 0.2s ease;
+    }
+
+    .btn-draft-discard:hover {
+        background: #b91c1c;
+        color: #ffffff;
+    }
+
     .btn-express-return {
         cursor: pointer;
     }
@@ -864,9 +942,20 @@
 <div class="saida-container">
     <div class="saida-shell">
 
+    <div class="draft-restore-banner" id="draft-restore-banner" style="display: none;">
+        <i class="bi bi-arrow-counterclockwise"></i>
+        <div class="draft-restore-banner-text" id="draft-restore-banner-text">
+            <strong>Lista recuperada</strong>
+            <span id="draft-restore-banner-detail">Retomamos a lista da sessão anterior.</span>
+        </div>
+        <button class="btn-draft-discard" type="button" id="btn-descartar-rascunho">
+            <i class="bi bi-trash me-1"></i>Descartar lista recuperada
+        </button>
+    </div>
+
     <div class="alert-info-custom">
         <i class="bi bi-info-circle me-2"></i>
-        <strong>Dica:</strong> Esta tela também aceita ferramentas disponíveis. Quando o item for ferramenta, a custódia é aberta automaticamente no registro da saída.
+        <strong>Dica:</strong> Esta tela também aceita ferramentas disponíveis. Quando o item for ferramenta, a custódia é aberta automaticamente no registro da saída. A lista em preparação é salva neste computador e volta sozinha se a página fechar sem querer.
     </div>
 
     <div class="input-card">
@@ -1072,7 +1161,8 @@ ${parent.scripts()}
     }
 
     async function fetchItemSuggestions(query) {
-        const response = await window.galintFetchWithAuth(itemSearchUrl + '?only_available=1&q=' + encodeURIComponent(query), {
+        // Itens indisponíveis continuam na busca para aparecerem em vermelho na lista.
+        const response = await window.galintFetchWithAuth(itemSearchUrl + '?q=' + encodeURIComponent(query), {
             headers: { 'Accept': 'application/json' }
         }, 'Sua sessão expirou durante a busca de itens. Faça login novamente.');
         if (!response.ok) {
@@ -1131,6 +1221,287 @@ ${parent.scripts()}
         'litro': { singular: 'litro', plural: 'litros' },
         'saco': { singular: 'saco', plural: 'sacos' }
     };
+
+    // Rascunho da lista de saída: sobrevive a fechamento acidental da aba, queda de energia
+    // ou recarregamento da página. Fica só neste navegador e é apagado ao registrar a saída.
+    const draftStorageKey = 'galint.saidaDraftState.v1';
+    const draftMaxAgeMs = 24 * 60 * 60 * 1000;
+    const draftBanner = document.getElementById('draft-restore-banner');
+    const draftBannerDetail = document.getElementById('draft-restore-banner-detail');
+    const btnDescartarRascunho = document.getElementById('btn-descartar-rascunho');
+    let draftRestoreRunning = false;
+    let draftPersistDisabled = false;
+    let draftPersistTimer = null;
+
+    function buildDraftSnapshot() {
+        return {
+            version: 1,
+            savedAt: new Date().toISOString(),
+            groupCounter: groupCounter,
+            itemCounter: itemCounter,
+            currentGroupId: currentGroupId,
+            inputs: {
+                usuario: String(inputUsuario.value || ''),
+                local: String(inputLocal.value || '')
+            },
+            itemOrder: items.map((item) => item.id),
+            groups: groups.map((group) => ({
+                id: group.id,
+                usuario: group.usuario,
+                local: group.local,
+                itens: (group.itens || []).map((item) => ({ ...item }))
+            }))
+        };
+    }
+
+    function persistDraftState() {
+        if (draftRestoreRunning || draftPersistDisabled) {
+            return;
+        }
+        try {
+            const temConteudo = items.length > 0
+                || String(inputUsuario.value || '').trim() !== ''
+                || String(inputLocal.value || '').trim() !== '';
+            if (!temConteudo) {
+                window.localStorage.removeItem(draftStorageKey);
+                return;
+            }
+            window.localStorage.setItem(draftStorageKey, JSON.stringify(buildDraftSnapshot()));
+        } catch (error) {
+            console.warn('Não foi possível salvar a lista de saída neste navegador:', error);
+        }
+    }
+
+    function schedulePersistDraftState() {
+        clearTimeout(draftPersistTimer);
+        draftPersistTimer = setTimeout(persistDraftState, 400);
+    }
+
+    function clearDraftState() {
+        clearTimeout(draftPersistTimer);
+        try {
+            window.localStorage.removeItem(draftStorageKey);
+        } catch (error) {
+            console.warn('Não foi possível limpar a lista salva neste navegador:', error);
+        }
+    }
+
+    function readStoredDraft() {
+        let parsed = null;
+        try {
+            const raw = window.localStorage.getItem(draftStorageKey);
+            if (!raw) {
+                return null;
+            }
+            parsed = JSON.parse(raw);
+        } catch (error) {
+            console.warn('Lista salva anteriormente está ilegível e foi descartada:', error);
+            clearDraftState();
+            return null;
+        }
+
+        if (!parsed || typeof parsed !== 'object') {
+            clearDraftState();
+            return null;
+        }
+
+        const savedAtMs = Date.parse(String(parsed.savedAt || ''));
+        if (Number.isFinite(savedAtMs) && (Date.now() - savedAtMs) > draftMaxAgeMs) {
+            clearDraftState();
+            return null;
+        }
+
+        const storedGroups = Array.isArray(parsed.groups) ? parsed.groups : [];
+        const temItens = storedGroups.some((group) => Array.isArray(group?.itens) && group.itens.length > 0);
+        const inputs = parsed.inputs || {};
+        if (!temItens && !String(inputs.usuario || '').trim() && !String(inputs.local || '').trim()) {
+            clearDraftState();
+            return null;
+        }
+        return parsed;
+    }
+
+    function showDraftRestoreBanner(draft) {
+        if (!draftBanner || !draftBannerDetail) {
+            return;
+        }
+        const totalItens = items.length;
+        const totalGrupos = groups.length;
+        const savedAtMs = Date.parse(String(draft?.savedAt || ''));
+        const horaTexto = Number.isFinite(savedAtMs)
+            ? new Date(savedAtMs).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+            : '';
+        const itemTexto = totalItens === 1 ? '1 item' : totalItens + ' itens';
+        const grupoTexto = totalGrupos === 1 ? '1 colaborador' : totalGrupos + ' colaboradores';
+        let detalhe = totalItens > 0
+            ? 'Retomamos ' + itemTexto + ' de ' + grupoTexto + ' da sessão anterior.'
+            : 'Retomamos os dados preenchidos na sessão anterior.';
+        if (horaTexto) {
+            detalhe += ' Salvo em ' + horaTexto + '.';
+        }
+        detalhe += ' Confira os saldos e registre normalmente.';
+        draftBannerDetail.textContent = detalhe;
+        draftBanner.style.display = 'flex';
+    }
+
+    function hideDraftRestoreBanner() {
+        if (draftBanner) {
+            draftBanner.style.display = 'none';
+        }
+    }
+
+    function restoreDraftState() {
+        const draft = readStoredDraft();
+        if (!draft) {
+            return;
+        }
+
+        draftRestoreRunning = true;
+        try {
+            groups.length = 0;
+            items.length = 0;
+            const itensPorId = new Map();
+
+            (Array.isArray(draft.groups) ? draft.groups : []).forEach((storedGroup) => {
+                const itensRestaurados = (Array.isArray(storedGroup?.itens) ? storedGroup.itens : [])
+                    .filter(Boolean)
+                    .map((item) => ({ ...item }));
+                if (itensRestaurados.length === 0) {
+                    return;
+                }
+                const groupId = Number(storedGroup.id) || (++groupCounter);
+                groups.push({
+                    id: groupId,
+                    usuario: String(storedGroup.usuario || '').trim(),
+                    local: String(storedGroup.local || '').trim(),
+                    itens: itensRestaurados
+                });
+                groupCounter = Math.max(groupCounter, groupId);
+                itensRestaurados.forEach((item) => {
+                    const itemId = Number(item.id) || (++itemCounter);
+                    item.id = itemId;
+                    itemCounter = Math.max(itemCounter, itemId);
+                    itensPorId.set(itemId, item);
+                });
+            });
+
+            const ordemSalva = Array.isArray(draft.itemOrder) ? draft.itemOrder : [];
+            ordemSalva.forEach((id) => {
+                const item = itensPorId.get(Number(id));
+                if (item && items.indexOf(item) === -1) {
+                    items.push(item);
+                }
+            });
+            itensPorId.forEach((item) => {
+                if (items.indexOf(item) === -1) {
+                    items.push(item);
+                }
+            });
+
+            const inputs = draft.inputs || {};
+            if (String(inputs.usuario || '').trim()) {
+                inputUsuario.value = String(inputs.usuario);
+            }
+            if (String(inputs.local || '').trim()) {
+                inputLocal.value = String(inputs.local);
+            }
+
+            const grupoSalvoAtivo = groups.some((group) => group.id === draft.currentGroupId);
+            currentGroupId = grupoSalvoAtivo
+                ? draft.currentGroupId
+                : (groups.length ? groups[groups.length - 1].id : null);
+            currentPreviewItem = items.length ? { ...items[items.length - 1] } : null;
+        } finally {
+            draftRestoreRunning = false;
+        }
+
+        renderItems();
+        renderCurrentPreview(currentPreviewItem, currentPreviewItem ? 'queued' : 'idle');
+        showDraftRestoreBanner(draft);
+        refreshRestoredDraftAvailability();
+    }
+
+    async function refreshRestoredDraftAvailability() {
+        const codigos = Array.from(new Set(
+            items.map((item) => String(item?.codigo || '').trim()).filter(Boolean)
+        ));
+        if (codigos.length === 0) {
+            return;
+        }
+
+        const atualizados = new Map();
+        for (const codigo of codigos) {
+            try {
+                const response = await window.galintFetchWithAuth(
+                    '/movimentos/item-info/' + encodeURIComponent(codigo),
+                    undefined,
+                    'Sua sessão expirou ao revalidar a lista recuperada. Faça login novamente.'
+                );
+                const data = await response.json();
+                if (response.ok && data && data.found) {
+                    atualizados.set(codigo, data);
+                }
+            } catch (error) {
+                if (error && error.isAuthRedirect) {
+                    return;
+                }
+                console.warn('Não foi possível revalidar o saldo do item ' + codigo + ':', error);
+            }
+        }
+
+        if (atualizados.size === 0) {
+            return;
+        }
+
+        items.forEach((item) => {
+            const data = atualizados.get(String(item.codigo || '').trim());
+            if (!data) {
+                return;
+            }
+            item.saldo = data.saldo;
+            item.saldo_disponivel = data.saldo_disponivel;
+            item.saldo_display = data.saldo_display;
+            item.saldo_embalagens = data.saldo_embalagens;
+            item.saldo_unidades_soltas = data.saldo_unidades_soltas;
+            item.is_available = data.is_available;
+            item.unavailable_reason = data.unavailable_reason;
+            item.unavailable_detail = data.unavailable_detail;
+            item.custodia_resumo = data.custodia_resumo;
+            item.custodia_detalhes = data.custodia_detalhes;
+            if (data.foto_url) {
+                item.foto_url = data.foto_url;
+            }
+            if (data.valor_referencia) {
+                item.valor_referencia = data.valor_referencia;
+            }
+        });
+
+        renderItems();
+        if (currentPreviewItem) {
+            const dadosPreview = atualizados.get(String(currentPreviewItem.codigo || '').trim());
+            if (dadosPreview) {
+                currentPreviewItem = { ...currentPreviewItem, ...dadosPreview };
+                renderCurrentPreview(currentPreviewItem, 'queued');
+            }
+        }
+    }
+
+    function discardDraftState() {
+        items.length = 0;
+        groups.length = 0;
+        currentGroupId = null;
+        currentPreviewItem = null;
+        inputUsuario.value = '';
+        inputLocal.value = '';
+        inputCodigo.value = '';
+        inputQuantidade.value = '1';
+        syncQuantityFieldMode(null);
+        clearDraftState();
+        hideDraftRestoreBanner();
+        renderItems();
+        renderCurrentPreview(null, 'idle');
+        inputUsuario.focus();
+    }
 
     function clearCurrentItemInputs() {
         inputCodigo.value = '';
@@ -1932,8 +2303,9 @@ ${parent.scripts()}
         const availabilityNote = previewStatus === 'preview'
             ? runtimeStockNote + 'Disponivel apos esta retirada: ' + formatBaseQuantityForDisplay(item, stockSnapshot.availableAfterDraft) + '.'
             : runtimeStockNote + 'Disponivel para novas retiradas: ' + formatBaseQuantityForDisplay(item, stockSnapshot.availableAfterDraft) + '.';
+        const custodyNote = String(item.custodia_resumo || '').trim() ? ' ' + String(item.custodia_resumo).trim() : '';
         const previewNote = categoriaNorm.includes('ferrament')
-            ? availabilityNote + ' Custodia automatica sera registrada quando esta saida for confirmada.'
+            ? availabilityNote + custodyNote + ' Custodia automatica sera registrada quando esta saida for confirmada.'
             : availabilityNote + ' Este painel e a base da futura tela espelho para segundo monitor.';
 
         currentItemPreview.className = 'operation-preview';
@@ -2431,38 +2803,74 @@ ${parent.scripts()}
     function getUnavailableMessage(item) {
         return String(item?.unavailable_detail || item?.unavailable_reason || 'Item indisponível para retirada.').trim();
     }
-    
+
+    function getUnavailableTitle(item) {
+        return String(item?.unavailable_reason || 'Item indisponível').trim() || 'Item indisponível';
+    }
+
+    function getCustodyDetailLines(item) {
+        const detalhes = Array.isArray(item?.custodia_detalhes) ? item.custodia_detalhes : [];
+        if (detalhes.length > 0) {
+            return detalhes.map((linha) => String(linha || '').trim()).filter(Boolean);
+        }
+
+        const holders = Array.isArray(item?.custodia_ativa) ? item.custodia_ativa : [];
+        return holders.map((holder) => {
+            const partes = [String(holder?.label || '').trim() || 'Colaborador não identificado'];
+            if (holder?.desde_label) {
+                partes.push('desde ' + String(holder.desde_label));
+            }
+            if (holder?.local_servico) {
+                partes.push('local: ' + String(holder.local_servico));
+            }
+            if (holder?.status_label && String(holder.status_label) !== 'em uso') {
+                partes.push('situação: ' + String(holder.status_label));
+            }
+            return partes.join(' — ');
+        }).filter(Boolean);
+    }
+
+    function showUnavailableItemModal(item) {
+        showErrorModal(getUnavailableTitle(item), getUnavailableMessage(item), getCustodyDetailLines(item));
+    }
+
     function showAutocompleteCodigo(itens) {
         if (itens.length === 0) {
             dropdownCodigo.classList.remove('show');
             return;
         }
 
-        const availableItems = itens
-            .filter((item) => !item || item.is_available !== false)
-            .map((item) => buildAdjustedBalanceItem(item, buildRuntimeStockSnapshot(item)));
-        currentItens = availableItems;
+        // Itens indisponíveis seguem na lista, marcados em vermelho, para o operador
+        // entender por que não consegue retirar (estoque zerado, reparo ou ferramenta em uso).
+        const listItems = itens.map((item) => (
+            item && item.is_available === false
+                ? item
+                : buildAdjustedBalanceItem(item, buildRuntimeStockSnapshot(item))
+        ));
+        currentItens = listItems;
 
-        if (availableItems.length === 0) {
-            dropdownCodigo.innerHTML = '<div class="autocomplete-item">Nenhum item disponível para retirada.</div>';
-            dropdownCodigo.classList.add('show');
-            return;
-        }
-        
-        dropdownCodigo.innerHTML = availableItems.map((item, index) => {
-            const saldoFormatado = formatarSaldoItem(item);
-            return '<div class=\"autocomplete-item\" data-index=\"' + index + '\">' +
+        dropdownCodigo.innerHTML = listItems.map((item, index) => {
+            const indisponivel = Boolean(item && item.is_available === false);
+            const saldoFormatado = indisponivel
+                ? (String(item.saldo_disponivel_display || '').trim() || formatarSaldoItem(item))
+                : formatarSaldoItem(item);
+            const custodyLine = indisponivel ? String(item.custodia_resumo || '').trim() : '';
+            return '<div class=\"autocomplete-item' + (indisponivel ? ' is-unavailable' : '') + '\" data-index=\"' + index + '\">' +
                 '<div class=\"autocomplete-item-title\">' + (item.descricao || item.codigo) + '</div>' +
                 '<div class=\"autocomplete-item-details\">' +
                 '<span class=\"autocomplete-item-code\">Código: ' + item.codigo + '</span>' +
                 (saldoFormatado ? ' | Saldo: ' + saldoFormatado : '') +
                 (item.categoria ? ' | Categoria: ' + item.categoria : '') +
                 (item.marca ? ' | Marca: ' + item.marca : '') + '</div>' +
+                (indisponivel
+                    ? '<div class=\"autocomplete-item-status\"><i class=\"bi bi-exclamation-octagon me-1\"></i>' + escapeHtml(getUnavailableTitle(item)) + ' — não pode ser retirado agora</div>'
+                    : '') +
+                (custodyLine ? '<div class=\"autocomplete-item-custody\">' + escapeHtml(custodyLine) + '</div>' : '') +
                 '</div>';
         }).join('');
-        
+
         dropdownCodigo.classList.add('show');
-        
+
         dropdownCodigo.querySelectorAll('.autocomplete-item').forEach(item => {
             item.addEventListener('click', function() {
                 const index = parseInt(this.getAttribute('data-index'));
@@ -2470,10 +2878,10 @@ ${parent.scripts()}
             });
         });
     }
-    
+
     function selectCodigo(item) {
         if (item && item.is_available === false) {
-            showErrorModal('Item indisponível', getUnavailableMessage(item));
+            showUnavailableItemModal(item);
             return;
         }
         inputCodigo.value = item.codigo;
@@ -2643,6 +3051,7 @@ ${parent.scripts()}
 
     inputUsuario.addEventListener('input', function() {
         scheduleMirrorOperatorHeartbeat();
+        schedulePersistDraftState();
     });
 
     inputUsuario.addEventListener('focus', function() {
@@ -2651,6 +3060,7 @@ ${parent.scripts()}
 
     inputUsuario.addEventListener('blur', function() {
         syncCurrentGroupContextFromInputs();
+        persistDraftState();
         if (currentPreviewItem) {
             currentPreviewItem.usuario = String(inputUsuario.value || '').trim();
             renderCurrentPreview(currentPreviewItem, 'preview');
@@ -2658,6 +3068,7 @@ ${parent.scripts()}
     });
 
     inputLocal.addEventListener('input', function() {
+        schedulePersistDraftState();
         const groupSynced = syncCurrentGroupContextFromInputs();
         if (currentPreviewItem) {
             currentPreviewItem.local = String(inputLocal.value || '').trim();
@@ -2736,7 +3147,7 @@ ${parent.scripts()}
                 throw new Error('Item não encontrado');
             }
             if (data.is_available === false) {
-                showErrorModal('Item indisponível', getUnavailableMessage(data));
+                showUnavailableItemModal(data);
                 inputCodigo.focus();
                 return false;
             }
@@ -3137,6 +3548,7 @@ ${parent.scripts()}
         }
 
         renderCurrentPreview(currentPreviewItem, 'queued');
+        hideDraftRestoreBanner();
         renderItems();
     }
 
@@ -3204,6 +3616,7 @@ ${parent.scripts()}
             itemsContainer.style.display = 'none';
             emptyState.style.display = 'block';
             btnRegistrar.disabled = true;
+            persistDraftState();
             return;
         }
         
@@ -3220,8 +3633,9 @@ ${parent.scripts()}
                 '<tr class="group-row">' +
                     '<td colspan="5">' + normalizeGroupLabel(group.usuario, group.local) + '</td>' +
                 '</tr>';
-            const groupItems = group.itens.map(item =>
-                '<tr>' +
+            const groupItems = group.itens.map(item => {
+                const rowFlag = buildQueuedItemStockFlag(item);
+                return '<tr' + (rowFlag ? ' class="item-row-zerado"' : '') + '>' +
                     '<td><code>' + escapeHtml(item.codigo) + '</code></td>' +
                     '<td>' +
                         '<div class="item-thumb-cell">' +
@@ -3229,7 +3643,9 @@ ${parent.scripts()}
                                 ? '<img class="item-thumb" src="' + escapeHtml(item.foto_url) + '" alt="' + escapeHtml(item.descricao || item.codigo) + '">'
                                 : '<span class="item-thumb-placeholder"><i class="bi bi-image"></i></span>') +
                             '<div><strong>' + escapeHtml(item.descricao) + '</strong>' +
-                            '<span class="item-desc-meta">' + escapeHtml(item.categoria || 'Sem categoria') + (item.marca ? ' • ' + escapeHtml(item.marca) : '') + '</span></div>' +
+                            '<span class="item-desc-meta">' + escapeHtml(item.categoria || 'Sem categoria') + (item.marca ? ' • ' + escapeHtml(item.marca) : '') + '</span>' +
+                            (rowFlag ? '<span class="item-row-flag"><i class="bi bi-exclamation-octagon me-1"></i>' + escapeHtml(rowFlag) + '</span>' : '') +
+                            '</div>' +
                         '</div>' +
                     '</td>' +
                     '<td class="text-center">' +
@@ -3245,10 +3661,29 @@ ${parent.scripts()}
                             '<i class="bi bi-trash me-1"></i>Remover' +
                         '</button>' +
                     '</td>' +
-                '</tr>'
-            ).join('');
+                '</tr>';
+            }).join('');
             return groupHeader + groupItems;
         }).join('');
+
+        persistDraftState();
+    }
+
+    function buildQueuedItemStockFlag(item) {
+        if (item && item.is_available === false) {
+            const motivo = String(item.unavailable_reason || 'Item indisponível para retirada').trim();
+            const resumoCustodia = String(item.custodia_resumo || '').trim();
+            return resumoCustodia ? motivo + ' — ' + resumoCustodia : motivo;
+        }
+
+        const snapshot = buildRuntimeStockSnapshot(item);
+        if (snapshot.baseTotal <= STOCK_TOLERANCE) {
+            return 'Estoque zerado — confira antes de registrar';
+        }
+        if (snapshot.availableBeforeDraft <= STOCK_TOLERANCE) {
+            return 'Estoque zera com esta saída';
+        }
+        return '';
     }
 
     function resolveQuantityAdjustmentMode(item) {
@@ -3437,6 +3872,8 @@ ${parent.scripts()}
                         batchItemStatus: 'completed',
                     }));
                 }
+                draftPersistDisabled = true;
+                clearDraftState();
                 alert('✓ Saídas registradas com sucesso.');
                 window.location.reload();
             } else {
@@ -3461,6 +3898,24 @@ ${parent.scripts()}
     }
     
     renderCurrentPreview(null, 'idle');
+
+    btnDescartarRascunho?.addEventListener('click', function() {
+        if (!confirm('Descartar a lista recuperada? Os itens em preparação serão apagados desta tela.')) {
+            return;
+        }
+        discardDraftState();
+    });
+
+    // Garante que o que foi digitado sobreviva ao fechamento repentino da aba.
+    window.addEventListener('beforeunload', function() {
+        persistDraftState();
+    });
+
+    window.addEventListener('pagehide', function() {
+        persistDraftState();
+    });
+
+    restoreDraftState();
 
     if (window.GalintExpressReturnModal) {
         window.GalintExpressReturnModal.init({

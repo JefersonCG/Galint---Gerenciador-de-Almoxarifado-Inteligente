@@ -841,6 +841,7 @@ def test_serialize_stock_document_mostra_conversao_documental_do_rolo() -> None:
         data_recebimento=None,
         movimenta_estoque=True,
         chave_acesso=None,
+        imagem_secundaria_path=None,
         fornecedor_id=None,
         fornecedor=None,
         nome_emitente=lambda: None,

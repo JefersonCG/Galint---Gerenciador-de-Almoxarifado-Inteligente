@@ -4819,6 +4819,7 @@ class InventoryService:
                 "reserved_quantity": 0.0,
                 "repair_quantity": 0.0,
                 "has_open_repair": False,
+                "holders": [],
             }
             for code in normalized_codes
         }
@@ -4863,7 +4864,125 @@ class InventoryService:
         for codigo_item in open_repair_codes:
             state.setdefault(codigo_item, {}).update({"has_open_repair": True})
 
+        holder_rows = (
+            db.session.query(
+                RetiradaFerramenta.codigo_item,
+                RetiradaFerramenta.matricula,
+                RetiradaFerramenta.quantidade,
+                RetiradaFerramenta.status,
+                RetiradaFerramenta.data_retirada,
+                RetiradaFerramenta.data_prevista_devolucao,
+                RetiradaFerramenta.local_servico,
+                Usuario.nome,
+            )
+            .outerjoin(Usuario, Usuario.matricula == RetiradaFerramenta.matricula)
+            .filter(RetiradaFerramenta.codigo_item.in_(normalized_codes))
+            .filter(RetiradaFerramenta.status.in_(ACTIVE_TOOL_WITHDRAWAL_STATUSES))
+            .order_by(RetiradaFerramenta.data_retirada.asc(), RetiradaFerramenta.id.asc())
+            .all()
+        )
+        for row in holder_rows:
+            (
+                codigo_item,
+                matricula,
+                quantidade,
+                status,
+                data_retirada,
+                data_prevista_devolucao,
+                local_servico,
+                nome_usuario,
+            ) = row
+            holders = state.setdefault(codigo_item, {}).setdefault("holders", [])
+            holders.append(
+                {
+                    "matricula": str(matricula or "").strip(),
+                    "nome": (nome_usuario or "").strip() or None,
+                    "label": format_material_return_actor_label(
+                        nome=(nome_usuario or "").strip() or None,
+                        matricula=str(matricula or "").strip(),
+                    ),
+                    "quantidade": float(quantidade or 0.0),
+                    "quantidade_display": self._format_availability_quantity(float(quantidade or 0.0)),
+                    "status": str(status or "").strip(),
+                    "status_label": self._format_tool_holder_status(status),
+                    "desde": TimeService.isoformat_utc(data_retirada) if data_retirada else None,
+                    "desde_label": TimeService.format_local(data_retirada) if data_retirada else None,
+                    "previsao_devolucao": data_prevista_devolucao.isoformat() if data_prevista_devolucao else None,
+                    "local_servico": (local_servico or "").strip() or None,
+                }
+            )
+
         return state
+
+    @staticmethod
+    def _format_tool_holder_status(status: Any) -> str:
+        normalized = str(status or "").strip().lower()
+        if normalized == "atrasada":
+            return "devolução atrasada"
+        if normalized == "para_reparo":
+            return "aguardando reparo"
+        return "em uso"
+
+    @classmethod
+    def _describe_tool_holder(cls, holder: dict[str, Any]) -> str:
+        """Descreve um detentor em linguagem amigável para o operador."""
+
+        partes = [str(holder.get("label") or "Colaborador não identificado").strip()]
+        quantidade_display = str(holder.get("quantidade_display") or "").strip()
+        if quantidade_display and quantidade_display != "1":
+            partes.append(f"{quantidade_display} unidades")
+        desde_label = str(holder.get("desde_label") or "").strip()
+        if desde_label:
+            partes.append(f"desde {desde_label}")
+        local_servico = str(holder.get("local_servico") or "").strip()
+        if local_servico:
+            partes.append(f"local: {local_servico}")
+        status_label = str(holder.get("status_label") or "").strip()
+        if status_label and status_label != "em uso":
+            partes.append(f"situação: {status_label}")
+        return " — ".join(partes)
+
+    @classmethod
+    def _build_tool_custody_summary(cls, holders: list[dict[str, Any]]) -> str | None:
+        """Resumo curto de quem está com a ferramenta, para exibir na tela de saída."""
+
+        if not holders:
+            return None
+        primeiro = str(holders[0].get("label") or "").strip() or "um colaborador"
+        if len(holders) == 1:
+            desde_label = str(holders[0].get("desde_label") or "").strip()
+            if desde_label:
+                return f"Em uso com {primeiro} desde {desde_label}."
+            return f"Em uso com {primeiro}."
+        return f"Em uso com {primeiro} e mais {len(holders) - 1} colaborador(es)."
+
+    @classmethod
+    def _build_tool_in_use_message(cls, holders: list[dict[str, Any]]) -> str:
+        """Mensagem amigável explicando que a ferramenta está com alguém."""
+
+        if not holders:
+            return (
+                "Esta ferramenta já está toda comprometida em retiradas abertas. "
+                "Assim que houver uma devolução, a saída volta a ficar liberada."
+            )
+        if len(holders) == 1:
+            holder = holders[0]
+            nome = str(holder.get("label") or "outro colaborador").strip()
+            desde_label = str(holder.get("desde_label") or "").strip()
+            local_servico = str(holder.get("local_servico") or "").strip()
+            frase = f"Esta ferramenta está em uso com {nome}"
+            if desde_label:
+                frase += f", desde {desde_label}"
+            if local_servico:
+                frase += f", no local {local_servico}"
+            return (
+                f"{frase}. Combine a devolução com o colaborador ou escolha outra ferramenta: "
+                "assim que ela voltar ao estoque, a saída é liberada automaticamente."
+            )
+        return (
+            f"Esta ferramenta está em uso com {len(holders)} colaboradores e não há unidade livre no momento. "
+            "Veja abaixo quem está com ela; assim que houver devolução, a saída é liberada automaticamente."
+        )
 
     def _apply_withdrawal_availability(
         self,
@@ -4879,29 +4998,46 @@ class InventoryService:
         available_quantity = max(0.0, saldo_total)
         unavailable_reason: str | None = None
         unavailable_detail: str | None = None
+        holders: list[dict[str, Any]] = []
+        custody_summary: str | None = None
 
         if self._is_tool_category(payload.get("categoria") or getattr(item, "categoria", None)):
             snapshot = tool_state or {}
             reserved_quantity = float(snapshot.get("reserved_quantity") or 0.0)
             repair_quantity = float(snapshot.get("repair_quantity") or 0.0)
             has_open_repair = bool(snapshot.get("has_open_repair"))
+            holders = [dict(holder) for holder in (snapshot.get("holders") or [])]
             available_quantity = max(0.0, saldo_total - reserved_quantity)
+            custody_summary = self._build_tool_custody_summary(holders)
 
             if has_open_repair or repair_quantity > 1e-6:
                 unavailable_reason = "Ferramenta em reparo"
-                unavailable_detail = "Ferramenta indisponível para retirada enquanto houver reparo aberto."
+                unavailable_detail = (
+                    "Esta ferramenta está em reparo e volta a ficar disponível assim que a manutenção for concluída. "
+                    "Escolha outra ferramenta para seguir com a saída."
+                )
             elif available_quantity <= 1e-6:
-                unavailable_reason = "Sem saldo disponível"
-                if reserved_quantity > 1e-6 and saldo_total > 1e-6:
+                if holders:
+                    unavailable_reason = "Ferramenta em uso com outro colaborador"
+                    unavailable_detail = self._build_tool_in_use_message(holders)
+                elif reserved_quantity > 1e-6 and saldo_total > 1e-6:
+                    unavailable_reason = "Sem saldo disponível"
                     unavailable_detail = (
                         f"Estoque físico atual: {self._format_availability_quantity(saldo_total)}. "
                         "Toda a disponibilidade já está comprometida em uso, atraso ou custódia."
                     )
                 else:
-                    unavailable_detail = "Ferramenta sem saldo disponível para retirada."
+                    unavailable_reason = "Estoque zerado"
+                    unavailable_detail = (
+                        "Esta ferramenta está com estoque zerado e não pode ser retirada agora. "
+                        "Registre uma entrada ou escolha outra ferramenta."
+                    )
         elif available_quantity <= 1e-6:
             unavailable_reason = "Estoque zerado"
-            unavailable_detail = "Item sem saldo disponível para retirada."
+            unavailable_detail = (
+                "Este item está com estoque zerado e não pode ser retirado agora. "
+                "Registre uma entrada ou escolha outro item."
+            )
 
         payload.update(
             {
@@ -4910,6 +5046,9 @@ class InventoryService:
                 "reserved_quantity": reserved_quantity,
                 "repair_quantity": repair_quantity,
                 "has_open_repair": has_open_repair,
+                "custodia_ativa": holders,
+                "custodia_resumo": custody_summary,
+                "custodia_detalhes": [self._describe_tool_holder(holder) for holder in holders],
                 "is_available": unavailable_reason is None,
                 "unavailable_reason": unavailable_reason,
                 "unavailable_detail": unavailable_detail,
