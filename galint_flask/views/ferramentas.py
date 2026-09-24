@@ -1,12 +1,13 @@
 """Rotas para gerenciamento de ferramentas."""
 from __future__ import annotations
 
-from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
+from flask import Blueprint, flash, jsonify, redirect, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import or_
 
 from ..mako_renderer import render_mako_template
 from ..services.ferramentas import ferramentas_service
+from ..services import item_lookup_service
 from ..services.inventory import inventory_service
 from ..services.operation_visual_payload import operation_visual_payload_service
 from ..services.tool_custody_service import tool_custody_service
@@ -303,28 +304,8 @@ def buscar_item():
     if not query or len(query) < 1:
         return jsonify({"items": [], "itens": []})
     
-    resultados = [
-        item
-        for item in inventory_service.search_items_for_autocomplete(query, limit=20)
-        if item.get("is_available") is not False
-    ]
-
-    item_codes = [str(item.get("codigo") or "").strip() for item in resultados if str(item.get("codigo") or "").strip()]
-    item_models = {
-        item.codigo_item: item
-        for item in Item.query.filter(Item.codigo_item.in_(item_codes)).all()
-    } if item_codes else {}
-
-    resultados = [
-        {
-            **item,
-            "valor_referencia": operation_visual_payload_service.resolve_item_financial_reference(
-                item_models.get(str(item.get("codigo") or "").strip())
-            ),
-        }
-        for item in resultados
-    ]
-    return jsonify({"items": resultados, "itens": resultados})
+    resultados = item_lookup_service.search_items(query, limit=20, only_available=True)
+    return jsonify(item_lookup_service.autocomplete_response_payload(resultados))
 
 
 @blueprint.get("/buscar-funcionario")

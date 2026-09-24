@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import unicodedata
 import re
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 from typing import Any
 
 from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, url_for, send_file
@@ -28,6 +28,7 @@ from ..services.native_panel_launcher import launch_panel as launch_native_panel
 from ..services.legacy_stock_normalizer import infer_packaging_measure, resolve_canonical_unit, resolve_packaging_factor
 from ..services.operation_visual_payload import operation_visual_payload_service
 from ..services.users import user_service
+from ..services import item_lookup_service
 from ..services.entrada_service import entrada_service
 from ..services.telegram_service import TelegramService
 from ..mako_renderer import render_mako_template
@@ -42,41 +43,28 @@ def buscar_item():
     """API: Busca itens por código ou nome (parcial)."""
     query = (request.args.get("q") or "").strip()
     only_available = (request.args.get("only_available") or "").strip().lower() in {"1", "true", "yes", "sim"}
-    
-    if not query or len(query) < 1:
-        return jsonify({"items": [], "itens": []})
-    
-    resultados = inventory_service.search_items_for_autocomplete(query, limit=20)
-    if only_available:
-        resultados = [item for item in resultados if item.get("is_available") is not False]
 
-    item_codes = [str(item.get("codigo") or "").strip() for item in resultados if str(item.get("codigo") or "").strip()]
-    item_models = {
-        item.codigo_item: item
-        for item in Item.query.filter(Item.codigo_item.in_(item_codes)).all()
-    } if item_codes else {}
-
-    enriched_results: list[dict[str, Any]] = []
-    for item_payload in resultados:
-        item_code = str(item_payload.get("codigo") or "").strip()
-        item_model = item_models.get(item_code)
+    def _com_unidades_de_saida(item_payload: dict[str, Any], item_model: Item | None) -> dict[str, Any]:
         unit_context = _build_saida_unit_context(item_payload, item_model)
-        financial_reference = operation_visual_payload_service.resolve_item_financial_reference(item_model)
-        movement_balance_display = _build_saida_balance_display(
-            item_payload,
-            unit_context,
-            balance_key="saldo",
-            fallback_key="saldo_display",
-        )
-        enriched_results.append({
-            **item_payload,
+        return {
             **unit_context,
             "unidade_cadastro": item_payload.get("unidade"),
             "unidade": unit_context.get("devolucao_unidade_label") or item_payload.get("unidade"),
-            "saldo_display": movement_balance_display,
-            "valor_referencia": financial_reference,
-        })
-    return jsonify({"items": enriched_results, "itens": enriched_results})
+            "saldo_display": _build_saida_balance_display(
+                item_payload,
+                unit_context,
+                balance_key="saldo",
+                fallback_key="saldo_display",
+            ),
+        }
+
+    resultados = item_lookup_service.search_items(
+        query,
+        limit=20,
+        only_available=only_available,
+        enrich=_com_unidades_de_saida,
+    )
+    return jsonify(item_lookup_service.autocomplete_response_payload(resultados))
 
 
 @blueprint.after_request
