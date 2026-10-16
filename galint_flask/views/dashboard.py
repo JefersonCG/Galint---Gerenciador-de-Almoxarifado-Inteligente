@@ -9,14 +9,12 @@ from typing import Any
 
 from flask import Blueprint, Response, abort, current_app, jsonify, render_template, url_for
 from flask_login import current_user, login_required
-from sqlalchemy import func
 
 from ..services.analytics_service import analytics_service
 from ..services.category_catalog import category_catalog_service
 from ..services.inventory import inventory_service
-from ..services.finance_service import finance_service
 from ..extensions import db
-from ..models import Entrada, FinanceLedgerEntry, FinanceSupplier
+from ..models import Entrada
 from ..utils.report_branding import get_company_header_lines
 from ..utils.time_service import TimeService
 from openpyxl import Workbook
@@ -70,14 +68,6 @@ def _format_codigo_barra(value: object) -> str:
     return text[-4:] if len(text) >= 4 else text
 
 
-def _format_brl(value: object) -> str:
-    try:
-        amount = float(value or 0.0)
-    except (TypeError, ValueError):
-        amount = 0.0
-    return f"R$ {amount:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-
-
 def _build_dashboard_now_context() -> dict[str, str]:
     now_local = TimeService.now_local()
     month_index = now_local.month - 1
@@ -87,88 +77,6 @@ def _build_dashboard_now_context() -> dict[str, str]:
         "dashboard_month_name": _DASHBOARD_MONTH_NAMES[month_index],
         "dashboard_month_icon": _DASHBOARD_MONTH_ICONS[month_index],
     }
-
-
-def _build_quick_panel_snapshots(competencia: str) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
-    cache_key = f"dashboard_quick_panels:{competencia}"
-    cached = finance_service._get_cached(cache_key)
-    if cached is not None:
-        return cached
-
-    try:
-        exercise = finance_service.resolve_exercise()
-        items = inventory_service.list_items(use_cache=True)
-        total_compra = sum(float(item.get("valor_estoque_compra_total") or 0.0) for item in items)
-        total_reposicao = sum(float(item.get("valor_estoque_reposicao_total") or 0.0) for item in items)
-        missing_compra = sum(1 for item in items if item.get("valor_estoque_compra_total") is None)
-        missing_reposicao = sum(1 for item in items if item.get("valor_estoque_reposicao_total") is None)
-        total_investido = db.session.query(func.sum(FinanceLedgerEntry.valor_total)).filter(
-            FinanceLedgerEntry.data_lancamento >= exercise["start_dt"],
-            FinanceLedgerEntry.data_lancamento <= exercise["end_dt"],
-        ).scalar()
-        total_sem_comprovacao = db.session.query(func.sum(FinanceLedgerEntry.valor_total)).filter(
-            FinanceLedgerEntry.data_lancamento >= exercise["start_dt"],
-            FinanceLedgerEntry.data_lancamento <= exercise["end_dt"],
-            FinanceLedgerEntry.comprovacao_status != "comprovado",
-        ).scalar()
-        supplier_totals = (
-            db.session.query(
-                FinanceLedgerEntry.fornecedor_id,
-                func.sum(FinanceLedgerEntry.valor_total).label("investido_total"),
-                func.count(func.distinct(FinanceLedgerEntry.codigo_item)).label("itens_distintos"),
-            )
-            .filter(FinanceLedgerEntry.data_lancamento >= exercise["start_dt"])
-            .filter(FinanceLedgerEntry.data_lancamento <= exercise["end_dt"])
-            .filter(FinanceLedgerEntry.fornecedor_id.isnot(None))
-            .group_by(FinanceLedgerEntry.fornecedor_id)
-            .order_by(func.sum(FinanceLedgerEntry.valor_total).desc())
-            .all()
-        )
-        supplier_ids = [int(row.fornecedor_id) for row in supplier_totals]
-        suppliers = FinanceSupplier.query.filter(FinanceSupplier.id.in_(supplier_ids)).all() if supplier_ids else []
-        suppliers_by_id = {int(s.id): s for s in suppliers}
-        top_supplier_row = supplier_totals[0] if supplier_totals else None
-        top_supplier = suppliers_by_id.get(int(top_supplier_row.fornecedor_id)) if top_supplier_row else None
-        total_docs = (
-            db.session.query(FinanceLedgerEntry.tipo_documento, FinanceLedgerEntry.numero_documento)
-            .filter(FinanceLedgerEntry.data_lancamento >= exercise["start_dt"])
-            .filter(FinanceLedgerEntry.data_lancamento <= exercise["end_dt"])
-            .filter(FinanceLedgerEntry.fornecedor_id.isnot(None))
-            .distinct()
-            .count()
-        )
-        total_sem_loja = db.session.query(func.sum(FinanceLedgerEntry.valor_total)).filter(
-            FinanceLedgerEntry.data_lancamento >= exercise["start_dt"],
-            FinanceLedgerEntry.data_lancamento <= exercise["end_dt"],
-            FinanceLedgerEntry.fornecedor_id.is_(None),
-        ).scalar()
-
-        finance_snapshot = {
-            "exercise_label": str(exercise.get("label") or competencia),
-            "total_compra": _format_brl(total_compra),
-            "total_reposicao": _format_brl(total_reposicao),
-            "total_investido": _format_brl(total_investido),
-            "total_sem_comprovacao": _format_brl(total_sem_comprovacao),
-            "missing_compra": missing_compra,
-            "missing_reposicao": missing_reposicao,
-        }
-        supplier_snapshot = {
-            "total_lojas": len(supplier_totals),
-            "total_ativos": sum(1 for supplier in suppliers if supplier.ativo),
-            "total_docs": int(total_docs),
-            "total_sem_loja": _format_brl(total_sem_loja),
-            "top_nome": top_supplier.nome_exibicao() if top_supplier else "Sem compras vinculadas",
-            "top_total": _format_brl(top_supplier_row.investido_total if top_supplier_row else 0),
-            "top_itens": int(top_supplier_row.itens_distintos if top_supplier_row else 0),
-        }
-        return finance_service._set_cached(
-            cache_key,
-            (finance_snapshot, supplier_snapshot),
-            ttl_seconds=30.0,
-        )
-    except Exception:
-        current_app.logger.exception("Falha ao montar paineis rapidos do dashboard")
-        return None, None
 
 
 def _dashboard_context(
@@ -202,7 +110,6 @@ def _dashboard_context(
     competencia = date.today().strftime("%m-%Y")
     dashboard_now = _build_dashboard_now_context()
     total_entradas_registradas = db.session.query(Entrada.id_entrada).count()
-    can_view_finance = not shared_view
 
     from ..services.entrada_report_service import entrada_report_service
 
@@ -247,7 +154,6 @@ def _dashboard_context(
         "projection_cards": projection_cards,
         "category_summary": category_summary,
         "shared_view": shared_view,
-        "can_view_finance": can_view_finance,
         "header_title": header_title or f"Resumo Mensal de Estoque - {competencia}",
         "header_subtitle": header_subtitle or "Resumo Mensal do Estoque",
         "tag_label": tag_label or "Painel de Controle do Almoxarifado",
@@ -339,22 +245,6 @@ def custody_active():
     itens = itens[:50]
 
     return jsonify({"items": itens, "total": len(itens)})
-
-
-@blueprint.get("/api/quick-panels")
-@login_required
-def quick_panels():
-    competencia = date.today().strftime("%m-%Y")
-    finance_snapshot, supplier_snapshot = _build_quick_panel_snapshots(competencia)
-    if not finance_snapshot or not supplier_snapshot:
-        return jsonify({"ok": False, "message": "Não foi possível carregar o resumo financeiro agora."}), 500
-    return jsonify(
-        {
-            "ok": True,
-            "finance_snapshot": finance_snapshot,
-            "supplier_snapshot": supplier_snapshot,
-        }
-    )
 
 
 def _build_report(tipo: str) -> tuple[str, list[str], list[list[Any]]]:
@@ -755,4 +645,3 @@ def timezone_sync():
         "timezone_id": timezone_id,
         "timezone_name": timezone_name,
     })
-
