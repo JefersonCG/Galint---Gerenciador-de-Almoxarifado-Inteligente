@@ -1721,7 +1721,11 @@ def nf_index():
     nota_busca = (request.args.get("nota") or "").strip()
     codigo_prefill = (request.args.get("codigo") or "").strip()
     period_dashboard = _build_period_dashboard()
-    nota_detalhes = inventory_service.get_nota_fiscal(nota_busca) if nota_busca else None
+    chave_acesso = "".join(character for character in nota_busca if character.isdigit())
+    if len(chave_acesso) == 44:
+        nota_detalhes = finance_service.get_stock_document_by_access_key(chave_acesso)
+    else:
+        nota_detalhes = inventory_service.get_nota_fiscal(nota_busca) if nota_busca else None
     selected_item = inventory_service.get_item(codigo_prefill) if codigo_prefill else None
     notas = inventory_service.list_notas_fiscais()
     can_manage = bool(getattr(current_user, "is_admin", False))

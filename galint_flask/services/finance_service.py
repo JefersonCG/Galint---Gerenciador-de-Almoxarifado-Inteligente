@@ -1688,6 +1688,27 @@ class FinanceService:
         return FinanceService._set_cached(cache_key, dict(payload), ttl_seconds=8.0)
 
     @staticmethod
+    def get_stock_document_by_access_key(access_key: str) -> dict[str, Any] | None:
+        normalized_key = re.sub(r"\D", "", access_key or "")
+        if len(normalized_key) != 44:
+            return None
+
+        rows = (
+            DocumentoEntradaEstoque.query
+            .options(
+                joinedload(DocumentoEntradaEstoque.fornecedor),
+                joinedload(DocumentoEntradaEstoque.itens).joinedload(DocumentoEntradaEstoqueItem.item),
+            )
+            .filter(DocumentoEntradaEstoque.chave_acesso == normalized_key)
+            .order_by(DocumentoEntradaEstoque.criado_em.desc(), DocumentoEntradaEstoque.id_documento.desc())
+            .all()
+        )
+        row = FinanceService._select_canonical_documents(rows)[:1]
+        if not row:
+            return None
+        return FinanceService._serialize_stock_document(row[0])
+
+    @staticmethod
     def search_stock_documents(query: str, limit: int = 8) -> list[dict[str, Any]]:
         term = (query or "").strip()
         if not term:

@@ -2357,8 +2357,8 @@
             <input type="hidden" name="periodo_fornecedor" value="{{ period_dashboard.filters.fornecedor_id or '' }}">
             <input type="hidden" name="periodo_tipo" value="{{ period_dashboard.filters.tipo_documento }}">
             <div class="col-lg-7">
-                <label class="form-label" for="nota">Número da NF / cupom / controle</label>
-                <input class="form-control" id="nota" name="nota" value="{{ nota_busca }}" placeholder="Digite o número exato do documento">
+                <label class="form-label" for="nota">Número da NF / cupom / controle ou chave de acesso</label>
+                <input class="form-control" id="nota" name="nota" value="{{ nota_busca }}" placeholder="Digite o número do documento ou a chave de acesso (44 dígitos)">
             </div>
             <div class="col-lg-3 d-grid">
                 <button class="docf-btn-primary" type="submit" data-help-label="Buscar documento" data-help-text="Localiza um documento já registrado e abre a aba operacional correspondente.">Buscar documento</button>
