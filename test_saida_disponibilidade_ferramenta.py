@@ -15,6 +15,7 @@ os.environ.setdefault("GALINT_TELEGRAM_POLLING", "false")
 os.environ.setdefault("GALINT_DISABLE_BACKGROUND_SERVICES", "true")
 
 from galint_flask.services.inventory import InventoryService
+from galint_flask.services.tool_custody_service import ToolCustodyService
 
 
 def _tool_holder(
@@ -176,3 +177,11 @@ def test_descricao_do_detentor_inclui_quantidade_quando_maior_que_uma_unidade() 
 
     assert "3 unidades" in descricao
     assert descricao.startswith("Joao da Silva (12345)")
+
+
+def test_custodia_aberta_nao_vira_permanente_so_por_ter_mais_de_30_dias() -> None:
+    assert not ToolCustodyService.is_permanent_custody(
+        tipo_custodia_raw="temporaria",
+        days_in_use=120,
+    )
+    assert ToolCustodyService.is_permanent_custody(tipo_custodia_raw="permanente")

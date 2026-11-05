@@ -164,8 +164,7 @@ class ToolCustodyService:
         if any(marker in texto for marker in cls._PERMANENT_MARKERS):
             return True
 
-        # Se ficar muito tempo em posse, assume custódia permanente para evitar alerta indevido.
-        return days_in_use >= 30
+        return False
 
     @classmethod
     def _infer_tipo_custodia(cls, saida: Saida, days_in_use: int) -> str:
