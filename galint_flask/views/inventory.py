@@ -3112,6 +3112,20 @@ def purchase_projection_export_xlsx():
     )
 
 
+@blueprint.post("/projecao-compras/itens-zerados.xlsx")
+@login_required
+def purchase_projection_zero_stock_export_xlsx():
+    _require_admin()
+    workbook = purchase_projection_service.build_zero_stock_workbook()
+    filename = f"itens_zerados_projecao_compras_{TimeService.now_local().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    return send_file(
+        workbook,
+        as_attachment=True,
+        download_name=filename,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
 @blueprint.get("/categorias")
 @login_required
 def category_admin():

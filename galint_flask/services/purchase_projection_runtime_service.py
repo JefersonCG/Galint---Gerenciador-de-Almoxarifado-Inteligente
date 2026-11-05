@@ -14,6 +14,7 @@ from ..extensions import db
 from ..models import (
     DocumentoEntradaEstoque,
     DocumentoEntradaEstoqueItem,
+    EquipamentoReparo,
     FinanceLedgerEntry,
     FinanceSupplier,
     FinanceSupplierPreference,
@@ -535,6 +536,123 @@ class PurchaseProjectionService:
         sheet.protection.insertRows = False
         sheet.protection.deleteColumns = False
         sheet.protection.deleteRows = False
+
+        buffer = BytesIO()
+        workbook.save(buffer)
+        buffer.seek(0)
+        return buffer
+
+    @classmethod
+    def build_zero_stock_workbook(cls) -> BytesIO:
+        items = Item.query.order_by(Item.categoria.asc(), Item.descricao.asc(), Item.codigo_item.asc()).all()
+        product_ids = [str(item.codigo_item or "").strip() for item in items if str(item.codigo_item or "").strip()]
+        balances = cls._load_ledger_balances(product_ids)
+        open_repairs = (
+            EquipamentoReparo.query
+            .filter(EquipamentoReparo.status.in_(("aguardando_orcamento", "em_reparo")))
+            .order_by(EquipamentoReparo.data_envio.desc(), EquipamentoReparo.id.desc())
+            .all()
+        )
+        repairs_by_code = {}
+        for repair in open_repairs:
+            repairs_by_code.setdefault(str(repair.codigo_item or "").strip(), repair)
+
+        grouped_items: dict[str, list[tuple[Item, float, EquipamentoReparo | None]]] = {}
+        for item in items:
+            codigo = str(item.codigo_item or "").strip()
+            balance = float(balances.get(codigo, 0.0) or 0.0)
+            repair = repairs_by_code.get(codigo)
+            if abs(balance) > cls.BALANCE_TOLERANCE and repair is None:
+                continue
+            category = str(item.categoria or "").strip() or "Sem categoria"
+            grouped_items.setdefault(category, []).append((item, balance, repair))
+
+        workbook = Workbook()
+        workbook.remove(workbook.active)
+        headers = [
+            "Código",
+            "Descrição",
+            "Marca",
+            "Unidade",
+            "Saldo atual",
+            "Situação",
+            "Oficina / fornecedor",
+            "Data de envio",
+            "Previsão de retorno",
+            "Problema informado",
+            "Localização",
+        ]
+        header_fill = PatternFill(start_color="1D4ED8", end_color="1D4ED8", fill_type="solid")
+        title_fill = PatternFill(start_color="0F172A", end_color="0F172A", fill_type="solid")
+        used_titles: set[str] = set()
+        for category, category_items in sorted(grouped_items.items(), key=lambda row: row[0].casefold()):
+            base_title = "".join("-" if char in "[]:*?/\\" else char for char in category).strip("'")[:31] or "Categoria"
+            sheet_title = base_title
+            suffix = 2
+            while sheet_title.casefold() in used_titles:
+                suffix_text = f" ({suffix})"
+                sheet_title = f"{base_title[:31 - len(suffix_text)]}{suffix_text}"
+                suffix += 1
+            used_titles.add(sheet_title.casefold())
+
+            sheet = workbook.create_sheet(sheet_title)
+            sheet.sheet_view.showGridLines = False
+            sheet.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(headers))
+            title = sheet.cell(row=1, column=1, value=f"ITENS ZERADOS E EQUIPAMENTOS EM REPARO - {category}")
+            title.fill = title_fill
+            title.font = Font(bold=True, size=14, color="FFFFFF")
+            title.alignment = Alignment(horizontal="center", vertical="center")
+            sheet.merge_cells(start_row=2, start_column=1, end_row=2, end_column=len(headers))
+            generated = sheet.cell(
+                row=2,
+                column=1,
+                value=f"Gerado em {TimeService.now_local().strftime('%d/%m/%Y %H:%M')}",
+            )
+            generated.alignment = Alignment(horizontal="right")
+
+            for column_index, header in enumerate(headers, start=1):
+                cell = sheet.cell(row=4, column=column_index, value=header)
+                cell.fill = header_fill
+                cell.font = Font(bold=True, color="FFFFFF")
+                cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+            for item, balance, repair in category_items:
+                if repair:
+                    situation = "Em reparo" if repair.status == "em_reparo" else "Aguardando orçamento"
+                else:
+                    situation = "Estoque zerado"
+                sheet.append(
+                    [
+                        item.codigo_item or "",
+                        item.descricao or "",
+                        item.marca or "",
+                        item.get_unidade_interna_display() or item.unidade or "",
+                        balance,
+                        situation,
+                        repair.fornecedor_oficina or "" if repair else "",
+                        repair.data_envio if repair else None,
+                        repair.prazo_previsto if repair else None,
+                        repair.problema_descrito or "" if repair else "",
+                        item.localizacao or "",
+                    ]
+                )
+            last_row = sheet.max_row
+            sheet.freeze_panes = "A5"
+            sheet.auto_filter.ref = f"A4:K{last_row}"
+            widths = [18, 42, 22, 14, 15, 24, 28, 18, 20, 42, 28]
+            for index, width in enumerate(widths, start=1):
+                sheet.column_dimensions[get_column_letter(index)].width = width
+            for row in sheet.iter_rows(min_row=5, max_row=last_row, min_col=5, max_col=5):
+                row[0].number_format = "0.######"
+            for row in sheet.iter_rows(min_row=5, max_row=last_row, min_col=8, max_col=9):
+                for cell in row:
+                    cell.number_format = "dd/mm/yyyy"
+
+        if not grouped_items:
+            sheet = workbook.create_sheet("Sem itens")
+            sheet["A1"] = "Nenhum item zerado ou equipamento em reparo encontrado."
+            sheet["A1"].font = Font(bold=True)
+            sheet.column_dimensions["A"].width = 65
 
         buffer = BytesIO()
         workbook.save(buffer)

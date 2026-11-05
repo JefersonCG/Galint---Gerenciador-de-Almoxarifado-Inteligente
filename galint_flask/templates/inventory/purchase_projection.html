@@ -1041,6 +1041,7 @@
                     <button class="d-none" type="submit" aria-hidden="true" tabindex="-1">Salvar seleção</button>
                     <span class="projection-sync-status" id="projection-sync-status">Carrinho salvo automaticamente.</span>
                     <button class="btn btn-outline-primary" type="submit" formaction="{{ url_for('inventory.purchase_projection_potential_suppliers_sync') }}">Atualizar potenciais</button>
+                    <button class="btn btn-outline-success" type="submit" formaction="{{ url_for('inventory.purchase_projection_zero_stock_export_xlsx') }}">Planilha de itens zerados</button>
                     <button class="btn btn-success" id="projection-export-button" type="submit" formaction="{{ url_for('inventory.purchase_projection_export_xlsx') }}">Exportar XLS final</button>
                     <noscript>
                         <button class="btn btn-primary" type="submit">Salvar seleção</button>
