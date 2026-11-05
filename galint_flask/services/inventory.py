@@ -6681,14 +6681,14 @@ class InventoryService:
         feed.sort(key=lambda registro: registro.get("data") or datetime.min, reverse=True)
         return feed[:limit]
 
-    def list_item_document_history(self, codigo: str, limit: int = 12) -> list[dict[str, Any]]:
+    def list_item_document_history(self, codigo: str, limit: int | None = 12) -> list[dict[str, Any]]:
         codigo_norm = (codigo or "").strip()
         if not codigo_norm:
             return []
 
         from .finance_service import FinanceService, _build_document_item_display_metadata
 
-        rows = (
+        document_query = (
             DocumentoEntradaEstoqueItem.query
             .options(
                 joinedload(DocumentoEntradaEstoqueItem.item),
@@ -6702,9 +6702,8 @@ class InventoryService:
                 DocumentoEntradaEstoque.id_documento.desc(),
                 DocumentoEntradaEstoqueItem.id_documento_item.desc(),
             )
-            .limit(limit)
-            .all()
         )
+        rows = document_query.limit(limit).all() if limit is not None else document_query.all()
 
         history: list[dict[str, Any]] = []
         for row in rows:

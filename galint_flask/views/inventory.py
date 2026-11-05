@@ -5061,7 +5061,7 @@ def get_item_history_api(codigo: str):
         return jsonify({"success": False, "message": "Item não encontrado."}), 404
 
     history = inventory_service.list_item_movements(codigo, limit=20)
-    document_history = inventory_service.list_item_document_history(codigo, limit=12)
+    document_history = inventory_service.list_item_document_history(codigo, limit=None)
 
     def _serialize_temporal(value):
         if value is None:

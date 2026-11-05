@@ -1599,6 +1599,9 @@
                 <button class="galint-tab-btn" type="button" data-tab="history">
                     <i class="bi bi-clock-history me-1"></i> Histórico
                 </button>
+                <button class="galint-tab-btn" type="button" data-tab="invoices">
+                    <i class="bi bi-receipt me-1"></i> Notas fiscais
+                </button>
             </div>
 
             <div class="modal-body galint-folder-panel">
@@ -1798,6 +1801,33 @@
                                     </tbody>
                                 </table>
                             </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Aba Notas fiscais -->
+                <div class="galint-tab-content" id="tab-invoices">
+                    <div class="galint-history-section">
+                        <div class="mb-3">
+                            <h6 class="mb-1">Notas fiscais do produto</h6>
+                            <p class="text-muted small mb-0">Notas vinculadas a este item, com a data de entrada e a chave de acesso.</p>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Data de entrada</th>
+                                        <th>Nota fiscal</th>
+                                        <th>Chave de acesso</th>
+                                        <th>Fornecedor</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="item-invoices-tbody">
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted">Notas fiscais não disponíveis no momento</td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -7294,9 +7324,47 @@
         }).join('');
     };
 
+    const renderItemInvoices = (history) => {
+        const invoicesTbody = document.getElementById('item-invoices-tbody');
+        if (!invoicesTbody) {
+            return;
+        }
+
+        const invoices = Array.isArray(history)
+            ? history.filter((registro) => String(registro?.tipo_documento || '').trim().toLowerCase() === 'nf')
+            : [];
+        if (!invoices.length) {
+            invoicesTbody.innerHTML = `
+                <tr>
+                    <td colspan="4" class="text-center text-muted">Nenhuma nota fiscal encontrada para este item</td>
+                </tr>
+            `;
+            return;
+        }
+
+        invoicesTbody.innerHTML = invoices.map((registro) => {
+            const entryDate = formatDocumentHistoryDate(registro.data_recebimento, null);
+            const documentNumber = escapeHtml(registro.numero_documento || '—');
+            const accessKey = String(registro.chave_acesso || '').trim();
+            const accessKeyMarkup = accessKey
+                ? `<span class="text-break font-monospace">${escapeHtml(accessKey)}</span>`
+                : '<span class="text-muted">Não informada</span>';
+            const supplier = escapeHtml(registro.fornecedor_nome || registro.cnpj_emitente || '—');
+            return `
+                <tr>
+                    <td>${entryDate}</td>
+                    <td>NF ${documentNumber}</td>
+                    <td>${accessKeyMarkup}</td>
+                    <td>${supplier}</td>
+                </tr>
+            `;
+        }).join('');
+    };
+
     const loadItemHistory = async (codigo) => {
         const historyTbody = document.getElementById('history-tbody');
         const documentHistoryTbody = document.getElementById('document-history-tbody');
+        const invoicesTbody = document.getElementById('item-invoices-tbody');
         if (!historyTbody) {
             return;
         }
@@ -7305,6 +7373,13 @@
             documentHistoryTbody.innerHTML = `
                 <tr>
                     <td colspan="6" class="text-center text-muted">Carregando histórico documental...</td>
+                </tr>
+            `;
+        }
+        if (invoicesTbody) {
+            invoicesTbody.innerHTML = `
+                <tr>
+                    <td colspan="4" class="text-center text-muted">Carregando notas fiscais...</td>
                 </tr>
             `;
         }
@@ -7324,12 +7399,20 @@
                 throw new Error(data?.message || 'Falha ao carregar histórico');
             }
             renderDocumentHistory(data.document_history || []);
+            renderItemInvoices(data.document_history || []);
             renderItemHistory(data.history || []);
         } catch (err) {
             if (documentHistoryTbody) {
                 documentHistoryTbody.innerHTML = `
                     <tr>
                         <td colspan="6" class="text-center text-muted">${escapeHtml(String(err?.message || err || 'Histórico documental indisponível'))}</td>
+                    </tr>
+                `;
+            }
+            if (invoicesTbody) {
+                invoicesTbody.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="text-center text-muted">${escapeHtml(String(err?.message || err || 'Notas fiscais indisponíveis'))}</td>
                     </tr>
                 `;
             }
