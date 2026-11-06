@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import calendar
 from collections import defaultdict
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from typing import Any
 
 from flask import current_app, has_request_context, url_for
@@ -463,6 +464,239 @@ class GeneralSearchService:
                 for row in fiscal_history
             ],
             "download_url": _safe_url_for("reports.by_item_download", search=item_code, type="item", period=normalized_period),
+        }
+
+    def build_item_consumption_payload(self, codigo_item: str, *, period: str = "7d") -> dict[str, Any]:
+        item_code = str(codigo_item or "").strip()
+        if not item_code:
+            raise ValueError("Material ou ferramenta não informado.")
+
+        period = str(period or "7d").strip().lower()
+        if period not in {"7d", "30d", "month", "3m", "6m", "12m"}:
+            period = "7d"
+
+        def subtract_months(value: date, months: int) -> date:
+            month_index = value.year * 12 + value.month - 1 - months
+            year, month_zero_based = divmod(month_index, 12)
+            month = month_zero_based + 1
+            day = min(value.day, calendar.monthrange(year, month)[1])
+            return date(year, month, day)
+
+        item = Item.query.get(item_code)
+        history = None
+        if item is None:
+            history = (
+                EntradaFiscalHistorico.query
+                .filter(EntradaFiscalHistorico.codigo_item == item_code)
+                .order_by(EntradaFiscalHistorico.ocorrido_em.desc(), EntradaFiscalHistorico.id.desc())
+                .first()
+            )
+        if item is None and history is None:
+            raise ValueError("Material ou ferramenta não encontrado.")
+
+        today = TimeService.now_local().date()
+        if period == "month":
+            current_start = today.replace(day=1)
+            current_days = (today - current_start).days + 1
+            previous_start = subtract_months(current_start, 1)
+            previous_end = min(
+                previous_start + timedelta(days=current_days - 1),
+                date(previous_start.year, previous_start.month, calendar.monthrange(previous_start.year, previous_start.month)[1]),
+            )
+            previous_end_exclusive = previous_end + timedelta(days=1)
+            period_label = "Mês atual até hoje"
+            previous_label = "Mesmo intervalo do mês anterior"
+        elif period.endswith("m"):
+            months = int(period[:-1])
+            current_start = subtract_months(today + timedelta(days=1), months)
+            previous_start = subtract_months(current_start, months)
+            previous_end = current_start - timedelta(days=1)
+            previous_end_exclusive = current_start
+            period_label = f"Últimos {months} meses"
+            previous_label = f"{months} meses anteriores"
+        else:
+            days = int(period[:-1])
+            current_start = today - timedelta(days=days - 1)
+            previous_start = current_start - timedelta(days=days)
+            previous_end = current_start - timedelta(days=1)
+            previous_end_exclusive = current_start
+            period_label = f"Últimos {days} dias"
+            previous_label = f"{days} dias anteriores"
+        tomorrow = today + timedelta(days=1)
+        current_start_dt = datetime.combine(current_start, time.min)
+        previous_start_dt = datetime.combine(previous_start, time.min)
+        tomorrow_dt = datetime.combine(tomorrow, time.min)
+        previous_end_dt = datetime.combine(previous_end_exclusive, time.min)
+
+        rows = (
+            db.session.query(
+                Saida.id_saida,
+                Saida.quantidade,
+                Saida.data_saida,
+                Saida.local_servico,
+                Saida.matricula.label("user_matricula"),
+                Usuario.nome.label("user_name"),
+            )
+            .join(Usuario, Saida.matricula == Usuario.matricula, isouter=True)
+            .filter(
+                Saida.codigo_item == item_code,
+                Saida.data_saida >= previous_start_dt,
+                Saida.data_saida < tomorrow_dt,
+            )
+            .order_by(Saida.data_saida.desc(), Saida.id_saida.desc())
+            .all()
+        )
+
+        current_totals: dict[str, dict[str, Any]] = {}
+        previous_totals: dict[str, dict[str, Any]] = {}
+        daily_totals: dict[date, dict[str, Any]] = {}
+        current_quantity = previous_quantity = 0.0
+        current_count = previous_count = 0
+        movements: list[dict[str, Any]] = []
+
+        period_span = (today - previous_start).days + 1
+        for day_offset in range(period_span):
+            bucket_date = previous_start + timedelta(days=day_offset)
+            daily_totals[bucket_date] = {"date_label": bucket_date.strftime("%d/%m"), "quantity": 0.0, "count": 0}
+
+        for row in rows:
+            quantity = _safe_float(row.quantidade)
+            movement_date = TimeService.to_local(row.data_saida).date()
+            is_current = movement_date >= current_start_dt.date()
+            if not is_current and movement_date >= previous_end_dt.date():
+                continue
+            totals = current_totals if is_current else previous_totals
+            totals["all"] = totals.get("all", {"quantity": 0.0, "count": 0})
+            totals["all"]["quantity"] += quantity
+            totals["all"]["count"] += 1
+            if is_current:
+                current_quantity += quantity
+                current_count += 1
+            else:
+                previous_quantity += quantity
+                previous_count += 1
+
+            bucket = daily_totals.get(movement_date)
+            if bucket is not None:
+                bucket["quantity"] += quantity
+                bucket["count"] += 1
+
+            employee_name = str(row.user_name or "").strip() or (
+                f"Matrícula {row.user_matricula}" if row.user_matricula else "Não identificado"
+            )
+            employee_key = str(row.user_matricula or employee_name)
+            employee_bucket = totals.setdefault(
+                f"user:{employee_key}",
+                {"name": employee_name, "quantity": 0.0, "count": 0},
+            )
+            employee_bucket["quantity"] += quantity
+            employee_bucket["count"] += 1
+
+            location_name = str(row.local_servico or "").strip() or "Sem local informado"
+            location_bucket = totals.setdefault(
+                f"local:{location_name}",
+                {"name": location_name, "quantity": 0.0, "count": 0},
+            )
+            location_bucket["quantity"] += quantity
+            location_bucket["count"] += 1
+
+            movements.append(
+                {
+                    "date": TimeService.format_local(row.data_saida, "%d/%m/%Y %H:%M"),
+                    "employee": employee_name,
+                    "employee_id": row.user_matricula or "N/D",
+                    "quantity": round(quantity, 3),
+                    "location": location_name,
+                }
+            )
+
+        percent_change = (
+            round(((current_quantity - previous_quantity) / previous_quantity) * 100, 1)
+            if previous_quantity > 0
+            else None
+        )
+        if previous_quantity <= 0 < current_quantity:
+            trend = "Novo consumo no período"
+        elif percent_change is not None and percent_change > 0:
+            trend = "Consumo em alta"
+        elif percent_change is not None and percent_change < 0:
+            trend = "Consumo em queda"
+        else:
+            trend = "Consumo estável"
+
+        def rank_period(period_totals: dict[str, dict[str, Any]], prefix: str) -> list[dict[str, Any]]:
+            ranked = [
+                {"name": value["name"], "quantity": round(value["quantity"], 3), "count": value["count"]}
+                for key, value in period_totals.items()
+                if key.startswith(prefix)
+            ]
+            return sorted(ranked, key=lambda value: (-value["quantity"], value["name"].casefold()))[:10]
+
+        item_description = (
+            item.descricao if item else (history.descricao_item or item_code)
+        )
+        item_category = item.categoria if item else (history.categoria_item or "Sem categoria")
+        if period_span > 90:
+            grouped_daily: dict[tuple[str, str], dict[str, Any]] = {}
+            for bucket_date, bucket in daily_totals.items():
+                period_kind = "atual" if bucket_date >= current_start else "anterior"
+                month_key = (bucket_date.strftime("%Y-%m"), period_kind)
+                month_bucket = grouped_daily.setdefault(
+                    month_key,
+                    {
+                        "date_label": f"{bucket_date.strftime('%m/%Y')} · {period_kind}",
+                        "quantity": 0.0,
+                        "count": 0,
+                        "period": period_kind,
+                    },
+                )
+                month_bucket["quantity"] += bucket["quantity"]
+                month_bucket["count"] += bucket["count"]
+            daily_series = [
+                {**bucket, "quantity": round(bucket["quantity"], 3)}
+                for _, bucket in sorted(grouped_daily.items())
+            ]
+        else:
+            daily_series = [
+                {
+                    **bucket,
+                    "quantity": round(bucket["quantity"], 3),
+                    "period": "atual" if bucket_date >= current_start else "anterior",
+                }
+                for bucket_date, bucket in sorted(daily_totals.items())
+            ]
+
+        return {
+            "item": {
+                "codigo": item_code,
+                "descricao": item_description,
+                "categoria": item_category or "Sem categoria",
+                "unidade": (item.unidade if item else None) or "unidade(s)",
+                "saldo_atual": _safe_float(item.get_saldo_fisico_total()) if item else None,
+                "historical_only": item is None,
+            },
+            "period": {
+                "key": period,
+                "label": period_label,
+                "previous_label": previous_label,
+                "current_start": current_start.strftime("%d/%m/%Y"),
+                "current_end": today.strftime("%d/%m/%Y"),
+                "previous_start": previous_start.strftime("%d/%m/%Y"),
+                "previous_end": previous_end.strftime("%d/%m/%Y"),
+            },
+            "summary": {
+                "current_quantity": round(current_quantity, 3),
+                "previous_quantity": round(previous_quantity, 3),
+                "difference": round(current_quantity - previous_quantity, 3),
+                "percent_change": percent_change,
+                "trend": trend,
+                "current_withdrawals": current_count,
+                "previous_withdrawals": previous_count,
+            },
+            "top_employees": rank_period(current_totals, "user:"),
+            "top_locations": rank_period(current_totals, "local:"),
+            "daily_totals": daily_series,
+            "movements": movements,
         }
 
     def build_daily_payload(self, *, selected_date: date, search_term: str = "") -> dict[str, Any]:

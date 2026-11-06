@@ -647,6 +647,150 @@ def general_search_item_api(codigo_item: str):
     return jsonify({"success": True, **payload})
 
 
+@bp.route("/api/pesquisa-consumo/item/<path:codigo_item>")
+@login_required
+def item_consumption_api(codigo_item: str):
+    period = (request.args.get("period") or "7d").strip().lower()
+    if period not in {"7d", "30d", "month", "3m", "6m", "12m"}:
+        period = "7d"
+    try:
+        payload = general_search_service.build_item_consumption_payload(codigo_item, period=period)
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 404
+
+    payload["pdf_url"] = url_for("reports.item_consumption_pdf", codigo_item=codigo_item, period=period)
+    return jsonify({"success": True, **payload})
+
+
+@bp.route("/pesquisa-consumo/item/<path:codigo_item>/pdf")
+@login_required
+def item_consumption_pdf(codigo_item: str):
+    period_key = (request.args.get("period") or "7d").strip().lower()
+    if period_key not in {"7d", "30d", "month", "3m", "6m", "12m"}:
+        period_key = "7d"
+    try:
+        payload = general_search_service.build_item_consumption_payload(codigo_item, period=period_key)
+    except ValueError as exc:
+        abort(404, description=str(exc))
+
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib.units import cm
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    from xml.sax.saxutils import escape
+
+    buffer = BytesIO()
+    document = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(A4),
+        rightMargin=1.2 * cm,
+        leftMargin=1.2 * cm,
+        topMargin=1.2 * cm,
+        bottomMargin=1.2 * cm,
+        title=f"Consumo - {payload['item']['descricao']}",
+    )
+    styles = getSampleStyleSheet()
+    normal = styles["BodyText"]
+    small = styles["BodyText"]
+    small.fontSize = 8
+    small.leading = 10
+    period = payload["period"]
+    summary = payload["summary"]
+    item = payload["item"]
+
+    story = [Paragraph("Relatório de consumo por material/ferramenta", styles["Title"])]
+    story.append(Spacer(1, 0.3 * cm))
+    story.append(Paragraph(f"<b>Material:</b> {escape(item['descricao'])}", normal))
+    story.append(Paragraph(
+        f"<b>Código:</b> {escape(item['codigo'])} &nbsp;&nbsp; "
+        f"<b>Categoria:</b> {escape(item['categoria'])} &nbsp;&nbsp; "
+        f"<b>Unidade:</b> {escape(item['unidade'])}",
+        normal,
+    ))
+    story.append(Paragraph(
+        f"<b>{escape(period['label'])}:</b> {period['current_start']} a {period['current_end']} "
+        f"&nbsp;&nbsp; <b>{escape(period['previous_label'])}:</b> {period['previous_start']} a {period['previous_end']}",
+        normal,
+    ))
+    change_label = f"{summary['percent_change']}%" if summary["percent_change"] is not None else "Sem base anterior"
+    story.append(Paragraph(
+        f"<b>Consumo atual:</b> {summary['current_quantity']:,.3f} {escape(item['unidade'])} "
+        f"&nbsp;&nbsp; <b>Anterior:</b> {summary['previous_quantity']:,.3f} "
+        f"&nbsp;&nbsp; <b>Variação:</b> {change_label} ({escape(summary['trend'])})",
+        normal,
+    ))
+    story.append(Spacer(1, 0.35 * cm))
+
+    story.append(Paragraph("Quem mais retirou no período atual", styles["Heading2"]))
+    employees = [["Colaborador", "Quantidade", "Retiradas"]]
+    employees.extend([
+        [Paragraph(escape(row["name"]), small), f"{row['quantity']:,.3f}", str(row["count"])]
+        for row in payload["top_employees"]
+    ] or [["Sem retiradas no período", "-", "-"]])
+    employee_table = Table(employees, colWidths=[12 * cm, 4 * cm, 3 * cm], repeatRows=1)
+    employee_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1e3a8a")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#cbd5e1")),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f1f5f9")]),
+    ]))
+    story.append(employee_table)
+    story.append(Spacer(1, 0.35 * cm))
+
+    story.append(Paragraph("Locais com mais retiradas no período atual", styles["Heading2"]))
+    location_rows = [["Local", "Quantidade", "Retiradas"]]
+    location_rows.extend([
+        [Paragraph(escape(row["name"]), small), f"{row['quantity']:,.3f}", str(row["count"])]
+        for row in payload["top_locations"]
+    ] or [["Sem local identificado no período", "-", "-"]])
+    location_table = Table(location_rows, colWidths=[12 * cm, 4 * cm, 3 * cm], repeatRows=1)
+    location_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1e3a8a")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#cbd5e1")),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f1f5f9")]),
+    ]))
+    story.append(location_table)
+    story.append(Spacer(1, 0.35 * cm))
+
+    story.append(Paragraph("Retiradas registradas (últimos 14 dias)", styles["Heading2"]))
+    movement_rows = [["Data", "Colaborador", "Matrícula", "Quantidade", "Local"]]
+    movement_rows.extend([
+        [
+            row["date"],
+            Paragraph(escape(row["employee"]), small),
+            escape(str(row["employee_id"])),
+            f"{row['quantity']:,.3f}",
+            Paragraph(escape(row["location"]), small),
+        ]
+        for row in payload["movements"]
+    ] or [["-", "Nenhuma retirada registrada", "-", "-", "-"]])
+    movement_table = Table(
+        movement_rows,
+        colWidths=[3.2 * cm, 6 * cm, 3 * cm, 3 * cm, 6 * cm],
+        repeatRows=1,
+    )
+    movement_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1e3a8a")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 8),
+        ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#cbd5e1")),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f1f5f9")]),
+    ]))
+    story.append(movement_table)
+    document.build(story)
+    buffer.seek(0)
+    filename = f"consumo-{re.sub(r'[^A-Za-z0-9_-]+', '-', item['codigo']).strip('-') or 'material'}.pdf"
+    return send_file(buffer, mimetype="application/pdf", as_attachment=True, download_name=filename)
+
+
 @bp.route("/api/pesquisa-geral/diario")
 @login_required
 def general_search_daily_api():

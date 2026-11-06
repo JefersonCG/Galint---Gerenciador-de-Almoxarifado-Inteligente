@@ -1,8 +1,15 @@
 <div class="sidebar-wrapper">
     {% set sidebar = build_sidebar_navigation() %}
-    <div class="sidebar-brand px-3 py-4 text-uppercase text-light">
-        <strong>GALINT</strong>
-        <small class="text-white-50 d-block">{{ sidebar.mode_label if sidebar.mode_label else 'Gestão de Almoxarifado' }}</small>
+    <div class="sidebar-brand px-3 py-3 text-uppercase text-light">
+        <div class="sidebar-brand-heading">
+            <button class="btn btn-sm btn-outline-light rounded-circle" id="sidebar-toggle" aria-label="Recolher menu" aria-expanded="true" title="Recolher/abrir menu">
+                <i class="bi bi-list"></i>
+            </button>
+            <div>
+                <strong class="sidebar-brand-title">{{ system_name }}</strong>
+                <small class="text-white-50 d-block">{{ sidebar.mode_label if sidebar.mode_label else 'Gestão de Almoxarifado' }}</small>
+            </div>
+        </div>
     </div>
     <div class="sidebar-scroll">
         <nav class="sidebar-menu">

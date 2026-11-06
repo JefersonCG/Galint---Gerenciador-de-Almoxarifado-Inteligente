@@ -8,22 +8,24 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <link rel="stylesheet" href="${url_for('static', filename='css/galint-tokens.css')}?v=20260924">
-    <link rel="stylesheet" href="${url_for('static', filename='css/qss_like.css')}">
+    <link rel="stylesheet" href="${url_for('static', filename='css/qss_like.css')}?v=20261106">
+    <link rel="stylesheet" href="${url_for('static', filename='css/consumption-search.css')}?v=20261106">
     <script src="${url_for('static', filename='js/galint-core.js')}?v=20260924"></script>
     <%block name="extra_css"></%block>
 </head>
 
 <body class="layout-shell<%block name='body_class'></%block>">
     <header class="topbar shadow-sm">
-        <div class="d-flex align-items-center gap-2">
-            <button class="btn btn-sm btn-outline-light rounded-circle" id="sidebar-toggle" aria-label="Alternar menu">
-                <i class="bi bi-list"></i>
-            </button>
-            <div class="topbar-brand">
-                <span class="brand-title">${system_name}</span>
-                <small class="text-muted">Sistema pensado para almoxarifado</small>
-            </div>
-        </div>
+        % if current_user.is_authenticated:
+        <form class="topbar-item-search" id="topbar-item-search" role="search"
+            data-suggestions-url="${url_for('reports.general_search_suggestions_api')}"
+            data-report-url-template="${url_for('reports.item_consumption_api', codigo_item='__CODIGO__')}">
+            <label class="visually-hidden" for="topbar-item-query">Pesquisar material ou ferramenta</label>
+            <i class="bi bi-search" aria-hidden="true"></i>
+            <input id="topbar-item-query" class="form-control" type="search" placeholder="Pesquisar material ou ferramenta" autocomplete="off" aria-controls="topbar-item-suggestions" aria-expanded="false">
+            <div class="topbar-item-suggestions d-none" id="topbar-item-suggestions" role="listbox"></div>
+        </form>
+        % endif
         <div class="topbar-actions d-flex align-items-center gap-3">
             % if current_user.is_authenticated:
                 <span class="text-light">${current_user.nome}</span>
@@ -52,13 +54,49 @@
             <%block name="content"></%block>
         </section>
     </div>
+    % if current_user.is_authenticated:
+    <div class="modal fade" id="itemConsumptionModal" tabindex="-1" aria-labelledby="itemConsumptionModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content consumption-modal-content">
+                <div class="modal-header">
+                    <div>
+                        <span class="consumption-modal-kicker"><i class="bi bi-graph-up-arrow"></i> Análise de consumo</span>
+                        <h2 class="modal-title fs-5" id="itemConsumptionModalTitle">Material ou ferramenta</h2>
+                        <div class="small text-muted" id="itemConsumptionSubtitle"></div>
+                    </div>
+                    <label class="visually-hidden" for="itemConsumptionPeriod">Período de comparação</label>
+                    <select class="form-select form-select-sm consumption-period-select" id="itemConsumptionPeriod" aria-label="Período de comparação">
+                        <option value="7d">7 dias</option>
+                        <option value="30d">30 dias</option>
+                        <option value="month">Mês atual</option>
+                        <option value="3m">3 meses</option>
+                        <option value="6m">6 meses</option>
+                        <option value="12m">12 meses</option>
+                    </select>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body" id="itemConsumptionContent" aria-live="polite">
+                    <div class="consumption-loading"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Calculando consumo...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    % endif
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    % if current_user.is_authenticated:
+    <script src="${url_for('static', filename='js/consumption-search.js')}?v=20261106"></script>
+    % endif
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const toggle = document.getElementById('sidebar-toggle');
             const sidebar = document.getElementById('sidebar-column');
             toggle?.addEventListener('click', () => {
-                sidebar?.classList.toggle('collapsed');
+                if (!sidebar) {
+                    return;
+                }
+                const isCollapsed = sidebar.classList.toggle('collapsed');
+                toggle.setAttribute('aria-expanded', String(!isCollapsed));
+                toggle.setAttribute('aria-label', isCollapsed ? 'Abrir menu' : 'Recolher menu');
             });
 
             document.querySelectorAll('[data-sidebar-target]').forEach((toggleBtn) => {
