@@ -117,7 +117,7 @@
     % endif
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     % if current_user.is_authenticated and endpoint_exists('reports.general_search_suggestions_api'):
-    <script src="${url_for('static', filename='js/consumption-search.js')}?v=20261106"></script>
+    <script src="${url_for('static', filename='js/consumption-search.js')}?v=nf-unified-1"></script>
     % endif
     % if current_user.is_authenticated and endpoint_exists('nf.buscar_documento_modal'):
     <script src="${url_for('static', filename='js/nf-search-modal.js')}?v=20261105"></script>
