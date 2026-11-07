@@ -129,15 +129,48 @@
         const modalElement = document.getElementById('itemConsumptionModal');
         const content = document.getElementById('itemConsumptionContent');
         const periodSelect = document.getElementById('itemConsumptionPeriod');
-        if (!searchForm || !searchInput || !suggestions || !modalElement || !content || !periodSelect || !window.bootstrap) {
+        const nfForm = document.querySelector('.topbar-nf-search');
+        const nfInput = document.getElementById('topbar-nf-query');
+        const invoiceSearchAvailable = Boolean(nfForm && nfInput);
+        const itemSearchAvailable = searchForm?.dataset.itemSearchAvailable === 'true'
+            && Boolean(modalElement && content && periodSelect);
+        if (!searchForm || !searchInput || !suggestions || !window.bootstrap) {
             return;
         }
 
-        const modal = window.bootstrap.Modal.getOrCreateInstance(modalElement);
+        const modal = itemSearchAvailable ? window.bootstrap.Modal.getOrCreateInstance(modalElement) : null;
         let timer = 0;
         let requestId = 0;
         let selectedCode = '';
         let suggestionsData = [];
+        let latestQuery = '';
+
+        function searchInvoice(query) {
+            if (!invoiceSearchAvailable) {
+                return;
+            }
+            nfInput.value = String(query || '').replace(/^(?:nf|chave)\s*[:#-]?\s*/i, '').trim();
+            nfForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        }
+
+        function looksLikeAccessKey(query) {
+            return String(query || '').replace(/\D/g, '').length === 44;
+        }
+
+        function looksLikeInvoiceQuery(query) {
+            return /^(?:nf|chave)(?:\s*[:#-]\s*|\s+)/i.test(String(query || '').trim());
+        }
+
+        function renderInvoiceOption(query) {
+            if (!invoiceSearchAvailable) {
+                return '';
+            }
+            return ''
+                + '<button type="button" class="topbar-item-suggestion topbar-item-suggestion--invoice" data-search-invoice="1">'
+                + '<span class="topbar-item-suggestion-title"><i class="bi bi-receipt me-2"></i>Buscar nota fiscal ou chave de acesso</span>'
+                + '<span class="topbar-item-suggestion-meta"><span>' + escapeHtml(query) + '</span></span>'
+                + '</button>';
+        }
 
         function hideSuggestions() {
             suggestions.classList.add('d-none');
@@ -146,6 +179,9 @@
         }
 
         async function openItem(item) {
+            if (!itemSearchAvailable || !modal || !content) {
+                return;
+            }
             selectedCode = String(item.codigo_item || item.id || '').trim();
             if (!selectedCode) {
                 return;
@@ -184,18 +220,14 @@
 
         function renderSuggestions(rows) {
             suggestionsData = Array.isArray(rows) ? rows : [];
-            if (!suggestionsData.length) {
-                suggestions.innerHTML = '<div class="topbar-item-suggestion-empty">Nenhum material ou ferramenta localizado.</div>';
-                suggestions.classList.remove('d-none');
-                suggestions.setAttribute('aria-expanded', 'true');
-                searchInput.setAttribute('aria-expanded', 'true');
-                return;
-            }
-            suggestions.innerHTML = suggestionsData.map((item, index) => ''
+            const itemMarkup = suggestionsData.map((item, index) => ''
                 + '<button type="button" class="topbar-item-suggestion" role="option" aria-selected="false" data-item-index="' + index + '">'
                 + '<span class="topbar-item-suggestion-title">' + escapeHtml(item.title || item.codigo_item || 'Material') + '</span>'
                 + '<span class="topbar-item-suggestion-meta"><span>' + escapeHtml(item.subtitle || '') + '</span><span>' + escapeHtml(item.badge || '') + '</span></span>'
                 + '</button>').join('');
+            suggestions.innerHTML = (itemMarkup || (itemSearchAvailable
+                ? '<div class="topbar-item-suggestion-empty">Nenhum material ou ferramenta localizado.</div>'
+                : '')) + renderInvoiceOption(latestQuery);
             suggestions.classList.remove('d-none');
             suggestions.setAttribute('aria-expanded', 'true');
             searchInput.setAttribute('aria-expanded', 'true');
@@ -207,9 +239,19 @@
                     }
                 });
             });
+            suggestions.querySelector('[data-search-invoice]')?.addEventListener('click', () => {
+                searchInvoice(latestQuery);
+                hideSuggestions();
+            });
         }
 
         async function searchItems(query) {
+            latestQuery = query;
+            if (!itemSearchAvailable) {
+                suggestionsData = [];
+                renderSuggestions([]);
+                return;
+            }
             const url = new URL(searchForm.dataset.suggestionsUrl || '', window.location.origin);
             url.searchParams.set('scope', 'item');
             url.searchParams.set('q', query);
@@ -230,6 +272,7 @@
             window.clearTimeout(timer);
             const query = searchInput.value.trim();
             if (query.length < 2) {
+                latestQuery = query;
                 hideSuggestions();
                 return;
             }
@@ -239,15 +282,27 @@
         searchInput.addEventListener('keydown', (event) => {
             if (event.key === 'Escape') {
                 hideSuggestions();
-            } else if (event.key === 'Enter' && suggestionsData.length) {
+            } else if (event.key === 'Enter') {
                 event.preventDefault();
-                void openItem(suggestionsData[0]);
+                const query = searchInput.value.trim();
+                if (invoiceSearchAvailable && (looksLikeAccessKey(query) || looksLikeInvoiceQuery(query) || !itemSearchAvailable || !suggestionsData.length)) {
+                    searchInvoice(query);
+                    hideSuggestions();
+                } else {
+                    if (suggestionsData.length) {
+                        void openItem(suggestionsData[0]);
+                    }
+                }
             }
         });
 
         searchForm.addEventListener('submit', (event) => {
             event.preventDefault();
-            if (suggestionsData.length) {
+            const query = searchInput.value.trim();
+            if (invoiceSearchAvailable && (looksLikeAccessKey(query) || looksLikeInvoiceQuery(query) || !itemSearchAvailable || !suggestionsData.length)) {
+                searchInvoice(query);
+                hideSuggestions();
+            } else if (suggestionsData.length) {
                 void openItem(suggestionsData[0]);
             }
         });
@@ -258,8 +313,8 @@
             }
         });
 
-        periodSelect.addEventListener('change', () => { void loadReport(); });
-        modalElement.addEventListener('hidden.bs.modal', () => {
+        periodSelect?.addEventListener('change', () => { void loadReport(); });
+        modalElement?.addEventListener('hidden.bs.modal', () => {
             selectedCode = '';
             requestId += 1;
         });

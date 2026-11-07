@@ -27,14 +27,42 @@ $script:trackOn = [Drawing.Color]::FromArgb(255, 239, 0)
 
 function Get-GalintProcesses {
     $pythonPaths = @($script:pythonCandidates | Where-Object { Test-Path $_ } | ForEach-Object { [IO.Path]::GetFullPath($_) })
-    $processes = @(Get-CimInstance -ClassName Win32_Process | Where-Object {
+    $allPythonProcesses = @(Get-CimInstance -ClassName Win32_Process | Where-Object {
         ($_.Name -eq 'python.exe' -or $_.Name -eq 'pythonw.exe') -and
-        $_.ExecutablePath -and $_.CommandLine -and
+        $_.ExecutablePath -and $_.CommandLine
+    })
+    $waitressProcesses = @($allPythonProcesses | Where-Object {
         ($pythonPaths -contains [IO.Path]::GetFullPath($_.ExecutablePath)) -and
         $_.CommandLine.IndexOf('-m waitress', [StringComparison]::OrdinalIgnoreCase) -ge 0 -and
         $_.CommandLine.IndexOf('galint_flask:create_app', [StringComparison]::OrdinalIgnoreCase) -ge 0
     })
-    return $processes
+    if ($waitressProcesses.Count -gt 0) {
+        return $waitressProcesses
+    }
+
+    $listener = Get-NetTCPConnection -State Listen -LocalPort 5000 -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if (-not $listener) {
+        return @()
+    }
+
+    $portProcess = $allPythonProcesses | Where-Object { $_.ProcessId -eq $listener.OwningProcess } |
+        Select-Object -First 1
+    if (-not $portProcess -or $portProcess.CommandLine -notmatch '(^|\s|[\\/])app\.py(["\s]|$)') {
+        return @()
+    }
+
+    try {
+        $health = Invoke-RestMethod -Uri 'http://127.0.0.1:5000/api/health' -TimeoutSec 2
+        if ($health.status -eq 'ok') {
+            return @($portProcess)
+        }
+    }
+    catch [System.Net.WebException] {
+        return @()
+    }
+
+    return @()
 }
 
 function Test-GalintPort {

@@ -10,14 +10,15 @@
     {% set hide_topbar = hide_topbar|default(maintenance_hide_topbar|default(false)) %}
     {% set is_administration_surface = current_user.is_authenticated and session.get('galint_management_access') and (session.get('galint_management_module') == 'administracao' or request.path.startswith('/administracao')) %}
     {% set general_search_mode = 'administracao' if is_administration_surface and endpoint_exists('reports.general_search_administration_api') else 'operacional' %}
-    {% set material_search_available = current_user.is_authenticated and not disable_global_tools and endpoint_exists('reports.general_search_suggestions_api') and endpoint_exists('reports.item_consumption_api') and endpoint_exists('reports.item_consumption_pdf') %}
     {% set general_search_available = current_user.is_authenticated and not disable_global_tools and endpoint_exists('reports.general_search_suggestions_api') and endpoint_exists('reports.general_search_employee_api') and endpoint_exists('reports.general_search_item_api') and endpoint_exists('reports.general_search_daily_api') %}
+    {% set material_search_available = current_user.is_authenticated and not disable_global_tools and endpoint_exists('reports.general_search_suggestions_api') and endpoint_exists('reports.item_consumption_api') and endpoint_exists('reports.item_consumption_pdf') %}
+    {% set topbar_search_available = current_user.is_authenticated and not disable_global_tools and (material_search_available or endpoint_exists('nf.buscar_documento_modal')) %}
     {% set is_workspace_window = request.args.get('workspace_window', '').strip().lower() in ('1', 'true', 'yes') %}
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/galint-tokens.css', v='20260924') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/qss_like.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/qss_like.css', v='20261105-nf-search-modal') }}">
     <script src="{{ url_for('static', filename='js/galint-core.js', v='20260924') }}"></script>
     {% if general_search_available %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/general-search-modal.css', v='20260506-admin') }}">
@@ -189,14 +190,26 @@
 <body class="layout-shell {% if is_workspace_window %}workspace-window-mode {% endif %}{% block body_class %}{% endblock %}" {% block body_attributes %}{% endblock %}>
     {% if not hide_topbar %}
     <header class="topbar shadow-sm">
-        {% if material_search_available %}
+        {% if topbar_search_available %}
         <form class="topbar-item-search" id="topbar-item-search" role="search"
+            data-item-search-available="{{ 'true' if material_search_available else 'false' }}"
+            {% if material_search_available %}
             data-suggestions-url="{{ url_for('reports.general_search_suggestions_api') }}"
-            data-report-url-template="{{ url_for('reports.item_consumption_api', codigo_item='__CODIGO__') }}">
-            <label class="visually-hidden" for="topbar-item-query">Pesquisar material ou ferramenta</label>
+            data-report-url-template="{{ url_for('reports.item_consumption_api', codigo_item='__CODIGO__') }}"
+            {% endif %}>
+            <label class="visually-hidden" for="topbar-item-query">Pesquisar material, ferramenta, NF ou chave de acesso</label>
             <i class="bi bi-search" aria-hidden="true"></i>
-            <input id="topbar-item-query" class="form-control" type="search" placeholder="Pesquisar material ou ferramenta" autocomplete="off" aria-controls="topbar-item-suggestions" aria-expanded="false">
+            <input id="topbar-item-query" class="form-control" type="search" placeholder="Material, ferramenta, nº NF ou chave de acesso" autocomplete="off" aria-controls="topbar-item-suggestions" aria-expanded="false">
             <div class="topbar-item-suggestions d-none" id="topbar-item-suggestions" role="listbox"></div>
+        </form>
+        {% endif %}
+        {% if current_user.is_authenticated and not disable_global_tools and endpoint_exists('nf.buscar_documento_modal') %}
+        <form class="topbar-nf-search d-none" data-search-url="{{ url_for('nf.buscar_documento_modal') }}" role="search" aria-label="Buscar nota fiscal">
+            <label class="visually-hidden" for="topbar-nf-query">Número da NF ou chave de acesso</label>
+            <input id="topbar-nf-query" class="form-control" type="search" name="nota" value="{{ request.args.get('nota', '') }}" placeholder="Nº da NF ou chave de acesso" autocomplete="off">
+            <button class="btn btn-sm btn-outline-light" type="submit" aria-label="Buscar nota fiscal" title="Buscar nota fiscal">
+                <i class="bi bi-search" aria-hidden="true"></i>
+            </button>
         </form>
         {% endif %}
         <div class="topbar-actions d-flex align-items-center gap-3">
@@ -284,6 +297,26 @@
     {% include 'partials/general_search_modal.html' %}
     {% endif %}
 
+    {% if current_user.is_authenticated and not disable_global_tools and endpoint_exists('nf.buscar_documento_modal') %}
+    <div class="modal fade" id="nfSearchModal" tabindex="-1" aria-labelledby="nfSearchModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content nf-search-modal-content">
+                <div class="modal-header">
+                    <div>
+                        <h2 class="modal-title fs-5" id="nfSearchModalTitle">Nota fiscal</h2>
+                        <div class="small text-muted" id="nfSearchModalSubtitle"></div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="nfSearchModalFeedback" class="small" role="status" aria-live="polite"></div>
+                    <div id="nfSearchModalContent" class="d-none"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     {% if material_search_available %}
     <div class="modal fade" id="itemConsumptionModal" tabindex="-1" aria-labelledby="itemConsumptionModalTitle" aria-hidden="true">
         <div class="modal-dialog modal-xl modal-dialog-scrollable">
@@ -312,11 +345,15 @@
         </div>
     </div>
     {% endif %}
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    {% if material_search_available %}
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+    {% if current_user.is_authenticated and not disable_global_tools and endpoint_exists('nf.buscar_documento_modal') %}
+    <script src="{{ url_for('static', filename='js/nf-search-modal.js', v='20261105') }}"></script>
+    {% endif %}
+    {% if topbar_search_available %}
     <script src="{{ url_for('static', filename='js/consumption-search.js', v='20261106') }}"></script>
     {% endif %}
-    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
     <script>
         (function () {
             function isValidEan8(raw) {

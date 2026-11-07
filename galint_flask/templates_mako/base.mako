@@ -16,14 +16,28 @@
 
 <body class="layout-shell<%block name='body_class'></%block>">
     <header class="topbar shadow-sm">
-        % if current_user.is_authenticated:
+        % if current_user.is_authenticated and endpoint_exists('reports.general_search_suggestions_api') and endpoint_exists('reports.item_consumption_api') and endpoint_exists('reports.item_consumption_pdf'):
         <form class="topbar-item-search" id="topbar-item-search" role="search"
             data-suggestions-url="${url_for('reports.general_search_suggestions_api')}"
+            data-item-search-available="true"
             data-report-url-template="${url_for('reports.item_consumption_api', codigo_item='__CODIGO__')}">
-            <label class="visually-hidden" for="topbar-item-query">Pesquisar material ou ferramenta</label>
+            <label class="visually-hidden" for="topbar-item-query">Pesquisar material, ferramenta, NF ou chave de acesso</label>
             <i class="bi bi-search" aria-hidden="true"></i>
-            <input id="topbar-item-query" class="form-control" type="search" placeholder="Pesquisar material ou ferramenta" autocomplete="off" aria-controls="topbar-item-suggestions" aria-expanded="false">
+            <input id="topbar-item-query" class="form-control" type="search" placeholder="Material, ferramenta, nº NF ou chave de acesso" autocomplete="off" aria-controls="topbar-item-suggestions" aria-expanded="false">
             <div class="topbar-item-suggestions d-none" id="topbar-item-suggestions" role="listbox"></div>
+        </form>
+        % elif current_user.is_authenticated and endpoint_exists('nf.buscar_documento_modal'):
+        <form class="topbar-item-search" id="topbar-item-search" role="search" data-item-search-available="false">
+            <label class="visually-hidden" for="topbar-item-query">Pesquisar nota fiscal ou chave de acesso</label>
+            <i class="bi bi-search" aria-hidden="true"></i>
+            <input id="topbar-item-query" class="form-control" type="search" placeholder="Material, ferramenta, nº NF ou chave de acesso" autocomplete="off" aria-controls="topbar-item-suggestions" aria-expanded="false">
+            <div class="topbar-item-suggestions d-none" id="topbar-item-suggestions" role="listbox"></div>
+        </form>
+        % endif
+        % if current_user.is_authenticated and endpoint_exists('nf.buscar_documento_modal'):
+        <form class="topbar-nf-search d-none" data-search-url="${url_for('nf.buscar_documento_modal')}" role="search" aria-label="Buscar nota fiscal">
+            <input id="topbar-nf-query" type="hidden" name="nota">
+            <button type="submit" tabindex="-1" aria-hidden="true"></button>
         </form>
         % endif
         <div class="topbar-actions d-flex align-items-center gap-3">
@@ -54,7 +68,7 @@
             <%block name="content"></%block>
         </section>
     </div>
-    % if current_user.is_authenticated:
+    % if current_user.is_authenticated and endpoint_exists('reports.item_consumption_api') and endpoint_exists('reports.item_consumption_pdf'):
     <div class="modal fade" id="itemConsumptionModal" tabindex="-1" aria-labelledby="itemConsumptionModalTitle" aria-hidden="true">
         <div class="modal-dialog modal-xl modal-dialog-scrollable">
             <div class="modal-content consumption-modal-content">
@@ -82,9 +96,31 @@
         </div>
     </div>
     % endif
+    % if current_user.is_authenticated and endpoint_exists('nf.buscar_documento_modal'):
+    <div class="modal fade" id="nfSearchModal" tabindex="-1" aria-labelledby="nfSearchModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content nf-search-modal-content">
+                <div class="modal-header">
+                    <div>
+                        <h2 class="modal-title fs-5" id="nfSearchModalTitle">Nota fiscal</h2>
+                        <div class="small text-muted" id="nfSearchModalSubtitle"></div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="nfSearchModalFeedback" class="small" role="status" aria-live="polite"></div>
+                    <div id="nfSearchModalContent" class="d-none"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    % endif
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    % if current_user.is_authenticated:
+    % if current_user.is_authenticated and endpoint_exists('reports.general_search_suggestions_api'):
     <script src="${url_for('static', filename='js/consumption-search.js')}?v=20261106"></script>
+    % endif
+    % if current_user.is_authenticated and endpoint_exists('nf.buscar_documento_modal'):
+    <script src="${url_for('static', filename='js/nf-search-modal.js')}?v=20261105"></script>
     % endif
     <script>
         document.addEventListener('DOMContentLoaded', function () {

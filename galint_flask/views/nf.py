@@ -1614,6 +1614,83 @@ def autocomplete_documentos():
     return jsonify({"success": True, "results": finance_service.search_stock_documents(term, limit=8)})
 
 
+@blueprint.get("/api/documentos/busca-modal")
+@login_required
+def buscar_documento_modal():
+    query = (request.args.get("q") or "").strip()
+    if not query:
+        return jsonify({"success": False, "message": "Informe o número da NF ou a chave de acesso."}), 400
+
+    access_key = "".join(character for character in query if character.isdigit())
+    if len(access_key) == 44:
+        documento = finance_service.get_stock_document_by_access_key(access_key)
+    else:
+        documento = inventory_service.get_nota_fiscal(query)
+    if not documento:
+        return jsonify({"success": False, "message": "Nota fiscal não encontrada."}), 404
+
+    def _isoformat(value: Any) -> str | None:
+        if hasattr(value, "isoformat"):
+            return value.isoformat()
+        return value if isinstance(value, str) else None
+
+    itens = [
+        {
+            "codigo": item.get("codigo"),
+            "descricao": item.get("descricao"),
+            "quantidade": item.get("quantidade"),
+            "unidade_quantidade": item.get("unidade_quantidade_efetiva") or item.get("unidade_quantidade"),
+            "valor_unitario": item.get("valor_unitario"),
+            "unidade_preco": item.get("unidade_preco_efetiva") or item.get("unidade_preco"),
+            "valor_total": item.get("valor_total"),
+            "lote": item.get("lote"),
+            "data_validade": _isoformat(item.get("data_validade")),
+            "observacao": item.get("observacao"),
+            "status_processamento": item.get("status_processamento"),
+            "erro_processamento": item.get("erro_processamento"),
+        }
+        for item in documento.get("itens") or []
+    ]
+    total_valor = sum(
+        float(
+            item.get("valor_total")
+            if item.get("valor_total") is not None
+            else float(item.get("valor_unitario") or 0) * float(item.get("quantidade") or 0)
+        )
+        for item in itens
+    )
+    has_item_prices = any(
+        item.get("valor_total") is not None or item.get("valor_unitario") is not None
+        for item in itens
+    )
+    payload = {
+        "id_documento": documento.get("id_documento"),
+        "numero_documento": documento.get("numero_documento") or documento.get("nota_fiscal") or query,
+        "tipo_documento": documento.get("tipo_documento"),
+        "fornecedor_nome": documento.get("fornecedor_nome"),
+        "cnpj_emitente": documento.get("cnpj_emitente"),
+        "data_emissao": _isoformat(documento.get("data_emissao")),
+        "data_recebimento": _isoformat(documento.get("data_recebimento")),
+        "data": _isoformat(documento.get("data")),
+        "chave_acesso": documento.get("chave_acesso"),
+        "movimenta_estoque": documento.get("movimenta_estoque"),
+        "status_integracao": documento.get("status_integracao"),
+        "mensagem_integracao": documento.get("mensagem_integracao"),
+        "observacao": documento.get("observacao"),
+        "imagem_secundaria_path": documento.get("imagem_secundaria_path"),
+        "usuarios": documento.get("usuarios") or [],
+        "criado_por": documento.get("criado_por"),
+        "total_itens": documento.get("total_itens", len(itens)),
+        "total_quantidade": documento.get("total_quantidade"),
+        "total_valor": documento.get(
+            "total_valor",
+            round(total_valor, 2) if has_item_prices else None,
+        ),
+        "itens": itens,
+    }
+    return jsonify({"success": True, "document": payload})
+
+
 @blueprint.get("/api/documentos/<numero>/detalhes")
 @login_required
 def documento_detalhes(numero: str):
