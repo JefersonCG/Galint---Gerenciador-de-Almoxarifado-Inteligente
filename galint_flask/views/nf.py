@@ -3,10 +3,11 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import date, datetime
+from io import BytesIO
 from typing import Any
 from unicodedata import combining as unicodedata_combining, normalize as unicode_normalize
 
-from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, session, url_for
+from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, send_file, session, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import Date, and_, cast, func, or_
 from sqlalchemy.orm import joinedload
@@ -20,6 +21,8 @@ from ..models import (
     FinanceLedgerEntry,
     FinanceSupplier,
     Item,
+    NFeDistributionConfig,
+    NFeDistributionDocument,
     TelegramOutbox,
 )
 from ..services.category_catalog import DEFAULT_INVENTORY_CATEGORY_NAME, category_catalog_service
@@ -1627,7 +1630,39 @@ def buscar_documento_modal():
     else:
         documento = inventory_service.get_nota_fiscal(query)
     if not documento:
-        return jsonify({"success": False, "message": "Nota fiscal não encontrada."}), 404
+        if bool(getattr(current_user, "is_admin", False)):
+            recipient_config = NFeDistributionConfig.query.filter_by(id=1).first()
+            inbox_query = NFeDistributionDocument.query
+            if recipient_config:
+                inbox_query = inbox_query.filter_by(cnpj_destinatario=recipient_config.cnpj_destinatario)
+            if len(access_key) == 44:
+                inbox_document = inbox_query.filter_by(chave_acesso=access_key).first()
+            else:
+                inbox_document = inbox_query.filter_by(numero_documento=query).first()
+            if inbox_document:
+                return jsonify({
+                    "success": True,
+                    "document": {
+                        "numero_documento": inbox_document.numero_documento,
+                        "tipo_documento": "NF-e recebida",
+                        "fornecedor_nome": inbox_document.emitente,
+                        "cnpj_emitente": inbox_document.cnpj_emitente,
+                        "data_emissao": inbox_document.data_emissao.isoformat() if inbox_document.data_emissao else None,
+                        "chave_acesso": inbox_document.chave_acesso,
+                        "status_integracao": "Aguardando conferência",
+                        "mensagem_integracao": "Documento recebido pela SEFAZ; ainda não foi lançado no estoque.",
+                        "total_itens": 0,
+                        "total_quantidade": 0,
+                        "total_valor": inbox_document.valor_total,
+                        "itens": [],
+                        "inbox_url": url_for("nf.nf_sefaz_document", document_id=inbox_document.id),
+                    },
+                })
+        return jsonify({
+            "success": False,
+            "message": "Nota fiscal não encontrada.",
+            "can_register": bool(getattr(current_user, "is_admin", False)),
+        }), 404
 
     def _isoformat(value: Any) -> str | None:
         if hasattr(value, "isoformat"):
@@ -1689,6 +1724,104 @@ def buscar_documento_modal():
         "itens": itens,
     }
     return jsonify({"success": True, "document": payload})
+
+
+@blueprint.post("/api/documentos/cadastro-rapido")
+@login_required
+def cadastrar_documento_rapido():
+    _require_admin()
+    payload = request.get_json(silent=True) or request.form
+    numero = str(payload.get("numero_documento") or "").strip()
+    chave_acesso = str(payload.get("chave_acesso") or "").strip()
+    fornecedor_nome = str(payload.get("fornecedor_nome") or "").strip() or None
+    cnpj_raw = str(payload.get("cnpj_emitente") or "").strip()
+    emission_raw = str(payload.get("data_emissao") or "").strip()
+    receipt_raw = str(payload.get("data_recebimento") or "").strip()
+    data_emissao = _parse_iso_date(emission_raw)
+    data_recebimento = _parse_iso_date(receipt_raw)
+    if emission_raw and data_emissao is None:
+        return jsonify({"success": False, "message": "A data de emissão é inválida."}), 400
+    if receipt_raw and data_recebimento is None:
+        return jsonify({"success": False, "message": "A data de recebimento é inválida."}), 400
+
+    decoded_key = None
+    if chave_acesso:
+        decoded_key, error = _decode_nfe_access_key(chave_acesso)
+        if error or decoded_key is None:
+            return jsonify({"success": False, "message": error or "Chave de acesso inválida."}), 400
+        chave_acesso = decoded_key["chave_acesso"]
+        if numero and numero.lstrip("0") != decoded_key["numero_documento"].lstrip("0"):
+            return jsonify({"success": False, "message": "O número informado não corresponde à chave de acesso."}), 400
+        if cnpj_raw and "".join(character for character in cnpj_raw if character.isdigit()) != decoded_key["cnpj_emitente_digitos"]:
+            return jsonify({"success": False, "message": "O CNPJ informado não corresponde à chave de acesso."}), 400
+        numero = decoded_key["numero_documento"]
+        cnpj_raw = cnpj_raw or decoded_key["cnpj_emitente"]
+
+    if not numero:
+        return jsonify({"success": False, "message": "Informe o número da NF ou uma chave de acesso válida."}), 400
+    if len(numero) > 120:
+        return jsonify({"success": False, "message": "O número da NF deve ter até 120 caracteres."}), 400
+    cnpj = "".join(character for character in cnpj_raw if character.isdigit()) or None
+    if cnpj and len(cnpj) != 14:
+        return jsonify({"success": False, "message": "O CNPJ do emitente deve ter 14 dígitos."}), 400
+    if fornecedor_nome and len(fornecedor_nome) > 200:
+        return jsonify({"success": False, "message": "O nome do emitente deve ter até 200 caracteres."}), 400
+
+    existing_query = DocumentoEntradaEstoque.query.filter(
+        DocumentoEntradaEstoque.tipo_documento == "nf",
+        DocumentoEntradaEstoque.numero_documento == numero,
+    )
+    if cnpj:
+        existing_query = existing_query.filter(DocumentoEntradaEstoque.cnpj_emitente == cnpj)
+    existing_document = existing_query.order_by(DocumentoEntradaEstoque.id_documento.desc()).first()
+    if existing_document:
+        return jsonify({
+            "success": False,
+            "message": "Já existe um cadastro para esta NF.",
+            "existing_url": url_for(
+                "nf.nf_index",
+                nota=existing_document.numero_documento,
+                aba="processaveis",
+            ),
+        }), 409
+
+    supplier = _find_supplier_by_cnpj(cnpj)
+    document = DocumentoEntradaEstoque(
+        fornecedor_id=supplier.id if supplier else None,
+        tipo_documento="nf",
+        numero_documento=numero,
+        data_emissao=data_emissao,
+        data_recebimento=data_recebimento,
+        movimenta_estoque=_resolve_documento_movimenta_estoque(
+            data_emissao=data_emissao,
+            data_recebimento=data_recebimento,
+        ) if data_recebimento else False,
+        chave_acesso=chave_acesso or None,
+        cnpj_emitente=cnpj,
+        fornecedor_nome=(supplier.nome_exibicao() if supplier else fornecedor_nome),
+        observacao="Cadastro inicial criado pela busca global; inclua e confira os itens antes de movimentar o estoque.",
+        status_integracao="cadastro_rapido_pendente",
+        mensagem_integracao="Cabeçalho cadastrado. Os itens ainda precisam ser incluídos e conferidos.",
+        criado_por=str(getattr(current_user, "nome", None) or getattr(current_user, "id", ""))[:100] or None,
+    )
+    try:
+        db.session.add(document)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("Falha ao criar cabeçalho de NF pelo cadastro rápido")
+        return jsonify({"success": False, "message": "Não foi possível cadastrar a NF. Tente novamente."}), 500
+
+    return jsonify({
+        "success": True,
+        "message": "NF cadastrada como rascunho. Inclua os itens e confira os dados antes de lançar no estoque.",
+        "url": url_for("nf.nf_index", nota=document.numero_documento, aba="processaveis"),
+        "document": {
+            "id_documento": document.id_documento,
+            "numero_documento": document.numero_documento,
+            "chave_acesso": document.chave_acesso,
+        },
+    }), 201
 
 
 @blueprint.get("/api/documentos/<numero>/detalhes")
@@ -1824,6 +1957,85 @@ def nf_index():
             nota_detalhes=nota_detalhes,
             nota_busca=nota_busca,
         ),
+    )
+
+
+@blueprint.route("/sefaz", methods=["GET", "POST"])
+@login_required
+def nf_sefaz():
+    _require_admin()
+    from ..services.nfe_distribution_service import list_documents, public_config, save_configuration
+
+    if request.method == "POST":
+        action = str(request.form.get("action") or "save").strip().lower()
+        if action == "poll":
+            from ..services.nfe_distribution_service import poll_once
+
+            result = poll_once()
+            flash(
+                result.get("message") or "Consulta à SEFAZ concluída.",
+                "success" if result.get("ok") else "warning",
+            )
+            return redirect(url_for("nf.nf_sefaz"))
+        try:
+            certificate = request.files.get("certificate")
+            certificate_data = None
+            if certificate and certificate.filename:
+                if not certificate.filename.lower().endswith((".pfx", ".p12")):
+                    raise ValueError("Envie o certificado A1 no formato .PFX ou .P12.")
+                certificate_data = certificate.stream.read(10 * 1024 * 1024 + 1)
+            save_configuration(
+                cnpj_destinatario=request.form.get("cnpj_destinatario", ""),
+                uf_autor=request.form.get("uf_autor", ""),
+                ambiente=request.form.get("ambiente", ""),
+                enabled=request.form.get("enabled") == "on",
+                certificate_data=certificate_data,
+                certificate_password=request.form.get("certificate_password", ""),
+            )
+            flash("Configuração da consulta de NF-e salva.", "success")
+        except ValueError as exc:
+            db.session.rollback()
+            flash(str(exc), "danger")
+        except Exception:
+            db.session.rollback()
+            current_app.logger.exception("Falha ao salvar a integração de NF-e da SEFAZ")
+            flash("Não foi possível salvar a configuração fiscal. Consulte o log do GALINT.", "danger")
+        return redirect(url_for("nf.nf_sefaz"))
+
+    config = public_config()
+    documents = list_documents(limit=100)
+    return render_template("nf/sefaz.html", config=config, documents=documents, uf_codes=NFE_UF_CODES)
+
+
+@blueprint.get("/sefaz/documentos/<int:document_id>")
+@login_required
+def nf_sefaz_document(document_id: int):
+    import json
+
+    _require_admin()
+    from ..services.nfe_distribution_service import get_document
+
+    document = get_document(document_id)
+    if document is None:
+        abort(404)
+    items = json.loads(document.itens_json or "[]")
+    return render_template("nf/sefaz_document.html", document=document, items=items)
+
+
+@blueprint.get("/sefaz/documentos/<int:document_id>/xml")
+@login_required
+def nf_sefaz_document_xml(document_id: int):
+    _require_admin()
+    from ..services.nfe_distribution_service import get_document
+
+    document = get_document(document_id)
+    if document is None:
+        abort(404)
+    return send_file(
+        BytesIO(document.xml_original.encode("utf-8")),
+        mimetype="application/xml",
+        as_attachment=True,
+        download_name=f"NFe-{document.chave_acesso}.xml",
     )
 
 

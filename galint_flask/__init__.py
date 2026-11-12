@@ -618,6 +618,7 @@ def _initialize_scheduler(app: Flask) -> None:
         
         scheduler = SchedulerService()
         scheduler.schedule_telegram_alerts(app)
+        scheduler.schedule_nfe_distribution(app)
         # watchdog para manter Telegram operacional (status + reinício de polling)
         try:
             scheduler.schedule_telegram_watchdog(app)
@@ -664,4 +665,3 @@ def _initialize_scheduler(app: Flask) -> None:
     except Exception as e:
         import logging
         logging.warning(f"Falha ao inicializar scheduler: {e}")
-

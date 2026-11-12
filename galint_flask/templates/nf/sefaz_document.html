@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}NF-e recebida pela SEFAZ{% endblock %}
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+        <div>
+            <h1 class="h3 mb-1">NF-e {{ document.numero_documento or 'sem número' }}</h1>
+            <div class="text-muted">{{ document.emitente or document.cnpj_emitente or 'Emitente não identificado' }}</div>
+        </div>
+        <div class="d-flex gap-2">
+            <a class="btn btn-primary" href="{{ url_for('nf.nf_sefaz_document_xml', document_id=document.id) }}">Baixar XML</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('nf.nf_sefaz') }}">Voltar à caixa de entrada</a>
+        </div>
+    </div>
+
+    {% if document.resumo %}
+    <div class="alert alert-warning">A SEFAZ disponibilizou um resumo, sem os itens da nota. A obtenção do XML completo pode depender da manifestação do destinatário conforme as regras fiscais.</div>
+    {% else %}
+    <div class="alert alert-success">XML completo recebido. Este documento ainda não foi lançado no estoque.</div>
+    {% endif %}
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-3">Chave de acesso</dt><dd class="col-sm-9 font-monospace">{{ document.chave_acesso }}</dd>
+                <dt class="col-sm-3">CNPJ emitente</dt><dd class="col-sm-9">{{ document.cnpj_emitente or '—' }}</dd>
+                <dt class="col-sm-3">Data de emissão</dt><dd class="col-sm-9">{{ document.data_emissao.strftime('%d/%m/%Y') if document.data_emissao else '—' }}</dd>
+                <dt class="col-sm-3">Valor total</dt><dd class="col-sm-9">{{ document.valor_total|currency_br if document.valor_total is not none else '—' }}</dd>
+                <dt class="col-sm-3">NSU / tipo</dt><dd class="col-sm-9">{{ document.nsu }} / {{ document.schema_documento }}</dd>
+                <dt class="col-sm-3">Recebido no GALINT</dt><dd class="col-sm-9">{{ document.recebido_em|datetime_br }}</dd>
+            </dl>
+        </div>
+    </div>
+
+    {% if not document.resumo and items %}
+    <section class="card shadow-sm mb-4">
+        <div class="card-header"><strong>Itens da NF-e</strong> <span class="text-muted">({{ items|length }})</span></div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead>
+                    <tr><th>Item</th><th>NCM / CFOP</th><th>Quantidade</th><th>Unitário</th><th>Total</th></tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td><strong>{{ item.descricao or 'Produto sem descrição' }}</strong><br><small class="text-muted">{{ item.codigo or '—' }}</small></td>
+                        <td>{{ item.ncm or '—' }} / {{ item.cfop or '—' }}</td>
+                        <td>{{ item.quantidade|number_br(4, True) }} {{ item.unidade or '' }}</td>
+                        <td>{{ item.valor_unitario|currency_br if item.valor_unitario is not none else '—' }}</td>
+                        <td>{{ item.valor_total|currency_br if item.valor_total is not none else '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+    {% endif %}
+
+    {% if not document.resumo %}
+    <section class="card shadow-sm">
+        <div class="card-header"><strong>XML fiscal</strong></div>
+        <div class="card-body">
+            <pre class="mb-0" style="max-height: 65vh; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere;">{{ document.xml_original }}</pre>
+        </div>
+    </section>
+    {% endif %}
+</div>
+{% endblock %}

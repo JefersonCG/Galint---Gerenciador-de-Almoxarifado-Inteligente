@@ -6,6 +6,15 @@
     const content = document.getElementById('nfSearchModalContent');
     const title = document.getElementById('nfSearchModalTitle');
     const subtitle = document.getElementById('nfSearchModalSubtitle');
+    const createPrompt = document.getElementById('nfSearchCreatePrompt');
+    const createStartButton = document.getElementById('nfSearchCreateStart');
+    const createForm = document.getElementById('nfQuickCreateForm');
+    const createCancelButton = document.getElementById('nfQuickCreateCancel');
+    const createSubmitButton = document.getElementById('nfQuickCreateSubmit');
+    const createNumberInput = document.getElementById('nfQuickNumber');
+    const createAccessKeyInput = document.getElementById('nfQuickAccessKey');
+    const createCnpjInput = document.getElementById('nfQuickCnpj');
+    const createSupplierInput = document.getElementById('nfQuickSupplier');
 
     if (!form || !modalElement || !input || !window.bootstrap?.Modal) {
         return;
@@ -13,6 +22,48 @@
 
     const modal = window.bootstrap.Modal.getOrCreateInstance(modalElement);
     const submitButton = form.querySelector('button[type="submit"]');
+    let activeQuery = '';
+    let autoFilledNumber = false;
+    let autoFilledCnpj = false;
+
+    function hideCreateFlow() {
+        createPrompt?.classList.add('d-none');
+        createForm?.classList.add('d-none');
+    }
+
+    function prefillCreateForm(query) {
+        if (!createForm) return;
+        createForm.reset();
+        autoFilledNumber = false;
+        autoFilledCnpj = false;
+        const cleaned = String(query || '').replace(/^(?:nf|chave)\s*[:#-]?\s*/i, '').trim();
+        const digits = cleaned.replace(/\D/g, '');
+        if (digits.length === 44) {
+            createAccessKeyInput.value = digits;
+            createNumberInput.value = digits.slice(25, 34).replace(/^0+/, '') || '0';
+            createCnpjInput.value = digits.slice(6, 20);
+            autoFilledNumber = true;
+            autoFilledCnpj = true;
+        } else {
+            createNumberInput.value = cleaned;
+        }
+    }
+
+    function showCreateResult(message, href, linkLabel) {
+        hideCreateFlow();
+        title.textContent = 'Cadastro de NF';
+        subtitle.textContent = '';
+        feedback.textContent = message;
+        feedback.className = 'small text-success';
+        if (href) {
+            const link = document.createElement('a');
+            link.className = 'btn btn-primary btn-sm mt-3';
+            link.href = href;
+            link.textContent = linkLabel;
+            content.replaceChildren(link);
+            content.classList.remove('d-none');
+        }
+    }
 
     function addText(parent, tag, className, value) {
         const element = document.createElement(tag);
@@ -142,6 +193,14 @@
             content.appendChild(tableWrap);
         }
 
+        if (invoice.inbox_url) {
+            const inboxLink = document.createElement('a');
+            inboxLink.className = 'btn btn-outline-primary btn-sm mt-3';
+            inboxLink.href = invoice.inbox_url;
+            inboxLink.textContent = 'Abrir NF recebida pela SEFAZ';
+            content.appendChild(inboxLink);
+        }
+
         content.classList.remove('d-none');
     }
 
@@ -153,6 +212,8 @@
             return;
         }
 
+        activeQuery = query;
+        hideCreateFlow();
         feedback.textContent = 'Buscando...';
         feedback.className = 'small text-muted';
         feedback.setAttribute('aria-busy', 'true');
@@ -171,6 +232,16 @@
                 credentials: 'same-origin',
             });
             const payload = await response.json();
+            if (payload.can_register && (response.status === 404 || !payload.success)) {
+                feedback.textContent = createPrompt
+                    ? ''
+                    : 'Não encontramos esta NF no GALINT. Deseja cadastrar um novo documento fiscal?';
+                feedback.className = createPrompt ? 'small text-muted' : 'small text-warning';
+                content.replaceChildren();
+                content.classList.add('d-none');
+                createPrompt?.classList.remove('d-none');
+                return;
+            }
             if (!response.ok || !payload.success) {
                 throw new Error(payload.message || 'Não foi possível buscar a nota fiscal.');
             }
@@ -183,6 +254,71 @@
         } finally {
             feedback.removeAttribute('aria-busy');
             if (submitButton) submitButton.disabled = false;
+        }
+    });
+
+    createStartButton?.addEventListener('click', () => {
+        prefillCreateForm(activeQuery);
+        createPrompt?.classList.add('d-none');
+        createForm?.classList.remove('d-none');
+        title.textContent = 'Cadastrar nova NF';
+        subtitle.textContent = 'Dados essenciais do documento';
+        feedback.textContent = '';
+        createNumberInput?.focus();
+    });
+
+    createCancelButton?.addEventListener('click', () => {
+        createForm?.classList.add('d-none');
+        createPrompt?.classList.remove('d-none');
+        title.textContent = 'Nota fiscal';
+        subtitle.textContent = '';
+    });
+
+    createAccessKeyInput?.addEventListener('input', () => {
+        const digits = createAccessKeyInput.value.replace(/\D/g, '');
+        if (digits.length !== 44) return;
+        createAccessKeyInput.value = digits;
+        if (autoFilledNumber || !createNumberInput.value.trim()) {
+            createNumberInput.value = digits.slice(25, 34).replace(/^0+/, '') || '0';
+            autoFilledNumber = true;
+        }
+        if (autoFilledCnpj || !createCnpjInput.value.trim()) {
+            createCnpjInput.value = digits.slice(6, 20);
+            autoFilledCnpj = true;
+        }
+    });
+    createNumberInput?.addEventListener('input', () => { autoFilledNumber = false; });
+    createCnpjInput?.addEventListener('input', () => { autoFilledCnpj = false; });
+
+    createForm?.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (!createForm.reportValidity()) return;
+        if (createSubmitButton) createSubmitButton.disabled = true;
+        feedback.textContent = 'Salvando rascunho...';
+        feedback.className = 'small text-muted';
+        feedback.setAttribute('aria-busy', 'true');
+        try {
+            const response = await fetch(form.dataset.createUrl, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+                body: JSON.stringify(Object.fromEntries(new FormData(createForm).entries())),
+            });
+            const payload = await response.json();
+            if (response.status === 409 && payload.existing_url) {
+                showCreateResult(payload.message || 'Esta NF já está cadastrada.', payload.existing_url, 'Abrir NF existente');
+                return;
+            }
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.message || 'Não foi possível cadastrar a NF.');
+            }
+            showCreateResult(payload.message, payload.url, 'Adicionar itens e conferir');
+        } catch (error) {
+            feedback.textContent = error.message || 'Erro ao cadastrar a NF.';
+            feedback.className = 'small text-danger';
+        } finally {
+            feedback.removeAttribute('aria-busy');
+            if (createSubmitButton) createSubmitButton.disabled = false;
         }
     });
 })();

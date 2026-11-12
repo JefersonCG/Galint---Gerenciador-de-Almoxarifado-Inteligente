@@ -88,6 +88,7 @@ nav:
       - Personalização de Saídas e Devoluções: operacao/personalizacao-saidas-devolucoes.md
       - Percentual de Movimentos: operacao/percentual-movimentos.md
       - Sistema de Reparos: operacao/sistema-reparos.md
+      - Recebimento de NF-e pela SEFAZ: operacao/recebimento-nfe-sefaz.md
   - Comunicação:
       - Instalação Telegram: comunicacao/instalacao-telegram.md
       - Cadastro Automático Telegram: comunicacao/cadastro-automatico-telegram.md

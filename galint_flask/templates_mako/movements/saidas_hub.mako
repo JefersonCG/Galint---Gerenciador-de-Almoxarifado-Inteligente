@@ -7,233 +7,137 @@
     .hub-container {
         max-width: 1360px;
         margin: 0 auto;
-        padding: 2rem 1rem;
+        padding: 1rem;
     }
 
     .hub-shell {
         background: linear-gradient(180deg, #eef2f7 0%, var(--galint-neutro-050, #f8fafc) 100%);
         border: 1px solid rgba(148, 163, 184, 0.18);
         border-radius: 30px;
-        padding: 1.85rem;
+        padding: 1rem;
         box-shadow: 0 24px 54px rgba(15, 23, 42, 0.1);
     }
-    
-    .hub-header {
-        position: relative;
-        overflow: hidden;
-        text-align: center;
-        margin-bottom: 2rem;
-        border-radius: 26px;
-        padding: 2rem 1.5rem;
-        background: linear-gradient(135deg, var(--galint-azul-900, #020617) 0%, var(--galint-azul-700, #172554) 45%, var(--galint-azul-500, #2563eb) 100%);
-        box-shadow: 0 28px 64px rgba(15, 23, 42, 0.2);
+
+    .saida-mode-picker {
+        margin: 0 auto 0.75rem;
+        max-width: 820px;
     }
 
-    .hub-header::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background:
-            radial-gradient(circle at 16% 18%, rgba(56, 189, 248, 0.22), transparent 28%),
-            radial-gradient(circle at 84% 16%, rgba(96, 165, 250, 0.18), transparent 22%),
-            linear-gradient(180deg, rgba(255,255,255,0.04), transparent 60%);
-        pointer-events: none;
-    }
-
-    .hub-header > * {
-        position: relative;
-        z-index: 1;
-    }
-
-    .hub-eyebrow {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.45rem;
-        padding: 0.38rem 0.72rem;
-        border-radius: 999px;
-        background: rgba(255,255,255,0.08);
-        border: 1px solid rgba(226,232,240,0.14);
-        font-size: 0.72rem;
+    .saida-mode-label {
+        display: block;
+        margin-bottom: 0.65rem;
+        color: var(--galint-neutro-700, #334155);
         font-weight: 700;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        color: rgba(226,232,240,0.92);
-        margin-bottom: 0.9rem;
     }
-    
-    .hub-header h2 {
-        font-size: clamp(2rem, 3vw, 2.6rem);
-        font-weight: 800;
-        color: var(--galint-neutro-050, #f8fafc);
-        margin-bottom: 0.55rem;
-        letter-spacing: -0.03em;
-    }
-    
-    .hub-header p {
-        font-size: 1.1rem;
-        color: rgba(226,232,240,0.82);
-        margin-bottom: 0;
-    }
-    
-    .saidas-grid {
+
+    .saida-mode-track {
+        --mode-shift: 0px;
+        --mode-width: 0px;
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 1.4rem;
-        margin-top: 1.5rem;
-    }
-    
-    .saida-card {
         position: relative;
-        overflow: hidden;
-        background: linear-gradient(145deg, var(--galint-neutro-900, #0f172a) 0%, var(--galint-neutro-850, #1e293b) 68%, var(--galint-neutro-700, #334155) 100%);
-        border-radius: 24px;
-        padding: 2rem;
-        text-align: center;
-        cursor: pointer;
-        transition: transform 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease;
-        border: 1px solid rgba(148, 163, 184, 0.18);
-        box-shadow: 0 20px 42px rgba(15, 23, 42, 0.18);
+        width: 100%;
+        gap: 0;
+        padding: 4px;
+        border-radius: 999px;
+        background: #f4f1ea;
+        isolation: isolate;
     }
 
-    .saida-card::before {
+    .saida-mode-track::before {
         content: "";
         position: absolute;
-        inset: 0;
-        background: radial-gradient(circle at 18% 18%, rgba(59, 130, 246, 0.18), transparent 32%);
-        pointer-events: none;
+        z-index: -1;
+        top: 4px;
+        bottom: 4px;
+        left: 4px;
+        width: var(--mode-width);
+        border-radius: 999px;
+        background: #fff;
+        box-shadow: 0 1px 5px rgba(0, 0, 0, 0.16);
+        transform: translateX(var(--mode-shift));
+        transition: transform 320ms cubic-bezier(.3, .8, .25, 1);
     }
 
-    .saida-card > * {
-        position: relative;
-        z-index: 1;
-    }
-    
-    .saida-card:hover {
-        transform: translateY(-8px);
-        box-shadow: 0 28px 52px rgba(15, 23, 42, 0.28);
-    }
-    
-    .saida-card.materiais:hover {
-        border-color: rgba(59, 130, 246, 0.42);
-    }
-    
-    .saida-card.ferramentas:hover {
-        border-color: rgba(245, 158, 11, 0.42);
-    }
-    
-    .saida-card.fracionados:hover {
-        border-color: rgba(16, 185, 129, 0.42);
+    .saida-mode-button {
+        min-width: 0;
+        padding: 0.55rem 1rem;
+        border: 0;
+        border-radius: 999px;
+        background: transparent;
+        color: #64748b;
+        font-weight: 700;
+        line-height: 1.2;
+        white-space: nowrap;
+        transition: color 250ms ease;
     }
 
-    .saida-card.devolucoes:hover {
-        border-color: rgba(168, 85, 247, 0.42);
-    }
-    
-    .saida-card-icon {
-        font-size: 4rem;
-        margin-bottom: 1rem;
-        transition: transform 0.3s ease;
-    }
-    
-    .saida-card:hover .saida-card-icon {
-        transform: scale(1.1);
-    }
-    
-    .saida-card.materiais .saida-card-icon {
-        color: var(--galint-azul-400, #3b82f6);
-    }
-    
-    .saida-card.ferramentas .saida-card-icon {
-        color: #f59e0b;
-    }
-    
-    .saida-card.fracionados .saida-card-icon {
-        color: var(--galint-sucesso-500, #10b981);
+    .saida-mode-button[aria-checked="true"] {
+        color: #1e293b;
     }
 
-    .saida-card.devolucoes .saida-card-icon {
-        color: #a855f7;
-    }
-    
-    .saida-card-title {
-        font-size: 1.5rem;
-        font-weight: 800;
-        color: var(--galint-neutro-050, #f8fafc);
-        margin-bottom: 0.75rem;
-        letter-spacing: -0.02em;
-    }
-    
-    .saida-card-description {
-        font-size: 0.95rem;
-        color: rgba(226,232,240,0.76);
-        line-height: 1.6;
-    }
-    
-    .saida-card-badge {
-        display: inline-block;
-        margin-top: 1rem;
-        padding: 0.5rem 1rem;
-        border-radius: 20px;
-        font-size: 0.85rem;
-        font-weight: 600;
-    }
-    
-    .saida-card.materiais .saida-card-badge {
-        background: rgba(59, 130, 246, 0.16);
-        color: var(--galint-azul-150, #bfdbfe);
-        border: 1px solid rgba(59, 130, 246, 0.24);
-    }
-    
-    .saida-card.ferramentas .saida-card-badge {
-        background: rgba(245, 158, 11, 0.16);
-        color: var(--galint-alerta-200, #fde68a);
-        border: 1px solid rgba(245, 158, 11, 0.24);
-    }
-    
-    .saida-card.fracionados .saida-card-badge {
-        background: rgba(16, 185, 129, 0.16);
-        color: #a7f3d0;
-        border: 1px solid rgba(16, 185, 129, 0.24);
+    .saida-mode-button:focus-visible {
+        outline: 2px solid #1e293b;
+        outline-offset: 3px;
     }
 
-    .saida-card.devolucoes .saida-card-badge {
-        background: rgba(168, 85, 247, 0.16);
-        color: #e9d5ff;
-        border: 1px solid rgba(168, 85, 247, 0.24);
+    .saida-mode-description {
+        margin: 0.35rem 0 0;
+        color: #475569;
+        text-align: center;
+        font-size: 0.92rem;
     }
 
-    .saida-card.ferramentas::before {
-        background: radial-gradient(circle at 18% 18%, rgba(245, 158, 11, 0.2), transparent 32%);
+    .saida-form-panel {
+        overflow: hidden;
+        min-height: 320px;
+        border-radius: 18px;
+        background: var(--galint-neutro-050, #f8fafc);
     }
 
-    .saida-card.fracionados::before {
-        background: radial-gradient(circle at 18% 18%, rgba(16, 185, 129, 0.18), transparent 32%);
+    .saida-form-frame {
+        display: block;
+        width: 100%;
+        min-height: 320px;
+        border: 0;
+        background: transparent;
     }
 
-    .saida-card.devolucoes::before {
-        background: radial-gradient(circle at 18% 18%, rgba(168, 85, 247, 0.2), transparent 32%);
+    .saida-form-frame[hidden] {
+        display: none !important;
     }
 
-    @media (max-width: 1200px) {
-        .saidas-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+    .saida-form-loading {
+        padding: 3rem 1rem;
+        color: #475569;
+        text-align: center;
+    }
+
+    .saida-form-loading[hidden] {
+        display: none !important;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .saida-mode-track::before,
+        .saida-mode-button {
+            transition: none;
         }
     }
-
     @media (max-width: 768px) {
         .hub-shell {
-            padding: 1rem;
+            padding: 0.75rem;
             border-radius: 22px;
         }
 
-        .hub-header {
-            padding: 1.35rem 1rem;
-            border-radius: 20px;
+        .saida-mode-button {
+            padding: 0.45rem 0.25rem;
+            font-size: 0.72rem;
+            white-space: normal;
         }
 
-        .saidas-grid {
-            grid-template-columns: 1fr;
-            gap: 1rem;
+        .saida-mode-button i {
+            display: block;
+            margin: 0 0 0.2rem !important;
         }
     }
 </style>
@@ -242,65 +146,245 @@
 <%block name="content">
 <div class="hub-container">
     <div class="hub-shell">
-        <div class="hub-header">
-            <div class="hub-eyebrow"><i class="bi bi-grid-1x2"></i> Central de lançamentos</div>
-            <h2><i class="bi bi-box-arrow-up-right me-2"></i>Registro de Saídas</h2>
-            <p>Selecione o tipo de retirada e siga com o fluxo adequado sem perder a organização centralizada dos cards.</p>
-        </div>
-        
-        <div class="saidas-grid">
-            <!-- Card Materiais Comuns -->
-            <div class="saida-card materiais" onclick="window.location.href='${url_for('movements.saida_page')}'">
-                <div class="saida-card-icon">
-                    <i class="bi bi-box-seam"></i>
-                </div>
-                <div class="saida-card-title">Materiais Comuns</div>
-                <div class="saida-card-description">
-                    Retirada de materiais em unidades padrão, como pacote, caixa e unidade, com suporte também para ferramentas disponíveis e abertura automática da custódia.
-                </div>
-                <span class="saida-card-badge">Estoque Geral + Ferramentas</span>
+        <section class="saida-mode-picker" aria-label="Tipo de operação">
+            <span class="saida-mode-label" id="saida-mode-label">Tipo de operação</span>
+            <div class="saida-mode-track" id="saida-mode-track" role="radiogroup" aria-labelledby="saida-mode-label">
+                <button class="saida-mode-button" type="button" role="radio" aria-checked="true" data-mode="materiais">
+                    <i class="bi bi-box-seam me-1" aria-hidden="true"></i>Materiais
+                </button>
+                <button class="saida-mode-button" type="button" role="radio" aria-checked="false" data-mode="ferramentas" tabindex="-1">
+                    <i class="bi bi-tools me-1" aria-hidden="true"></i>Ferramentas
+                </button>
+                <button class="saida-mode-button" type="button" role="radio" aria-checked="false" data-mode="fracionados" tabindex="-1">
+                    <i class="bi bi-droplet-half me-1" aria-hidden="true"></i>Fracionados
+                </button>
+                <button class="saida-mode-button" type="button" role="radio" aria-checked="false" data-mode="devolucoes" tabindex="-1">
+                    <i class="bi bi-arrow-return-left me-1" aria-hidden="true"></i>Devoluções
+                </button>
             </div>
-            
-            <!-- Card Ferramentas -->
-            <div class="saida-card ferramentas" onclick="window.location.href='${url_for('ferramentas.retirar_page')}'">
-                <div class="saida-card-icon">
-                    <i class="bi bi-tools"></i>
-                </div>
-                <div class="saida-card-title">Ferramentas</div>
-                <div class="saida-card-description">
-                    Controle de retirada e custódia de ferramentas, incluindo operações permanentes ou temporárias com rastreabilidade especial.
-                </div>
-                <span class="saida-card-badge">Controle Especial</span>
-            </div>
+            <p class="saida-mode-description" id="saida-mode-description" aria-live="polite"></p>
+        </section>
 
-            <!-- Card Fracionados -->
-            <div class="saida-card fracionados" onclick="window.location.href='${url_for('movements.saida_fracionada_page')}'">
-                <div class="saida-card-icon">
-                    <i class="bi bi-droplet-half"></i>
-                </div>
-                <div class="saida-card-title">Fracionados</div>
-                <div class="saida-card-description">
-                    Retirada com pesagem manual para produtos líquidos ou fracionados, mantendo o fluxo específico para kg e litros.
-                </div>
-                <span class="saida-card-badge">Pesagem Manual</span>
+        <div class="saida-form-panel" id="saida-form-panel" aria-busy="true">
+            <div class="saida-form-loading" id="saida-form-loading" role="status">
+                <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                Carregando formulário...
             </div>
-            
-            <!-- Card Devoluções -->
-            <div class="saida-card devolucoes" onclick="window.location.href='${url_for('movements.entrada_page')}'">
-                <div class="saida-card-icon">
-                    <i class="bi bi-arrow-return-left"></i>
-                </div>
-                <div class="saida-card-title">Devoluções</div>
-                <div class="saida-card-description">
-                    Registro centralizado de devolução para materiais e itens retornados ao estoque, com conferência rápida e rastreabilidade do retorno.
-                </div>
-                <span class="saida-card-badge">Retorno ao Estoque</span>
-            </div>
+            <iframe class="saida-form-frame" title="Formulário de saída" data-mode="materiais"
+                data-src="${url_for('movements.saida_page')}" aria-label="Formulário de saída de materiais"></iframe>
+            <iframe class="saida-form-frame" title="Formulário de retirada de ferramentas" data-mode="ferramentas"
+                data-src="${url_for('ferramentas.retirar_page')}" aria-label="Formulário de retirada de ferramentas" hidden></iframe>
+            <iframe class="saida-form-frame" title="Formulário de saída de itens fracionados" data-mode="fracionados"
+                data-src="${url_for('movements.saida_fracionada_page')}" aria-label="Formulário de saída de itens fracionados" hidden></iframe>
+            <iframe class="saida-form-frame" title="Formulário de devolução" data-mode="devolucoes"
+                data-src="${url_for('movements.entrada_page')}" aria-label="Formulário de devolução" hidden></iframe>
         </div>
     </div>
 </div>
 </%block>
 
 <%block name="scripts">
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const track = document.getElementById('saida-mode-track');
+        const panel = document.getElementById('saida-form-panel');
+        const loading = document.getElementById('saida-form-loading');
+        const description = document.getElementById('saida-mode-description');
+        const buttons = Array.from(track.querySelectorAll('[data-mode]'));
+        const frames = Array.from(panel.querySelectorAll('iframe[data-mode]'));
+        const labels = {
+            materiais: 'Materiais comuns e ferramentas disponíveis, em uma lista de retirada.',
+            ferramentas: 'Retirada especial de ferramentas com controle de custódia.',
+            fracionados: 'Retirada de itens fracionados com informação de peso ou volume.',
+            devolucoes: 'Registro de materiais e itens devolvidos ao estoque.'
+        };
+        let activeMode = null;
+        const frameStylesBeforeModal = new WeakMap();
+
+        function updateIndicator(button) {
+            const first = buttons[0].getBoundingClientRect();
+            const current = button.getBoundingClientRect();
+            track.style.setProperty('--mode-shift', (current.left - first.left) + 'px');
+            track.style.setProperty('--mode-width', first.width + 'px');
+        }
+
+        function setFrameHeight(frame) {
+            if (frameStylesBeforeModal.has(frame)) return;
+            const doc = frame.contentDocument;
+            if (!doc || !doc.body || !doc.documentElement) return;
+            const height = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight, 320);
+            frame.style.height = height + 'px';
+        }
+
+        function prepareLoadedFrame(frame) {
+            try {
+                const loadedUrl = new URL(frame.contentWindow.location.href);
+                if (loadedUrl.protocol === 'about:' && loadedUrl.pathname === 'blank') return;
+                if (loadedUrl.origin !== window.location.origin) {
+                    throw new Error('O formulário foi carregado em uma origem inesperada.');
+                }
+                frame.dataset.loaded = 'true';
+                delete frame.dataset.loading;
+                prepareFrame(frame);
+            } catch (error) {
+                if (activeMode === frame.dataset.mode) {
+                    panel.setAttribute('aria-busy', 'false');
+                    loading.textContent = 'Não foi possível exibir este formulário. Atualize a página e tente novamente.';
+                    loading.hidden = false;
+                }
+            }
+        }
+
+        function showModalOnScreen(frame) {
+            if (frameStylesBeforeModal.has(frame)) return;
+            frameStylesBeforeModal.set(frame, {
+                position: frame.style.position,
+                top: frame.style.top,
+                right: frame.style.right,
+                bottom: frame.style.bottom,
+                left: frame.style.left,
+                width: frame.style.width,
+                height: frame.style.height,
+                zIndex: frame.style.zIndex,
+                margin: frame.style.margin,
+                maxWidth: frame.style.maxWidth
+            });
+            Object.assign(frame.style, {
+                position: 'fixed',
+                top: '0',
+                right: '0',
+                bottom: '0',
+                left: '0',
+                width: '100vw',
+                height: '100vh',
+                zIndex: '2000',
+                margin: '0',
+                maxWidth: 'none'
+            });
+        }
+
+        function restoreFrameAfterModal(frame) {
+            const previousStyles = frameStylesBeforeModal.get(frame);
+            if (!previousStyles) return;
+            Object.assign(frame.style, previousStyles);
+            frameStylesBeforeModal.delete(frame);
+            setFrameHeight(frame);
+        }
+
+        function prepareFrame(frame) {
+            try {
+                const doc = frame.contentDocument;
+                if (!doc || !doc.head || !doc.body) throw new Error('O formulário não está disponível.');
+
+                if (!doc.getElementById('saida-hub-embedded-style')) {
+                    const style = doc.createElement('style');
+                    style.id = 'saida-hub-embedded-style';
+                    style.textContent = [
+                        'html,body{height:auto!important;min-height:0!important;margin:0!important;}',
+                        'body.layout-shell{display:block!important;min-height:0!important;overflow:visible!important;}',
+                        '.topbar,#sidebar-column,.content-panel>.page-header{display:none!important;}',
+                        '.app-body{display:block!important;min-height:0!important;margin:0!important;padding:0!important;}',
+                        '.content-panel{width:100%!important;min-height:0!important;margin:0!important;padding:0!important;overflow:visible!important;}',
+                        '.modal{position:fixed!important;inset:0!important;box-sizing:border-box!important;width:100vw!important;height:100vh!important;max-width:none!important;margin:0!important;}',
+                        '.modal.show{display:block!important;}',
+                        '.modal-dialog{margin:var(--bs-modal-margin,1rem) auto!important;}',
+                        '.modal-dialog-centered{display:flex!important;align-items:center!important;min-height:calc(100vh - 2 * var(--bs-modal-margin,1rem))!important;}'
+                    ].join('');
+                    doc.head.appendChild(style);
+                }
+
+                if (!doc.documentElement.dataset.saidaHubModalEvents) {
+                    doc.addEventListener('show.bs.modal', function () {
+                        showModalOnScreen(frame);
+                    });
+                    doc.addEventListener('hidden.bs.modal', function () {
+                        if (!doc.querySelector('.modal.show')) restoreFrameAfterModal(frame);
+                    });
+                    doc.documentElement.dataset.saidaHubModalEvents = 'true';
+                }
+
+                setFrameHeight(frame);
+                if (typeof ResizeObserver !== 'undefined' && !frame.dataset.observing) {
+                    const observer = new ResizeObserver(function () { setFrameHeight(frame); });
+                    observer.observe(doc.body);
+                    frame.dataset.observing = 'true';
+                }
+                if (activeMode === frame.dataset.mode) {
+                    panel.setAttribute('aria-busy', 'false');
+                    loading.hidden = true;
+                }
+            } catch (error) {
+                if (activeMode === frame.dataset.mode) {
+                    panel.setAttribute('aria-busy', 'false');
+                    loading.textContent = 'Não foi possível exibir este formulário. Atualize a página e tente novamente.';
+                    loading.hidden = false;
+                }
+            }
+        }
+
+        function activate(mode, updateAddress) {
+            const button = buttons.find(function (item) { return item.dataset.mode === mode; });
+            const frame = frames.find(function (item) { return item.dataset.mode === mode; });
+            if (!button || !frame) return;
+
+            activeMode = mode;
+            updateIndicator(button);
+            buttons.forEach(function (item) {
+                const selected = item === button;
+                item.setAttribute('aria-checked', String(selected));
+                item.tabIndex = selected ? 0 : -1;
+            });
+            frames.forEach(function (item) {
+                item.hidden = item !== frame;
+            });
+            description.textContent = labels[mode];
+
+            const loaded = frame.dataset.loaded === 'true';
+            panel.setAttribute('aria-busy', String(!loaded));
+            loading.hidden = loaded;
+            if (!loaded) {
+                loading.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Carregando formulário...';
+                if (frame.dataset.loading !== 'true') {
+                    frame.dataset.loading = 'true';
+                    if (frame.dataset.loadListener !== 'true') {
+                        frame.dataset.loadListener = 'true';
+                        frame.addEventListener('load', function () {
+                            prepareLoadedFrame(frame);
+                        });
+                    }
+                    frame.src = frame.dataset.src;
+                } else {
+                    prepareLoadedFrame(frame);
+                }
+            } else {
+                setFrameHeight(frame);
+            }
+
+            if (updateAddress) history.replaceState(null, '', '#' + mode);
+        }
+
+        buttons.forEach(function (button, index) {
+            button.addEventListener('click', function () { activate(button.dataset.mode, true); });
+            button.addEventListener('keydown', function (event) {
+                let nextIndex = index;
+                if (event.key === 'ArrowRight' || event.key === 'ArrowDown') nextIndex = (index + 1) % buttons.length;
+                else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') nextIndex = (index - 1 + buttons.length) % buttons.length;
+                else if (event.key === 'Home') nextIndex = 0;
+                else if (event.key === 'End') nextIndex = buttons.length - 1;
+                else return;
+                event.preventDefault();
+                buttons[nextIndex].focus();
+                activate(buttons[nextIndex].dataset.mode, true);
+            });
+        });
+        window.addEventListener('resize', function () {
+            const button = buttons.find(function (item) { return item.dataset.mode === activeMode; });
+            if (button) updateIndicator(button);
+        });
+
+        const requestedMode = window.location.hash.slice(1);
+        activate(labels[requestedMode] ? requestedMode : 'materiais', false);
+    });
+</script>
 ${parent.scripts()}
 </%block>

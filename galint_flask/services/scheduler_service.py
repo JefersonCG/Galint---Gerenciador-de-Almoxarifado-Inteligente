@@ -158,6 +158,31 @@ class SchedulerService:
             replace_existing=True,
         )
 
+    def schedule_nfe_distribution(self, app, hours: int = 1):
+        """Agenda a consulta DF-e sem ultrapassar o intervalo mínimo da SEFAZ."""
+        for job in self.scheduler.get_jobs():
+            if job.id == "nfe_distribution":
+                job.remove()
+
+        self.scheduler.add_job(
+            func=lambda: self._run_nfe_distribution(app),
+            trigger=IntervalTrigger(hours=max(1, int(hours))),
+            id="nfe_distribution",
+            name="Consulta de NF-e na SEFAZ",
+            replace_existing=True,
+            next_run_time=datetime.now() + timedelta(seconds=45),
+            max_instances=1,
+            coalesce=True,
+        )
+
+    def _run_nfe_distribution(self, app) -> None:
+        from .nfe_distribution_service import poll_once
+
+        with app.app_context():
+            result = poll_once()
+            if not result.get("ok"):
+                logger.info("Consulta NF-e não executada/concluída: %s", result.get("message"))
+
     def _run_telegram_outbox_worker(self, app) -> None:
         from .telegram_service import TelegramService
 

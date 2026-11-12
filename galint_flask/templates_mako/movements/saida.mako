@@ -135,6 +135,23 @@
     </div>
 </div>
 
+<div class="modal fade" id="modalAlterarColaborador" tabindex="-1" aria-labelledby="modalAlterarColaboradorTitulo" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalAlterarColaboradorTitulo"><i class="bi bi-person-gear me-2"></i>Alterar colaborador</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <label class="form-label" for="alterar-colaborador-busca">Busque por nome ou matrícula</label>
+                <input class="form-control" id="alterar-colaborador-busca" autocomplete="off" placeholder="Digite o nome ou matrícula">
+                <div class="alterar-colaborador-resultados mt-2" id="alterar-colaborador-resultados" role="listbox" aria-label="Colaboradores encontrados"></div>
+                <div class="form-text" id="alterar-colaborador-status">Selecione o colaborador para atualizar todos os itens deste grupo.</div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Modal de Escolha de Unidade -->
 <div class="modal fade" id="modalUnidade" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -274,6 +291,12 @@ ${parent.scripts()}
     let groupCounter = 0;
     let currentGroupId = null;
     let currentPreviewItem = null;
+    const modalAlterarColaboradorElement = document.getElementById('modalAlterarColaborador');
+    const modalAlterarColaborador = new bootstrap.Modal(modalAlterarColaboradorElement);
+    const inputAlterarColaborador = document.getElementById('alterar-colaborador-busca');
+    const resultadosAlterarColaborador = document.getElementById('alterar-colaborador-resultados');
+    const statusAlterarColaborador = document.getElementById('alterar-colaborador-status');
+    let groupIdBeingEdited = null;
     
     // Modal
     const modalUnidade = new bootstrap.Modal(document.getElementById('modalUnidade'));
@@ -2744,6 +2767,114 @@ ${parent.scripts()}
         return localLabel ? (escapeHtml(usuario) + ' <span class="group-meta">• ' + escapeHtml(localLabel) + '</span>') : escapeHtml(usuario);
     }
 
+    function openCollaboratorEditor(groupId) {
+        const group = groups.find((entry) => entry.id === groupId);
+        if (!group) {
+            return;
+        }
+        groupIdBeingEdited = groupId;
+        inputAlterarColaborador.value = '';
+        statusAlterarColaborador.textContent = 'Selecione o colaborador para atualizar todos os itens deste grupo.';
+        renderCollaboratorChoices('');
+        modalAlterarColaborador.show();
+        window.setTimeout(() => inputAlterarColaborador.focus(), 150);
+    }
+
+    function renderCollaboratorChoices(query) {
+        const normalizedQuery = normalizeAutocompleteText(query);
+        const choices = usuariosAutocompleteData.filter((func) => {
+            const nome = normalizeAutocompleteText(func.nome);
+            const matricula = normalizeAutocompleteText(func.matricula);
+            return !normalizedQuery || nome.includes(normalizedQuery) || matricula.includes(normalizedQuery);
+        }).slice(0, 20);
+
+        resultadosAlterarColaborador.replaceChildren();
+        if (!choices.length) {
+            const empty = document.createElement('div');
+            empty.className = 'alterar-colaborador-vazio';
+            empty.textContent = 'Nenhum colaborador encontrado.';
+            resultadosAlterarColaborador.appendChild(empty);
+            return;
+        }
+
+        choices.forEach((func) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'alterar-colaborador-opcao';
+            button.setAttribute('role', 'option');
+            const name = document.createElement('strong');
+            name.textContent = func.nome || 'Colaborador';
+            const details = document.createElement('span');
+            details.textContent = 'Matrícula: ' + (func.matricula || '-')
+                + (func.setor ? ' • ' + func.setor : '')
+                + (func.cargo ? ' • ' + func.cargo : '');
+            button.append(name, details);
+            button.addEventListener('click', () => applyGroupCollaborator(func));
+            resultadosAlterarColaborador.appendChild(button);
+        });
+    }
+
+    function applyGroupCollaborator(func) {
+        let group = groups.find((entry) => entry.id === groupIdBeingEdited);
+        if (!group || !func || !func.matricula) {
+            statusAlterarColaborador.textContent = 'Não foi possível alterar o colaborador. Tente novamente.';
+            return;
+        }
+
+        group.usuario = func.nome + ' — ' + func.matricula;
+        group.itens.forEach((entry) => {
+            entry.usuario = group.usuario;
+        });
+
+        const duplicateGroup = groups.find((entry) => entry !== group
+            && normalizeAutocompleteText(entry.usuario) === normalizeAutocompleteText(group.usuario)
+            && normalizeAutocompleteText(entry.local) === normalizeAutocompleteText(group.local));
+        if (duplicateGroup) {
+            duplicateGroup.itens.push(...group.itens);
+            duplicateGroup.itens.forEach((entry) => {
+                entry.usuario = duplicateGroup.usuario;
+                entry.local = duplicateGroup.local;
+            });
+            const oldGroupId = group.id;
+            groups.splice(groups.indexOf(group), 1);
+            if (currentGroupId === oldGroupId) {
+                currentGroupId = duplicateGroup.id;
+            }
+            group = duplicateGroup;
+        }
+
+        const previewBelongsToGroup = currentPreviewItem
+            && group.itens.some((entry) => entry.id === currentPreviewItem.id);
+        if (previewBelongsToGroup) {
+            currentPreviewItem.usuario = group.usuario;
+        }
+        if (currentGroupId === group.id) {
+            inputUsuario.value = group.usuario;
+        }
+
+        renderItems();
+        if (previewBelongsToGroup) {
+            renderCurrentPreview(currentPreviewItem, 'queued');
+        }
+        scheduleMirrorOperatorHeartbeat();
+        modalAlterarColaborador.hide();
+    }
+
+    inputAlterarColaborador.addEventListener('input', () => {
+        renderCollaboratorChoices(inputAlterarColaborador.value);
+    });
+
+    inputAlterarColaborador.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter') {
+            return;
+        }
+        const firstChoice = resultadosAlterarColaborador.querySelector('.alterar-colaborador-opcao');
+        if (firstChoice) {
+            event.preventDefault();
+            firstChoice.click();
+        }
+    });
+
     function resetCurrentGroupForm(suppressMirrorReset) {
         currentGroupId = null;
         inputUsuario.value = '';
@@ -2778,7 +2909,12 @@ ${parent.scripts()}
         itemsList.innerHTML = activeGroups.map(group => {
             const groupHeader =
                 '<tr class="group-row">' +
-                    '<td colspan="5">' + normalizeGroupLabel(group.usuario, group.local) + '</td>' +
+                    '<td colspan="5"><div class="group-row-content">' +
+                        '<span>' + normalizeGroupLabel(group.usuario, group.local) + '</span>' +
+                        '<button type="button" class="btn-change-group-user" data-group-action="change-user" data-group-id="' + group.id + '" title="Alterar colaborador deste grupo">' +
+                            '<i class="bi bi-person-gear me-1"></i>Alterar colaborador' +
+                        '</button>' +
+                    '</div></td>' +
                 '</tr>';
             const groupItems = group.itens.map(item => {
                 const rowFlag = buildQueuedItemStockFlag(item);
@@ -2905,6 +3041,12 @@ ${parent.scripts()}
     }
 
     itemsList?.addEventListener('click', function(event) {
+        const groupButton = event.target instanceof Element ? event.target.closest('[data-group-action="change-user"]') : null;
+        if (groupButton && itemsList.contains(groupButton)) {
+            event.preventDefault();
+            openCollaboratorEditor(Number(groupButton.getAttribute('data-group-id')));
+            return;
+        }
         const botao = event.target instanceof Element ? event.target.closest('[data-item-action]') : null;
         if (!botao || !itemsList.contains(botao)) {
             return;

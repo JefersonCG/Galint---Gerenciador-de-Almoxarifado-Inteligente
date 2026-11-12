@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Recebimento de NF-e pela SEFAZ{% endblock %}
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+        <div>
+            <h1 class="h3 mb-1">Recebimento de NF-e pela SEFAZ</h1>
+            <p class="text-muted mb-0">Configure o certificado e o CNPJ destinatário para consultar documentos fiscais automaticamente.</p>
+        </div>
+        <a class="btn btn-outline-secondary" href="{{ url_for('nf.nf_index') }}">Voltar aos documentos fiscais</a>
+    </div>
+
+    <div class="alert alert-info">
+        A SEFAZ limita a frequência de consultas. O GALINT respeita o intervalo mínimo de 1 hora e controla o NSU para evitar consultas repetidas.
+        Notas recebidas ficam nesta caixa de entrada para conferência; a integração não lança materiais no estoque e não envia manifestação automaticamente.
+        A SEFAZ pode disponibilizar inicialmente apenas o resumo da NF-e; a liberação do XML completo segue as regras fiscais de manifestação do destinatário.
+    </div>
+
+    <div class="row g-4">
+        <div class="col-xl-5">
+            <section class="card shadow-sm">
+                <div class="card-header"><strong>Configuração da consulta</strong></div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label class="form-label" for="cnpj_destinatario">CNPJ destinatário</label>
+                            <input class="form-control" id="cnpj_destinatario" name="cnpj_destinatario" value="{{ config.cnpj_destinatario }}" inputmode="numeric" autocomplete="off" required>
+                            <div class="form-text">Deve ser o CNPJ que consta como destinatário das notas.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="uf_autor">UF do estabelecimento</label>
+                            <select class="form-select" id="uf_autor" name="uf_autor" required>
+                                <option value="">Selecione</option>
+                                {% for code, uf in uf_codes.items() %}
+                                <option value="{{ code }}" {% if config.uf_autor == code %}selected{% endif %}>{{ uf }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="ambiente">Ambiente</label>
+                            <select class="form-select" id="ambiente" name="ambiente">
+                                <option value="producao" {% if config.ambiente == 'producao' %}selected{% endif %}>Produção</option>
+                                <option value="homologacao" {% if config.ambiente == 'homologacao' %}selected{% endif %}>Homologação (testes)</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="certificate">Certificado digital A1 (.PFX ou .P12)</label>
+                            <input class="form-control" id="certificate" name="certificate" type="file" accept=".pfx,.p12">
+                            <div class="form-text">
+                                {% if config.has_certificate %}Já há certificado armazenado. Envie outro somente para substituí-lo.{% else %}Nenhum certificado configurado.{% endif %}
+                                O arquivo e a senha são armazenados criptografados pelo GALINT.
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="certificate_password">Senha do certificado</label>
+                            <input class="form-control" id="certificate_password" name="certificate_password" type="password" autocomplete="new-password">
+                            <div class="form-text">Obrigatória ao enviar um novo certificado; não é exibida novamente.</div>
+                        </div>
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" id="enabled" name="enabled" type="checkbox" {% if config.enabled %}checked{% endif %}>
+                            <label class="form-check-label" for="enabled">Ativar consulta automática</label>
+                        </div>
+                        <button class="btn btn-primary" type="submit" name="action" value="save">Salvar configuração</button>
+                    </form>
+
+                    <hr>
+                    <div class="small">
+                        <div><strong>Último status:</strong> {{ config.ultimo_status or 'Ainda não consultado' }}</div>
+                        <div><strong>Mensagem:</strong> {{ config.ultima_mensagem or '—' }}</div>
+                        <div><strong>Última consulta:</strong> {{ config.consultado_em|datetime_br if config.consultado_em else '—' }}</div>
+                        <div><strong>Próxima consulta liberada:</strong> {{ config.proxima_consulta_em|datetime_br if config.proxima_consulta_em else 'Assim que ativada' }}</div>
+                        <div><strong>NSU:</strong> {{ config.ultimo_nsu }} / {{ config.maximo_nsu }}</div>
+                    </div>
+                    <form method="post" class="mt-3">
+                        <button class="btn btn-outline-primary" type="submit" name="action" value="poll">Consultar agora (respeitando o intervalo da SEFAZ)</button>
+                    </form>
+                </div>
+            </section>
+        </div>
+
+        <div class="col-xl-7">
+            <section class="card shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <strong>Notas encontradas</strong>
+                    <span class="badge text-bg-secondary">{{ documents|length }}</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr><th>NF-e</th><th>Emitente</th><th>Emissão</th><th>Valor</th><th>XML</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for document in documents %}
+                            <tr>
+                                <td><a href="{{ url_for('nf.nf_sefaz_document', document_id=document.id) }}">{{ document.numero_documento or '—' }}{% if document.serie %} / {{ document.serie }}{% endif %}</a></td>
+                                <td>{{ document.emitente or document.cnpj_emitente or 'Emitente não identificado' }}</td>
+                                <td>{{ document.data_emissao.strftime('%d/%m/%Y') if document.data_emissao else '—' }}</td>
+                                <td>{{ document.valor_total|currency_br if document.valor_total is not none else '—' }}</td>
+                                <td>{% if document.resumo %}<span class="badge text-bg-warning">Resumo</span>{% else %}<span class="badge text-bg-success">Completo</span>{% endif %}</td>
+                            </tr>
+                            {% else %}
+                            <tr><td class="text-muted text-center py-4" colspan="5">Nenhuma NF-e recebida até o momento.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1005,6 +1005,51 @@ class DocumentoEntradaEstoqueItem(db.Model):
     operation_log: Mapped["OperationLog | None"] = relationship("OperationLog")
 
 
+class NFeDistributionConfig(db.Model):
+    """Configuração sigilosa e cursor NSU da distribuição DF-e da SEFAZ."""
+    __tablename__ = "nfe_distribution_config"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    cnpj_destinatario: Mapped[str] = mapped_column(String(14), nullable=False, default="")
+    uf_autor: Mapped[str] = mapped_column(String(2), nullable=False, default="")
+    ambiente: Mapped[str] = mapped_column(String(12), nullable=False, default="producao")
+    certificado_pfx_criptografado: Mapped[str | None] = mapped_column(Text, nullable=True)
+    senha_certificado_criptografada: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ultimo_nsu: Mapped[str] = mapped_column(String(15), nullable=False, default="0")
+    maximo_nsu: Mapped[str] = mapped_column(String(15), nullable=False, default="0")
+    consultado_em: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    proxima_consulta_em: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    ultimo_status: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    ultima_mensagem: Mapped[str | None] = mapped_column(Text, nullable=True)
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, onupdate=TimeService.now_db)
+
+
+class NFeDistributionDocument(db.Model):
+    """NF-e encontrada pela distribuição DF-e, aguardando conferência no GALINT."""
+    __tablename__ = "nfe_distribution_documents"
+    __table_args__ = (
+        UniqueConstraint("cnpj_destinatario", "nsu", name="uq_nfe_distribution_documents_recipient_nsu"),
+        UniqueConstraint("chave_acesso", name="uq_nfe_distribution_documents_access_key"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    cnpj_destinatario: Mapped[str] = mapped_column(String(14), nullable=False, index=True)
+    nsu: Mapped[str] = mapped_column(String(15), nullable=False)
+    schema_documento: Mapped[str] = mapped_column(String(80), nullable=False)
+    chave_acesso: Mapped[str] = mapped_column(String(44), nullable=False)
+    numero_documento: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    serie: Mapped[str | None] = mapped_column(String(5), nullable=True)
+    cnpj_emitente: Mapped[str | None] = mapped_column(String(14), nullable=True)
+    emitente: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    data_emissao: Mapped[date | None] = mapped_column(Date, nullable=True)
+    valor_total: Mapped[float | None] = mapped_column(Float, nullable=True)
+    resumo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    itens_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    xml_original: Mapped[str] = mapped_column(Text, nullable=False)
+    recebido_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
+
+
 class EntradaFiscalHistorico(db.Model):
     """Registro append-only de cada linha fiscal recebida ou removida."""
     __tablename__ = "entradas_fiscais_historico"

@@ -2333,6 +2333,12 @@
             <p class="docf-subtitle">Painel operacional por estado documental. Registro, triagem, correção e histórico ficam separados para reduzir ruído na rotina.</p>
         </div>
         <div class="docf-header-actions">
+            {% if can_manage %}
+            <a class="docf-btn-secondary" href="{{ url_for('nf.nf_sefaz') }}">
+                <i class="bi bi-cloud-download"></i>
+                <span>Recebimento SEFAZ</span>
+            </a>
+            {% endif %}
             <button class="docf-help-toggle" id="docf-help-toggle" type="button">
                 <i class="bi bi-question-circle"></i>
                 <span>Ajuda por campo</span>

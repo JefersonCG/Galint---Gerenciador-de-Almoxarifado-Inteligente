@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
@@ -84,6 +84,9 @@ function Test-GalintPort {
 }
 
 function Update-GalintStatus {
+    $previousText = $script:statusLabel.Text
+    $previousColor = $script:statusLabel.ForeColor
+    $previousTarget = $script:target
     try {
         $script:running = @(Get-GalintProcesses).Count -gt 0
         $script:target = if ($script:running) { 1.0 } else { 0.0 }
@@ -105,7 +108,11 @@ function Update-GalintStatus {
         $script:statusLabel.ForeColor = [Drawing.Color]::FromArgb(248, 113, 113)
     }
 
-    $script:form.Invalidate()
+    if ($script:statusLabel.Text -ne $previousText -or
+        $script:statusLabel.ForeColor -ne $previousColor -or
+        $script:target -ne $previousTarget) {
+        $script:form.Invalidate()
+    }
 }
 
 function Start-Galint {
@@ -199,6 +206,11 @@ function Stop-Galint {
 }
 
 $script:form = New-Object Windows.Forms.Form
+$doubleBuffered = $script:form.GetType().GetProperty(
+    'DoubleBuffered',
+    [Reflection.BindingFlags]::Instance -bor [Reflection.BindingFlags]::NonPublic)
+if (-not $doubleBuffered) { throw 'Não foi possível habilitar o desenho sem cintilação da janela.' }
+$doubleBuffered.SetValue($script:form, $true, $null)
 $script:form.Text = 'GALINT'
 $script:form.ClientSize = New-Object Drawing.Size(480, 210)
 $script:form.FormBorderStyle = [Windows.Forms.FormBorderStyle]::FixedSingle
