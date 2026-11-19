@@ -2,14 +2,9 @@
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
-$script:projectRoot = Split-Path -Parent $PSScriptRoot
-$projectParent = Split-Path -Parent $script:projectRoot
-$projectGrandParent = Split-Path -Parent $projectParent
-$script:pythonCandidates = @(
-    (Join-Path $projectGrandParent '.venv\Scripts\python.exe'),
-    (Join-Path $projectParent '.venv\Scripts\python.exe'),
-    (Join-Path $script:projectRoot '.venv\Scripts\python.exe')
-)
+# Ligar, desligar e conferir ficam no GalintControle.ps1, que o Painel de Sistemas também usa (sem janela).
+. (Join-Path $PSScriptRoot 'GalintControle.ps1')
+
 $script:busy = $false
 $script:running = $false
 $script:hover = $false
@@ -25,82 +20,19 @@ $script:bgColor = [Drawing.Color]::FromArgb(11, 18, 32)
 $script:trackOff = [Drawing.Color]::FromArgb(59, 66, 82)
 $script:trackOn = [Drawing.Color]::FromArgb(255, 239, 0)
 
-function Get-GalintProcesses {
-    $pythonPaths = @($script:pythonCandidates | Where-Object { Test-Path $_ } | ForEach-Object { [IO.Path]::GetFullPath($_) })
-    $allPythonProcesses = @(Get-CimInstance -ClassName Win32_Process | Where-Object {
-        ($_.Name -eq 'python.exe' -or $_.Name -eq 'pythonw.exe') -and
-        $_.ExecutablePath -and $_.CommandLine
-    })
-    $waitressProcesses = @($allPythonProcesses | Where-Object {
-        ($pythonPaths -contains [IO.Path]::GetFullPath($_.ExecutablePath)) -and
-        $_.CommandLine.IndexOf('-m waitress', [StringComparison]::OrdinalIgnoreCase) -ge 0 -and
-        $_.CommandLine.IndexOf('galint_flask:create_app', [StringComparison]::OrdinalIgnoreCase) -ge 0
-    })
-    if ($waitressProcesses.Count -gt 0) {
-        return $waitressProcesses
-    }
-
-    $listener = Get-NetTCPConnection -State Listen -LocalPort 5000 -ErrorAction SilentlyContinue |
-        Select-Object -First 1
-    if (-not $listener) {
-        return @()
-    }
-
-    $portProcess = $allPythonProcesses | Where-Object { $_.ProcessId -eq $listener.OwningProcess } |
-        Select-Object -First 1
-    if (-not $portProcess -or $portProcess.CommandLine -notmatch '(^|\s|[\\/])app\.py(["\s]|$)') {
-        return @()
-    }
-
-    try {
-        $health = Invoke-RestMethod -Uri 'http://127.0.0.1:5000/api/health' -TimeoutSec 2
-        if ($health.status -eq 'ok') {
-            return @($portProcess)
-        }
-    }
-    catch [System.Net.WebException] {
-        return @()
-    }
-
-    return @()
-}
-
-function Test-GalintPort {
-    $client = New-Object Net.Sockets.TcpClient
-    $pending = $null
-    try {
-        $pending = $client.BeginConnect('127.0.0.1', 5000, $null, $null)
-        if (-not $pending.AsyncWaitHandle.WaitOne(500)) { return $false }
-        $client.EndConnect($pending)
-        return $true
-    }
-    catch [Net.Sockets.SocketException] {
-        return $false
-    }
-    finally {
-        if ($pending) { $pending.AsyncWaitHandle.Close() }
-        $client.Close()
-    }
-}
-
 function Update-GalintStatus {
     $previousText = $script:statusLabel.Text
     $previousColor = $script:statusLabel.ForeColor
     $previousTarget = $script:target
     try {
-        $script:running = @(Get-GalintProcesses).Count -gt 0
+        $estado = Get-GalintEstado
+        $script:running = $estado.Ligado
         $script:target = if ($script:running) { 1.0 } else { 0.0 }
-        if ($script:running) {
-            $script:statusLabel.Text = 'No ar: aplicação web e polling do Telegram'
-            $script:statusLabel.ForeColor = [Drawing.Color]::FromArgb(74, 222, 128)
-        }
-        elseif (Test-GalintPort) {
-            $script:statusLabel.Text = 'Porta 5000 ocupada por outro processo'
-            $script:statusLabel.ForeColor = [Drawing.Color]::FromArgb(248, 113, 113)
-        }
-        else {
-            $script:statusLabel.Text = 'GALINT parado'
-            $script:statusLabel.ForeColor = [Drawing.Color]::FromArgb(148, 163, 184)
+        $script:statusLabel.Text = $estado.Texto
+        $script:statusLabel.ForeColor = switch ($estado.Nivel) {
+            1 { [Drawing.Color]::FromArgb(74, 222, 128) }
+            3 { [Drawing.Color]::FromArgb(248, 113, 113) }
+            default { [Drawing.Color]::FromArgb(148, 163, 184) }
         }
     }
     catch {
@@ -113,96 +45,6 @@ function Update-GalintStatus {
         $script:target -ne $previousTarget) {
         $script:form.Invalidate()
     }
-}
-
-function Start-Galint {
-    if (@(Get-GalintProcesses).Count -gt 0) {
-        return 'O GALINT já está no ar.'
-    }
-    if (Test-GalintPort) {
-        throw 'A porta 5000 está ocupada por outro processo. Ele não foi alterado.'
-    }
-
-    $python = $script:pythonCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
-    if (-not $python) {
-        throw 'Python do ambiente virtual não encontrado. Verifique a pasta .venv.'
-    }
-
-    $savedEnvironment = @{}
-    $envFile = Join-Path $script:projectRoot '.env'
-    if (Test-Path $envFile) {
-        foreach ($line in Get-Content -LiteralPath $envFile -Encoding UTF8) {
-            if ($line -match '^\s*([^#][^=]+)=(.+)$') {
-                $name = $matches[1].Trim()
-                if (-not $savedEnvironment.ContainsKey($name)) {
-                    $savedEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
-                }
-                [Environment]::SetEnvironmentVariable($name, $matches[2].Trim(), 'Process')
-            }
-        }
-    }
-
-    foreach ($setting in @{
-        FLASK_ENV = 'production'
-        GALINT_TELEGRAM_KEEP_WEBHOOK = 'false'
-        GALINT_TELEGRAM_POLLING = 'true'
-    }.GetEnumerator()) {
-        if (-not $savedEnvironment.ContainsKey($setting.Key)) {
-            $savedEnvironment[$setting.Key] = [Environment]::GetEnvironmentVariable($setting.Key, 'Process')
-        }
-        [Environment]::SetEnvironmentVariable($setting.Key, $setting.Value, 'Process')
-    }
-
-    try {
-        $server = Start-Process -FilePath $python `
-            -ArgumentList @('-u', '-m', 'waitress', '--host=0.0.0.0', '--port=5000', '--call', 'galint_flask:create_app') `
-            -WorkingDirectory $script:projectRoot -WindowStyle Hidden -PassThru `
-            -RedirectStandardOutput 'NUL' -RedirectStandardError '\\.\NUL'
-    }
-    finally {
-        foreach ($name in $savedEnvironment.Keys) {
-            [Environment]::SetEnvironmentVariable($name, $savedEnvironment[$name], 'Process')
-        }
-    }
-
-    $script:statusLabel.Text = 'Aguardando o servidor iniciar...'
-    [Windows.Forms.Application]::DoEvents()
-    for ($second = 0; $second -lt 90; $second++) {
-        if ((Test-GalintPort) -and @(Get-GalintProcesses).Count -gt 0) {
-            return 'GALINT no ar em http://localhost:5000.'
-        }
-        $server.Refresh()
-        if ($server.HasExited) {
-            throw "O servidor encerrou durante a inicialização (código $($server.ExitCode)). Verifique o ambiente e o banco de dados."
-        }
-        if ($second -gt 0 -and $second % 10 -eq 0) {
-            $script:statusLabel.Text = 'Aguardando o GALINT iniciar...'
-        }
-        [Windows.Forms.Application]::DoEvents()
-        Start-Sleep -Seconds 1
-    }
-    throw 'O GALINT não respondeu na porta 5000 em 90 segundos.'
-}
-
-function Stop-Galint {
-    $processes = @(Get-GalintProcesses)
-    if ($processes.Count -eq 0) {
-        if (Test-GalintPort) {
-            throw 'A porta 5000 está ocupada por um processo não identificado como GALINT. Ele não foi encerrado.'
-        }
-        return 'O GALINT já está parado.'
-    }
-
-    foreach ($process in $processes) {
-        Stop-Process -Id $process.ProcessId -Force
-    }
-    for ($attempt = 0; $attempt -lt 15; $attempt++) {
-        if (@(Get-GalintProcesses).Count -eq 0) {
-            return 'GALINT parado. O PostgreSQL continua em execução.'
-        }
-        Start-Sleep -Seconds 1
-    }
-    throw 'O processo do GALINT não encerrou no tempo esperado.'
 }
 
 $script:form = New-Object Windows.Forms.Form
@@ -361,7 +203,7 @@ function Invoke-GalintToggle {
             $null = Stop-Galint
         }
         else {
-            $null = Start-Galint
+            $null = Start-Galint -Progresso { param($texto) if ($texto) { $script:statusLabel.Text = $texto }; [Windows.Forms.Application]::DoEvents() }
         }
         $script:lastOperationError = ''
     }
