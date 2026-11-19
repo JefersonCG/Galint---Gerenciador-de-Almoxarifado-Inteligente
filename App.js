@@ -13,6 +13,7 @@ import * as Updates from 'expo-updates';
 import LoginScreen from './src/screens/LoginScreen';
 import EstoqueScreen from './src/screens/EstoqueScreen';
 import ScannerScreen from './src/screens/ScannerScreen';
+import ContagemFisicaScreen from './src/screens/ContagemFisicaScreen';
 import EditarItemScreen from './src/screens/EditarItemScreen';
 import RetiradaScreen from './src/screens/RetiradaScreen';
 import DevolverScreen from './src/screens/DevolverScreen';
@@ -302,6 +303,12 @@ export default function App() {
                             title: 'Escanear Código',
                             headerTransparent: true
                         }}
+                    />
+
+                    <Stack.Screen
+                        name="ContagemFisica"
+                        component={ContagemFisicaScreen}
+                        options={{ title: 'Conferência física' }}
                     />
 
                     <Stack.Screen

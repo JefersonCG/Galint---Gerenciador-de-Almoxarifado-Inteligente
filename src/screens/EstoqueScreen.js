@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import {
     View,
     Text,
@@ -12,6 +12,9 @@ import {
     Platform,
     Image,
     Keyboard,
+    Modal,
+    ScrollView,
+    BackHandler,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
@@ -105,6 +108,9 @@ export default function EstoqueScreen({ navigation, route }) {
     const [pendingOpsCount, setPendingOpsCount] = useState(0);
     const [isSyncing, setIsSyncing] = useState(false);
     const [downloadingDatabase, setDownloadingDatabase] = useState(false);
+    // Visual novo (19/11/2026): a tela inicial é só o botão de Conferência; o resto fica no ☰.
+    const [view, setView] = useState('home'); // 'home' | 'estoque'
+    const [menuOpen, setMenuOpen] = useState(false);
     const latestSearchRef = useRef('');
 
     // Determinar permissão
@@ -644,8 +650,8 @@ export default function EstoqueScreen({ navigation, route }) {
 
     const handleOpenMenu = useCallback(() => {
         InactivityService.recordActivity();
-        navigation.navigate('Menu');
-    }, [navigation]);
+        setMenuOpen(true);
+    }, []);
 
     const handleOpenNotifications = useCallback(() => {
         InactivityService.recordActivity();
@@ -660,6 +666,68 @@ export default function EstoqueScreen({ navigation, route }) {
         InactivityService.recordActivity();
         navigation.navigate('DocumentosFiscais');
     }, [canManageDocuments, navigation]);
+
+    const handleOpenConferencia = useCallback(() => {
+        InactivityService.recordActivity();
+        setMenuOpen(false);
+        navigation.navigate('ContagemFisica', { user });
+    }, [navigation, user]);
+
+    const handleMenuNavigate = useCallback((screen, params = {}) => {
+        InactivityService.recordActivity();
+        setMenuOpen(false);
+        navigation.navigate(screen, { user, ...params });
+    }, [navigation, user]);
+
+    const handleLogout = useCallback(() => {
+        setMenuOpen(false);
+        Alert.alert('Sair', 'Deseja sair do GALINT neste aparelho?', [
+            { text: 'Cancelar', style: 'cancel' },
+            {
+                text: 'Sair',
+                style: 'destructive',
+                onPress: () => {
+                    HeartbeatService.stop();
+                    InactivityService.stop();
+                    SyncService.stop();
+                    ApiService.logout().catch(() => {});
+                    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+                },
+            },
+        ]);
+    }, [navigation]);
+
+    // Cabeçalho: ☰ abre o menu lateral; sino com as notificações.
+    useLayoutEffect(() => {
+        navigation.setOptions({
+            title: view === 'estoque' ? 'Consultar estoque' : 'GALINT',
+            headerLeft: () => (
+                <TouchableOpacity onPress={handleOpenMenu} style={styles.headerIconButton} accessibilityLabel="Abrir menu">
+                    <Text style={styles.headerHamburger}>☰</Text>
+                </TouchableOpacity>
+            ),
+            headerRight: () => (
+                <TouchableOpacity onPress={handleOpenNotifications} style={styles.headerIconButton} accessibilityLabel="Notificações">
+                    <Text style={styles.headerBell}>🔔</Text>
+                    {unreadNotifications > 0 ? (
+                        <View style={styles.headerBellBadge}>
+                            <Text style={styles.headerBellBadgeText}>{unreadNotifications > 99 ? '99+' : unreadNotifications}</Text>
+                        </View>
+                    ) : null}
+                </TouchableOpacity>
+            ),
+        });
+    }, [handleOpenMenu, handleOpenNotifications, navigation, unreadNotifications, view]);
+
+    // Botão voltar do Android: da consulta de estoque volta para a tela inicial.
+    useEffect(() => {
+        if (view === 'home') return undefined;
+        const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+            setView('home');
+            return true;
+        });
+        return () => subscription.remove();
+    }, [view]);
 
     const renderItem = useCallback(({ item }) => {
         const q = Number(item?.quantidade ?? 0);
@@ -945,8 +1013,108 @@ export default function EstoqueScreen({ navigation, route }) {
                             </Text>
                         </TouchableOpacity>
                     )}
+    const canOperate = role === 'operacional' || role === 'master';
+    const firstName = String(user?.nome || user?.username || '').trim().split(/\s+/)[0] || '';
+    const connectionLabel = connectionStatus === 'syncing' ? 'Sincronizando' : connectionStatus === 'offline' ? 'Offline' : 'Online';
+
+    const menuEntry = (icon, label, onPress, hint = null, badge = 0) => (
+        <TouchableOpacity key={label} style={styles.menuEntry} onPress={onPress} activeOpacity={0.8}>
+            <Text style={styles.menuEntryIcon}>{icon}</Text>
+            <View style={styles.menuEntryTextBox}>
+                <Text style={styles.menuEntryLabel}>{label}</Text>
+                {hint ? <Text style={styles.menuEntryHint}>{hint}</Text> : null}
+            </View>
+            {badge > 0 ? (
+                <View style={styles.menuEntryBadge}>
+                    <Text style={styles.menuEntryBadgeText}>{badge > 99 ? '99+' : badge}</Text>
+                </View>
+            ) : null}
+        </TouchableOpacity>
+    );
+
+    const sideMenu = (
+        <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
+            <View style={styles.menuBackdrop}>
+                <View style={styles.menuPanel}>
+                    <View style={styles.menuHeader}>
+                        <Text style={styles.menuTitle}>GALINT</Text>
+                        <Text style={styles.menuUser}>{user?.nome || user?.username || 'Usuário'}</Text>
+                        <Text style={styles.menuUserMeta}>{roleLabel} • {connectionLabel}{pendingOpsCount > 0 ? ` • ${pendingOpsCount} pendência(s)` : ''}</Text>
+                    </View>
+                    <ScrollView contentContainerStyle={styles.menuList}>
+                        {menuEntry('🏠', 'Início', () => { setMenuOpen(false); setView('home'); })}
+                        {menuEntry('📋', 'Conferência física', handleOpenConferencia, 'Ler a planilha e contar')}
+                        {menuEntry('📦', 'Consultar estoque', () => { setMenuOpen(false); setView('estoque'); }, 'Busca, categorias e custódia do dia')}
+                        {canOperate ? (
+                            <>
+                                <Text style={styles.menuSection}>Movimentações</Text>
+                                {menuEntry('📤', 'Retirar material', () => handleMenuNavigate('Scanner', { mode: 'withdraw' }))}
+                                {menuEntry('📥', 'Devolver', () => handleMenuNavigate('Scanner', { mode: 'return' }))}
+                                {menuEntry('🧰', 'Retirada múltipla', () => handleMenuNavigate('Retirada', { multi: true, items: [] }))}
+                                {menuEntry('✂️', 'Retirada fracionada', () => handleMenuNavigate('Scanner', { mode: 'withdraw_fraction' }))}
+                                {menuEntry(canManageDocuments ? '🧾' : '🔒', 'Entradas fiscais', () => { setMenuOpen(false); handleOpenDocumentos(); }, canManageDocuments ? 'NF, cupom, recibo' : 'Só administradores')}
+                            </>
+                        ) : null}
+                        <Text style={styles.menuSection}>Geral</Text>
+                        {menuEntry('🔔', 'Notificações', () => { setMenuOpen(false); handleOpenNotifications(); }, null, unreadNotifications)}
+                        {menuEntry('🗂️', 'Painel, relatórios e configurações', () => handleMenuNavigate('Menu'))}
+                        {menuEntry('⬇️', downloadingDatabase ? 'Baixando base...' : 'Baixar base offline', () => { setMenuOpen(false); handleDownloadDatabase(); })}
+                        {menuEntry('🔄', isSyncing ? 'Sincronizando...' : 'Sincronizar agora', () => { setMenuOpen(false); handleManualSync(); })}
+                        {menuEntry('🚪', 'Sair', handleLogout)}
+                    </ScrollView>
+                </View>
+                <TouchableOpacity style={styles.menuOutside} activeOpacity={1} onPress={() => setMenuOpen(false)} accessibilityLabel="Fechar menu" />
+            </View>
+        </Modal>
+    );
+
+    const connectionBanners = (
+        <>
+            {connectionStatus === 'offline' && (
+                <View style={styles.offlineBanner}>
+                    <View style={styles.offlineBannerContent}>
+                        <Text style={styles.offlineBannerText}>
+                            Modo offline
+                            {pendingOpsCount > 0 && ` - ${pendingOpsCount} operação(ões) pendente(s)`}
+                        </Text>
+                        <TouchableOpacity style={styles.syncButton} onPress={handleManualSync} disabled={isSyncing}>
+                            <Text style={styles.syncButtonText}>{isSyncing ? 'Sincronizando...' : 'Sincronizar'}</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            )}
+            {connectionStatus === 'syncing' && (
+                <View style={[styles.offlineBanner, styles.syncingBanner]}>
+                    <View style={styles.offlineBannerContent}>
+                        <Text style={styles.offlineBannerText}>Sincronizando operações...</Text>
+                    </View>
+                </View>
+            )}
+        </>
+    );
+
+    if (view === 'home') {
+        return (
+            <View style={styles.container}>
+                {connectionBanners}
+                <View style={styles.homeWrap}>
+                    <Text style={styles.homeGreeting}>{firstName ? `Olá, ${firstName}` : 'Olá'}</Text>
+                    <Text style={styles.homeMeta}>{roleLabel} • {connectionLabel}</Text>
+                    <TouchableOpacity style={styles.homeButton} onPress={handleOpenConferencia} activeOpacity={0.85} accessibilityLabel="Conferência física">
+                        <Text style={styles.homeButtonIcon}>📋</Text>
+                        <Text style={styles.homeButtonTitle}>Conferência</Text>
+                        <Text style={styles.homeButtonHint}>Leia o código da planilha{'\n'}e informe a quantidade</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.homeFooter}>As outras funções ficam no menu ☰</Text>
+                </View>
+                {sideMenu}
+            </View>
+        );
+    }
+
     return (
         <View style={styles.container}>
+            {sideMenu}
             {/* 🌐 Banner de Status de Conexão */}
             {connectionStatus === 'offline' && (
                 <View style={styles.offlineBanner}>
@@ -1015,6 +1183,47 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: heroPalette.bg,
     },
+    // Visual novo: tela inicial com um botão só e menu lateral (☰).
+    headerIconButton: { paddingHorizontal: 12, paddingVertical: 6, justifyContent: 'center', alignItems: 'center' },
+    headerHamburger: { color: heroPalette.text, fontSize: 26, fontWeight: '700' },
+    headerBell: { fontSize: 22 },
+    headerBellBadge: { position: 'absolute', top: 0, right: 4, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: heroPalette.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+    headerBellBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
+    homeWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
+    homeGreeting: { color: heroPalette.text, fontSize: 24, fontWeight: '800' },
+    homeMeta: { color: heroPalette.textMuted, fontSize: 14, marginTop: 4, marginBottom: 36 },
+    homeButton: {
+        width: 250,
+        height: 250,
+        borderRadius: 125,
+        backgroundColor: heroPalette.primaryStrong,
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 20,
+        borderWidth: 6,
+        borderColor: 'rgba(103, 232, 249, 0.35)',
+        ...heroShadow,
+    },
+    homeButtonIcon: { fontSize: 64 },
+    homeButtonTitle: { color: heroPalette.bg, fontSize: 26, fontWeight: '900', marginTop: 6 },
+    homeButtonHint: { color: '#083344', fontSize: 13, fontWeight: '700', textAlign: 'center', marginTop: 6 },
+    homeFooter: { color: heroPalette.textMuted, fontSize: 13, marginTop: 36 },
+    menuBackdrop: { flex: 1, flexDirection: 'row', backgroundColor: 'rgba(2, 6, 23, 0.6)' },
+    menuPanel: { width: '80%', maxWidth: 340, backgroundColor: heroPalette.bgAlt, borderRightWidth: 1, borderRightColor: heroPalette.border, paddingTop: 36 },
+    menuOutside: { flex: 1 },
+    menuHeader: { paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: heroPalette.border },
+    menuTitle: { color: heroPalette.primary, fontSize: 22, fontWeight: '900', letterSpacing: 1 },
+    menuUser: { color: heroPalette.text, fontSize: 16, fontWeight: '700', marginTop: 6 },
+    menuUserMeta: { color: heroPalette.textMuted, fontSize: 12, marginTop: 2 },
+    menuList: { paddingVertical: 8, paddingBottom: 32 },
+    menuSection: { color: heroPalette.textMuted, fontSize: 11, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', paddingHorizontal: 20, marginTop: 14, marginBottom: 4 },
+    menuEntry: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 20 },
+    menuEntryIcon: { fontSize: 22, width: 34 },
+    menuEntryTextBox: { flex: 1 },
+    menuEntryLabel: { color: heroPalette.text, fontSize: 16, fontWeight: '700' },
+    menuEntryHint: { color: heroPalette.textMuted, fontSize: 12, marginTop: 1 },
+    menuEntryBadge: { minWidth: 22, height: 22, borderRadius: 11, backgroundColor: heroPalette.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+    menuEntryBadgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
     loadingOverlay: {
         position: 'absolute',
         top: 0, left: 0, right: 0, bottom: 0,

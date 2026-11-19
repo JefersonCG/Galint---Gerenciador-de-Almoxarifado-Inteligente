@@ -1289,6 +1289,58 @@ class ApiService {
         }
     }
 
+    // Conferência física (mesma contagem do site): só online, porque grava o saldo na hora.
+    async buscarItemContagem(codigo) {
+        const code = String(codigo || '').trim();
+        if (!code) {
+            return { success: false, message: 'Leia ou digite o código de barras.' };
+        }
+        const online = await this.isOnline();
+        if (!online || !this.client) {
+            return { success: false, offline: true, message: 'Sem conexão com o servidor. A conferência precisa estar online.' };
+        }
+        try {
+            const token = await AsyncStorage.getItem('token');
+            const response = await this.client.get('/api/mobile/conferencia-estoque/item', {
+                params: { codigo: code },
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+            });
+            return { success: true, item: response.data?.item || null };
+        } catch (error) {
+            if (isNetworkError(error)) {
+                return { success: false, offline: true, message: 'Sem conexão com o servidor. A conferência precisa estar online.' };
+            }
+            const status = error.response?.status;
+            const message = error.response?.data?.message || error.response?.data?.error;
+            if (status === 404) {
+                return { success: false, notFound: true, message: message || 'Item não encontrado.' };
+            }
+            if (status === 401 || status === 403) {
+                return { success: false, authError: true, message: message || 'Sessão expirada. Faça login novamente.' };
+            }
+            return { success: false, message: message || 'Falha ao buscar o item.' };
+        }
+    }
+
+    async salvarContagem(payload) {
+        if (!this.client) {
+            return { success: false, offline: true, message: 'Sem conexão com o servidor.' };
+        }
+        try {
+            const token = await AsyncStorage.getItem('token');
+            const response = await this.client.post('/api/mobile/conferencia-estoque/ajuste', payload, {
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+            });
+            return { success: true, ...(response.data || {}) };
+        } catch (error) {
+            if (isNetworkError(error)) {
+                return { success: false, offline: true, message: 'Sem conexão com o servidor. A contagem não foi salva.' };
+            }
+            const message = error.response?.data?.message || error.response?.data?.error;
+            return { success: false, message: message || 'Não foi possível salvar a contagem.' };
+        }
+    }
+
     async cadastrarItem(itemData) {
         return {
             success: false,
