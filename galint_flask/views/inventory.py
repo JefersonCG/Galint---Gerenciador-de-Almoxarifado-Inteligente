@@ -2128,6 +2128,11 @@ def stock_count_item_lookup():
     except ValueError as exc:
         return jsonify({"success": False, "message": str(exc)}), 404
 
+    # A foto ajuda a conferir que o código lido é mesmo o item que está na mão.
+    foto_path = str(item.foto_path or "").strip().lstrip("/")
+    if foto_path.lower().startswith("static/"):
+        foto_path = foto_path[len("static/"):]
+
     return jsonify({
         "success": True,
         "item": {
@@ -2138,6 +2143,7 @@ def stock_count_item_lookup():
             "saldo_display": snapshot["saldo_display"],
             "input": snapshot["admin_balance_input"],
             "pre_cadastro_pendente": snapshot["pre_cadastro_pendente"],
+            "foto_url": url_for("static", filename=foto_path) if foto_path else None,
         },
     })
 

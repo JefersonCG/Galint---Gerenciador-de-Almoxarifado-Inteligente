@@ -17,6 +17,11 @@
         const packageInput = document.getElementById('stockCountPackageValue');
         const internalInput = document.getElementById('stockCountInternalValue');
         const submitButton = document.getElementById('stockCountSubmit');
+        const photoBox = document.getElementById('stockCountPhotoBox');
+        const photoLink = document.getElementById('stockCountPhotoLink');
+        const photo = document.getElementById('stockCountPhoto');
+        const photoEmptyIcon = document.getElementById('stockCountPhotoEmptyIcon');
+        const photoEmptyText = document.getElementById('stockCountPhotoEmptyText');
         let selectedItem = null;
         let requestVersion = 0;
 
@@ -34,10 +39,45 @@
             });
         }
 
+        function showPhotoPlaceholder() {
+            if (!photoBox) {
+                return;
+            }
+            photoBox.classList.add('is-empty');
+            photoLink?.classList.add('d-none');
+            photoLink?.removeAttribute('href');
+            photo?.removeAttribute('src');
+            photoEmptyIcon?.classList.remove('d-none');
+            photoEmptyText?.classList.remove('d-none');
+        }
+
+        function renderPhoto(item) {
+            const url = String(item.foto_url || '').trim();
+            if (!url || !photoBox || !photo || !photoLink) {
+                showPhotoPlaceholder();
+                return;
+            }
+            photoBox.classList.remove('is-empty');
+            photoLink.classList.remove('d-none');
+            photoLink.href = url;
+            photo.alt = item.descricao ? `Foto de ${item.descricao}` : 'Foto do item';
+            photo.src = url;
+            photoEmptyIcon?.classList.add('d-none');
+            photoEmptyText?.classList.add('d-none');
+        }
+
+        // Arquivo da foto apagado ou corrompido: volta para "Sem foto" em vez do ícone quebrado.
+        photo?.addEventListener('error', () => {
+            if (photo.getAttribute('src')) {
+                showPhotoPlaceholder();
+            }
+        });
+
         function renderItem(item) {
             selectedItem = item;
             document.getElementById('stockCountItemCode').textContent = `Código: ${item.codigo}`;
             document.getElementById('stockCountItemDescription').textContent = item.descricao || 'Item';
+            renderPhoto(item);
             document.getElementById('stockCountSystemBalance').textContent = item.saldo_display || `${item.saldo} ${item.unidade || 'un'}`;
 
             const input = item.input || {};
@@ -196,6 +236,7 @@
             selectedItem = null;
             form.reset();
             details.classList.add('d-none');
+            showPhotoPlaceholder();
             setFeedback('', false);
             if (searchInput) {
                 searchInput.value = '';

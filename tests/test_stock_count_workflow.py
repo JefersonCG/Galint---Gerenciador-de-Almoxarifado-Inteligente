@@ -43,7 +43,12 @@ def stock_count_client():
     with app.app_context():
         db.init_app(app)
         db.metadata.create_all(bind=db.engine, tables=[Item.__table__])
-        db.session.add(Item(codigo_item="COUNT-001", descricao="Material de teste", setor="Estoque"))
+        db.session.add(Item(
+            codigo_item="COUNT-001",
+            descricao="Material de teste",
+            setor="Estoque",
+            foto_path="uploads/itens/COUNT-001.jpg",
+        ))
         db.session.commit()
         client = app.test_client()
         with client.session_transaction() as session:
@@ -167,6 +172,7 @@ def test_any_authenticated_user_can_lookup_item_and_apply_zero_count(stock_count
 
     assert lookup.status_code == 200
     assert lookup.get_json()["item"]["saldo"] == 4.0
+    assert lookup.get_json()["item"]["foto_url"] == "/static/uploads/itens/COUNT-001.jpg"
     assert adjustment.status_code == 200
     assert adjustment.get_json()["success"] is True
     assert calls[0]["adjustment_payload"]["admin_balance_direct_value"] == "0"

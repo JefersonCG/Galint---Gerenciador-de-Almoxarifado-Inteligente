@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="${url_for('static', filename='css/galint-tokens.css')}?v=20260924">
     <link rel="stylesheet" href="${url_for('static', filename='css/qss_like.css')}?v=20261106">
     <link rel="stylesheet" href="${url_for('static', filename='css/consumption-search.css')}?v=20261106">
+    <link rel="stylesheet" href="${url_for('static', filename='css/stock-count-modal.css')}?v=20261119-foto">
     <script src="${url_for('static', filename='js/galint-core.js')}?v=20260924"></script>
     <%block name="extra_css"></%block>
 </head>
@@ -137,7 +138,7 @@
     % if current_user.is_authenticated and endpoint_exists('inventory.stock_count_item_lookup') and endpoint_exists('inventory.stock_count_item_adjust'):
     <div class="modal fade" id="stockCountModal" tabindex="-1" aria-labelledby="stockCountModalTitle" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
+            <div class="modal-content stock-count-modal-content">
                 <div class="modal-header">
                     <div>
                         <h2 class="modal-title fs-5" id="stockCountModalTitle">Contagem física</h2>
@@ -148,8 +149,22 @@
                 <div class="modal-body">
                     <div id="stockCountFeedback" class="small" role="status" aria-live="polite"></div>
                     <section id="stockCountItemDetails" class="d-none">
-                        <h3 class="h6 mb-1" id="stockCountItemDescription"></h3>
-                        <p class="small text-secondary mb-3">No sistema: <strong id="stockCountSystemBalance"></strong></p>
+                        <div class="stock-count-item">
+                            <div class="stock-count-photo is-empty" id="stockCountPhotoBox">
+                                <a class="stock-count-photo-link d-none" id="stockCountPhotoLink" href="#" target="_blank" rel="noopener" title="Abrir a foto em tamanho maior">
+                                    <img id="stockCountPhoto" alt="">
+                                </a>
+                                <i class="bi bi-image" id="stockCountPhotoEmptyIcon" aria-hidden="true"></i>
+                                <span id="stockCountPhotoEmptyText">Sem foto</span>
+                            </div>
+                            <div class="stock-count-item-info">
+                                <h3 class="stock-count-item-name" id="stockCountItemDescription"></h3>
+                                <div class="stock-count-balance">
+                                    <span class="stock-count-balance-label">No sistema</span>
+                                    <strong id="stockCountSystemBalance"></strong>
+                                </div>
+                            </div>
+                        </div>
                         <div id="stockCountPendingWarning" class="alert alert-warning py-2 d-none">Este item ainda está pendente de cadastro e não pode ter o estoque ajustado.</div>
                         <form id="stockCountForm">
                             <div id="stockCountDirectGroup">
@@ -164,7 +179,7 @@
                                 <input class="form-control" id="stockCountInternalValue" type="number" min="0" step="any" inputmode="decimal">
                             </div>
                             <div class="d-flex justify-content-end gap-2 mt-4">
-                                <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancelar</button>
+                                <button class="btn btn-outline-light" type="button" data-bs-dismiss="modal">Cancelar</button>
                                 <button class="btn btn-primary" type="submit" id="stockCountSubmit">Aplicar contagem</button>
                             </div>
                         </form>
@@ -182,7 +197,7 @@
     <script src="${url_for('static', filename='js/nf-search-modal.js')}?v=20261105"></script>
     % endif
     % if current_user.is_authenticated and endpoint_exists('inventory.stock_count_item_lookup'):
-    <script src="${url_for('static', filename='js/stock-count-modal.js')}?v=20261119"></script>
+    <script src="${url_for('static', filename='js/stock-count-modal.js')}?v=20261119-foto"></script>
     % endif
     <script>
         document.addEventListener('DOMContentLoaded', function () {
