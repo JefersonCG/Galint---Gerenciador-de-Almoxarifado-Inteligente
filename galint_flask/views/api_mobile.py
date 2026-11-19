@@ -41,6 +41,7 @@ from ..services.inventory import (
 )
 from ..services.legacy_stock_normalizer import resolve_canonical_unit
 from ..services.operation_visual_payload import operation_visual_payload_service
+from ..services import stock_count_service
 from ..services.unit_conversion_engine import UnitConversionError, unit_conversion_engine
 from ..services.item_foto_service import ItemFotoService
 from ..services.telegram_reports import TelegramReportService
@@ -980,6 +981,66 @@ def buscar_item_por_codigo(current_user: Usuario, codigo: str):
     return jsonify({
         "success": True,
         "data": _serialize_mobile_stock_item(item),
+    }), 200
+
+
+@blueprint.get("/conferencia-estoque/item")
+@mobile_login_required
+def mobile_stock_count_lookup():
+    """Conferência física pelo app: item do código lido na planilha, com foto e saldo do sistema."""
+    codigo = (request.args.get("codigo") or "").strip()
+    if not codigo:
+        return jsonify({"success": False, "message": "Leia ou digite o código de barras."}), 400
+
+    item = _find_item_by_barcode(codigo)
+    if item is None:
+        return jsonify({"success": False, "message": "Item não encontrado.", "codigo_lido": codigo}), 404
+
+    try:
+        payload = stock_count_service.item_snapshot(item)
+    except stock_count_service.StockCountError as exc:
+        return jsonify({"success": False, "message": str(exc)}), exc.status
+
+    payload["foto_url"] = operation_visual_payload_service._build_photo_url(stock_count_service.photo_static_path(item))
+    payload["categoria"] = item.categoria
+    payload["localizacao"] = item.localizacao
+    return jsonify({"success": True, "item": payload}), 200
+
+
+@blueprint.post("/conferencia-estoque/ajuste")
+@mobile_login_required
+def mobile_stock_count_adjust():
+    """Grava a quantidade contada no app pelo mesmo motor auditado do site (aceita zero)."""
+    data = request.get_json(silent=True)
+    codigo = str(data.get("codigo") or "").strip() if isinstance(data, dict) else ""
+    if not codigo:
+        return jsonify({"success": False, "message": "Informe o código do item."}), 400
+
+    user = g.mobile_user
+    user_id = str(getattr(user, "matricula", "") or "").strip()
+    try:
+        result = stock_count_service.apply_count(
+            codigo,
+            data,
+            user_id=user_id,
+            user_name=getattr(user, "nome", None),
+            source=stock_count_service.SOURCE_MOBILE_APP,
+            route=request.path,
+            ip_address=_get_client_ip(),
+            user_agent=request.user_agent.string if request.user_agent else None,
+        )
+    except stock_count_service.StockCountError as exc:
+        return jsonify({"success": False, "message": str(exc)}), exc.status
+    except Exception:
+        logger.exception("Falha ao gravar contagem física pelo app")
+        return jsonify({"success": False, "message": "Não foi possível salvar a contagem."}), 500
+
+    item = db.session.get(Item, result.get("codigo_atual") or codigo)
+    return jsonify({
+        "success": True,
+        "changed": bool(result.get("changed")),
+        "message": result.get("message") or "Contagem física registrada.",
+        "saldo_display": item.get_saldo_fisico_display() if item is not None else None,
     }), 200
 
 
