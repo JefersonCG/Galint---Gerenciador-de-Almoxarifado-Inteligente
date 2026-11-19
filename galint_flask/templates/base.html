@@ -13,6 +13,7 @@
     {% set general_search_available = current_user.is_authenticated and not disable_global_tools and endpoint_exists('reports.general_search_suggestions_api') and endpoint_exists('reports.general_search_employee_api') and endpoint_exists('reports.general_search_item_api') and endpoint_exists('reports.general_search_daily_api') %}
     {% set material_search_available = current_user.is_authenticated and not disable_global_tools and endpoint_exists('reports.general_search_suggestions_api') and endpoint_exists('reports.item_consumption_api') and endpoint_exists('reports.item_consumption_pdf') %}
     {% set stock_count_available = current_user.is_authenticated and not disable_global_tools and endpoint_exists('inventory.stock_count_item_lookup') and endpoint_exists('inventory.stock_count_item_adjust') %}
+    {% set stock_count_workbook_available = current_user.is_authenticated and not disable_global_tools and endpoint_exists('inventory.stock_count_workbook') and endpoint_exists('inventory.stock_count_categories') %}
     {% set topbar_search_available = current_user.is_authenticated and not disable_global_tools and (material_search_available or endpoint_exists('nf.buscar_documento_modal') or stock_count_available) %}
     {% set is_workspace_window = request.args.get('workspace_window', '').strip().lower() in ('1', 'true', 'yes') %}
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
@@ -25,8 +26,8 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/general-search-modal.css', v='20260506-admin') }}">
     {% endif %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/consumption-search.css', v='20261106') }}">
-    {% if stock_count_available %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/stock-count-modal.css', v='20261119-foto') }}">
+    {% if stock_count_available or stock_count_workbook_available %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/stock-count-modal.css', v='20261119-categorias') }}">
     {% endif %}
     <style>
         .workspace-window-badge {
@@ -211,8 +212,8 @@
             <div class="topbar-item-suggestions d-none" id="topbar-item-suggestions" role="listbox"></div>
         </form>
         {% endif %}
-        {% if current_user.is_authenticated and not disable_global_tools and endpoint_exists('inventory.stock_count_workbook') %}
-        <a class="btn btn-sm btn-outline-light text-nowrap" href="{{ url_for('inventory.stock_count_workbook') }}" title="Baixar planilha A4 para conferência física">
+        {% if stock_count_workbook_available %}
+        <a class="btn btn-sm btn-outline-light text-nowrap" href="{{ url_for('inventory.stock_count_workbook') }}" role="button" data-bs-toggle="modal" data-bs-target="#stockCountWorkbookModal" title="Escolher as categorias e gerar a planilha A4 de conferência física">
             <i class="bi bi-clipboard2-check me-1" aria-hidden="true"></i> Conferência física
         </a>
         {% endif %}
@@ -457,6 +458,41 @@
     </div>
     {% endif %}
 
+    {% if stock_count_workbook_available %}
+    <div class="modal fade" id="stockCountWorkbookModal" tabindex="-1" aria-labelledby="stockCountWorkbookModalTitle" aria-hidden="true"
+        data-categories-url="{{ url_for('inventory.stock_count_categories') }}"
+        data-download-url="{{ url_for('inventory.stock_count_workbook') }}">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content stock-count-modal-content">
+                <div class="modal-header">
+                    <div>
+                        <h2 class="modal-title fs-5" id="stockCountWorkbookModalTitle">Conferência física</h2>
+                        <div class="small text-muted">Escolha as categorias que vão para a planilha A4.</div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="stockCountWorkbookFeedback" class="small" role="status" aria-live="polite"></div>
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                        <span class="small text-muted" id="stockCountWorkbookSummary">Carregando categorias...</span>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-sm btn-outline-light" id="stockCountWorkbookSelectAll">Marcar todas</button>
+                            <button type="button" class="btn btn-sm btn-outline-light" id="stockCountWorkbookClear">Limpar</button>
+                        </div>
+                    </div>
+                    <div class="stock-count-category-list" id="stockCountWorkbookCategories" role="group" aria-label="Categorias"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-light" type="button" data-bs-dismiss="modal">Cancelar</button>
+                    <button class="btn btn-primary" type="button" id="stockCountWorkbookSubmit" disabled>
+                        <i class="bi bi-file-earmark-spreadsheet me-1" aria-hidden="true"></i> Gerar planilha
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
     {% if current_user.is_authenticated and not disable_global_tools and endpoint_exists('nf.buscar_documento_modal') %}
@@ -464,6 +500,9 @@
     {% endif %}
     {% if stock_count_available %}
     <script src="{{ url_for('static', filename='js/stock-count-modal.js', v='20261119-foto') }}"></script>
+    {% endif %}
+    {% if stock_count_workbook_available %}
+    <script src="{{ url_for('static', filename='js/stock-count-workbook.js', v='20261119') }}"></script>
     {% endif %}
     {% if topbar_search_available %}
     <script src="{{ url_for('static', filename='js/consumption-search.js', v='20261119-stock-count') }}"></script>

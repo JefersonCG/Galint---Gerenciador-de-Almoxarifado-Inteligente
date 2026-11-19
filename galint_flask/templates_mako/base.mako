@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="${url_for('static', filename='css/galint-tokens.css')}?v=20260924">
     <link rel="stylesheet" href="${url_for('static', filename='css/qss_like.css')}?v=20261106">
     <link rel="stylesheet" href="${url_for('static', filename='css/consumption-search.css')}?v=20261106">
-    <link rel="stylesheet" href="${url_for('static', filename='css/stock-count-modal.css')}?v=20261119-foto">
+    <link rel="stylesheet" href="${url_for('static', filename='css/stock-count-modal.css')}?v=20261119-categorias">
     <script src="${url_for('static', filename='js/galint-core.js')}?v=20260924"></script>
     <%block name="extra_css"></%block>
 </head>
@@ -49,8 +49,8 @@
             <div class="topbar-item-suggestions d-none" id="topbar-item-suggestions" role="listbox"></div>
         </form>
         % endif
-        % if current_user.is_authenticated and endpoint_exists('inventory.stock_count_workbook'):
-        <a class="btn btn-sm btn-outline-light text-nowrap" href="${url_for('inventory.stock_count_workbook')}" title="Baixar planilha A4 para conferência física">
+        % if current_user.is_authenticated and endpoint_exists('inventory.stock_count_workbook') and endpoint_exists('inventory.stock_count_categories'):
+        <a class="btn btn-sm btn-outline-light text-nowrap" href="${url_for('inventory.stock_count_workbook')}" role="button" data-bs-toggle="modal" data-bs-target="#stockCountWorkbookModal" title="Escolher as categorias e gerar a planilha A4 de conferência física">
             <i class="bi bi-clipboard2-check me-1" aria-hidden="true"></i> Conferência física
         </a>
         % endif
@@ -189,6 +189,40 @@
         </div>
     </div>
     % endif
+    % if current_user.is_authenticated and endpoint_exists('inventory.stock_count_workbook') and endpoint_exists('inventory.stock_count_categories'):
+    <div class="modal fade" id="stockCountWorkbookModal" tabindex="-1" aria-labelledby="stockCountWorkbookModalTitle" aria-hidden="true"
+        data-categories-url="${url_for('inventory.stock_count_categories')}"
+        data-download-url="${url_for('inventory.stock_count_workbook')}">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content stock-count-modal-content">
+                <div class="modal-header">
+                    <div>
+                        <h2 class="modal-title fs-5" id="stockCountWorkbookModalTitle">Conferência física</h2>
+                        <div class="small text-muted">Escolha as categorias que vão para a planilha A4.</div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="stockCountWorkbookFeedback" class="small" role="status" aria-live="polite"></div>
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                        <span class="small text-muted" id="stockCountWorkbookSummary">Carregando categorias...</span>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-sm btn-outline-light" id="stockCountWorkbookSelectAll">Marcar todas</button>
+                            <button type="button" class="btn btn-sm btn-outline-light" id="stockCountWorkbookClear">Limpar</button>
+                        </div>
+                    </div>
+                    <div class="stock-count-category-list" id="stockCountWorkbookCategories" role="group" aria-label="Categorias"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-light" type="button" data-bs-dismiss="modal">Cancelar</button>
+                    <button class="btn btn-primary" type="button" id="stockCountWorkbookSubmit" disabled>
+                        <i class="bi bi-file-earmark-spreadsheet me-1" aria-hidden="true"></i> Gerar planilha
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    % endif
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     % if current_user.is_authenticated and (endpoint_exists('reports.general_search_suggestions_api') or endpoint_exists('inventory.stock_count_item_lookup')):
     <script src="${url_for('static', filename='js/consumption-search.js')}?v=20261119-stock-count"></script>
@@ -198,6 +232,9 @@
     % endif
     % if current_user.is_authenticated and endpoint_exists('inventory.stock_count_item_lookup'):
     <script src="${url_for('static', filename='js/stock-count-modal.js')}?v=20261119-foto"></script>
+    % endif
+    % if current_user.is_authenticated and endpoint_exists('inventory.stock_count_workbook') and endpoint_exists('inventory.stock_count_categories'):
+    <script src="${url_for('static', filename='js/stock-count-workbook.js')}?v=20261119"></script>
     % endif
     <script>
         document.addEventListener('DOMContentLoaded', function () {

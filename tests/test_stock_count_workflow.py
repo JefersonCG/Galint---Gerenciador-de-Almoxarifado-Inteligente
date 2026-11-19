@@ -4,10 +4,13 @@ from openpyxl import load_workbook
 import pytest
 
 from galint_flask.extensions import db
-from galint_flask.models import Item
+from galint_flask.models import InventoryCategory, Item
 from galint_flask.services.inventory import inventory_service
 from galint_flask.services.stock_count_workbook_service import StockCountWorkbookService
+from galint_flask.views import inventory as inventory_views
 from galint_flask.views.inventory import blueprint
+
+TABLES = [Item.__table__, InventoryCategory.__table__]
 
 
 class _AuthenticatedWorker:
@@ -42,7 +45,7 @@ def stock_count_client():
     app.register_blueprint(blueprint)
     with app.app_context():
         db.init_app(app)
-        db.metadata.create_all(bind=db.engine, tables=[Item.__table__])
+        db.metadata.create_all(bind=db.engine, tables=TABLES)
         db.session.add(Item(
             codigo_item="COUNT-001",
             descricao="Material de teste",
@@ -56,7 +59,7 @@ def stock_count_client():
             session["_fresh"] = True
         yield app, client
         db.session.remove()
-        db.metadata.drop_all(bind=db.engine, tables=[Item.__table__])
+        db.metadata.drop_all(bind=db.engine, tables=TABLES)
 
 
 def test_stock_count_workbook_is_a4_and_has_blank_physical_column():
@@ -138,6 +141,122 @@ def test_stock_count_download_endpoint_returns_generated_workbook(stock_count_cl
     assert response.mimetype == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     assert response.headers["Content-Disposition"].startswith("attachment;")
     assert response.data[:2] == b"PK"
+
+
+def _category_items():
+    return [
+        {"codigo": "E-1", "descricao": "Disjuntor 20A", "categoria": "Material Elétrico", "saldo_display": "3 unidades"},
+        {"codigo": "H-1", "descricao": "Adaptador 25mm", "categoria": "Material Hidráulico", "saldo_display": "8 unidades"},
+        {"codigo": "H-2", "descricao": "Joelho 90 25mm", "categoria": "Material  Hidráulico ", "saldo_display": "2 unidades"},
+        {"codigo": "P-1", "descricao": "Cloro granulado", "categoria": "Material Piscina", "saldo_display": "1 balde"},
+    ]
+
+
+def test_stock_count_workbook_groups_categories_on_separate_pages():
+    workbook = load_workbook(StockCountWorkbookService.build(
+        _category_items()[:3],
+        scope_label="Categorias: Material Hidráulico, Material Elétrico",
+        group_by_category=True,
+        category_order=["Material Hidráulico", "Material Elétrico"],
+    ))
+    sheet = workbook.active
+    values = [sheet.cell(row, 1).value for row in range(1, sheet.max_row + 1)]
+    header_row = values.index("ITEM") + 1
+
+    assert "Categorias: Material Hidráulico, Material Elétrico" in values[:header_row]
+    # Ordem do catálogo, faixa com o total e itens em ordem alfabética dentro da categoria.
+    assert values[header_row:] == [
+        "MATERIAL HIDRÁULICO  ·  2 itens",
+        "Adaptador 25mm",
+        "Joelho 90 25mm",
+        "MATERIAL ELÉTRICO  ·  1 item",
+        "Disjuntor 20A",
+    ]
+    electric_section_row = header_row + 4
+    assert [page_break.id for page_break in sheet.row_breaks.brk] == [electric_section_row - 1]
+    assert len(sheet._images) == 3
+    assert sheet.print_title_rows == f"$1:${header_row}"
+
+
+def test_stock_count_row_grows_when_system_text_wraps_by_word():
+    # Caso real: "FITA TESTE" saía com a última linha do SISTEMA cortada no papel.
+    assert StockCountWorkbookService._wrapped_line_count("8 caixas + 6 unidades | Total: 134un", 19) == 3
+    assert StockCountWorkbookService._wrapped_line_count("38.0 litros (38 litros) | Total: 38L", 19) == 3
+    assert StockCountWorkbookService._wrapped_line_count("3 unidades", 19) == 1
+    workbook = load_workbook(StockCountWorkbookService.build([
+        {"codigo": "FT-1", "descricao": "FITA TESTE", "saldo_display": "8 caixas + 6 unidades | Total: 134un"},
+        {"codigo": "FT-2", "descricao": "GRAMPO", "saldo_display": "3 unidades"},
+    ]))
+    sheet = workbook.active
+    header_row = next(row[0].row for row in sheet.iter_rows() if row[0].value == "ITEM")
+
+    assert sheet.row_dimensions[header_row + 1].height >= 51
+    assert sheet.row_dimensions[header_row + 2].height == 39
+
+
+def test_stock_count_categories_endpoint_lists_categories_in_catalog_order(stock_count_client):
+    app, client = stock_count_client
+    with app.app_context():
+        db.session.add_all([
+            InventoryCategory(nome="Material Piscina", ordem=30, ativa=True, sistema=True),
+            InventoryCategory(nome="Material Elétrico", ordem=10, ativa=True, sistema=True),
+            Item(codigo_item="P-1", descricao="Cloro granulado", setor="Piscina", categoria="Material Piscina"),
+            Item(codigo_item="P-2", descricao="Algicida", setor="Piscina", categoria="Material Piscina"),
+            Item(codigo_item="X-1", descricao="Item novo", setor="Geral", categoria="Categoria Nova"),
+        ])
+        db.session.query(Item).filter_by(codigo_item="COUNT-001").update({"categoria": "Material Elétrico"})
+        db.session.commit()
+        response = client.get("/itens/api/conferencia-estoque/categorias")
+
+    payload = response.get_json()
+    assert response.status_code == 200
+    assert [(row["nome"], row["total"]) for row in payload["categories"]] == [
+        ("Material Elétrico", 1),
+        ("Material Piscina", 2),
+        ("Categoria Nova", 1),
+    ]
+    assert payload["total_items"] == 4
+    assert payload["categories"][0]["icon"]
+
+
+def test_stock_count_download_filters_by_chosen_categories(stock_count_client, monkeypatch):
+    app, client = stock_count_client
+    monkeypatch.setattr(inventory_service, "list_items", lambda **_kwargs: _category_items())
+    calls = []
+    real_build = StockCountWorkbookService.build
+
+    def capture_build(items, **kwargs):
+        calls.append((items, kwargs))
+        return real_build(items, **kwargs)
+
+    monkeypatch.setattr(inventory_views.StockCountWorkbookService, "build", staticmethod(capture_build))
+
+    with app.app_context():
+        single = client.get("/itens/conferencia-estoque.xlsx", query_string={"categoria": "Material Hidráulico"})
+        several = client.get(
+            "/itens/conferencia-estoque.xlsx",
+            query_string=[("categoria", "Material Piscina"), ("categoria", "Material Elétrico")],
+        )
+        everything = client.get("/itens/conferencia-estoque.xlsx")
+        unknown = client.get("/itens/conferencia-estoque.xlsx", query_string={"categoria": "Não existe"})
+
+    assert single.status_code == 200
+    assert "conferencia_estoque_material-hidraulico_" in single.headers["Content-Disposition"]
+    assert [item["codigo"] for item in calls[0][0]] == ["H-1", "H-2"]  # "Material  Hidráulico " também entra
+    assert calls[0][1]["scope_label"] == "Categoria: Material Hidráulico"
+    assert calls[0][1]["group_by_category"] is False
+
+    assert several.status_code == 200
+    assert "_varias-categorias_" in several.headers["Content-Disposition"]
+    assert sorted(item["codigo"] for item in calls[1][0]) == ["E-1", "P-1"]
+    assert calls[1][1]["group_by_category"] is True
+
+    assert everything.status_code == 200
+    assert len(calls[2][0]) == 4
+    assert calls[2][1]["scope_label"] == "Todas as categorias"
+
+    assert unknown.status_code == 404
+    assert unknown.get_json()["message"] == "Nenhum item nas categorias escolhidas."
 
 
 def test_any_authenticated_user_can_lookup_item_and_apply_zero_count(stock_count_client, monkeypatch):

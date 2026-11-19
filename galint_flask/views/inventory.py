@@ -6,6 +6,7 @@ from datetime import date, datetime
 import html
 import json
 from pathlib import Path
+import re
 from unicodedata import combining as unicodedata_combining, normalize as unicode_normalize
 
 from io import BytesIO
@@ -19,6 +20,7 @@ from ..models import (
     DocumentoEntradaEstoque,
     DocumentoEntradaEstoqueItem,
     FinanceLedgerEntry,
+    InventoryCategory,
     Item,
     PurchaseProjectionSummary,
     PurchaseProjectionSummaryRevision,
@@ -29,6 +31,7 @@ from ..services.barcode_studio_service import barcode_studio_service
 from ..services.category_catalog import (
     DEFAULT_INVENTORY_CATEGORY_NAME,
     category_catalog_service,
+    normalize_inventory_category_name,
 )
 from ..services.config_service import ConfigService
 from ..services.finance_service import _build_document_item_display_metadata, _resolve_internal_content_document_unit, finance_service
@@ -2095,15 +2098,96 @@ def list_items():
     )
 
 
+def _stock_count_category_name(value: object) -> str:
+    return normalize_inventory_category_name(value) or "Sem categoria"
+
+
+def _stock_count_category_order() -> list[str]:
+    """Nomes do catálogo de categorias na ordem do cadastro (a mesma do painel)."""
+    rows = InventoryCategory.query.order_by(
+        InventoryCategory.ordem.asc(),
+        func.lower(InventoryCategory.nome).asc(),
+    ).all()
+    return [normalize_inventory_category_name(row.nome) for row in rows if normalize_inventory_category_name(row.nome)]
+
+
+def _stock_count_filename_slug(value: str) -> str:
+    ascii_text = unicode_normalize("NFKD", value).encode("ascii", "ignore").decode("ascii")
+    return re.sub(r"[^a-z0-9]+", "-", ascii_text.casefold()).strip("-") or "categoria"
+
+
+@blueprint.get("/api/conferencia-estoque/categorias")
+@login_required
+def stock_count_categories():
+    totals: dict[str, dict[str, object]] = {}
+    for raw_name, total in db.session.query(Item.categoria, func.count(Item.codigo_item)).group_by(Item.categoria).all():
+        name = _stock_count_category_name(raw_name)
+        entry = totals.setdefault(name.casefold(), {"nome": name, "total": 0})
+        entry["total"] = int(entry["total"]) + int(total or 0)
+
+    position = {name.casefold(): index for index, name in enumerate(_stock_count_category_order())}
+    ordered = sorted(
+        totals.values(),
+        key=lambda row: (position.get(str(row["nome"]).casefold(), len(position)), str(row["nome"]).casefold()),
+    )
+    categories = []
+    for index, row in enumerate(ordered):
+        visual = category_catalog_service.get_visual(row["nome"], fallback_index=index)
+        categories.append({**row, "icon": visual.get("icon"), "color": visual.get("color")})
+    return _json_no_store({
+        "success": True,
+        "categories": categories,
+        "total_items": sum(int(row["total"]) for row in categories),
+    })
+
+
 @blueprint.get("/conferencia-estoque.xlsx")
 @login_required
 def stock_count_workbook():
+    # ?categoria=A&categoria=B gera só essas categorias; sem o parâmetro, gera todas.
+    requested: dict[str, str] = {}
+    for raw in request.args.getlist("categoria"):
+        name = normalize_inventory_category_name(raw)
+        if name:
+            requested.setdefault(name.casefold(), name)
+
     items = inventory_service.list_items(
         use_cache=False,
         refresh_derived_fields=False,
     )
-    workbook = StockCountWorkbookService.build(items)
-    filename = f"conferencia_estoque_{TimeService.now_local():%Y%m%d_%H%M}.xlsx"
+    if requested:
+        items = [
+            item for item in items
+            if _stock_count_category_name(item.get("categoria")).casefold() in requested
+        ]
+        if not items:
+            return jsonify({"success": False, "message": "Nenhum item nas categorias escolhidas."}), 404
+
+    category_order = _stock_count_category_order()
+    present: dict[str, str] = {}
+    for item in items:
+        name = _stock_count_category_name(item.get("categoria"))
+        present.setdefault(name.casefold(), name)
+    position = {name.casefold(): index for index, name in enumerate(category_order)}
+    present_names = sorted(present.values(), key=lambda name: (position.get(name.casefold(), len(position)), name.casefold()))
+
+    if not requested:
+        scope_label = "Todas as categorias"
+        file_tag = ""
+    elif len(present_names) == 1:
+        scope_label = f"Categoria: {present_names[0]}"
+        file_tag = f"_{_stock_count_filename_slug(present_names[0])}"
+    else:
+        scope_label = f"Categorias: {', '.join(present_names)}"
+        file_tag = "_varias-categorias"
+
+    workbook = StockCountWorkbookService.build(
+        items,
+        scope_label=scope_label,
+        group_by_category=len(present_names) > 1,
+        category_order=category_order,
+    )
+    filename = f"conferencia_estoque{file_tag}_{TimeService.now_local():%Y%m%d_%H%M}.xlsx"
     return send_file(
         workbook,
         as_attachment=True,
