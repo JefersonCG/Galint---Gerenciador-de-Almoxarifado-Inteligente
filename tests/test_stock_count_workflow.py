@@ -81,9 +81,36 @@ def test_stock_count_workbook_is_a4_and_has_blank_physical_column():
         None,
     ]
     assert len(sheet._images) == 1
+    anchor = sheet._images[0].anchor._from
+    assert (anchor.col, anchor.row) == (1, item_row - 1)
+    assert anchor.rowOff > 0  # afastada da borda: não cobre a grade nem vaza para a página anterior
     assert "COUNT-001" not in {
         str(cell.value) for row in sheet.iter_rows() for cell in row if cell.value is not None
     }
+
+
+def test_stock_count_workbook_keeps_going_when_code_cannot_be_a_barcode():
+    # Itens reais como "LUVA LÁTEX" usam o nome como código; o Code128 não aceita "Á".
+    # E códigos de texto longos ("BOMBA AUTOASPIRANTE") dariam barras finas demais para o leitor.
+    workbook = load_workbook(StockCountWorkbookService.build([
+        {"codigo": "LUVA LÁTEX", "descricao": "Luva de látex", "saldo_display": "3 pares"},
+        {"codigo": "BOMBA AUTOASPIRANTE", "descricao": "Bomba autoaspirante", "saldo_display": "1 unidade"},
+        {"codigo": "COUNT-001", "descricao": "Material de teste", "saldo_display": "4 unidades"},
+    ]))
+    sheet = workbook.active
+    header_row = next(
+        row[0].row for row in sheet.iter_rows() if row[0].value == "ITEM"
+    )
+    pump_row = header_row + 1  # ordem pela descrição: Bomba, Luva, Material
+    latex_row = header_row + 2
+
+    assert sheet.cell(pump_row, 2).value.startswith("BOMBA AUTOASPIRANTE")
+    assert sheet.cell(latex_row, 1).value == "Luva de látex"
+    assert sheet.cell(latex_row, 2).value.startswith("LUVA LÁTEX")
+    assert "digite na busca" in sheet.cell(latex_row, 2).value
+    assert sheet.cell(latex_row, 2).border.left.style == "thin"
+    assert sheet.cell(latex_row + 1, 2).value is None
+    assert len(sheet._images) == 1
 
 
 def test_stock_count_download_endpoint_returns_generated_workbook(stock_count_client, monkeypatch):
