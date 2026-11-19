@@ -140,6 +140,7 @@
 
         const modal = itemSearchAvailable ? window.bootstrap.Modal.getOrCreateInstance(modalElement) : null;
         let timer = 0;
+        let stockCountTimer = 0;
         let requestId = 0;
         let selectedCode = '';
         let suggestionsData = [];
@@ -159,6 +160,54 @@
 
         function looksLikeInvoiceQuery(query) {
             return /^(?:nf|chave)(?:\s*[:#-]\s*|\s+)/i.test(String(query || '').trim());
+        }
+
+        function scheduleStockCountLookup(query) {
+            if (typeof window.galintTryOpenStockCountModal !== 'function'
+                || query.length < 3
+                || looksLikeAccessKey(query)
+                || looksLikeInvoiceQuery(query)) {
+                return;
+            }
+            window.clearTimeout(stockCountTimer);
+            stockCountTimer = window.setTimeout(async () => {
+                if (searchInput.value.trim() !== query) {
+                    return;
+                }
+                const opened = await window.galintTryOpenStockCountModal(query);
+                if (opened) {
+                    hideSuggestions();
+                }
+            }, 420);
+        }
+
+        async function handleEnterQuery(query) {
+            if (invoiceSearchAvailable && (looksLikeAccessKey(query) || looksLikeInvoiceQuery(query))) {
+                searchInvoice(query);
+                hideSuggestions();
+                return;
+            }
+
+            if (typeof window.galintTryOpenStockCountModal === 'function') {
+                const opened = await window.galintTryOpenStockCountModal(query);
+                if (opened) {
+                    hideSuggestions();
+                    return;
+                }
+            }
+
+            if (invoiceSearchAvailable && !itemSearchAvailable) {
+                searchInvoice(query);
+                hideSuggestions();
+                return;
+            }
+
+            if (invoiceSearchAvailable && !suggestionsData.length) {
+                searchInvoice(query);
+                hideSuggestions();
+            } else if (suggestionsData.length) {
+                void openItem(suggestionsData[0]);
+            }
         }
 
         function renderInvoiceOption(query) {
@@ -271,6 +320,7 @@
         searchInput.addEventListener('input', () => {
             window.clearTimeout(timer);
             const query = searchInput.value.trim();
+            scheduleStockCountLookup(query);
             if (query.length < 2) {
                 latestQuery = query;
                 hideSuggestions();
@@ -285,26 +335,13 @@
             } else if (event.key === 'Enter') {
                 event.preventDefault();
                 const query = searchInput.value.trim();
-                if (invoiceSearchAvailable && (looksLikeAccessKey(query) || looksLikeInvoiceQuery(query) || !itemSearchAvailable || !suggestionsData.length)) {
-                    searchInvoice(query);
-                    hideSuggestions();
-                } else {
-                    if (suggestionsData.length) {
-                        void openItem(suggestionsData[0]);
-                    }
-                }
+                void handleEnterQuery(query);
             }
         });
 
         searchForm.addEventListener('submit', (event) => {
             event.preventDefault();
-            const query = searchInput.value.trim();
-            if (invoiceSearchAvailable && (looksLikeAccessKey(query) || looksLikeInvoiceQuery(query) || !itemSearchAvailable || !suggestionsData.length)) {
-                searchInvoice(query);
-                hideSuggestions();
-            } else if (suggestionsData.length) {
-                void openItem(suggestionsData[0]);
-            }
+            void handleEnterQuery(searchInput.value.trim());
         });
 
         document.addEventListener('click', (event) => {

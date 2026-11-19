@@ -2337,7 +2337,7 @@ class InventoryService:
         allow_blank: bool,
         allow_decimal: bool,
     ) -> float | None:
-        raw = str(value or "").strip().replace(",", ".")
+        raw = str(value if value is not None else "").strip().replace(",", ".")
         if not raw:
             if allow_blank:
                 return None
@@ -2466,7 +2466,13 @@ class InventoryService:
 
         if mode == "direct":
             direct_value = payload.get("admin_balance_direct_value")
-            parsed = cls._parse_optional_admin_target_balance(direct_value if str(direct_value or "").strip() else raw_target_balance)
+            raw_value = direct_value if direct_value is not None and str(direct_value).strip() else raw_target_balance
+            parsed = cls._parse_admin_balance_component(
+                raw_value,
+                label=f"Quantidade em {context['internal_unit_label']}",
+                allow_blank=False,
+                allow_decimal=allow_decimal,
+            )
             return parsed, result_context
 
         if mode == "packages":

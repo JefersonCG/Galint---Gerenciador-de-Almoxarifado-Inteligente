@@ -16,23 +16,42 @@
 
 <body class="layout-shell<%block name='body_class'></%block>">
     <header class="topbar shadow-sm">
-        % if current_user.is_authenticated and endpoint_exists('reports.general_search_suggestions_api') and endpoint_exists('reports.item_consumption_api') and endpoint_exists('reports.item_consumption_pdf'):
+        % if current_user.is_authenticated and ((endpoint_exists('reports.general_search_suggestions_api') and endpoint_exists('reports.item_consumption_api') and endpoint_exists('reports.item_consumption_pdf')) or endpoint_exists('inventory.stock_count_item_lookup')):
         <form class="topbar-item-search" id="topbar-item-search" role="search"
+            data-item-search-available="${'true' if endpoint_exists('reports.general_search_suggestions_api') and endpoint_exists('reports.item_consumption_api') and endpoint_exists('reports.item_consumption_pdf') else 'false'}"
+            % if endpoint_exists('reports.general_search_suggestions_api') and endpoint_exists('reports.item_consumption_api') and endpoint_exists('reports.item_consumption_pdf'):
             data-suggestions-url="${url_for('reports.general_search_suggestions_api')}"
-            data-item-search-available="true"
-            data-report-url-template="${url_for('reports.item_consumption_api', codigo_item='__CODIGO__')}">
-            <label class="visually-hidden" for="topbar-item-query">Pesquisar material, ferramenta, NF ou chave de acesso</label>
+            % endif
+            % if endpoint_exists('reports.general_search_suggestions_api') and endpoint_exists('reports.item_consumption_api') and endpoint_exists('reports.item_consumption_pdf'):
+            data-report-url-template="${url_for('reports.item_consumption_api', codigo_item='__CODIGO__')}"
+            % endif
+            % if endpoint_exists('inventory.stock_count_item_lookup'):
+            data-stock-count-lookup-url="${url_for('inventory.stock_count_item_lookup')}"
+            data-stock-count-adjust-url-template="${url_for('inventory.stock_count_item_adjust', codigo='__CODIGO__')}"
+            % endif
+            >
+            <label class="visually-hidden" for="topbar-item-query">Pesquisar material, ferramenta, código de barras, NF ou chave de acesso</label>
             <i class="bi bi-search" aria-hidden="true"></i>
-            <input id="topbar-item-query" class="form-control" type="search" placeholder="Material, ferramenta, nº NF ou chave de acesso" autocomplete="off" aria-controls="topbar-item-suggestions" aria-expanded="false">
+            <input id="topbar-item-query" class="form-control" type="search" placeholder="Material, código de barras, nº NF ou chave de acesso" autocomplete="off" aria-controls="topbar-item-suggestions" aria-expanded="false">
             <div class="topbar-item-suggestions d-none" id="topbar-item-suggestions" role="listbox"></div>
         </form>
-        % elif current_user.is_authenticated and endpoint_exists('nf.buscar_documento_modal'):
-        <form class="topbar-item-search" id="topbar-item-search" role="search" data-item-search-available="false">
-            <label class="visually-hidden" for="topbar-item-query">Pesquisar nota fiscal ou chave de acesso</label>
+        % elif current_user.is_authenticated and (endpoint_exists('nf.buscar_documento_modal') or endpoint_exists('inventory.stock_count_item_lookup')):
+        <form class="topbar-item-search" id="topbar-item-search" role="search" data-item-search-available="false"
+            % if endpoint_exists('inventory.stock_count_item_lookup'):
+            data-stock-count-lookup-url="${url_for('inventory.stock_count_item_lookup')}"
+            data-stock-count-adjust-url-template="${url_for('inventory.stock_count_item_adjust', codigo='__CODIGO__')}"
+            % endif
+            >
+            <label class="visually-hidden" for="topbar-item-query">Pesquisar código de barras, nota fiscal ou chave de acesso</label>
             <i class="bi bi-search" aria-hidden="true"></i>
-            <input id="topbar-item-query" class="form-control" type="search" placeholder="Material, ferramenta, nº NF ou chave de acesso" autocomplete="off" aria-controls="topbar-item-suggestions" aria-expanded="false">
+            <input id="topbar-item-query" class="form-control" type="search" placeholder="Código de barras, nº NF ou chave de acesso" autocomplete="off" aria-controls="topbar-item-suggestions" aria-expanded="false">
             <div class="topbar-item-suggestions d-none" id="topbar-item-suggestions" role="listbox"></div>
         </form>
+        % endif
+        % if current_user.is_authenticated and endpoint_exists('inventory.stock_count_workbook'):
+        <a class="btn btn-sm btn-outline-light text-nowrap" href="${url_for('inventory.stock_count_workbook')}" title="Baixar planilha A4 para conferência física">
+            <i class="bi bi-clipboard2-check me-1" aria-hidden="true"></i> Conferência física
+        </a>
         % endif
         % if current_user.is_authenticated and endpoint_exists('nf.buscar_documento_modal'):
         <form class="topbar-nf-search d-none" data-search-url="${url_for('nf.buscar_documento_modal')}" role="search" aria-label="Buscar nota fiscal">
@@ -115,12 +134,55 @@
         </div>
     </div>
     % endif
+    % if current_user.is_authenticated and endpoint_exists('inventory.stock_count_item_lookup') and endpoint_exists('inventory.stock_count_item_adjust'):
+    <div class="modal fade" id="stockCountModal" tabindex="-1" aria-labelledby="stockCountModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div>
+                        <h2 class="modal-title fs-5" id="stockCountModalTitle">Contagem física</h2>
+                        <div class="small text-muted" id="stockCountItemCode"></div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="stockCountFeedback" class="small" role="status" aria-live="polite"></div>
+                    <section id="stockCountItemDetails" class="d-none">
+                        <h3 class="h6 mb-1" id="stockCountItemDescription"></h3>
+                        <p class="small text-secondary mb-3">No sistema: <strong id="stockCountSystemBalance"></strong></p>
+                        <div id="stockCountPendingWarning" class="alert alert-warning py-2 d-none">Este item ainda está pendente de cadastro e não pode ter o estoque ajustado.</div>
+                        <form id="stockCountForm">
+                            <div id="stockCountDirectGroup">
+                                <label class="form-label" for="stockCountDirectValue">Quantidade física (<span data-stock-unit></span>)</label>
+                                <input class="form-control form-control-lg" id="stockCountDirectValue" type="number" min="0" step="any" required inputmode="decimal">
+                            </div>
+                            <div id="stockCountPackageGroup" class="d-none">
+                                <p class="small text-secondary mb-2" id="stockCountPackageHint"></p>
+                                <label class="form-label" for="stockCountPackageValue">Embalagens fechadas</label>
+                                <input class="form-control mb-3" id="stockCountPackageValue" type="number" min="0" step="1" inputmode="numeric">
+                                <label class="form-label" for="stockCountInternalValue">Quantidade solta (<span data-stock-unit></span>)</label>
+                                <input class="form-control" id="stockCountInternalValue" type="number" min="0" step="any" inputmode="decimal">
+                            </div>
+                            <div class="d-flex justify-content-end gap-2 mt-4">
+                                <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancelar</button>
+                                <button class="btn btn-primary" type="submit" id="stockCountSubmit">Aplicar contagem</button>
+                            </div>
+                        </form>
+                    </section>
+                </div>
+            </div>
+        </div>
+    </div>
+    % endif
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    % if current_user.is_authenticated and endpoint_exists('reports.general_search_suggestions_api'):
-    <script src="${url_for('static', filename='js/consumption-search.js')}?v=nf-unified-1"></script>
+    % if current_user.is_authenticated and (endpoint_exists('reports.general_search_suggestions_api') or endpoint_exists('inventory.stock_count_item_lookup')):
+    <script src="${url_for('static', filename='js/consumption-search.js')}?v=20261119-stock-count"></script>
     % endif
     % if current_user.is_authenticated and endpoint_exists('nf.buscar_documento_modal'):
     <script src="${url_for('static', filename='js/nf-search-modal.js')}?v=20261105"></script>
+    % endif
+    % if current_user.is_authenticated and endpoint_exists('inventory.stock_count_item_lookup'):
+    <script src="${url_for('static', filename='js/stock-count-modal.js')}?v=20261119"></script>
     % endif
     <script>
         document.addEventListener('DOMContentLoaded', function () {

@@ -72,7 +72,6 @@ def build_enterprise_sections(*, is_admin: bool) -> list[dict[str, Any]]:
                 _item("Fornecedores", _optional_url("config.fornecedores"), "bi-building-add", "SUP-003", "Cadastro", "amber"),
                 _item("Documentos Fiscais", _optional_url("nf.nf_index", enabled=bool(current_app.config.get("FEATURE_NOTAS_ENABLED", True))), "bi-receipt", "SUP-004", "Fiscal", "amber"),
                 _item("Laboratório de Lojas", _optional_url("inventory.lojas_lab"), "bi-shop", "SUP-005", "Operação", "cyan"),
-                _item("Ajuste Administrativo", _optional_url("config.estoque_ajuste_admin", enabled=is_admin), "bi-shield-lock", "SUP-006", "Controle", "red"),
             ],
         ),
         _section(
@@ -156,7 +155,6 @@ def build_enterprise_sections(*, is_admin: bool) -> list[dict[str, Any]]:
                 _item("Versões Mobile", _optional_url("mobile_panel.versions", enabled=mobile_panel_enabled), "bi-cloud-download", "GOV-004", "Mobile", "cyan"),
                 _item("Features Mobile", _optional_url("mobile_panel.features", enabled=mobile_panel_enabled), "bi-toggles2", "GOV-005", "Mobile", "cyan"),
                 _item("Auditoria Mobile", _optional_url("mobile_panel.audit", enabled=mobile_panel_enabled), "bi-shield-check", "GOV-006", "Mobile", "violet"),
-                _item("Ajuste de Estoque", _optional_url("config.estoque_ajuste_admin", enabled=is_admin), "bi-shield-lock", "GOV-007", "Controle", "red"),
                 _item("Fornecedores", _optional_url("config.fornecedores"), "bi-building-add", "GOV-008", "Cadastro", "amber"),
             ],
         ),

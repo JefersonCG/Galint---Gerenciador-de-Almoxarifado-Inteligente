@@ -44,6 +44,7 @@ from ..services.inventory import (
 from ..services.item_foto_service import ItemFotoService
 from ..services.price_normalization import infer_document_quantity_unit_for_item, infer_price_unit_for_item, normalize_document_line, normalize_item_price
 from ..services.purchase_projection_runtime_service import purchase_projection_service
+from ..services.stock_count_workbook_service import StockCountWorkbookService
 from ..services.price_suggestion_service import price_suggestion_service
 from ..services.potential_supplier_service import potential_supplier_service
 from ..services.telegram_service import TelegramService
@@ -2092,6 +2093,106 @@ def list_items():
         open_withdrawal_intentions=str(request.args.get("open_intentions") or "").strip() in {"1", "true", "True"},
         operational_activity_options=OPERATIONAL_ACTIVITY_OPTIONS,
     )
+
+
+@blueprint.get("/conferencia-estoque.xlsx")
+@login_required
+def stock_count_workbook():
+    items = inventory_service.list_items(
+        use_cache=False,
+        refresh_derived_fields=False,
+    )
+    workbook = StockCountWorkbookService.build(items)
+    filename = f"conferencia_estoque_{TimeService.now_local():%Y%m%d_%H%M}.xlsx"
+    return send_file(
+        workbook,
+        as_attachment=True,
+        download_name=filename,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+@blueprint.get("/api/conferencia-estoque/item")
+@login_required
+def stock_count_item_lookup():
+    code = (request.args.get("codigo") or "").strip()
+    if not code:
+        return jsonify({"success": False, "message": "Leia ou informe o código de barras."}), 400
+
+    item = db.session.get(Item, code)
+    if item is None:
+        return jsonify({"success": False, "message": "Item não encontrado."}), 404
+
+    try:
+        snapshot = inventory_service.get_admin_balance_snapshot(code)
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 404
+
+    return jsonify({
+        "success": True,
+        "item": {
+            "codigo": snapshot["codigo"],
+            "descricao": snapshot["descricao"],
+            "unidade": snapshot["unidade"],
+            "saldo": snapshot["saldo_exibido"],
+            "saldo_display": snapshot["saldo_display"],
+            "input": snapshot["admin_balance_input"],
+            "pre_cadastro_pendente": snapshot["pre_cadastro_pendente"],
+        },
+    })
+
+
+@blueprint.post("/api/conferencia-estoque/item/<path:codigo>/ajuste")
+@login_required
+def stock_count_item_adjust(codigo: str):
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({"success": False, "message": "Informe a contagem física do item."}), 400
+
+    mode = str(payload.get("mode") or "").strip().lower()
+    if mode == "packages_plus_internal":
+        adjustment_payload = {
+            "admin_balance_mode": mode,
+            "admin_balance_packaging_quantity": payload.get("package_quantity"),
+            "admin_balance_internal_extra": payload.get("internal_quantity"),
+        }
+    elif mode == "direct":
+        adjustment_payload = {
+            "admin_balance_mode": mode,
+            "admin_balance_direct_value": payload.get("quantity"),
+        }
+    else:
+        return jsonify({"success": False, "message": "Modo de contagem inválido."}), 400
+
+    user_id = str(getattr(current_user, "matricula", "") or getattr(current_user, "id", "")).strip()
+    try:
+        result = inventory_service.apply_admin_item_adjustments(
+            codigo_atual=codigo,
+            novo_codigo=None,
+            novo_saldo=None,
+            adjustment_payload=adjustment_payload,
+            matricula=user_id,
+            motivo="Contagem física pelo modal de código de barras",
+            audit_context={
+                "source": "barcode_stock_count_modal",
+                "route": request.path,
+                "user_id": user_id,
+                "user_name": getattr(current_user, "nome", None),
+                "ip_address": request.remote_addr,
+                "user_agent": request.user_agent.string if request.user_agent else None,
+            },
+        )
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+    except Exception:
+        current_app.logger.exception("Falha ao ajustar estoque pela contagem física no modal")
+        return jsonify({"success": False, "message": "Não foi possível salvar o ajuste de estoque."}), 500
+
+    return jsonify({
+        "success": True,
+        "changed": bool(result.get("changed")),
+        "message": result.get("message") or "Contagem física registrada.",
+    })
 
 
 @blueprint.post("/intencoes-retirada")

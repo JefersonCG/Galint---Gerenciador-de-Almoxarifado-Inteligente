@@ -557,7 +557,6 @@ def _build_system_settings_hub(*, is_admin: bool) -> dict[str, object]:
                 _system_setting_item("Versões Mobile", "mobile_panel.versions", "bi-cloud-download", "Mobile", enabled=mobile_panel_enabled),
                 _system_setting_item("Features Mobile", "mobile_panel.features", "bi-toggles2", "Mobile", enabled=mobile_panel_enabled),
                 _system_setting_item("Auditoria Mobile", "mobile_panel.audit", "bi-shield-check", "Mobile", enabled=mobile_panel_enabled),
-                _system_setting_item("Ajuste de Estoque", "config.estoque_ajuste_admin", "bi-shield-lock", "Controle", enabled=is_admin),
                 _system_setting_item("Fornecedores", "config.fornecedores", "bi-building-add", "Cadastro"),
             ],
         ),

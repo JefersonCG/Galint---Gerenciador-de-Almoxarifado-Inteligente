@@ -5,7 +5,6 @@ from flask_login import login_required, current_user
 from ..services.config_service import ConfigService
 from ..services.finance_service import finance_service
 from ..services.galint_notify_service import GalintNotifyService
-from ..services.inventory import inventory_service
 from ..services.notification_template_service import NotificationTemplateService
 from ..services.notification_router import NotificationRouterService
 from ..services.telegram_service import TelegramService
@@ -14,19 +13,6 @@ from ..models import NotificationRouterConfig, TelegramConfig, TelegramUser, Usu
 
 
 bp = Blueprint("config", __name__, url_prefix="/configuracoes")
-
-
-def _build_admin_adjustment_audit_context(*, codigo: str, novo_saldo: float | None, motivo: str | None) -> dict[str, object]:
-    return {
-        "codigo_item": str(codigo or "").strip() or None,
-        "target_balance": novo_saldo,
-        "reason": str(motivo or "").strip() or None,
-        "user_id": str(getattr(current_user, "matricula", "") or getattr(current_user, "id", "")).strip() or None,
-        "user_name": getattr(current_user, "nome", None),
-        "route": request.path,
-        "ip_address": request.remote_addr,
-        "user_agent": request.user_agent.string if request.user_agent else None,
-    }
 
 
 @bp.route("/imagens", methods=["GET", "POST"])
@@ -496,7 +482,6 @@ def preview_cabecalho():
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
-
 @bp.route("/preview-rodape")
 @login_required
 def preview_rodape():
@@ -531,57 +516,3 @@ def resetar_templates():
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 400
-
-
-@bp.route("/estoque/ajuste-admin", methods=["GET", "POST"])
-@login_required
-def estoque_ajuste_admin():
-    if not current_user.is_admin:
-        flash("Acesso negado. Apenas administradores podem alterar saldos por esta porta administrativa.", "danger")
-        return redirect(url_for("dashboard.index"))
-
-    selected_code = (request.values.get("codigo") or "").strip()
-    preview = None
-    adjustment_form = request.form.to_dict() if request.method == "POST" else {}
-
-    if request.method == "POST":
-        motivo = (request.form.get("motivo") or "").strip()
-        user_id = str(getattr(current_user, "matricula", "") or getattr(current_user, "id", ""))
-        audit_context = _build_admin_adjustment_audit_context(
-            codigo=selected_code,
-            novo_saldo=None,
-            motivo=motivo,
-        )
-        try:
-            result = inventory_service.apply_admin_item_adjustments(
-                codigo_atual=selected_code,
-                novo_codigo=request.form.get("novo_codigo"),
-                novo_saldo=request.form.get("novo_saldo"),
-                adjustment_payload=adjustment_form,
-                matricula=user_id,
-                motivo=motivo,
-                audit_context=audit_context,
-            )
-            flash(result.get("message") or "Ajustes administrativos aplicados.", "success" if result.get("changed") else "info")
-            return redirect(url_for("config.estoque_ajuste_admin", codigo=result.get("codigo_atual") or selected_code))
-        except ValueError as exc:
-            flash(str(exc), "danger")
-        except Exception as exc:
-            flash("Erro interno ao aplicar os ajustes administrativos.", "danger")
-
-    if selected_code:
-        try:
-            preview = inventory_service.get_admin_balance_snapshot(selected_code)
-            if preview is not None and not preview.get("admin_balance_input"):
-                preview["admin_balance_input"] = inventory_service.build_admin_balance_input_fallback(preview)
-        except ValueError as exc:
-            if request.method == "GET":
-                flash(str(exc), "danger")
-
-    return render_template(
-        "config/estoque_admin.html",
-        preview=preview,
-        preview_code=selected_code,
-        adjustment_form=adjustment_form,
-        recent_adjustments=inventory_service.list_recent_admin_balance_adjustments(limit=12),
-    )

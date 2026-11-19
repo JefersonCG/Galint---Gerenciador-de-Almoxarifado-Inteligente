@@ -147,7 +147,6 @@ def _build_system_settings_navigation(path: str, *, is_admin: bool) -> list[dict
     conversionengine_url = _optional_url("pages.config_conversionengine")
     users_list_url = _optional_url("users.list_users")
     mobile_panel_url = _optional_url("mobile_panel.dashboard", enabled=mobile_panel_enabled)
-    admin_stock_adjust_url = _optional_url("config.estoque_ajuste_admin", enabled=is_admin)
     fornecedores_url = _optional_url("config.fornecedores")
 
     settings_targets = [
@@ -165,7 +164,6 @@ def _build_system_settings_navigation(path: str, *, is_admin: bool) -> list[dict
         conversionengine_url,
         users_list_url if is_admin else None,
         mobile_panel_url,
-        admin_stock_adjust_url,
         fornecedores_url,
     ]
     settings_active = _path_matches_any(path, settings_targets)
@@ -197,8 +195,6 @@ def _build_system_settings_navigation(path: str, *, is_admin: bool) -> list[dict
         settings_children.append(_link_item("Usuários", users_list_url, "bi-people-fill", _path_matches(path, users_list_url)))
     if mobile_panel_url:
         settings_children.append(_link_item("Painel Mobile", mobile_panel_url, "bi-phone-fill", _path_matches(path, mobile_panel_url)))
-    if admin_stock_adjust_url:
-        settings_children.append(_link_item("Ajuste de Estoque", admin_stock_adjust_url, "bi-shield-lock", _path_matches(path, admin_stock_adjust_url)))
     if fornecedores_url:
         settings_children.append(_link_item("Fornecedores", fornecedores_url, "bi-building-add", _path_matches(path, fornecedores_url)))
 
@@ -286,7 +282,6 @@ def build_sidebar_navigation() -> dict[str, Any]:
 
     valor_estoque_url = _optional_url("inventory.valor_estoque")
     fornecedores_url = _optional_url("config.fornecedores")
-    admin_stock_adjust_url = _optional_url("config.estoque_ajuste_admin")
     lojas_lab_url = _optional_url("inventory.lojas_lab")
     nf_url = _optional_url("nf.nf_index", enabled=current_app.config.get("FEATURE_NOTAS_ENABLED", True))
     projection_url = _optional_url("inventory.purchase_projection_page")
@@ -327,7 +322,7 @@ def build_sidebar_navigation() -> dict[str, Any]:
     ) or path.startswith("/estoque")
     suprimentos_active = _path_matches_any(
         path,
-        [fornecedores_url, admin_stock_adjust_url, lojas_lab_url, nf_url],
+        [fornecedores_url, lojas_lab_url, nf_url],
     )
     ferramentas_active = _path_matches_any(path, [central_kits_url, tool_custody_url, reparo_url])
     configuracoes_active = _path_matches_any(
@@ -383,8 +378,6 @@ def build_sidebar_navigation() -> dict[str, Any]:
     suprimentos_children: list[dict[str, Any]] = []
     if fornecedores_url:
         suprimentos_children.append(_link_item("Cadastrar fornecedor", fornecedores_url, "bi-building-add", _path_matches(path, fornecedores_url)))
-    if is_admin and admin_stock_adjust_url:
-        suprimentos_children.append(_link_item("Ajuste Administrativo", admin_stock_adjust_url, "bi-shield-lock", _path_matches(path, admin_stock_adjust_url)))
     if lojas_lab_url:
         suprimentos_children.append(_link_item("Laboratório de Lojas", lojas_lab_url, "bi-shop", _path_matches(path, lojas_lab_url)))
     if nf_url:
