@@ -117,14 +117,14 @@ export default function StockCountPanel({ item, detailsLoading, note, onSaved, o
                 <View style={styles.form}>
                     {input.package_content_display ? <Text style={styles.hint}>{input.package_content_display}</Text> : null}
                     <Text style={styles.label}>{`${input.package_plural || 'Embalagens'} fechadas`}</Text>
-                    <TextInput style={styles.input} value={packages} onChangeText={setPackages} keyboardType="number-pad" placeholder="0" placeholderTextColor="#94a3b8" autoFocus />
+                    <TextInput style={styles.input} value={packages} onChangeText={setPackages} keyboardType="number-pad" placeholder="0" placeholderTextColor="#94a3b8" />
                     <Text style={styles.label}>{`Quantidade solta (${unit})`}</Text>
                     <TextInput style={styles.input} value={loose} onChangeText={setLoose} keyboardType={allowDecimal ? 'decimal-pad' : 'number-pad'} placeholder="0" placeholderTextColor="#94a3b8" returnKeyType="done" onSubmitEditing={save} />
                 </View>
             ) : (
                 <View style={styles.form}>
                     <Text style={styles.label}>{`Quantidade física (${unit})`}</Text>
-                    <TextInput style={[styles.input, styles.inputBig]} value={quantity} onChangeText={setQuantity} autoFocus keyboardType={allowDecimal ? 'decimal-pad' : 'number-pad'} placeholder="0" placeholderTextColor="#94a3b8" returnKeyType="done" onSubmitEditing={save} />
+                    <TextInput style={[styles.input, styles.inputBig]} value={quantity} onChangeText={setQuantity} keyboardType={allowDecimal ? 'decimal-pad' : 'number-pad'} placeholder="0" placeholderTextColor="#94a3b8" returnKeyType="done" onSubmitEditing={save} />
                 </View>
             )}
 

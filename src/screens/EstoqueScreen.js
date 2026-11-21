@@ -18,6 +18,7 @@ import {
     AppState,
     Dimensions,
     FlatList,
+    Keyboard,
     KeyboardAvoidingView,
     Modal,
     Platform,
@@ -31,6 +32,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useIsFocused } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Notifications from 'expo-notifications';
 
@@ -83,6 +85,7 @@ function syncLabel(status) {
 export default function EstoqueScreen({ navigation, route }) {
     const [user, setUser] = useState(route.params?.user || null);
     const [permission, requestPermission] = useCameraPermissions();
+    const insets = useSafeAreaInsets();
     const isFocused = useIsFocused();
     const [appActive, setAppActive] = useState(AppState.currentState === 'active');
     const [menuOpen, setMenuOpen] = useState(false);
@@ -197,6 +200,7 @@ export default function EstoqueScreen({ navigation, route }) {
         const code = String(rawCode || '').trim();
         if (!code) return;
         InactivityService.recordActivity();
+        Keyboard.dismiss();
         const requestId = ++lookupId.current;
         Vibration.vibrate(50);
         setArmed(false);
@@ -251,6 +255,7 @@ export default function EstoqueScreen({ navigation, route }) {
     // Só lê quando a pessoa toca no círculo.
     const capture = useCallback(() => {
         InactivityService.recordActivity();
+        Keyboard.dismiss();
         if (!permission?.granted) {
             requestPermission();
             return;
@@ -273,6 +278,7 @@ export default function EstoqueScreen({ navigation, route }) {
     }, [lookup, permission?.granted, requestPermission]);
 
     const closePanel = useCallback(() => {
+        Keyboard.dismiss();
         lookupId.current += 1;
         setPanel(null);
         lastSeen.current = { code: '', at: 0 };
@@ -376,13 +382,13 @@ export default function EstoqueScreen({ navigation, route }) {
     const sideMenu = (
         <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
             <View style={styles.menuBackdrop}>
-                <View style={styles.menuPanel}>
+                <View style={[styles.menuPanel, { paddingTop: insets.top + 16 }]}>
                     <View style={styles.menuHeader}>
                         <Text style={styles.menuTitle}>GALINT</Text>
                         <Text style={styles.menuUser}>{user?.nome || user?.username || 'Usuário'}</Text>
                         <Text style={styles.menuMeta}>{roleLabel(role)} • {syncLabel(sync)}</Text>
                     </View>
-                    <ScrollView contentContainerStyle={styles.menuList}>
+                    <ScrollView contentContainerStyle={[styles.menuList, { paddingBottom: insets.bottom + 24 }]}>
                         {menuEntry('📷', 'Conferência', () => setMenuOpen(false), 'Ler código, consultar e contar')}
                         {role !== 'gerencia' ? menuEntry('🔄', 'Movimento de material', () => go('Movimento'), 'Materiais, ferramentas, fracionados e devoluções') : null}
                         {menuEntry('🔔', 'Avisos', openNotifications, 'Saídas, devoluções e alertas do estoque', inbox.unread)}

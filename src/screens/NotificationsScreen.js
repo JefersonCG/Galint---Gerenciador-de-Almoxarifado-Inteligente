@@ -82,6 +82,31 @@ function resolveGalleryPhotos(item) {
         .slice(0, 4);
 }
 
+// Mesma limpeza do servidor (operation_visual_payload.human_observation), para os avisos que já
+// estavam guardados: "UNIDADE=UNIDADE;QTD_ORIGINAL=1" some e o texto de auditoria da conferência
+// vira "Conferência física: 5 → 4" (pedido do usuário em 21/11/2026).
+function cleanObservation(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return null;
+    const adjustment = raw.match(/^\s*Ajuste administrativo de saldo \[([^\]]*)\]:\s*exibido\s+(-?[\d.,]+)\s*->\s*(-?[\d.,]+)/i);
+    if (adjustment) {
+        const label = /contagem f/i.test(adjustment[1]) ? 'Conferência física' : 'Ajuste de saldo';
+        return `${label}: ${adjustment[2].replace('.', ',')} → ${adjustment[3].replace('.', ',')}`;
+    }
+    const kept = raw.split(';').map((part) => part.trim()).filter((part) => part && !/^[A-Z][A-Z0-9_]{2,}\s*=/.test(part));
+    return kept.length ? kept.join('; ') : null;
+}
+
+const CATEGORY_LABELS = {
+    withdrawal: 'Saída',
+    inventory: 'Estoque',
+    stock: 'Entrada',
+    item: 'Cadastro',
+    tool: 'Ferramenta',
+    tools: 'Ferramenta',
+    general: 'Aviso',
+};
+
 function formatDate(value) {
     if (!value) return '-';
     try {
@@ -97,7 +122,9 @@ function NotificationCard({ item, onMarkRead }) {
     const movement = visual?.movement || {};
     const actor = visual?.actor || {};
     const context = visual?.context || {};
-    const categoryLabel = String(item?.category || 'geral').replace(/_/g, ' ');
+    const categoryKey = String(item?.category || 'general').trim().toLowerCase();
+    const categoryLabel = CATEGORY_LABELS[categoryKey] || categoryKey.replace(/_/g, ' ');
+    const observacao = cleanObservation(context?.observacao);
     const photoUrl = resolvePhotoUrl(item);
     const isUnread = item?.status === 'unread';
     const [photoFailed, setPhotoFailed] = useState(false);
@@ -109,7 +136,7 @@ function NotificationCard({ item, onMarkRead }) {
         actor?.nome ||
         actor?.matricula ||
         context?.local_servico ||
-        context?.observacao ||
+        observacao ||
         context?.retirado_por ||
         context?.devolvido_por
     );
@@ -149,17 +176,7 @@ function NotificationCard({ item, onMarkRead }) {
                         ) : null}
                     </View>
                 </ImageBackground>
-            ) : (
-                <View style={styles.photoPlaceholder}>
-                    <Text style={styles.photoPlaceholderIcon}>📸</Text>
-                    <Text style={styles.photoPlaceholderTitle}>Visual da notificação</Text>
-                    <Text style={styles.photoPlaceholderText}>
-                        {photoUrl && photoFailed
-                            ? 'A foto do item existe, mas não pôde ser carregada neste momento.'
-                            : 'Quando o item tiver foto cadastrada, ela aparece aqui junto da retirada ou devolução.'}
-                    </Text>
-                </View>
-            )}
+            ) : null}
 
             {galleryPhotos.length > 1 ? (
                 <View style={styles.galleryRow}>
@@ -185,7 +202,7 @@ function NotificationCard({ item, onMarkRead }) {
                     {context?.retirado_por ? <Text style={styles.visualLine}>Retirado por: {context.retirado_por}</Text> : null}
                     {context?.devolvido_por ? <Text style={styles.visualLine}>Devolvido por: {context.devolvido_por}</Text> : null}
                     {context?.local_servico ? <Text style={styles.visualLine}>Local: {context.local_servico}</Text> : null}
-                    {context?.observacao ? <Text style={styles.visualLine}>Obs.: {context.observacao}</Text> : null}
+                    {observacao ? <Text style={styles.visualLine}>Obs.: {observacao}</Text> : null}
                 </View>
             ) : null}
         </TouchableOpacity>

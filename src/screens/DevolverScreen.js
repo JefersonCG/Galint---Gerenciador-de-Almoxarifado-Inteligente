@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useLayoutEffect } from 'react';
 import {
     View,
     Text,
@@ -11,11 +11,13 @@ import {
     Platform,
     ActivityIndicator,
     FlatList,
+    Image,
 } from 'react-native';
 import ApiService from '../services/api';
 import { formatQuantityWithPackaging } from '../utils/formatQuantity';
-import HeroScreen from '../components/HeroScreen';
+import { resolvePhotoUri } from '../components/StockCountPanel';
 import { heroPalette, heroShadow, heroSoftShadow } from '../theme/heroTheme';
+import { returnMessage, shareOnWhatsApp, unitLabel } from '../utils/shareWhatsApp';
 
 function sanitizeIntText(text) {
     if (text == null) return '';
@@ -46,8 +48,12 @@ export default function DevolverScreen({ navigation, route }) {
         return categoria === 'ferramenta' || categoria === 'ferramentas';
     }, [item]);
 
-    const tipoDisplay = isFerramenta ? 'Ferramenta' : 'Material';
-    const icone = isFerramenta ? '🔧' : '↩️';
+    // 2.2.1: o nome da operação fica só no cabeçalho (sem o cartão de título nem a dica do rodapé).
+    useLayoutEffect(() => {
+        navigation.setOptions({ title: isFerramenta ? 'Devolver ferramenta' : 'Devolver material' });
+    }, [isFerramenta, navigation]);
+    const [photoFailed, setPhotoFailed] = useState(false);
+    const photoUri = photoFailed ? null : resolvePhotoUri(item);
 
     const saldoAtual = useMemo(() => {
         const q = Number(item?.quantidade ?? 0);
@@ -173,17 +179,25 @@ export default function DevolverScreen({ navigation, route }) {
                 : novoSaldoRaw;
             
             const novoSaldoFormatado = formatQuantityWithPackaging(novoSaldo, item);
+            const quantidadeTexto = `${quantidadeInt} ${unitLabel(quantidadeInt, item?.unidade)}`;
+            const mensagem = returnMessage({
+                descricao: item?.descricao || item?.nome || 'Item',
+                quantidade: quantidadeTexto,
+                devolvidoPor: devolvedorSelecionado?.nome,
+                ferramenta: isFerramenta,
+                registradoPor: user?.nome,
+            });
 
+            // "Nova devolução" volta ao leitor de código (a tela anterior); "Concluir" volta ao menu.
             Alert.alert(
-                'Sucesso',
-                `Devolução registrada! ${isFerramenta ? '' : 'Material reacrescentado ao estoque.'}\nNovo saldo: ${novoSaldoFormatado}`,
+                'Devolução registrada',
+                `${quantidadeTexto} • saldo agora: ${novoSaldoFormatado}`,
                 [
-                    {
-                        text: 'Nova Devolução',
-                        onPress: () => setQuantidade('1'),
-                    },
-                    { text: 'Voltar', onPress: () => navigation.goBack() },
-                ]
+                    { text: 'WhatsApp', onPress: () => { shareOnWhatsApp(mensagem); navigation.goBack(); } },
+                    { text: 'Nova devolução', onPress: () => navigation.goBack() },
+                    { text: 'Concluir', onPress: () => navigation.navigate('Movimento', { user, tab: 'devolucao' }) },
+                ],
+                { cancelable: false }
             );
         } catch (e) {
             Alert.alert('Erro', 'Falha ao registrar devolução');
@@ -192,44 +206,47 @@ export default function DevolverScreen({ navigation, route }) {
         }
     };
 
+    const ultimoNome = ultimoResponsavel
+        ? (ultimoResponsavel.nome && !ultimoResponsavel.nome.startsWith('Matrícula')
+            ? ultimoResponsavel.nome
+            : `Mat. ${ultimoResponsavel.matricula}`)
+        : null;
+
     return (
         <KeyboardAvoidingView
             style={styles.container}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-            <HeroScreen
-                eyebrow="Operação de retorno"
-                title={`${icone} Devolução de ${tipoDisplay}`}
-                subtitle="A devolução volta a nascer em uma única tela: item, responsável e quantidade, sem blocos decorativos desnecessários."
-                scroll={false}
-                contentContainerStyle={styles.heroContent}
-            >
             <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
                 <View style={styles.card}>
-
-                    {loadingUltimoResponsavel && (
-                        <View style={styles.loadingBox}>
-                            <ActivityIndicator size="small" color="#198754" />
-                            <Text style={styles.loadingText}>Verificando último responsável...</Text>
+                    <View style={styles.itemBox}>
+                        <View style={styles.itemRow}>
+                            {photoUri ? (
+                                <Image source={{ uri: photoUri }} style={styles.itemPhoto} resizeMode="cover" onError={() => setPhotoFailed(true)} />
+                            ) : (
+                                <View style={[styles.itemPhoto, styles.itemPhotoEmpty]}>
+                                    <Text style={styles.itemPhotoEmptyText}>Sem foto</Text>
+                                </View>
+                            )}
+                            <View style={styles.itemCopy}>
+                                <Text style={styles.itemName}>
+                                    {(item?.descricao || item?.nome || '').toString().toUpperCase()}
+                                </Text>
+                                <Text style={styles.itemLine}>Código: {(item?.codigo_barras || item?.id || '').toString()}</Text>
+                                <Text style={styles.itemLine}>Saldo: {saldoFormatado}</Text>
+                                {loadingUltimoResponsavel ? (
+                                    <ActivityIndicator size="small" color={heroPalette.primary} style={styles.lastLoading} />
+                                ) : ultimoNome ? (
+                                    <Text style={styles.itemLine}>
+                                        Última retirada: {ultimoNome} • {new Date(ultimoResponsavel.data_saida).toLocaleDateString('pt-BR')}
+                                    </Text>
+                                ) : null}
+                            </View>
                         </View>
-                    )}
-
-                    {ultimoResponsavel && !loadingUltimoResponsavel && (
-                        <View style={styles.infoBox}>
-                            <Text style={styles.infoTitle}>📋 Última Retirada</Text>
-                            <Text style={styles.infoText}>
-                                Responsável: {ultimoResponsavel.nome && !ultimoResponsavel.nome.startsWith('Matrícula') 
-                                    ? ultimoResponsavel.nome 
-                                    : `Funcionário (Mat. ${ultimoResponsavel.matricula})`}
-                            </Text>
-                            <Text style={styles.infoText}>
-                                Data: {new Date(ultimoResponsavel.data_saida).toLocaleDateString('pt-BR')}
-                            </Text>
-                        </View>
-                    )}
+                    </View>
 
                     <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Devolvido por *</Text>
+                        <Text style={styles.label}>Devolvido por</Text>
                         <TextInput
                             style={[styles.input, !canChooseDevolvedor && styles.inputDisabled]}
                             value={devolvedorBusca}
@@ -238,7 +255,8 @@ export default function DevolverScreen({ navigation, route }) {
                                 setShowAutocompleteLista(true);
                                 setDevolvedorSelecionado(null);
                             }}
-                            placeholder="Digite o nome ou matrícula"
+                            placeholder="Nome ou matrícula"
+                            placeholderTextColor={heroPalette.textMuted}
                             editable={canChooseDevolvedor}
                         />
 
@@ -246,24 +264,21 @@ export default function DevolverScreen({ navigation, route }) {
                             <View style={styles.autocompleteContainer}>
                                 <FlatList
                                     data={usuariosFiltrados.slice(0, 8)}
-                                    keyExtractor={(item) => item.matricula}
+                                    keyExtractor={(entry) => entry.matricula}
                                     style={styles.autocompleteList}
                                     keyboardShouldPersistTaps="handled"
-                                    renderItem={({ item }) => (
+                                    renderItem={({ item: entry }) => (
                                         <TouchableOpacity
                                             style={styles.autocompleteItem}
                                             onPress={() => {
-                                                setDevolvedorSelecionado(item);
-                                                const labelCompleto = item.cargo
-                                                    ? `${item.nome} (${item.cargo})`
-                                                    : item.nome;
-                                                setDevolvedorBusca(labelCompleto);
+                                                setDevolvedorSelecionado(entry);
+                                                setDevolvedorBusca(entry.cargo ? `${entry.nome} (${entry.cargo})` : entry.nome);
                                                 setShowAutocompleteLista(false);
                                             }}
                                         >
-                                            <Text style={styles.autocompleteNome}>{item.nome}</Text>
+                                            <Text style={styles.autocompleteNome}>{entry.nome}</Text>
                                             <Text style={styles.autocompleteDetalhe}>
-                                                {item.cargo || item.setor || ''} | Mat: {item.matricula}
+                                                {entry.cargo || entry.setor || ''} | Mat: {entry.matricula}
                                             </Text>
                                         </TouchableOpacity>
                                     )}
@@ -272,53 +287,42 @@ export default function DevolverScreen({ navigation, route }) {
                         )}
                     </View>
 
-                    <View style={styles.itemBox}>
-                        <Text style={styles.itemName}>
-                            {(item?.descricao || item?.nome || '').toString().toUpperCase()}
-                        </Text>
-                        <Text style={styles.itemLine}>
-                            📊 Código: {(item?.codigo_barras || item?.id || '').toString()}
-                        </Text>
-                        <Text style={styles.itemLine}>📦 Saldo atual: {saldoFormatado}</Text>
-                        {item?.categoria && (
-                            <Text style={styles.itemLine}>🏷️ Categoria: {item.categoria}</Text>
-                        )}
-                    </View>
-
                     <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Quantidade a Devolver *</Text>
+                        <Text style={styles.label}>Quantidade</Text>
                         <TextInput
                             style={styles.input}
                             value={quantidade}
                             onChangeText={(text) => setQuantidade(sanitizeIntText(text))}
-                            placeholder="Digite a quantidade"
+                            placeholder="Quantidade"
+                            placeholderTextColor={heroPalette.textMuted}
                             keyboardType="numeric"
                         />
                     </View>
 
                     <TouchableOpacity
-                        style={[styles.button, loading && styles.buttonDisabled]}
+                        style={[styles.button, (loading || !devolvedorSelecionado) && styles.buttonDisabled]}
                         onPress={handleSubmit}
-                        disabled={loading}
+                        disabled={loading || !devolvedorSelecionado}
                     >
                         {loading ? (
                             <ActivityIndicator color="#fff" />
                         ) : (
-                            <Text style={styles.buttonText}>✅ Confirmar Devolução</Text>
+                            <Text style={styles.buttonText}>{devolvedorSelecionado ? 'Registrar devolução' : 'Falta quem devolve'}</Text>
                         )}
                     </TouchableOpacity>
-
-                    <Text style={styles.hint}>
-                        A quantidade será automaticamente reacrescentada ao estoque.
-                    </Text>
                 </View>
             </ScrollView>
-            </HeroScreen>
         </KeyboardAvoidingView>
     );
 }
 
 const styles = StyleSheet.create({
+    itemRow: { flexDirection: 'row', gap: 12, alignItems: 'center' },
+    itemPhoto: { width: 84, height: 84, borderRadius: 14, backgroundColor: '#fff' },
+    itemPhotoEmpty: { alignItems: 'center', justifyContent: 'center', backgroundColor: heroPalette.panelAlt },
+    itemPhotoEmptyText: { color: heroPalette.textMuted, fontSize: 11 },
+    itemCopy: { flex: 1 },
+    lastLoading: { alignSelf: 'flex-start', marginTop: 4 },
     container: {
         flex: 1,
         backgroundColor: heroPalette.bg,

@@ -2,9 +2,10 @@ import 'react-native-gesture-handler';
 import React, { useEffect, useState } from 'react';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Keyboard, Platform, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Constants from 'expo-constants';
 import * as Application from 'expo-application';
 import * as Device from 'expo-device';
@@ -221,11 +222,24 @@ export default function App() {
         );
     }
 
+    return (
+        <SafeAreaProvider>
+            <AppNavigator />
+        </SafeAreaProvider>
+    );
+}
+
+// O Android desenha o app atrás da barra de navegação (edge-to-edge): sem este recuo, o botão
+// "Registrar Saída", a busca da tela inicial e os botões do leitor ficavam escondidos atrás
+// dela (prints do usuário em 21/11/2026). O recuo vale para todas as telas.
+function AppNavigator() {
+    const insets = useSafeAreaInsets();
     const S = loadScreens();
 
     return (
         <AppErrorBoundary>
-            <NavigationContainer ref={navigationRef}>
+            {/* Regra do usuário (21/11/2026): teclado só aberto enquanto se digita; trocou de tela, fecha. */}
+            <NavigationContainer ref={navigationRef} onStateChange={() => Keyboard.dismiss()}>
                 <StatusBar style="light" backgroundColor={heroPalette.bgAlt} />
                 <Stack.Navigator
                     initialRouteName="Login"
@@ -240,6 +254,7 @@ export default function App() {
                         },
                         contentStyle: {
                             backgroundColor: heroPalette.bg,
+                            paddingBottom: insets.bottom,
                         },
                         headerLeft: () => {
                             if (route.name === 'Login' || route.name === 'Estoque') return null;

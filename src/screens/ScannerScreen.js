@@ -6,6 +6,7 @@ import {
     StyleSheet,
     TouchableOpacity,
     Alert,
+    Keyboard,
     Vibration,
     Dimensions,
     KeyboardAvoidingView,
@@ -19,12 +20,16 @@ const { width } = Dimensions.get('window');
 
 // "Item não encontrado" só quando o servidor respondeu que não existe; se ele não respondeu e o
 // item também não está na base do celular, a mensagem diz isso (antes as duas eram iguais).
-function itemNotFoundMessage() {
+function itemNotFoundMessage(code) {
     if (ApiService.lastItemLookupFailure === 'network') {
         return 'O servidor não respondeu e este item não está na base do celular. Tente ler de novo.';
     }
-    return 'Item não encontrado';
+    return code ? `O código ${code} não está cadastrado no GALINT.` : 'Item não encontrado.';
 }
+
+// Depois de um erro, o mesmo código fica ignorado por um tempo: até a 2.2.0 a câmera lia de novo na
+// hora, o erro voltava em seguida e o botão azul "Escanear" ficava preso na tela (print de 21/11/2026).
+const SAME_CODE_PAUSE_MS = 2500;
 
 export default function ScannerScreen({ navigation, route }) {
     const mode = route?.params?.mode || 'lookup';
@@ -41,6 +46,22 @@ export default function ScannerScreen({ navigation, route }) {
     
     // Ref para controlar debounce de scans
     const lastScanTime = React.useRef(0);
+    const blockedCode = React.useRef({ code: '', until: 0 });
+
+    // Erro na leitura: a câmera só volta a ler depois do OK, e o mesmo código fica ignorado por 2,5 s.
+    const showScanError = (title, message, code) => {
+        Vibration.vibrate([0, 80, 80, 80]);
+        Alert.alert(title, message, [
+            {
+                text: 'OK',
+                onPress: () => {
+                    blockedCode.current = { code: String(code || ''), until: Date.now() + SAME_CODE_PAUSE_MS };
+                    setScanned(false);
+                    setIsProcessing(false);
+                },
+            },
+        ], { cancelable: false });
+    };
 
     useEffect(() => {
         if (!permission?.granted) {
@@ -76,6 +97,7 @@ export default function ScannerScreen({ navigation, route }) {
     const processCode = async (data) => {
         if (!data) return;
         if (scanned || isProcessing) return;
+        if (String(data) === blockedCode.current.code && Date.now() < blockedCode.current.until) return;
 
         // Debounce: evitar múltiplos scans em menos de 500ms
         const now = Date.now();
@@ -86,14 +108,14 @@ export default function ScannerScreen({ navigation, route }) {
 
         setScanned(true);
         setIsProcessing(true);
+        Keyboard.dismiss();
         Vibration.vibrate(100);
 
         try {
             if (mode === 'withdraw_multi') {
                 const item = await ApiService.buscarItemPorCodigo(data);
                 if (!item) {
-                    Alert.alert('Erro', itemNotFoundMessage());
-                    setScanned(false);
+                    showScanError('Item não encontrado', itemNotFoundMessage(data), data);
                     return;
                 }
                 // Retornar item escaneado para RetiradaScreen
@@ -113,8 +135,7 @@ export default function ScannerScreen({ navigation, route }) {
             if (mode === 'withdraw' || mode === 'withdraw_fraction' || mode === 'tool_withdraw' || mode === 'tool_return' || mode === 'material_return' || mode === 'return') {
                 const item = await ApiService.buscarItemPorCodigo(data);
                 if (!item) {
-                    Alert.alert('Erro', itemNotFoundMessage());
-                    setScanned(false);
+                    showScanError('Item não encontrado', itemNotFoundMessage(data), data);
                     return;
                 }
 
@@ -123,8 +144,7 @@ export default function ScannerScreen({ navigation, route }) {
 
                 if (mode === 'tool_withdraw') {
                     if (!isFerramenta) {
-                        Alert.alert('Atenção', 'Este item não é da categoria Ferramentas.');
-                        setScanned(false);
+                        showScanError('Atenção', 'Este item não é da categoria Ferramentas.', data);
                         return;
                     }
                     navigation.navigate('Retirada', { item, user, tipo: 'ferramenta', defaultQuantity: 1 });
@@ -139,8 +159,7 @@ export default function ScannerScreen({ navigation, route }) {
 
                 if (mode === 'withdraw_fraction') {
                     if (isFerramenta) {
-                        Alert.alert('Atenção', 'Retirada fracionada é apenas para materiais líquidos.');
-                        setScanned(false);
+                        showScanError('Atenção', 'Retirada fracionada é apenas para materiais líquidos.', data);
                         return;
                     }
                     navigation.navigate('Retirada', { item, user, fracionada: true });
@@ -301,7 +320,7 @@ export default function ScannerScreen({ navigation, route }) {
                         <Text style={styles.controlIcon}>
                             {flashEnabled ? '🔦' : '💡'}
                         </Text>
-                        <Text style={styles.controlText}>Flash</Text>
+                        <Text style={styles.controlText}>Lanterna</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -311,19 +330,6 @@ export default function ScannerScreen({ navigation, route }) {
                         <Text style={styles.controlIcon}>⌨️</Text>
                         <Text style={styles.controlText}>Digitar</Text>
                     </TouchableOpacity>
-
-                    {scanned && (
-                        <TouchableOpacity
-                            style={[styles.controlButton, styles.rescanButton]}
-                            onPress={() => {
-                                setScanned(false);
-                                setIsProcessing(false);
-                            }}
-                        >
-                            <Text style={styles.controlIcon}>🔄</Text>
-                            <Text style={styles.controlText}>Escanear</Text>
-                        </TouchableOpacity>
-                    )}
 
                     <TouchableOpacity
                         style={styles.controlButton}
@@ -498,12 +504,12 @@ const styles = StyleSheet.create({
     },
     controls: {
         position: 'absolute',
-        bottom: 40,
+        bottom: 16,
         left: 0,
         right: 0,
         flexDirection: 'row',
-        justifyContent: 'space-around',
-        paddingHorizontal: 40,
+        justifyContent: 'space-evenly',
+        paddingHorizontal: 16,
     },
     controlButton: {
         alignItems: 'center',
@@ -512,15 +518,12 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         minWidth: 80,
     },
-    rescanButton: {
-        backgroundColor: 'rgba(13, 110, 253, 0.8)',
-    },
     controlIcon: {
         fontSize: 24,
         marginBottom: 5,
     },
     controlText: {
-        color: '#000',
+        color: '#fff',
         fontSize: 12,
         fontWeight: '600',
     },

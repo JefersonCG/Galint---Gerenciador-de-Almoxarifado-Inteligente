@@ -1,8 +1,9 @@
-// Movimento de material (2.2.0). Pedido do usuário em 21/11/2026: no menu ☰, um item só para as
-// movimentações, com as mesmas abas da página "Lançamentos" do site (Materiais, Ferramentas,
-// Fracionados, Devoluções). Cada aba abre os fluxos que já existiam (leitor de código, retirada
-// de vários itens, devolução). A custódia do dia, que ficava em "Consultar estoque" (removido),
-// mora na aba Devoluções e só é carregada quando ela está aberta (o servidor leva alguns segundos).
+// Movimento de material. Pedido do usuário em 21/11/2026: no menu ☰, um item só para as
+// movimentações. Na 2.2.0 eram as quatro abas do site; na 2.2.1 ficaram duas (segundo pedido do
+// mesmo dia): Retirada, com materiais e ferramentas juntos (a tela de retirada reconhece a
+// ferramenta pela categoria e pede a custódia), e Devolução. Fracionados saíram do app e ficam só
+// no site. A custódia do dia, que ficava em "Consultar estoque" (removido), mora na aba Devolução
+// e só é carregada quando ela está aberta (o servidor leva alguns segundos).
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -15,16 +16,14 @@ import { heroPalette, heroSoftShadow } from '../theme/heroTheme';
 
 const TAB_KEY = 'galint_movimento_aba';
 const TABS = [
-    { key: 'materiais', icon: '📦', label: 'Materiais', description: 'Saída de materiais de consumo do estoque.' },
-    { key: 'ferramentas', icon: '🔧', label: 'Ferramentas', description: 'Empréstimo de ferramentas: elas ficam na custódia de quem retirou.' },
-    { key: 'fracionados', icon: '💧', label: 'Fracionados', description: 'Líquidos e materiais em fração (litro, quilo, parte da embalagem).' },
-    { key: 'devolucoes', icon: '↩️', label: 'Devoluções', description: 'Volta de ferramentas e materiais ao estoque, por código ou pela custódia do dia.' },
+    { key: 'retirada', icon: '📤', label: 'Retirada' },
+    { key: 'devolucao', icon: '📥', label: 'Devolução' },
 ];
 const EMPTY_SUMMARY = { employees: 0, tools: 0, overdue: 0 };
 
 export default function MovimentoScreen({ navigation, route }) {
     const user = route?.params?.user || null;
-    const [tab, setTab] = useState(route?.params?.tab || 'materiais');
+    const [tab, setTab] = useState(route?.params?.tab || 'retirada');
     const [custody, setCustody] = useState({ visible: true, loading: false, groups: [], summary: EMPTY_SUMMARY, message: '' });
     const [returning, setReturning] = useState(false);
 
@@ -73,13 +72,13 @@ export default function MovimentoScreen({ navigation, route }) {
 
     useFocusEffect(
         useCallback(() => {
-            if (tab === 'devolucoes') loadCustody(true);
+            if (tab === 'devolucao') loadCustody(true);
             return undefined;
         }, [loadCustody, tab])
     );
 
     useEffect(() => {
-        if (tab === 'devolucoes') loadCustody(false);
+        if (tab === 'devolucao') loadCustody(false);
     }, [loadCustody, tab]);
 
     const executeReturn = useCallback(async (entries) => {
@@ -122,8 +121,6 @@ export default function MovimentoScreen({ navigation, route }) {
         ]);
     }, [executeReturn]);
 
-    const current = TABS.find((entry) => entry.key === tab) || TABS[0];
-
     const action = (icon, title, hint, onPress, primary = false) => (
         <TouchableOpacity key={title} style={[styles.action, primary && styles.actionPrimary]} onPress={onPress} activeOpacity={0.85}>
             <Text style={styles.actionIcon}>{icon}</Text>
@@ -155,29 +152,17 @@ export default function MovimentoScreen({ navigation, route }) {
                     );
                 })}
             </View>
-            <Text style={styles.description}>{current.description}</Text>
-
-            {tab === 'materiais' ? (
+            <View style={styles.tabsGap} />
+            {tab === 'retirada' ? (
                 <>
-                    {action('📷', 'Ler código e retirar', 'Aponte a câmera para o código do material', () => open('Scanner', { mode: 'withdraw' }), true)}
-                    {action('🧰', 'Vários itens de uma vez', 'Monte a saída com vários materiais', () => open('Retirada', { multi: true, items: [] }))}
+                    {action('📷', 'Ler código', 'Material ou ferramenta', () => open('Scanner', { mode: 'withdraw' }), true)}
+                    {action('🧰', 'Vários itens', 'Uma saída com vários itens', () => open('Retirada', { multi: true, items: [] }))}
                 </>
             ) : null}
 
-            {tab === 'ferramentas' ? (
+            {tab === 'devolucao' ? (
                 <>
-                    {action('📷', 'Ler código da ferramenta', 'Retirada com a pessoa responsável pela custódia', () => open('Scanner', { mode: 'tool_withdraw' }), true)}
-                    {action('🧰', 'Várias ferramentas de uma vez', 'Monte a retirada com vários itens', () => open('Retirada', { multi: true, items: [] }))}
-                </>
-            ) : null}
-
-            {tab === 'fracionados' ? (
-                action('📷', 'Ler código e retirar uma fração', 'Litro, quilo ou parte da embalagem', () => open('Scanner', { mode: 'withdraw_fraction' }), true)
-            ) : null}
-
-            {tab === 'devolucoes' ? (
-                <>
-                    {action('📷', 'Ler código e devolver', 'Ferramenta ou material de volta ao estoque', () => open('Scanner', { mode: 'return' }), true)}
+                    {action('📷', 'Ler código', 'Material ou ferramenta', () => open('Scanner', { mode: 'return' }), true)}
                     {custody.visible ? (
                         <View style={styles.custody}>
                             <DailyCustodyPanel
@@ -205,9 +190,9 @@ const styles = StyleSheet.create({
     tab: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 14 },
     tabActive: { backgroundColor: heroPalette.primaryStrong },
     tabIcon: { fontSize: 18 },
-    tabLabel: { color: heroPalette.textSoft, fontSize: 11, fontWeight: '800', marginTop: 3 },
+    tabLabel: { color: heroPalette.textSoft, fontSize: 14, fontWeight: '800', marginTop: 3 },
     tabLabelActive: { color: heroPalette.bg },
-    description: { color: heroPalette.textMuted, fontSize: 14, lineHeight: 20, marginTop: 12, marginBottom: 14, textAlign: 'center' },
+    tabsGap: { height: 16 },
     action: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: heroPalette.panel, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: heroPalette.border, marginBottom: 12, ...heroSoftShadow },
     actionPrimary: { backgroundColor: heroPalette.primaryStrong, borderColor: heroPalette.primaryStrong },
     actionIcon: { fontSize: 28 },

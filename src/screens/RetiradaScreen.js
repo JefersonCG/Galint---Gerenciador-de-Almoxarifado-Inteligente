@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useLayoutEffect } from 'react';
 import {
     View,
     Text,
@@ -14,9 +14,11 @@ import {
     Switch,
     Modal,
     Image,
+    Keyboard,
 } from 'react-native';
 import ApiService from '../services/api';
 import { heroPalette, heroShadow, heroSoftShadow } from '../theme/heroTheme';
+import { shareOnWhatsApp, unitLabel, withdrawalMessage } from '../utils/shareWhatsApp';
 
 function sanitizeIntText(text) {
     if (text == null) return '';
@@ -229,18 +231,11 @@ export default function RetiradaScreen({ navigation, route }) {
         }
     }, [multi, item, defaultQuantity]);
 
-    useEffect(() => {
-        if (fracionada && !multi) {
-            setUsarFracao(true);
-            if (navigation?.setOptions) {
-                navigation.setOptions({ title: 'Retirada Fracionada' });
-            }
-        }
-    }, [fracionada, multi, navigation]);
 
     // Processar item escaneado no modo múltiplo
     useEffect(() => {
         if (multi && scannedItem) {
+            Keyboard.dismiss();
             setItemAtual({
                 item: scannedItem,
                 quantidade: '1',
@@ -414,10 +409,15 @@ export default function RetiradaScreen({ navigation, route }) {
     }, [retiranteBusca, usuarios]);
 
     const titulo = useMemo(() => {
-        if (multi) return 'Retirada Múltipla';
-        if (tipo === 'ferramenta' || isFerramenta) return 'Retirada de Ferramenta';
-        return 'Retirada de Material';
+        if (multi) return 'Retirar vários itens';
+        if (tipo === 'ferramenta' || isFerramenta) return 'Retirar ferramenta';
+        return 'Retirar material';
     }, [multi, tipo, isFerramenta]);
+
+    // O nome da operação fica só no cabeçalho (2.2.1: sem cartão de título nem dicas na tela).
+    useLayoutEffect(() => {
+        navigation.setOptions({ title: titulo });
+    }, [navigation, titulo]);
 
     const localServicoNormalizado = useMemo(() => {
         return String(localServico || '').trim().toUpperCase();
@@ -508,13 +508,6 @@ export default function RetiradaScreen({ navigation, route }) {
         setItemAtual({ item: null, quantidade: '1', codigoBusca: '' });
         setTipoCustodia('temporaria');
         setTipoFerramenta('diaria');
-
-        Alert.alert(
-            'Sucesso',
-            agrupouItemExistente
-                ? 'Quantidade somada ao item já existente na lista.'
-                : 'Item adicionado! Escaneie o próximo item.'
-        );
     };
 
     // Remover item da lista
@@ -610,10 +603,21 @@ export default function RetiradaScreen({ navigation, route }) {
                                         ]
                                     );
                                 } else {
+                                    const mensagem = withdrawalMessage({
+                                        items: itensRetirada.map((entry) => ({
+                                            descricao: entry?.item?.descricao || entry?.item?.nome || 'Item',
+                                            quantidade: `${entry.quantidade} ${unitLabel(entry.quantidade, entry?.item?.unidade)}`,
+                                            ferramenta: Boolean(entry?.tipo_custodia),
+                                        })),
+                                        retiradoPor: retiranteSelecionado?.nome,
+                                        local: localServicoNormalizado,
+                                        registradoPor: user?.nome,
+                                    });
                                     Alert.alert(
-                                        '✅ Sucesso!',
-                                        `${sucessos.length} item(ns) retirado(s) por ${retiranteSelecionado.nome}\n\n📱 Notificação enviada via Telegram`,
+                                        'Retirada registrada',
+                                        `${sucessos.length} item(ns) retirado(s) por ${retiranteSelecionado.nome}.`,
                                         [
+                                            { text: 'WhatsApp', onPress: () => { shareOnWhatsApp(mensagem); navigation.goBack(); } },
                                             {
                                                 text: 'Nova Retirada',
                                                 onPress: () => {
@@ -785,27 +789,35 @@ export default function RetiradaScreen({ navigation, route }) {
             }
 
 
-            const saidaId = result.data?.saida_id;
             const novoSaldo = result.data?.item?.saldo ?? result.data?.item?.quantidade;
+            let quantidadeTexto = `${quantidadeInt} ${unitLabel(quantidadeInt, itemAtual.item?.unidade)}`;
+            if (payload.retirada_embalagens > 0) {
+                quantidadeTexto = `${payload.retirada_embalagens} ${getNomeEmbalagem(payload.retirada_embalagens !== 1)}`;
+            } else if (payload.retirada_unidades_soltas > 0) {
+                quantidadeTexto = `${payload.retirada_unidades_soltas} ${unitLabel(payload.retirada_unidades_soltas, 'unidade')}`;
+            }
+            const mensagem = withdrawalMessage({
+                items: [{
+                    descricao: itemAtual.item?.descricao || itemAtual.item?.nome || 'Item',
+                    quantidade: quantidadeTexto,
+                    ferramenta: isFerramenta,
+                }],
+                retiradoPor: retiranteSelecionado?.nome,
+                local: localServicoNormalizado,
+                custodia: isFerramenta ? (tipoCustodia === 'permanente' ? 'permanente' : 'diária') : null,
+                registradoPor: user?.nome,
+            });
 
+            // "Nova retirada" volta ao leitor de código (a tela anterior); "Concluir" volta ao menu.
             Alert.alert(
-                'Sucesso',
-                `Retirada registrada${saidaId ? ` (ID ${saidaId})` : ''}.\nNovo saldo: ${novoSaldo ?? 'OK'}`,
+                'Retirada registrada',
+                `${quantidadeTexto} • saldo agora: ${novoSaldo ?? 'atualizado'}`,
                 [
-                    {
-                        text: 'Nova Retirada',
-                        onPress: () => {
-                            setItemAtual({ item: null, quantidade: '1' });
-                            setLocalServico('');
-                            setTotalEmbalagem('');
-                            setFracaoSelecionada(null);
-                            setTipoRetiradaEmbalagem(null);
-                            setQuantidadeCaixas('');
-                            setQuantidadeUnidades('');
-                        }
-                    },
-                    { text: 'Voltar', onPress: () => navigation.goBack() }
-                ]
+                    { text: 'WhatsApp', onPress: () => { shareOnWhatsApp(mensagem); navigation.goBack(); } },
+                    { text: 'Nova retirada', onPress: () => navigation.goBack() },
+                    { text: 'Concluir', onPress: () => navigation.navigate('Movimento', { user }) },
+                ],
+                { cancelable: false }
             );
         } catch (e) {
             Alert.alert('Erro', 'Falha ao registrar retirada');
@@ -847,6 +859,7 @@ export default function RetiradaScreen({ navigation, route }) {
             return;
         }
 
+        Keyboard.dismiss();
         try {
             const itemEncontrado = await ApiService.buscarItemPorCodigo(itemAtual.codigoBusca.trim());
             if (!itemEncontrado) {
@@ -865,6 +878,14 @@ export default function RetiradaScreen({ navigation, route }) {
         }
     };
 
+    // O botão diz o que falta, no lugar da faixa de aviso (2.2.1).
+    let faltando = '';
+    if (multi && itensRetirada.length === 0) faltando = 'Adicione um item';
+    else if (!multi && !itemAtual?.item) faltando = 'Leia um item';
+    else if (!retiranteSelecionado && !localServicoNormalizado) faltando = 'Falta quem retira e o local';
+    else if (!retiranteSelecionado) faltando = 'Falta quem retira';
+    else if (!localServicoNormalizado) faltando = 'Falta o local';
+
     return (
         <KeyboardAvoidingView
             style={styles.container}
@@ -875,44 +896,6 @@ export default function RetiradaScreen({ navigation, route }) {
                 keyboardShouldPersistTaps="handled"
             >
                 <View style={styles.card}>
-                    <View style={styles.heroBox}>
-                        <Text style={styles.heroEyebrow}>Registro de saídas</Text>
-                        <Text style={styles.title}>{titulo}</Text>
-                        <Text style={styles.heroSubtitle}>
-                            Fluxo alinhado ao web Flask, com menos ruído visual e confirmação obrigatória de retirante e local.
-                        </Text>
-                        <View style={styles.heroMetaRow}>
-                            <View style={styles.heroMetaChip}>
-                                <Text style={styles.heroMetaLabel}>Retirante</Text>
-                                <Text style={styles.heroMetaValue} numberOfLines={1}>
-                                    {retiranteSelecionado?.nome || 'Obrigatório'}
-                                </Text>
-                            </View>
-                            <View style={styles.heroMetaChip}>
-                                <Text style={styles.heroMetaLabel}>Local</Text>
-                                <Text style={styles.heroMetaValue} numberOfLines={1}>
-                                    {localServicoNormalizado || 'Obrigatório'}
-                                </Text>
-                            </View>
-                            <View style={styles.heroMetaChip}>
-                                <Text style={styles.heroMetaLabel}>Modo</Text>
-                                <Text style={styles.heroMetaValue} numberOfLines={1}>
-                                    {multi ? `${itensRetirada.length} item(ns)` : isFerramenta ? 'Ferramenta' : 'Material'}
-                                </Text>
-                            </View>
-                        </View>
-                    </View>
-
-                    <View style={styles.hintsRow}>
-                        <View style={styles.hintCard}>
-                            <Text style={styles.hintIcon}>!</Text>
-                            <Text style={styles.hintText}>Sem retirante e local a baixa não é liberada.</Text>
-                        </View>
-                        <View style={styles.hintCard}>
-                            <Text style={styles.hintIcon}>i</Text>
-                            <Text style={styles.hintText}>A foto do item acompanha a seleção e a retirada múltipla.</Text>
-                        </View>
-                    </View>
 
                     {/* MODO MÚLTIPLO */}
                     {multi ? (
@@ -1002,10 +985,7 @@ export default function RetiradaScreen({ navigation, route }) {
                                     </View>
                                 ) : (
                                     <View style={styles.buscarItemContainer}>
-                                        <View style={styles.labelRow}>
-                                            <Text style={styles.label}>Código do item</Text>
-                                            <Text style={styles.labelHint}>Busca rápida</Text>
-                                        </View>
+                                        <Text style={styles.label}>Código do item</Text>
                                         <TextInput
                                             style={styles.input}
                                             value={itemAtual.codigoBusca || ''}
@@ -1028,10 +1008,7 @@ export default function RetiradaScreen({ navigation, route }) {
 
                                 {itemAtual.item && (
                                     <View style={styles.inputGroup}>
-                                        <View style={styles.labelRow}>
-                                            <Text style={styles.label}>Quantidade *</Text>
-                                            <Text style={styles.labelHint}>Informe a retirada real</Text>
-                                        </View>
+                                        <Text style={styles.label}>Quantidade</Text>
                                         <TextInput
                                             style={styles.input}
                                             value={itemAtual.quantidade}
@@ -1076,11 +1053,6 @@ export default function RetiradaScreen({ navigation, route }) {
                                     {saldoDetalhado.secundario && (
                                         <Text style={styles.itemLineSecondary}>({saldoDetalhado.secundario} no total)</Text>
                                     )}
-                                    {!multi && usarFracao && saldoTotalFracionada != null && (
-                                        <Text style={styles.itemLine}>
-                                            Saldo total em estoque: {saldoTotalFracionada} {unidadeSaldoTotalFracionada}
-                                        </Text>
-                                    )}
                                 </View>
                             </View>
                         </View>
@@ -1088,11 +1060,7 @@ export default function RetiradaScreen({ navigation, route }) {
 
                     {/* Campos comuns */}
                     <View style={styles.inputGroup}>
-                        <View style={styles.labelRow}>
-                            <Text style={styles.label}>Retirado por *</Text>
-                            <Text style={styles.labelHint}>Obrigatório para registrar</Text>
-                        </View>
-                        <Text style={styles.helperText}>A saída e a notificação ficam vinculadas a este colaborador.</Text>
+                        <Text style={styles.label}>Retirado por</Text>
                         <TextInput
                             style={styles.input}
                             value={retiranteBusca}
@@ -1141,91 +1109,11 @@ export default function RetiradaScreen({ navigation, route }) {
                         )}
                     </View>
 
-                    {/* Fração apenas para modo single */}
+
                     {!multi && (
-                        <View style={styles.inputGroup}>
-                            <View style={styles.switchRow}>
-                                <Text style={styles.label}>Retirada fracionada (líquidos)</Text>
-                                <Switch
-                                    value={usarFracao}
-                                    onValueChange={(value) => {
-                                        setUsarFracao(value);
-                                    }}
-                                />
-                            </View>
-                        </View>
-                    )}
-
-                    {!multi && usarFracao && (
                         <>
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Tipo do produto líquido *</Text>
-                                <View style={styles.radioGroup}>
-                                    {LIQUID_PRODUCT_TYPES.map((tipoItem) => {
-                                        const selected = tipoLiquido?.id === tipoItem.id;
-                                        return (
-                                            <TouchableOpacity
-                                                key={tipoItem.id}
-                                                style={styles.radioRow}
-                                                onPress={() => setTipoLiquido(tipoItem)}
-                                            >
-                                                <View style={[styles.radioOuter, selected && styles.radioOuterActive]}>
-                                                    {selected && <View style={styles.radioInner} />}
-                                                </View>
-                                                <Text style={styles.radioLabel}>{tipoItem.label}</Text>
-                                            </TouchableOpacity>
-                                        );
-                                    })}
-                                </View>
-                            </View>
-
-                            <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Fração *</Text>
-                                <View style={styles.fractionGrid}>
-                                    {LIQUID_FRACTIONS.map((fracao) => {
-                                        const selected =
-                                            fracaoSelecionada?.[0] === fracao[0]
-                                            && fracaoSelecionada?.[1] === fracao[1];
-                                        return (
-                                            <TouchableOpacity
-                                                key={`${fracao[0]}-${fracao[1]}`}
-                                                style={[styles.fractionButton, selected && styles.fractionButtonActive]}
-                                                onPress={() => setFracaoSelecionada(fracao)}
-                                            >
-                                                <Text style={[styles.fractionButtonText, selected && styles.fractionButtonTextActive]}>
-                                                    {fracao[0]}/{fracao[1]}
-                                                </Text>
-                                            </TouchableOpacity>
-                                        );
-                                    })}
-                                </View>
-                            </View>
-
-                            <View style={styles.inputGroup}>
-                                <View style={styles.labelRow}>
-                                    <Text style={styles.label}>Capacidade da embalagem *</Text>
-                                    <Text style={styles.labelHint}>Exemplo 3.6</Text>
-                                </View>
-                                <TextInput
-                                    style={styles.input}
-                                    value={totalEmbalagem}
-                                    onChangeText={(text) => setTotalEmbalagem(sanitizeFloatText(text))}
-                                    placeholder="Ex: 3.6"
-                                    placeholderTextColor={heroPalette.textMuted}
-                                    keyboardType="numeric"
-                                    returnKeyType="next"
-                                />
-                            </View>
-                        </>
-                    )}
-
-                    {!multi && !usarFracao && (
-                        <>
-                            <View style={styles.inputGroup}>
-                                <View style={styles.labelRow}>
-                                    <Text style={styles.label}>Quantidade *</Text>
-                                    <Text style={styles.labelHint}>Saída real</Text>
-                                </View>
+                                <Text style={styles.label}>Quantidade</Text>
                                 <TextInput
                                     style={styles.input}
                                     value={itemAtual.quantidade}
@@ -1268,7 +1156,7 @@ export default function RetiradaScreen({ navigation, route }) {
 
                     {isFerramenta && (
                         <View style={styles.inputGroup}>
-                            <Text style={styles.label}>Custódia *</Text>
+                            <Text style={styles.label}>Custódia</Text>
                             <View style={styles.custodiaRow}>
                                 <TouchableOpacity
                                     style={[
@@ -1314,11 +1202,7 @@ export default function RetiradaScreen({ navigation, route }) {
                     )}
 
                     <View style={styles.inputGroup}>
-                        <View style={styles.labelRow}>
-                            <Text style={styles.label}>Local de Serviço *</Text>
-                            <Text style={styles.labelHint}>Obrigatório agora</Text>
-                        </View>
-                        <Text style={styles.helperText}>Sem local não é permitido baixar material ou ferramenta.</Text>
+                        <Text style={styles.label}>Local de serviço</Text>
                         <TextInput
                             style={styles.input}
                             value={localServico}
@@ -1333,22 +1217,16 @@ export default function RetiradaScreen({ navigation, route }) {
                         />
                     </View>
 
-                    {!contextoObrigatorioOk && (
-                        <View style={styles.requirementBanner}>
-                            <Text style={styles.requirementBannerText}>Preencha retirante e local para liberar o envio da saída.</Text>
-                        </View>
-                    )}
-
                     <TouchableOpacity
                         style={[styles.button, loading && styles.buttonDisabled]}
                         onPress={multi ? handleFinalizarRetiradaMultipla : handleSubmitSingle}
-                        disabled={loading || !contextoObrigatorioOk || (multi ? itensRetirada.length === 0 : !itemAtual?.item)}
+                        disabled={loading || Boolean(faltando)}
                     >
                         {loading ? (
                             <ActivityIndicator color="#fff" />
                         ) : (
                             <Text style={styles.buttonText}>
-                                {multi ? 'Finalizar Retirada Múltipla' : 'Registrar Saída'}
+                                {faltando || (multi ? 'Finalizar retirada' : 'Registrar saída')}
                             </Text>
                         )}
                     </TouchableOpacity>
@@ -1423,7 +1301,6 @@ export default function RetiradaScreen({ navigation, route }) {
                                     onChangeText={setQuantidadeCaixas}
                                     placeholder="Ex: 2"
                                     keyboardType="numeric"
-                                    autoFocus
                                 />
                             </View>
                         )}
@@ -1437,7 +1314,6 @@ export default function RetiradaScreen({ navigation, route }) {
                                     onChangeText={setQuantidadeUnidades}
                                     placeholder="Ex: 5"
                                     keyboardType="numeric"
-                                    autoFocus
                                 />
                             </View>
                         )}
