@@ -275,7 +275,7 @@ def test_any_authenticated_user_can_lookup_item_and_apply_zero_count(stock_count
         "pre_cadastro_pendente": False,
     }
     calls = []
-    monkeypatch.setattr(inventory_service, "get_admin_balance_snapshot", lambda _code: snapshot)
+    monkeypatch.setattr(inventory_service, "get_stock_count_snapshot", lambda _code: snapshot)
     monkeypatch.setattr(
         inventory_service,
         "apply_admin_item_adjustments",

@@ -2861,6 +2861,33 @@ class InventoryService:
             "balance_result": balance_result,
         }
 
+    def get_stock_count_snapshot(self, codigo: str) -> dict[str, Any]:
+        """Só o que a contagem física mostra: saldo, texto do saldo e como digitar a quantidade.
+
+        Mesmos valores de get_admin_balance_snapshot, sem a reconciliação do ledger e o uso
+        diário (que só a página administrativa extinta exibia): esses dois chegavam a segundos
+        por leitura de código, e o app desiste em 10 s.
+        """
+        codigo_norm = _sanitize_codigo(codigo)
+        if not codigo_norm:
+            raise ValueError("Informe o código do item")
+
+        item = Item.query.get(codigo_norm)
+        if not item:
+            raise ValueError("Item não encontrado")
+
+        balance_snapshot = balance_provider.get_balance(codigo_norm, item=item)
+        saldo_exibido = Item.normalize_balance_value(balance_snapshot.quantity_base)
+        return {
+            "codigo": item.codigo_item,
+            "descricao": item.descricao,
+            "unidade": item.unidade,
+            "saldo_exibido": saldo_exibido,
+            "saldo_display": item.get_saldo_fisico_display(),
+            "pre_cadastro_pendente": bool(getattr(item, "pre_cadastro_pendente", False)),
+            "admin_balance_input": self._build_admin_balance_input_context(item=item, current_balance=saldo_exibido),
+        }
+
     def get_admin_balance_snapshot(self, codigo: str) -> dict[str, Any]:
         codigo_norm = _sanitize_codigo(codigo)
         if not codigo_norm:
@@ -6905,45 +6932,53 @@ class InventoryService:
         movimentos.sort(key=lambda registro: registro.get("data") or datetime.min, reverse=True)
         return movimentos[:limit]
 
+    # As três somas abaixo percorrem o estoque inteiro: o saldo vem em lote (prefetched_balances),
+    # porque item a item eram ~11 mil consultas e ~15 s a cada abertura do app.
     def total_quantity(self) -> int:
         from ..services.embalagem_service import EmbalagemService
 
         total = 0.0
-        for item in Item.query.all():
-            if EmbalagemService.tem_embalagem(item):
-                total += float(item.estoque_embalagens or 0)
-            else:
-                total += float(item.get_saldo_atual() or 0)
+        items = Item.query.all()
+        with balance_provider.prefetched_balances(items):
+            for item in items:
+                if EmbalagemService.tem_embalagem(item):
+                    total += float(item.estoque_embalagens or 0)
+                else:
+                    total += float(item.get_saldo_atual() or 0)
         return int(round(total))
 
     def total_quantity_internal(self) -> int:
         from ..services.embalagem_service import EmbalagemService
 
         total = 0.0
-        for item in Item.query.all():
-            if EmbalagemService.tem_embalagem(item):
-                total += float(item.get_saldo_fisico_total() or 0)
-            else:
-                total += float(item.get_saldo_atual() or 0)
+        items = Item.query.all()
+        with balance_provider.prefetched_balances(items):
+            for item in items:
+                if EmbalagemService.tem_embalagem(item):
+                    total += float(item.get_saldo_fisico_total() or 0)
+                else:
+                    total += float(item.get_saldo_atual() or 0)
         return int(round(total))
 
     def category_summary(self) -> list[dict[str, Any]]:
         from ..services.embalagem_service import EmbalagemService
 
         categorias: dict[str, dict[str, Any]] = {}
-        for item in Item.query.order_by(Item.categoria, Item.descricao).all():
-            if EmbalagemService.tem_embalagem(item):
-                saldo = float(item.estoque_embalagens or 0)
-            else:
-                saldo = float(item.get_saldo_atual() or 0)
+        items = Item.query.order_by(Item.categoria, Item.descricao).all()
+        with balance_provider.prefetched_balances(items):
+            for item in items:
+                if EmbalagemService.tem_embalagem(item):
+                    saldo = float(item.estoque_embalagens or 0)
+                else:
+                    saldo = float(item.get_saldo_atual() or 0)
 
-            _accumulate_dashboard_category_summary(
-                categorias,
-                categoria_value=item.categoria,
-                unidade_value=item.unidade,
-                saldo_categoria=saldo,
-                photo_path=(item.foto_path if saldo > 0 else None),
-            )
+                _accumulate_dashboard_category_summary(
+                    categorias,
+                    categoria_value=item.categoria,
+                    unidade_value=item.unidade,
+                    saldo_categoria=saldo,
+                    photo_path=(item.foto_path if saldo > 0 else None),
+                )
 
         return _finalize_dashboard_category_summary(categorias)
 

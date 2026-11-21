@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Iterable, Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 
 from sqlalchemy import func
@@ -19,8 +22,32 @@ class BalanceSnapshot:
     migrated: bool
 
 
+# Saldos já calculados em lote para o bloco atual (ver BalanceProvider.prefetched_balances).
+_PREFETCHED_BALANCES: ContextVar[dict[str, BalanceSnapshot] | None] = ContextVar(
+    "galint_prefetched_balances",
+    default=None,
+)
+
+
 class BalanceProvider:
     """Centraliza leitura de saldo durante a migração para ledger."""
+
+    @contextmanager
+    def prefetched_balances(self, items: Iterable[Item]) -> Iterator[dict[str, BalanceSnapshot]]:
+        """Calcula o saldo de vários itens de uma vez e o usa em get_balance dentro do bloco.
+
+        Listas que percorrem o estoque inteiro (app, resumo, soma do estoque) chamavam
+        get_balance item a item: ~20 consultas por item. Em lote são ~100 no total, com o mesmo
+        resultado. Vale só dentro do `with` (e só nesta thread): ao sair, o saldo volta a ser
+        lido do banco, então nada fica guardado velho depois de uma gravação.
+        """
+        by_id = {item.codigo_item: item for item in items if getattr(item, "codigo_item", None)}
+        snapshots = self.get_balances(list(by_id), items_by_id=by_id) if by_id else {}
+        token = _PREFETCHED_BALANCES.set(snapshots)
+        try:
+            yield snapshots
+        finally:
+            _PREFETCHED_BALANCES.reset(token)
 
     @staticmethod
     def _should_prefer_stock_balance_for_nf_origin(item: Item | None, balance: StockBalance | None) -> bool:
@@ -227,6 +254,12 @@ class BalanceProvider:
         product_id = (product_id or "").strip()
         if not product_id:
             raise ValueError("product_id é obrigatório")
+
+        prefetched = _PREFETCHED_BALANCES.get()
+        if prefetched:
+            snapshot = prefetched.get(product_id)
+            if snapshot is not None:
+                return snapshot
 
         item = item or Item.query.get(product_id)
         if not item:

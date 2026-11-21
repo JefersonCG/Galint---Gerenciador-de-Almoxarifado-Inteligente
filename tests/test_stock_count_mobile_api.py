@@ -42,7 +42,7 @@ def mobile_client(monkeypatch):
     monkeypatch.setattr(api_mobile, "get_mobile_user", lambda token: _MobileUser() if token == "token-ok" else None)
     monkeypatch.setattr(api_mobile, "_mobile_user_block_info", lambda user: (False, None))
     monkeypatch.setattr(api_mobile, "_validate_mobile_session_token", lambda token, user: (True, None))
-    monkeypatch.setattr(inventory_service, "get_admin_balance_snapshot", lambda code: dict(SNAPSHOT, codigo=code))
+    monkeypatch.setattr(inventory_service, "get_stock_count_snapshot", lambda code: dict(SNAPSHOT, codigo=code))
     with app.app_context():
         db.init_app(app)
         db.metadata.create_all(bind=db.engine, tables=TABLES)

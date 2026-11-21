@@ -1213,15 +1213,33 @@ class StockBalance(db.Model):
     item: Mapped[Item] = relationship("Item", back_populates="stock_balance")
 
 
+# Bancos onde a coluna read_model_ready já foi vista. Ler a estrutura da tabela custa várias
+# consultas ao catálogo e esta checagem roda até 3 vezes por item ao calcular saldo: na lista do
+# app (1.043 itens) eram ~12 mil consultas só disso. A coluna não some depois de criada, então
+# só o "sim" fica guardado; o "não" (banco ainda sem a migração) continua sendo conferido.
+_STOCK_BALANCE_READ_MODEL_READY_ENGINES: set[tuple[int, str]] = set()
+
+
 def stock_balance_supports_read_model_ready() -> bool:
+    try:
+        bind = db.session.get_bind()
+        engine = getattr(bind, "engine", bind)
+        cache_key = (id(engine), str(getattr(engine, "url", "")))
+    except Exception:
+        return False
+    if cache_key in _STOCK_BALANCE_READ_MODEL_READY_ENGINES:
+        return True
     try:
         column_names = {
             str(column.get("name"))
-            for column in sa_inspect(db.session.get_bind()).get_columns("stock_balances")
+            for column in sa_inspect(bind).get_columns("stock_balances")
         }
     except Exception:
         return False
-    return "read_model_ready" in column_names
+    supported = "read_model_ready" in column_names
+    if supported:
+        _STOCK_BALANCE_READ_MODEL_READY_ENGINES.add(cache_key)
+    return supported
 
 
 class ProductDimension(db.Model):

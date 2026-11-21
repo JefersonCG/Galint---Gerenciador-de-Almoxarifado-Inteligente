@@ -40,7 +40,7 @@ def photo_static_path(item: Item) -> str | None:
 def item_snapshot(item: Item) -> dict[str, Any]:
     """O que a tela de contagem mostra do item (sem a URL da foto, que cada lado monta)."""
     try:
-        snapshot = inventory_service.get_admin_balance_snapshot(item.codigo_item)
+        snapshot = inventory_service.get_stock_count_snapshot(item.codigo_item)
     except ValueError as exc:
         raise StockCountError(str(exc), status=404) from exc
     return {

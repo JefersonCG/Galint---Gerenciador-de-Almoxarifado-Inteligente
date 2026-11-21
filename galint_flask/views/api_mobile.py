@@ -13,6 +13,7 @@ from typing import Any
 import jwt
 from pathlib import Path
 from flask import Blueprint, current_app, g, jsonify, request, send_file
+from sqlalchemy.orm import selectinload
 
 # Configurar poppler automaticamente (Windows)
 try:
@@ -26,6 +27,7 @@ from ..services.auth import (
     create_mobile_token,
     get_mobile_user,
 )
+from ..services.balance_provider import balance_provider
 from ..services.category_catalog import DEFAULT_INVENTORY_CATEGORY_NAME, category_catalog_service
 from ..services.finance_service import finance_service
 from ..services.inventory_engine import PRE_CADASTRO_PENDING_EXIT_MESSAGE
@@ -3519,9 +3521,13 @@ def listar_estoque():
             (Item.categoria.ilike(search_term))
         )
     
-    items = query.order_by(Item.descricao).all()
-    
-    return jsonify([_serialize_mobile_stock_item(item) for item in items]), 200
+    # O app pede a lista inteira a cada sincronização. Item a item eram ~20 mil consultas e
+    # ~28 s (o app desistia em 10 s e pedia de novo, entupindo o servidor): em lote, ~1 s.
+    items = query.options(selectinload(Item.product_units)).order_by(Item.descricao).all()
+
+    with balance_provider.prefetched_balances(items):
+        payload = [_serialize_mobile_stock_item(item) for item in items]
+    return jsonify(payload), 200
 
 
 @blueprint.get("/estoque/resumo")
