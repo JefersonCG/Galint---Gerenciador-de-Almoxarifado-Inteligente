@@ -3148,6 +3148,44 @@ def mobile_documentos_fiscais_config():
     }), 200
 
 
+@blueprint.get("/chave-acesso")
+@mobile_login_required
+def mobile_access_key_preview():
+    """Lançamento rápido de entrada pelo app (21/11/2026): a chave lida pela câmera vira número da
+    NF, série, modelo e CNPJ do emitente (mesma decodificação do site, nf._decode_nfe_access_key),
+    com o fornecedor achado pelo CNPJ e, se a nota já está no GALINT, as datas dela."""
+    if not _mobile_documents_available():
+        return jsonify({"success": False, "message": "Documentos Fiscais indisponível neste ambiente."}), 404
+    if not _mobile_admin_only(g.mobile_user):
+        return jsonify({"success": False, "message": "Só administradores lançam entradas."}), 403
+
+    from . import nf as nf_views
+    from ..models import DocumentoEntradaEstoque
+
+    raw = str(request.args.get("chave") or "")
+    match = re.search(r"\d{44}", re.sub(r"\s+", "", raw))
+    decoded, error = nf_views._decode_nfe_access_key(match.group(0) if match else raw)
+    if error or decoded is None:
+        return jsonify({"success": False, "message": error or "Chave de acesso inválida."}), 400
+
+    supplier = nf_views._find_supplier_by_cnpj(decoded.get("cnpj_emitente"))
+    document = (
+        DocumentoEntradaEstoque.query
+        .filter(DocumentoEntradaEstoque.chave_acesso == decoded["chave_acesso"])
+        .order_by(DocumentoEntradaEstoque.id_documento.desc())
+        .first()
+    )
+    return jsonify({
+        "success": True,
+        "chave": decoded,
+        "fornecedor": (
+            {"id": supplier.id, "nome": supplier.nome_fantasia or supplier.razao_social}
+            if supplier else None
+        ),
+        "documento": nf_views._document_model_preview(document),
+    }), 200
+
+
 @blueprint.get("/documentos-fiscais/itens")
 @mobile_login_required
 def mobile_documentos_fiscais_itens():
