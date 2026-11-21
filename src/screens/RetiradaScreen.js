@@ -583,25 +583,6 @@ export default function RetiradaScreen({ navigation, route }) {
                                 local_servico: localServicoNormalizado,
                             });
 
-                            if (result.success && result.offline) {
-                                Alert.alert(
-                                    'Registrado Offline',
-                                    'Retirada múltipla salva localmente. Ela será sincronizada quando houver conexão.',
-                                    [
-                                        {
-                                            text: 'Nova Retirada',
-                                            onPress: () => {
-                                                setItensRetirada([]);
-                                                setItemAtual({ item: null, quantidade: '1', codigoBusca: '' });
-                                                setItemAtualId(0);
-                                                setLocalServico('');
-                                            }
-                                        },
-                                        { text: 'Voltar', onPress: () => navigation.goBack() }
-                                    ]
-                                );
-                                return;
-                            }
 
                             if (result.success) {
                                 const sucessos = result.resultados?.filter(r => r.success) || [];
@@ -803,25 +784,6 @@ export default function RetiradaScreen({ navigation, route }) {
                 return;
             }
 
-            if (result.offline) {
-                Alert.alert(
-                    'Registrado Offline',
-                    'Retirada salva localmente. Ela será sincronizada quando houver conexão.',
-                    [
-                        {
-                            text: 'Nova Retirada',
-                            onPress: () => {
-                                setItemAtual({ item: null, quantidade: '1', codigoBusca: '' });
-                                setLocalServico('');
-                                setTotalEmbalagem('');
-                                setFracaoSelecionada(null);
-                            }
-                        },
-                        { text: 'Voltar', onPress: () => navigation.goBack() }
-                    ]
-                );
-                return;
-            }
 
             const saidaId = result.data?.saida_id;
             const novoSaldo = result.data?.item?.saldo ?? result.data?.item?.quantidade;

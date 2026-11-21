@@ -1,155 +1,145 @@
-import ApiService from './api';
-import { 
-    listPendingOps, 
-    markPendingOpSynced, 
-    markPendingOpFailed, 
-    incrementPendingRetry,
-    searchItems,
-    upsertItems,
-    removePendingOp
-} from './offlineDb';
+// Sincronização da base do celular com o servidor (desde a 2.2.0).
+//
+// Regra pedida pelo usuário em 21/11/2026: o celular guarda o estoque inteiro, e toda
+// atualização do estoque chega aos dois lados, sempre.
+// - O app nunca grava só no celular: retirada, devolução e contagem vão direto ao servidor.
+//   Logo depois, a tela chama SyncService.syncNow() e a base do celular recebe o saldo novo.
+// - Mudanças feitas no site ou em outro celular chegam pela pergunta "o que mudou?"
+//   (/api/mobile/estoque/mudancas), feita a cada 15 s com o app aberto e sempre que ele volta
+//   para a frente. Sem mudança, a resposta custa milissegundos no servidor.
+// - A cada 30 min, e na primeira vez, a lista vem inteira e substitui a base (cobre item
+//   apagado no site ou mudança que o cursor não pega).
+//
+// Até a 2.1.1 a base nunca abria e a lista inteira descia de tempos em tempos (em 21/11/2026,
+// a cada 5 s, entupindo o servidor).
+import { AppState } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
+import ApiService from './api';
+import { countItems, getMeta, replaceAllItems, setMeta, upsertItems } from './localDb';
 
-// O ciclo de 5 s só envia operações feitas offline (quando existem). A lista completa do
-// estoque desce no máximo a cada 2 min: em 21/11/2026 ela descia a cada 5 s, o servidor levava
-// ~28 s para montá-la, o app desistia em 10 s e pedia de novo, e os pedidos abandonados
-// entupiam o servidor (a leitura de código dava "Sem conexão" / "Item não encontrado").
-const SYNC_INTERVAL_MS = 5000;
-const PULL_INTERVAL_MS = 2 * 60 * 1000;
-let syncInterval = null;
-let isSyncing = false;
-let lastPullAttemptAt = 0;
-let syncListeners = [];
+const POLL_INTERVAL_MS = 15 * 1000;
+const FULL_REFRESH_MS = 30 * 60 * 1000;
+
+let pollTimer = null;
+let appStateSubscription = null;
+let running = null; // promessa da sincronização em andamento
+let rerunRequested = false;
+let rerunFull = false;
+let listeners = [];
+const status = {
+    online: true,
+    lastSyncAt: 0,
+    lastError: null,
+    count: 0,
+};
+
+function notify(event) {
+    listeners.forEach((callback) => {
+        try {
+            callback(event);
+        } catch (error) {
+            console.warn('[Sync] Falha num ouvinte:', error?.message || error);
+        }
+    });
+}
+
+async function syncOnce(forceFull) {
+    const net = await NetInfo.fetch().catch(() => null);
+    if (net && net.isConnected === false) {
+        status.online = false;
+        notify({ ok: false, offline: true, changed: false });
+        return;
+    }
+
+    const lastFull = Number(await getMeta('ultima_completa')) || 0;
+    const full = forceFull || Date.now() - lastFull > FULL_REFRESH_MS;
+    const cursor = full ? null : await getMeta('cursor');
+    const result = await ApiService.getEstoqueMudancas(cursor);
+    if (!result?.success) {
+        status.online = !result?.offline;
+        status.lastError = result?.message || 'Falha ao sincronizar.';
+        notify({ ok: false, offline: Boolean(result?.offline), changed: false });
+        return;
+    }
+
+    const items = Array.isArray(result.items) ? result.items : [];
+    if (result.full) {
+        await replaceAllItems(items);
+        await setMeta('ultima_completa', Date.now());
+    } else if (items.length > 0) {
+        await upsertItems(items);
+    }
+    await setMeta('cursor', result.cursor || '');
+    status.online = true;
+    status.lastError = null;
+    status.lastSyncAt = Date.now();
+    status.count = await countItems();
+    notify({ ok: true, changed: Boolean(result.full) || items.length > 0, full: Boolean(result.full), count: status.count });
+}
 
 export const SyncService = {
-    start: () => {
-        if (syncInterval) return;
-        console.log('[SyncService] Iniciando ciclo de 5s...');
-        SyncService.runSync(); // Run immediately one time
-        syncInterval = setInterval(SyncService.runSync, SYNC_INTERVAL_MS);
+    start() {
+        if (pollTimer) return;
+        SyncService.syncNow();
+        pollTimer = setInterval(() => SyncService.syncNow(), POLL_INTERVAL_MS);
+        appStateSubscription = AppState.addEventListener('change', (state) => {
+            if (state === 'active') SyncService.syncNow();
+        });
     },
 
-    stop: () => {
-        if (syncInterval) {
-            clearInterval(syncInterval);
-            syncInterval = null;
-            console.log('[SyncService] Parado.');
-        }
+    stop() {
+        if (pollTimer) clearInterval(pollTimer);
+        pollTimer = null;
+        if (appStateSubscription) appStateSubscription.remove();
+        appStateSubscription = null;
     },
 
-    addListener: (callback) => {
-        syncListeners.push(callback);
+    addListener(callback) {
+        listeners.push(callback);
         return () => {
-            syncListeners = syncListeners.filter(cb => cb !== callback);
+            listeners = listeners.filter((entry) => entry !== callback);
         };
     },
 
-    notifyListeners: (event) => {
-        syncListeners.forEach(cb => cb(event));
+    getStatus() {
+        return { ...status };
     },
 
-    // force = true: "Sincronizar agora" do menu (baixa a lista na hora, sem esperar os 2 min).
-    runSync: async (force = false) => {
-        if (isSyncing) return;
-
+    // Chamada depois de cada gravação no servidor e no "Atualizar agora". Se já houver uma
+    // sincronização rodando, roda de novo quando ela acabar (a mudança pode ter chegado depois).
+    async syncNow({ full = false } = {}) {
+        if (running) {
+            rerunRequested = true;
+            rerunFull = rerunFull || full;
+            return running;
+        }
+        running = (async () => {
+            let nextFull = full;
+            do {
+                rerunRequested = false;
+                try {
+                    await syncOnce(nextFull);
+                } catch (error) {
+                    status.lastError = error?.message || String(error);
+                    console.warn('[Sync] Erro:', status.lastError);
+                    notify({ ok: false, changed: false });
+                }
+                nextFull = rerunFull;
+                rerunFull = false;
+            } while (rerunRequested);
+        })();
         try {
-            const state = await NetInfo.fetch();
-            if (!state.isConnected) {
-                return;
-            }
-
-            isSyncing = true;
-
-            // 1. PUSH: Enviar pendências para a API (só chama o servidor se houver alguma)
-            const pushed = await SyncService.pushPendingOps();
-
-            // 2. PULL: lista completa no máximo a cada 2 min. Conta a partir da tentativa,
-            // não do sucesso: se o servidor estiver lento, não insiste a cada 5 s.
-            const now = Date.now();
-            const pullDue = force === true || now - lastPullAttemptAt >= PULL_INTERVAL_MS;
-            if (pullDue) {
-                lastPullAttemptAt = now;
-                await SyncService.pullEstoque();
-            }
-
-            // As telas recarregam resumo e custódia ao ouvir este aviso: só avisar quando algo mudou.
-            if (pullDue || pushed > 0) {
-                SyncService.notifyListeners('synced');
-            }
-
-        } catch (error) {
-            console.error('[SyncService] Erro no ciclo:', error);
+            await running;
         } finally {
-            isSyncing = false;
+            running = null;
         }
+        return undefined;
     },
-
-    pushPendingOps: async () => {
-        const ops = await listPendingOps();
-        if (ops.length === 0) return 0;
-
-        console.log(`[SyncService] Enviando ${ops.length} operações pendentes...`);
-
-        for (const op of ops) {
-            try {
-                let result = { success: false };
-                const payload = JSON.parse(op.payload);
-
-                // Re-autenticar se necessário (os métodos do ApiService já usam token armazenado)
-                
-                if (op.type === 'retirada') {
-                    // Forçar modo online para tentar envio real
-                    result = await ApiService.registrarRetirada(payload);
-                } else if (op.type === 'devolucao_ferramenta') {
-                    result = await ApiService.registrarDevolucaoFerramenta(payload);
-                } else if (op.type === 'retirada_ferramenta') {
-                     // Adicionar este endpoint se existir, senão usar log
-                     // Exemplo: result = await ApiService.registrarRetiradaFerramenta(payload);
-                     // Se não mapeado no ApiService, tratar aqui
-                     console.warn('Operação não mapeada completamente no SyncService:', op.type);
-                     continue; 
-                }
-                
-                // Verificar resultado
-                // Se result.offline === true, significa que falhou a rede e caiu no queue de novo? 
-                // Não, o ApiService.registrarRetirada chama queueRetiradaOffline se falhar.
-                // Mas aqui já estamos processando a queue. Precisamos chamar a API direta se possível ou
-                // evitar que o ApiService requeue.
-                // O ApiService atual RE-FILEIRA se falhar. Isso pode duplicar?
-                // O ApiService.registrarRetirada chama addPendingOp.
-                // Precisamos de um método no ApiService que seja "tente enviar, se falhar jogue erro, não fileire".
-                // Como não podemos mudar o ApiService.registrarRetirada facilmente sem quebrar a UI,
-                // vamos assumir que se estamos ONLINE (verificado no runSync), vai passar.
-                // Mas se falhar, vai duplicar na fila?
-                
-                // CORREÇÃO: Vamos chamar o axios diretamente aqui ou usar um flag no ApiService?
-                // Melhor: O ApiService deve detectar que já estamos processando offline.
-                
-                // Vamos apenas verificar se o success foi true e NÃO foi offline.
-                if (result.success && !result.offline) {
-                    await removePendingOp(op.id);
-                    console.log(`[SyncService] Op ${op.id} enviada com sucesso.`);
-                } else {
-                    // Se voltou offline, mantenha na fila
-                    await incrementPendingRetry(op.id);
-                }
-
-            } catch (err) {
-                console.error(`[SyncService] Falha ao enviar Op ${op.id}:`, err);
-                await incrementPendingRetry(op.id);
-            }
-        }
-        return ops.length;
-    },
-
-    pullEstoque: async () => {
-        // Puxa dados da API e salva no SQLite
-        const result = await ApiService.getEstoque(''); // Busca tudo
-        if (result.success && Array.isArray(result.data)) {
-            await upsertItems(result.data);
-            // console.log(`[SyncService] Estoque atualizado: ${result.data.length} itens.`);
-        }
-    }
 };
+
+// Toda gravação de estoque feita pelo app (api.js) traz o saldo novo para a base do celular na hora.
+ApiService.onStockWrite(() => {
+    SyncService.syncNow();
+});
 
 export default SyncService;

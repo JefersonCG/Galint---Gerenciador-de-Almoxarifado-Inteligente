@@ -13,7 +13,7 @@ import {
     FlatList,
 } from 'react-native';
 import ApiService from '../services/api';
-import { searchItems as searchOfflineItems } from '../services/offlineDb';
+import { searchItems as searchOfflineItems } from '../services/localDb';
 
 export default function DevolucaoMultiplaMateriaisScreen({ navigation, route }) {
     const user = route.params?.user;

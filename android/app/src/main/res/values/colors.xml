@@ -1,6 +1,8 @@
 <resources>
-  <color name="splashscreen_background">#ffffff</color>
+  <!-- Abertura (2.2.0): fundo escuro igual ao do app, para a animação do GALINT entrar sem o
+       salto do branco com o ícone pequeno para a tela escura. -->
+  <color name="splashscreen_background">#06101b</color>
   <color name="iconBackground">#0d6efd</color>
   <color name="colorPrimary">#023c69</color>
-  <color name="colorPrimaryDark">#ffffff</color>
+  <color name="colorPrimaryDark">#06101b</color>
 </resources>

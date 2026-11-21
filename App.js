@@ -1,40 +1,54 @@
 import 'react-native-gesture-handler';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert, Platform, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Platform, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Constants from 'expo-constants';
+import * as Application from 'expo-application';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import * as Updates from 'expo-updates';
 
-import LoginScreen from './src/screens/LoginScreen';
-import EstoqueScreen from './src/screens/EstoqueScreen';
-import ScannerScreen from './src/screens/ScannerScreen';
-import ContagemFisicaScreen from './src/screens/ContagemFisicaScreen';
-import EditarItemScreen from './src/screens/EditarItemScreen';
-import RetiradaScreen from './src/screens/RetiradaScreen';
-import DevolverScreen from './src/screens/DevolverScreen';
-import DocumentosFiscaisScreen from './src/screens/DocumentosFiscaisScreen';
-import ConfigScreen from './src/screens/ConfigScreen';
-import MenuScreen from './src/screens/MenuScreen';
-import ProfileScreen from './src/screens/ProfileScreen';
-import NotificationsScreen from './src/screens/NotificationsScreen';
-import ReportsScreen from './src/screens/ReportsScreen';
-import ReportsDailyScreen from './src/screens/ReportsDailyScreen';
-import ReportsMonthlyScreen from './src/screens/ReportsMonthlyScreen';
-import ReportsHistoryScreen from './src/screens/ReportsHistoryScreen';
-import ReportsConsumptionScreen from './src/screens/ReportsConsumptionScreen';
 import UpdateChecker from './src/services/updateChecker';
 import ApiService from './src/services/api';
-import { initOfflineDb } from './src/services/offlineDb'; // Inicializar DB
 import { emitNotifyInboxChanged } from './src/services/notifyEvents';
-import { heroPalette } from './src/theme/heroTheme';
+import { heroPalette, loadSavedTheme, saveServerTheme } from './src/theme/heroTheme';
+import GalintIntro from './src/components/GalintIntro';
 
 const Stack = createNativeStackNavigator();
 const navigationRef = createNavigationContainerRef();
+
+// As telas são carregadas só depois da abertura: cada uma monta seus estilos ao ser carregada, e
+// assim já pega as cores da Aparência (tema guardado ou recebido do servidor nesta abertura).
+let screens = null;
+function loadScreens() {
+    if (!screens) {
+        /* eslint-disable global-require */
+        screens = {
+            LoginScreen: require('./src/screens/LoginScreen').default,
+            EstoqueScreen: require('./src/screens/EstoqueScreen').default,
+            MovimentoScreen: require('./src/screens/MovimentoScreen').default,
+            ScannerScreen: require('./src/screens/ScannerScreen').default,
+            EditarItemScreen: require('./src/screens/EditarItemScreen').default,
+            RetiradaScreen: require('./src/screens/RetiradaScreen').default,
+            DevolverScreen: require('./src/screens/DevolverScreen').default,
+            DocumentosFiscaisScreen: require('./src/screens/DocumentosFiscaisScreen').default,
+            ConfigScreen: require('./src/screens/ConfigScreen').default,
+            MenuScreen: require('./src/screens/MenuScreen').default,
+            ProfileScreen: require('./src/screens/ProfileScreen').default,
+            NotificationsScreen: require('./src/screens/NotificationsScreen').default,
+            ReportsScreen: require('./src/screens/ReportsScreen').default,
+            ReportsDailyScreen: require('./src/screens/ReportsDailyScreen').default,
+            ReportsMonthlyScreen: require('./src/screens/ReportsMonthlyScreen').default,
+            ReportsHistoryScreen: require('./src/screens/ReportsHistoryScreen').default,
+            ReportsConsumptionScreen: require('./src/screens/ReportsConsumptionScreen').default,
+        };
+        /* eslint-enable global-require */
+    }
+    return screens;
+}
 
 Notifications.setNotificationHandler({
     handleNotification: async () => ({
@@ -49,7 +63,10 @@ function resolveExpoProjectId() {
     return Constants?.expoConfig?.extra?.eas?.projectId || Constants?.easConfig?.projectId || null;
 }
 
-async function getExpoPushToken() {
+// Permissão de aviso e canal do Android: valem para os alertas locais da tela inicial (aviso novo
+// com o app aberto). O token de push depende do Firebase, que este APK não tem; se falhar, os
+// alertas locais continuam funcionando.
+async function prepareNotifications() {
     if (!Device.isDevice) {
         return { success: false, skipped: true, reason: 'physical_device_required' };
     }
@@ -66,10 +83,10 @@ async function getExpoPushToken() {
 
     if (Platform.OS === 'android') {
         await Notifications.setNotificationChannelAsync('default', {
-            name: 'default',
+            name: 'Avisos do GALINT',
             importance: Notifications.AndroidImportance.MAX,
             vibrationPattern: [0, 250, 250, 250],
-            lightColor: '#0d6efd',
+            lightColor: '#22d3ee',
             sound: 'default',
         });
     }
@@ -121,13 +138,34 @@ class AppErrorBoundary extends React.Component {
 }
 
 export default function App() {
-    const [isReady, setIsReady] = useState(false);
-    const [progress, setProgress] = useState(0);
+    const [themeReady, setThemeReady] = useState(false);
+    const [bootDone, setBootDone] = useState(false);
+    const [introDone, setIntroDone] = useState(false);
+
+    // Abertura: tema guardado → base do celular → servidor salvo → tema atual do servidor.
+    useEffect(() => {
+        let alive = true;
+        (async () => {
+            await loadSavedTheme();
+            if (alive) setThemeReady(true);
+            try {
+                await ApiService.ensureLocalReady();
+                const config = await ApiService.loadSavedConfig();
+                if (config) {
+                    const tema = await ApiService.getTema();
+                    if (tema.success) await saveServerTheme(tema.tema, { applyNow: screens === null });
+                }
+            } catch (error) {
+                console.warn('[App] Abertura sem servidor:', error?.message || error);
+            }
+            if (alive) setBootDone(true);
+        })();
+        return () => {
+            alive = false;
+        };
+    }, []);
 
     useEffect(() => {
-        // Inicializar Banco de Dados Offline
-        initOfflineDb().catch(err => console.error("Erro ao iniciar DB:", err));
-
         const notificationReceivedSubscription = Notifications.addNotificationReceivedListener((event) => {
             emitNotifyInboxChanged({
                 reason: 'push-received',
@@ -145,111 +183,50 @@ export default function App() {
             }
         });
 
-        // Inicia o sistema de verificação automática de atualizações
-        console.log('[App] Iniciando UpdateChecker...');
         UpdateChecker.start();
 
-        let unsubscribeNet;
-        try {
-            // Carrega NetInfo de forma segura
-            // eslint-disable-next-line global-require
-            const NetInfo = require('@react-native-community/netinfo');
-            unsubscribeNet = NetInfo.addEventListener((state) => {
-                const online = state?.isConnected && state?.isInternetReachable !== false;
-                if (online) {
-                    ApiService.syncPendingOps().catch(() => {});
-                }
-            });
-        } catch (error) {
-            // Sem NetInfo disponível, não registra listener
-        }
-
-        ApiService.loadSavedConfig()
-            .then(async (config) => {
-                if (!config) return;
+        (async () => {
+            try {
+                const result = await prepareNotifications();
                 const authToken = await ApiService.getToken();
-                if (!authToken) return;
-
-                const pushTokenResult = await getExpoPushToken();
-                if (!pushTokenResult?.success || !pushTokenResult?.token) {
-                    return;
+                if (result?.success && result.token && authToken) {
+                    const registration = await ApiService.registerNotifyPushToken(result.token);
+                    if (!registration?.success && !registration?.skipped) {
+                        console.warn('[Push] Falha ao registrar token:', registration?.message || 'erro desconhecido');
+                    }
                 }
+            } catch (error) {
+                // Sem Firebase no APK o token não sai; os alertas locais seguem funcionando.
+                console.warn('[Push] Sem token de push:', error?.message || error);
+            }
+        })();
 
-                const registrationResult = await ApiService.registerNotifyPushToken(pushTokenResult.token);
-                if (!registrationResult?.success && !registrationResult?.skipped) {
-                    console.warn('[Push] Falha ao registrar token:', registrationResult?.message || 'erro desconhecido');
-                }
-            })
-            .catch((error) => {
-                console.warn('[Push] Falha na inicialização automática:', error?.message || error);
-            });
-
-        // Cleanup ao desmontar
         return () => {
-            console.log('[App] Parando UpdateChecker...');
             UpdateChecker.stop();
-            if (unsubscribeNet) unsubscribeNet();
             notificationReceivedSubscription.remove();
             notificationResponseSubscription.remove();
         };
     }, []);
 
-    useEffect(() => {
-        let progressInterval;
-        let readyTimeout;
+    if (!themeReady) {
+        return <View style={{ flex: 1, backgroundColor: heroPalette.bg }} />;
+    }
 
-        progressInterval = setInterval(() => {
-            setProgress((prev) => {
-                if (prev >= 0.92) return prev;
-                return Math.min(prev + 0.06, 0.92);
-            });
-        }, 180);
-
-        readyTimeout = setTimeout(() => {
-            setProgress(1);
-            setIsReady(true);
-        }, 1600);
-
-        return () => {
-            if (progressInterval) clearInterval(progressInterval);
-            if (readyTimeout) clearTimeout(readyTimeout);
-        };
-    }, []);
-
-    const progressPercent = useMemo(() => Math.round(progress * 100), [progress]);
-
-    if (!isReady) {
+    if (!introDone) {
         return (
-            <View style={styles.splashContainer}>
-                <Text style={styles.splashTitle}>GALINT</Text>
-                <Text style={styles.splashSubtitle}>Sistema de almoxarifado</Text>
-                
-                <View style={styles.progressContainer}>
-                    <View style={styles.progressTrack}>
-                        {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((index) => {
-                            const isActive = progressPercent >= (index + 1) * 10;
-                            return (
-                                <View
-                                    key={index}
-                                    style={[
-                                        styles.progressBox,
-                                        isActive && styles.progressBoxActive
-                                    ]}
-                                />
-                            );
-                        })}
-                    </View>
-                </View>
-                
-                <Text style={styles.progressText}>{progressPercent}%</Text>
-            </View>
+            <>
+                <StatusBar style="light" backgroundColor={heroPalette.bg} />
+                <GalintIntro ready={bootDone} onFinish={() => setIntroDone(true)} version={Application.nativeApplicationVersion} />
+            </>
         );
     }
+
+    const S = loadScreens();
 
     return (
         <AppErrorBoundary>
             <NavigationContainer ref={navigationRef}>
-                <StatusBar style="light" backgroundColor={heroPalette.bg} />
+                <StatusBar style="light" backgroundColor={heroPalette.bgAlt} />
                 <Stack.Navigator
                     initialRouteName="Login"
                     screenOptions={({ navigation, route }) => ({
@@ -278,101 +255,24 @@ export default function App() {
                         },
                     })}
                 >
-                    <Stack.Screen
-                        name="Login"
-                        component={LoginScreen}
-                        options={{ headerShown: false }}
-                    />
-                    <Stack.Screen
-                        name="Estoque"
-                        component={EstoqueScreen}
-                        options={{
-                            title: 'GALINT Mobile',
-                            headerBackVisible: false,
-                        }}
-                    />
-                    <Stack.Screen
-                        name="DocumentosFiscais"
-                        component={DocumentosFiscaisScreen}
-                        options={{ title: 'Documentos Fiscais' }}
-                    />
-                    <Stack.Screen
-                        name="Scanner"
-                        component={ScannerScreen}
-                        options={{
-                            title: 'Escanear Código',
-                            headerTransparent: true
-                        }}
-                    />
-
-                    <Stack.Screen
-                        name="ContagemFisica"
-                        component={ContagemFisicaScreen}
-                        options={{ title: 'Conferência física' }}
-                    />
-
-                    <Stack.Screen
-                        name="EditarItem"
-                        component={EditarItemScreen}
-                        options={{ title: 'Editar Item' }}
-                    />
-
-                    <Stack.Screen
-                        name="Retirada"
-                        component={RetiradaScreen}
-                        options={{ title: 'Retirar Material' }}
-                    />
-
-                    <Stack.Screen
-                        name="Devolver"
-                        component={DevolverScreen}
-                        options={{ title: 'Devolução' }}
-                    />
-                    <Stack.Screen
-                        name="Config"
-                        component={ConfigScreen}
-                        options={{ title: 'Configurações' }}
-                    />
-                    <Stack.Screen
-                        name="Menu"
-                        component={MenuScreen}
-                        options={{ title: 'Painel' }}
-                    />
-                    <Stack.Screen
-                        name="Profile"
-                        component={ProfileScreen}
-                        options={{ title: 'Perfil do Usuário' }}
-                    />
-                    <Stack.Screen
-                        name="Notifications"
-                        component={NotificationsScreen}
-                        options={{ title: 'Notificações' }}
-                    />
-                    <Stack.Screen
-                        name="Reports"
-                        component={ReportsScreen}
-                        options={{ title: 'Relatórios' }}
-                    />
-                    <Stack.Screen
-                        name="ReportsDaily"
-                        component={ReportsDailyScreen}
-                        options={{ title: 'Relatório Diário' }}
-                    />
-                    <Stack.Screen
-                        name="ReportsMonthly"
-                        component={ReportsMonthlyScreen}
-                        options={{ title: 'Relatório Mensal' }}
-                    />
-                    <Stack.Screen
-                        name="ReportsConsumption"
-                        component={ReportsConsumptionScreen}
-                        options={{ title: 'Consumo Analítico' }}
-                    />
-                    <Stack.Screen
-                        name="ReportsHistory"
-                        component={ReportsHistoryScreen}
-                        options={{ title: 'Histórico de Relatórios' }}
-                    />
+                    <Stack.Screen name="Login" component={S.LoginScreen} options={{ headerShown: false }} />
+                    <Stack.Screen name="Estoque" component={S.EstoqueScreen} options={{ title: 'GALINT', headerBackVisible: false }} />
+                    <Stack.Screen name="Movimento" component={S.MovimentoScreen} options={{ title: 'Movimento de material' }} />
+                    {/* Em espera desde a 2.2.0 (config/features.js): a rota fica, o menu não mostra. */}
+                    <Stack.Screen name="DocumentosFiscais" component={S.DocumentosFiscaisScreen} options={{ title: 'Documentos Fiscais' }} />
+                    <Stack.Screen name="Scanner" component={S.ScannerScreen} options={{ title: 'Escanear Código', headerTransparent: true }} />
+                    <Stack.Screen name="EditarItem" component={S.EditarItemScreen} options={{ title: 'Editar Item' }} />
+                    <Stack.Screen name="Retirada" component={S.RetiradaScreen} options={{ title: 'Retirar Material' }} />
+                    <Stack.Screen name="Devolver" component={S.DevolverScreen} options={{ title: 'Devolução' }} />
+                    <Stack.Screen name="Config" component={S.ConfigScreen} options={{ title: 'Configurações' }} />
+                    <Stack.Screen name="Menu" component={S.MenuScreen} options={{ title: 'Painel' }} />
+                    <Stack.Screen name="Profile" component={S.ProfileScreen} options={{ title: 'Perfil do Usuário' }} />
+                    <Stack.Screen name="Notifications" component={S.NotificationsScreen} options={{ title: 'Avisos' }} />
+                    <Stack.Screen name="Reports" component={S.ReportsScreen} options={{ title: 'Relatórios' }} />
+                    <Stack.Screen name="ReportsDaily" component={S.ReportsDailyScreen} options={{ title: 'Relatório Diário' }} />
+                    <Stack.Screen name="ReportsMonthly" component={S.ReportsMonthlyScreen} options={{ title: 'Relatório Mensal' }} />
+                    <Stack.Screen name="ReportsConsumption" component={S.ReportsConsumptionScreen} options={{ title: 'Consumo Analítico' }} />
+                    <Stack.Screen name="ReportsHistory" component={S.ReportsHistoryScreen} options={{ title: 'Histórico de Relatórios' }} />
                 </Stack.Navigator>
             </NavigationContainer>
         </AppErrorBoundary>
@@ -380,69 +280,6 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-    splashContainer: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: heroPalette.bg,
-        padding: 24,
-    },
-    splashTitle: {
-        fontSize: 34,
-        fontWeight: '800',
-        color: '#ffffff',
-        letterSpacing: 0.8,
-    },
-    splashSubtitle: {
-        fontSize: 15,
-        color: heroPalette.textMuted,
-        marginTop: 6,
-        marginBottom: 22,
-    },
-    headerActionButton: {
-        minWidth: 60,
-        height: 34,
-        borderRadius: 16,
-        paddingHorizontal: 12,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: 'rgba(34, 211, 238, 0.16)',
-        borderWidth: 1,
-        borderColor: heroPalette.borderStrong,
-    },
-    headerActionButtonText: {
-        color: heroPalette.text,
-        fontSize: 13,
-        fontWeight: '800',
-    },
-    progressContainer: {
-        width: '86%',
-        marginTop: 10,
-    },
-    progressTrack: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        height: 14,
-        gap: 4,
-    },
-    progressBox: {
-        flex: 1,
-        height: 14,
-        backgroundColor: 'rgba(255,255,255,0.12)',
-        borderRadius: 3,
-        borderWidth: 1,
-        borderColor: heroPalette.border,
-    },
-    progressBoxActive: {
-        backgroundColor: heroPalette.primaryStrong,
-        borderColor: heroPalette.text,
-    },
-    progressText: {
-        marginTop: 12,
-        color: heroPalette.text,
-        fontWeight: '700',
-    },
     errorContainer: {
         flex: 1,
         alignItems: 'center',
@@ -474,4 +311,3 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
 });
-

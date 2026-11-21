@@ -35,31 +35,21 @@ export const clearServerConfig = async () => {
     }
 };
 
-export const saveCredentials = async (username, password, remember) => {
+// Só o usuário fica lembrado aqui. Desde a 2.2.0 a senha não vai mais para o AsyncStorage (ela
+// ficava em texto aberto em 'savedPassword'): quem quiser entrar sem digitar usa a digital ou o
+// rosto, e a senha fica no cofre do Android (services/biometricLogin.js).
+export const saveLastUsername = async (username) => {
     try {
-        if (remember) {
-            await AsyncStorage.setItem('savedUsername', username);
-            await AsyncStorage.setItem('savedPassword', password);
-        } else {
-            await AsyncStorage.removeItem('savedUsername');
-            await AsyncStorage.removeItem('savedPassword');
-        }
+        await AsyncStorage.setItem('savedUsername', String(username || '').trim());
     } catch (error) {
-        console.error('Erro ao salvar credenciais:', error);
+        console.error('Erro ao salvar usuário:', error);
     }
 };
 
-export const loadCredentials = async () => {
+export const loadLastUsername = async () => {
     try {
-        const username = await AsyncStorage.getItem('savedUsername');
-        const password = await AsyncStorage.getItem('savedPassword');
-
-        if (username && password) {
-            return { username, password };
-        }
-        return null;
+        return (await AsyncStorage.getItem('savedUsername')) || '';
     } catch (error) {
-        console.error('Erro ao carregar credenciais:', error);
-        return null;
+        return '';
     }
 };

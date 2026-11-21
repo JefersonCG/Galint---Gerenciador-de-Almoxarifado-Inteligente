@@ -6,6 +6,7 @@ import ApiService from '../services/api';
 import HeroScreen from '../components/HeroScreen';
 import { subscribeNotifyInboxChanged } from '../services/notifyEvents';
 import { heroPalette, heroShadow, heroSoftShadow } from '../theme/heroTheme';
+import { ENTRADAS_FISCAIS_NO_APP } from '../config/features';
 
 export default function MenuScreen({ navigation }) {
     const [overview, setOverview] = useState(null);
@@ -124,7 +125,8 @@ export default function MenuScreen({ navigation }) {
                 <Text style={styles.cardArrow}>›</Text>
             </TouchableOpacity>
 
-            {canManageDocuments ? (
+            {/* Documentos fiscais em espera (config/features.js). */}
+            {!ENTRADAS_FISCAIS_NO_APP ? null : canManageDocuments ? (
                 <TouchableOpacity
                     style={[styles.modernCard, styles.documentsCard]}
                     onPress={() => navigation.navigate('DocumentosFiscais')}

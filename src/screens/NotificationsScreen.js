@@ -2,6 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
     ActivityIndicator,
+    Alert,
     FlatList,
     ImageBackground,
     RefreshControl,
@@ -250,6 +251,27 @@ export default function NotificationsScreen() {
         }
     };
 
+    // Em 21/11/2026 havia 18 mil avisos sem ler (ninguém abria esta tela): um toque zera.
+    const handleMarkAll = () => {
+        if (unreadCount <= 0) return;
+        Alert.alert('Avisos', `Marcar os ${unreadCount} avisos como lidos?`, [
+            { text: 'Cancelar', style: 'cancel' },
+            {
+                text: 'Marcar todos',
+                onPress: async () => {
+                    const result = await ApiService.markAllNotifyRead();
+                    if (!result?.success) {
+                        Alert.alert('Avisos', result?.message || 'Não foi possível marcar os avisos.');
+                        return;
+                    }
+                    setItems((current) => current.map((entry) => ({ ...entry, status: 'read' })));
+                    setUnreadCount(0);
+                    emitNotifyInboxChanged({ reason: 'mark-all-read', unreadCount: 0 });
+                },
+            },
+        ]);
+    };
+
     if (loading && items.length === 0) {
         return (
             <View style={styles.stateContainer}>
@@ -266,6 +288,11 @@ export default function NotificationsScreen() {
                 <Text style={styles.summaryLabel}>Inbox operacional</Text>
                 <Text style={styles.summaryValue}>{unreadCount > 0 ? `${unreadCount} não lidas` : 'Tudo lido'}</Text>
             </View>
+            {unreadCount > 0 ? (
+                <TouchableOpacity style={styles.markAllButton} onPress={handleMarkAll} activeOpacity={0.85}>
+                    <Text style={styles.markAllText}>✓ Marcar todos como lidos</Text>
+                </TouchableOpacity>
+            ) : null}
             <FlatList
                 data={items}
                 keyExtractor={(item) => String(item.id)}
@@ -301,6 +328,19 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         color: '#1e3a8a',
         textTransform: 'uppercase',
+    },
+    markAllButton: {
+        marginHorizontal: 16,
+        marginBottom: 4,
+        paddingVertical: 10,
+        borderRadius: 12,
+        backgroundColor: '#1e3a8a',
+        alignItems: 'center',
+    },
+    markAllText: {
+        color: '#ffffff',
+        fontSize: 14,
+        fontWeight: '800',
     },
     summaryValue: {
         fontSize: 13,

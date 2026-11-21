@@ -2,8 +2,8 @@
   "expo": {
     "name": "GALINT - Sublime Max",
     "slug": "galint-mobile",
-    "version": "2.1.1",
-    "runtimeVersion": "2.1.1",
+    "version": "2.2.0",
+    "runtimeVersion": "2.2.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "icon": "./assets/icone1.png",
@@ -13,7 +13,7 @@
     "splash": {
       "image": "./assets/galint-logo1.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0b3a82"
+      "backgroundColor": "#06101b"
     },
     "ios": {
       "supportsTablet": true,
@@ -21,7 +21,7 @@
     },
     "android": {
       "package": "com.galint.mobile",
-      "versionCode": 12,
+      "versionCode": 13,
       "adaptiveIcon": {
         "foregroundImage": "./assets/icone1.png",
         "backgroundColor": "#0d6efd"

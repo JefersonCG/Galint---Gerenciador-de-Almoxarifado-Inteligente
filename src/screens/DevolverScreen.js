@@ -166,17 +166,6 @@ export default function DevolverScreen({ navigation, route }) {
                 return;
             }
 
-            if (result.offline) {
-                Alert.alert(
-                    'Registrado Offline',
-                    'Devolução salva localmente. Ela será sincronizada quando houver conexão.',
-                    [
-                        { text: 'Nova Devolução', onPress: () => setQuantidade('1') },
-                        { text: 'Voltar', onPress: () => navigation.goBack() },
-                    ]
-                );
-                return;
-            }
 
             const novoSaldoRaw = result.data?.item?.saldo;
             const novoSaldo = Number.isFinite(Number(novoSaldoRaw))

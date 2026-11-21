@@ -1,634 +1,363 @@
-import React, { useState, useEffect } from 'react';
+// Entrada do app (2.2.0). Pedido do usuário em 21/11/2026: tela curta, servidor só num ícone de
+// engrenagem, sem "Entrar offline" (o modo offline nunca funcionou: ver services/api.js) e com
+// entrada pela digital ou pelo rosto (services/biometricLogin.js).
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    View,
+    ActivityIndicator,
+    Alert,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
-    StyleSheet,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    ActivityIndicator,
-    Switch,
-    Image,
+    View,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import ApiService from '../services/api';
-import { loadServerConfig, saveServerConfig, clearServerConfig, loadCredentials, saveCredentials } from '../utils/storage';
+import * as Application from 'expo-application';
 
-// Importação condicional do Ionicons com fallback
-let Ionicons = null;
-try {
-    Ionicons = require('@expo/vector-icons').Ionicons;
-} catch (error) {
-    console.warn('Ionicons não pôde ser carregado:', error);
+import ApiService from '../services/api';
+import {
+    biometricAvailability,
+    clearBiometricLogin,
+    forgetPlainPassword,
+    saveBiometricLogin,
+    savedBiometricUser,
+    unlockWithBiometrics,
+} from '../services/biometricLogin';
+import { clearServerConfig, loadLastUsername, loadServerConfig, saveLastUsername, saveServerConfig } from '../utils/storage';
+import { heroPalette, heroShadow } from '../theme/heroTheme';
+
+const DEFAULT_IP = '10.0.0.245';
+const DEFAULT_PORT = '5000';
+const MARK_BARS = [3, 1, 2, 1, 3, 2, 1, 1, 3, 1, 2];
+
+function serverKeyOf(ip, port) {
+    return `${String(ip || '').trim()}:${String(port || '').trim()}`;
 }
 
-export default function LoginScreen({ navigation }) {
-    const [serverIP, setServerIP] = useState('10.0.0.245');
-    const [serverPort, setServerPort] = useState('5000');
+export default function LoginScreen({ navigation, route }) {
+    const [serverIP, setServerIP] = useState(DEFAULT_IP);
+    const [serverPort, setServerPort] = useState(DEFAULT_PORT);
+    const [hasServer, setHasServer] = useState(false);
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
-    const [rememberMe, setRememberMe] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [configOpen, setConfigOpen] = useState(false);
     const [testing, setTesting] = useState(false);
-    const [connectionStatus, setConnectionStatus] = useState(null);
-    const [showConfig, setShowConfig] = useState(true);
+    const [testResult, setTestResult] = useState(null); // { ok, message }
+    const [bio, setBio] = useState({ available: false, label: 'digital', icon: '👆' });
+    const [bioUser, setBioUser] = useState(null);
+    const passwordRef = useRef(null);
+    const autoPrompted = useRef(false);
 
-    useEffect(() => {
-        loadSavedData();
+    const refreshBiometric = useCallback(async (ip, port) => {
+        const availability = await biometricAvailability();
+        setBio(availability);
+        const saved = availability.available ? await savedBiometricUser(serverKeyOf(ip, port)) : null;
+        setBioUser(saved);
+        return { availability, saved };
     }, []);
 
-    const loadSavedData = async () => {
-        const config = await loadServerConfig();
-        if (config) {
-            setServerIP(config.serverIP);
-            setServerPort(config.serverPort.toString());
-            setShowConfig(false);
+    const finishLogin = useCallback(async (user, typedUser, typedPassword, ip, port, viaBiometric) => {
+        await saveServerConfig(ip, port);
+        await saveLastUsername(typedUser);
+        await forgetPlainPassword();
+        try {
+            const lastPushToken = await AsyncStorage.getItem('last_expo_push_token');
+            if (lastPushToken) await ApiService.registerNotifyPushToken(lastPushToken);
+        } catch (error) {
+            // o aviso no celular é opcional
         }
 
-        const creds = await loadCredentials();
-        if (creds) {
-            setUsername(creds.username);
-            setPassword(creds.password);
-            setRememberMe(true);
-        }
-    };
-
-    const handleClearConfig = async () => {
-        await clearServerConfig();
-        setServerPort('5000');
-        setShowConfig(true);
-        setConnectionStatus(null);
-        Alert.alert('OK', 'Configuração do servidor limpa. Configure novamente e teste a conexão.');
-    };
-
-    const handleTestConnection = async () => {
-        if (!serverIP || !serverPort) {
-            Alert.alert('Erro', 'Preencha IP e Porta do servidor');
+        const go = () => navigation.reset({ index: 0, routes: [{ name: 'Estoque', params: { user } }] });
+        if (viaBiometric) {
+            go();
             return;
         }
+        const availability = await biometricAvailability();
+        const key = serverKeyOf(ip, port);
+        const saved = availability.available ? await savedBiometricUser(key) : null;
+        if (!availability.available || saved === typedUser) {
+            if (saved === typedUser) await saveBiometricLogin(key, typedUser, typedPassword); // senha nova
+            go();
+            return;
+        }
+        Alert.alert(
+            `Entrar com ${availability.label}?`,
+            `Da próxima vez, entre só com a ${availability.label}, sem digitar a senha. A senha fica guardada no cofre do celular.`,
+            [
+                { text: 'Agora não', style: 'cancel', onPress: go },
+                {
+                    text: `Usar ${availability.label}`,
+                    onPress: async () => {
+                        await saveBiometricLogin(key, typedUser, typedPassword);
+                        go();
+                    },
+                },
+            ],
+            { cancelable: false }
+        );
+    }, [navigation]);
 
+    // ip/port vêm de quem chama: na entrada automática pela digital o estado ainda não tem o
+    // servidor salvo (o primeiro desenho usa o padrão).
+    const doLogin = useCallback(async (typedUser, typedPassword, { viaBiometric = false, ip, port } = {}) => {
+        const user = String(typedUser || '').trim();
+        if (!user || !typedPassword) {
+            Alert.alert('Entrar', 'Preencha usuário e senha.');
+            return;
+        }
+        setLoading(true);
+        try {
+            await ApiService.initialize(ip, port);
+            const result = await ApiService.login(user, typedPassword);
+            if (!result.success) {
+                if (viaBiometric && /senha|credencia|inválid/i.test(result.message || '')) {
+                    // A senha mudou no site: a guardada não vale mais.
+                    await clearBiometricLogin();
+                    setBioUser(null);
+                    Alert.alert('Entrar', 'A senha guardada não vale mais. Entre com a senha nova.');
+                } else {
+                    Alert.alert('Entrar', result.message || 'Não foi possível entrar.');
+                }
+                return;
+            }
+            await finishLogin(result.user, user, typedPassword, ip, port, viaBiometric);
+        } catch (error) {
+            Alert.alert('Entrar', 'Não foi possível falar com o servidor. Confira a engrenagem ⚙.');
+        } finally {
+            setLoading(false);
+        }
+    }, [finishLogin]);
+
+    const loginWithBiometric = useCallback(async (ip = serverIP, port = serverPort, label = bio.label) => {
+        const unlocked = await unlockWithBiometrics(serverKeyOf(ip, port), label);
+        if (!unlocked.success) {
+            if (unlocked.message) Alert.alert('Entrar', unlocked.message);
+            return;
+        }
+        setUsername(unlocked.usuario);
+        await doLogin(unlocked.usuario, unlocked.senha, { viaBiometric: true, ip, port });
+    }, [bio.label, doLogin, serverIP, serverPort]);
+
+    useEffect(() => {
+        (async () => {
+            const config = await loadServerConfig();
+            const ip = config?.serverIP || DEFAULT_IP;
+            const port = String(config?.serverPort || DEFAULT_PORT);
+            setServerIP(ip);
+            setServerPort(port);
+            setHasServer(Boolean(config));
+            setUsername(await loadLastUsername());
+            if (!config) {
+                setConfigOpen(true);
+                return;
+            }
+            const { availability, saved } = await refreshBiometric(ip, port);
+            // Na abertura do app a digital já é pedida; depois de "Sair", não.
+            if (saved && !route?.params?.fromLogout && !autoPrompted.current) {
+                autoPrompted.current = true;
+                loginWithBiometric(ip, port, availability.label);
+            }
+        })();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const handleTest = useCallback(async () => {
+        if (!serverIP || !serverPort) {
+            setTestResult({ ok: false, message: 'Preencha o IP e a porta.' });
+            return;
+        }
         setTesting(true);
-        setConnectionStatus(null);
-
+        setTestResult(null);
         try {
             await ApiService.initialize(serverIP, serverPort);
             const result = await ApiService.testConnection();
-
-            setConnectionStatus(result.success ? 'success' : 'error');
-
-            if (result.success) {
-                Alert.alert('Sucesso!', result.message);
-                setShowConfig(false);
-            } else {
-                Alert.alert('Erro de Conexão', result.message);
-            }
+            setTestResult({ ok: result.success, message: result.success ? 'Servidor respondeu.' : result.message });
         } catch (error) {
-            setConnectionStatus('error');
-            const url = `http://${serverIP}:${serverPort}/api/mobile/health`;
-            const details = error?.message ? `\n\nDetalhes: ${error.message}` : '';
-            Alert.alert('Erro', `Não foi possível conectar ao servidor.\n\nTeste: ${url}${details}`);
+            setTestResult({ ok: false, message: `Sem resposta de http://${serverIP}:${serverPort}` });
         } finally {
             setTesting(false);
         }
-    };
+    }, [serverIP, serverPort]);
 
-    const handleLogin = async () => {
-        if (!username || !password) {
-            Alert.alert('Erro', 'Preencha usuário e senha');
-            return;
-        }
+    const handleSaveServer = useCallback(async () => {
+        await saveServerConfig(serverIP, serverPort);
+        await ApiService.initialize(serverIP, serverPort);
+        setHasServer(true);
+        setConfigOpen(false);
+        await refreshBiometric(serverIP, serverPort);
+    }, [refreshBiometric, serverIP, serverPort]);
 
-        setLoading(true);
+    const handleClearServer = useCallback(() => {
+        Alert.alert('Limpar servidor', 'Apagar o endereço do servidor e o acesso por biometria deste celular?', [
+            { text: 'Cancelar', style: 'cancel' },
+            {
+                text: 'Limpar',
+                style: 'destructive',
+                onPress: async () => {
+                    await clearServerConfig();
+                    await clearBiometricLogin();
+                    setServerIP(DEFAULT_IP);
+                    setServerPort(DEFAULT_PORT);
+                    setHasServer(false);
+                    setBioUser(null);
+                    setTestResult(null);
+                },
+            },
+        ]);
+    }, []);
 
-        try {
-            // Inicializar API sempre com IP/porta atuais (permite trocar ambiente)
-            await ApiService.initialize(serverIP, serverPort);
-
-            const result = await ApiService.login(username, password);
-
-            if (result.success) {
-                await ApiService.setOfflineMode(false);
-                await saveCredentials(username, password, rememberMe);
-                await saveServerConfig(serverIP, serverPort);
-                try {
-                    const pushRegistration = await ApiService.getToken();
-                    if (pushRegistration) {
-                        // O bootstrap do App faz a aquisição do Expo token; aqui só reaproveitamos o fluxo se ele já estiver disponível.
-                        const lastPushToken = await AsyncStorage.getItem('last_expo_push_token');
-                        if (lastPushToken) {
-                            await ApiService.registerNotifyPushToken(lastPushToken);
-                        }
-                    }
-                } catch (error) {
-                    console.warn('[Login] Não foi possível sincronizar push token:', error?.message || error);
-                }
-                
-                // 🔄 PRE-LOAD DO ESTOQUE COMPLETO (modo offline aprimorado)
-                console.log('[Login] Iniciando pre-load do estoque...');
-                const preloadResult = await ApiService.preloadEstoqueCompleto();
-                if (preloadResult.success) {
-                    console.log(`[Login] ✅ ${preloadResult.totalItens} itens salvos no cache`);
-                } else if (preloadResult.offline) {
-                    console.log('[Login] ⚠️ Pre-load pulado (sem conexão)');
-                } else {
-                    console.log('[Login] ⚠️ Pre-load falhou:', preloadResult.message);
-                }
-                
-                navigation.reset({
-                    index: 0,
-                    routes: [{ name: 'Estoque', params: { user: result.user } }],
-                });
-            } else {
-                Alert.alert('Erro', result.message);
-            }
-        } catch (error) {
-            Alert.alert('Erro', 'Falha ao fazer login');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleOfflineAccess = async () => {
-        setLoading(true);
-        try {
-            await ApiService.ensureOfflineReady();
-            await ApiService.setOfflineMode(true);
-
-            let offlineUser = null;
-            try {
-                const storedUser = await AsyncStorage.getItem('user');
-                if (storedUser) {
-                    offlineUser = JSON.parse(storedUser);
-                }
-            } catch (error) {
-                offlineUser = null;
-            }
-
-            if (!offlineUser) {
-                const fallbackName = (username || '').toString().trim() || 'Usuário Offline';
-                offlineUser = {
-                    nome: fallbackName,
-                    matricula: (username || '').toString().trim() || null,
-                    cargo: 'Offline',
-                    setor: 'Offline',
-                    is_offline: true,
-                };
-            }
-
-            navigation.reset({
-                index: 0,
-                routes: [{ name: 'Estoque', params: { user: offlineUser, offline: true } }],
-            });
-        } catch (error) {
-            Alert.alert('Erro', 'Falha ao iniciar modo offline');
-        } finally {
-            setLoading(false);
-        }
-    };
+    const version = Application.nativeApplicationVersion || '';
 
     return (
-        <KeyboardAvoidingView
-            style={styles.container}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-            <ScrollView
-                contentContainerStyle={styles.scrollContent}
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
-            >
-                {/* Header com Logo */}
-                <View style={styles.header}>
-                    <Image 
-                        source={require('../../assets/galint-logo.png')}
-                        style={styles.logoImage}
-                        resizeMode="contain"
-                    />
-                    <Text style={styles.title}>Gestão de Almoxarifado</Text>
+        <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <TouchableOpacity style={styles.gear} onPress={() => setConfigOpen(true)} accessibilityLabel="Configurar servidor" hitSlop={12}>
+                <Text style={styles.gearIcon}>⚙</Text>
+                {hasServer ? null : <View style={styles.gearDot} />}
+            </TouchableOpacity>
+
+            <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+                <View style={styles.brandBox}>
+                    <View style={styles.mark}>
+                        {MARK_BARS.map((width, index) => (
+                            <View key={index} style={[styles.markBar, { width: width * 2, backgroundColor: index === 4 ? heroPalette.primaryStrong : heroPalette.text }]} />
+                        ))}
+                    </View>
+                    <Text style={styles.brand}>GALINT</Text>
                     <Text style={styles.subtitle}>Sublime Max Condominium</Text>
                 </View>
 
-                {/* Card de Login */}
-                <View style={styles.loginCard}>
-                    <Text style={styles.loginTitle}>Login</Text>
+                <View style={styles.card}>
+                    {bio.available && bioUser ? (
+                        <TouchableOpacity style={styles.bioButton} onPress={() => loginWithBiometric()} disabled={loading} activeOpacity={0.85}>
+                            <Text style={styles.bioIcon}>{bio.icon}</Text>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.bioTitle}>Entrar com {bio.label}</Text>
+                                <Text style={styles.bioUser} numberOfLines={1}>{bioUser}</Text>
+                            </View>
+                        </TouchableOpacity>
+                    ) : null}
 
-                    {/* Input Usuário */}
-                    <View style={styles.inputContainer}>
-                        <Text style={styles.inputLabel}>Usuário</Text>
-                        <View style={styles.inputWrapper}>
-                            <Text style={styles.inputIcon}>👤</Text>
-                            <TextInput
-                                style={styles.input}
-                                value={username}
-                                onChangeText={setUsername}
-                                placeholder="Digite o nome ou matrícula"
-                                placeholderTextColor="#9ca3af"
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                            />
-                        </View>
-                    </View>
-
-                    {/* Input Senha */}
-                    <View style={styles.inputContainer}>
-                        <Text style={styles.inputLabel}>Senha</Text>
-                        <View style={styles.inputWrapper}>
-                            <Text style={styles.inputIcon}>🔒</Text>
-                            <TextInput
-                                style={styles.input}
-                                value={password}
-                                onChangeText={setPassword}
-                                placeholder="••• ••• •••"
-                                placeholderTextColor="#9ca3af"
-                                secureTextEntry={!showPassword}
-                                autoCapitalize="none"
-                            />
-                            <TouchableOpacity
-                                onPress={() => setShowPassword(!showPassword)}
-                                style={styles.eyeButton}
-                            >
-                                <Text style={{ fontSize: 20 }}>{showPassword ? '👁️' : '🙈'}</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-
-                    {/* Lembrar Credenciais */}
-                    <View style={styles.rememberContainer}>
-                        <Text style={styles.rememberLabel}>Lembrar credenciais</Text>
-                        <Switch
-                            value={rememberMe}
-                            onValueChange={setRememberMe}
-                            trackColor={{ false: '#d1d5db', true: '#3b82f6' }}
-                            thumbColor={rememberMe ? '#fff' : '#f4f3f4'}
-                            ios_backgroundColor="#d1d5db"
+                    <TextInput
+                        style={styles.input}
+                        value={username}
+                        onChangeText={setUsername}
+                        placeholder="Usuário ou matrícula"
+                        placeholderTextColor={heroPalette.textMuted}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        returnKeyType="next"
+                        onSubmitEditing={() => passwordRef.current?.focus()}
+                    />
+                    <View style={styles.passwordRow}>
+                        <TextInput
+                            ref={passwordRef}
+                            style={[styles.input, styles.passwordInput]}
+                            value={password}
+                            onChangeText={setPassword}
+                            placeholder="Senha"
+                            placeholderTextColor={heroPalette.textMuted}
+                            secureTextEntry={!showPassword}
+                            autoCapitalize="none"
+                            returnKeyType="go"
+                            onSubmitEditing={() => doLogin(username, password, { ip: serverIP, port: serverPort })}
                         />
+                        <TouchableOpacity style={styles.eye} onPress={() => setShowPassword((value) => !value)} accessibilityLabel={showPassword ? 'Esconder senha' : 'Mostrar senha'}>
+                            <Text style={styles.eyeIcon}>{showPassword ? '🙈' : '👁'}</Text>
+                        </TouchableOpacity>
                     </View>
-
-                    {/* Botão Entrar */}
-                    <TouchableOpacity
-                        style={[styles.loginButton, loading && styles.buttonDisabled]}
-                        onPress={handleLogin}
-                        disabled={loading}
-                        activeOpacity={0.8}
-                    >
-                        {loading ? (
-                            <ActivityIndicator color="#fff" size="small" />
-                        ) : (
-                            <>
-                                <Text style={{ fontSize: 20, marginRight: 8 }}>➡️</Text>
-                                <Text style={styles.loginButtonText}>Entrar</Text>
-                            </>
-                        )}
+                    <TouchableOpacity style={[styles.loginButton, loading && styles.disabled]} onPress={() => doLogin(username, password, { ip: serverIP, port: serverPort })} disabled={loading} activeOpacity={0.85}>
+                        {loading ? <ActivityIndicator color={heroPalette.bg} /> : <Text style={styles.loginText}>Entrar</Text>}
                     </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={[styles.offlineButton, loading && styles.buttonDisabled]}
-                        onPress={handleOfflineAccess}
-                        disabled={loading}
-                        activeOpacity={0.8}
-                    >
-                        <Text style={{ fontSize: 20, marginRight: 8 }}>📴</Text>
-                        <Text style={styles.offlineButtonText}>Entrar offline</Text>
-                    </TouchableOpacity>
-
-                    {/* Configuração do Servidor */}
-                    <TouchableOpacity
-                        style={styles.configButton}
-                        onPress={() => setShowConfig(!showConfig)}
-                        activeOpacity={0.7}
-                    >
-                        <Text style={{ fontSize: 16, marginRight: 6 }}>⚙️</Text>
-                        <Text style={styles.configButtonText}>
-                            {showConfig ? 'Ocultar configuração' : 'Configuração do servidor'}
-                        </Text>
-                        {connectionStatus === 'success' && !showConfig && (
-                            <View style={styles.connectedDot} />
-                        )}
-                    </TouchableOpacity>
+                    {bio.available && !bioUser ? (
+                        <Text style={styles.bioHint}>Depois de entrar com a senha, você pode ligar a entrada pela {bio.label}.</Text>
+                    ) : null}
                 </View>
 
-                {/* Painel de Configuração (Expansível) */}
-                {showConfig && (
-                    <View style={styles.configCard}>
-                        <View style={styles.configHeader}>
-                            <Text style={{ fontSize: 20, marginRight: 8 }}>🖥️</Text>
-                            <Text style={styles.configTitle}>Configuração do Servidor</Text>
-                        </View>
-
-                        <View style={styles.inputContainer}>
-                            <Text style={styles.inputLabel}>IP do Servidor</Text>
-                            <View style={styles.inputWrapper}>
-                                <Text style={styles.inputIcon}>🌐</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    value={serverIP}
-                                    onChangeText={setServerIP}
-                                    placeholder="ex: 10.0.0.245"
-                                    placeholderTextColor="#9ca3af"
-                                    keyboardType="numeric"
-                                    autoCapitalize="none"
-                                />
-                            </View>
-                        </View>
-
-                        <View style={styles.inputContainer}>
-                            <Text style={styles.inputLabel}>Porta</Text>
-                            <View style={styles.inputWrapper}>
-                                <Text style={styles.inputIcon}>🔌</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    value={serverPort}
-                                    onChangeText={setServerPort}
-                                    placeholder="ex: 5000"
-                                    placeholderTextColor="#9ca3af"
-                                    keyboardType="numeric"
-                                />
-                            </View>
-                        </View>
-
-                        <TouchableOpacity
-                            style={[styles.testButton, testing && styles.buttonDisabled]}
-                            onPress={handleTestConnection}
-                            disabled={testing}
-                            activeOpacity={0.8}
-                        >
-                            {testing ? (
-                                <ActivityIndicator color="#fff" size="small" />
-                            ) : (
-                                <>
-                                    <Text style={{ fontSize: 20, marginRight: 8 }}>✅</Text>
-                                    <Text style={styles.testButtonText}>
-                                        {connectionStatus === 'success' ? 'Testar Novamente' : 'Testar Conexão'}
-                                    </Text>
-                                </>
-                            )}
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={styles.clearButton}
-                            onPress={handleClearConfig}
-                            disabled={testing || loading}
-                            activeOpacity={0.7}
-                        >
-                            <Text style={{ fontSize: 16, marginRight: 6, color: '#ef4444' }}>🗑️</Text>
-                            <Text style={styles.clearButtonText}>Limpar configuração</Text>
-                        </TouchableOpacity>
-                    </View>
-                )}
-
-                {/* Footer */}
-                <Text style={styles.footer}>© 2026 Sublime Max Condominium · GALINT v1.2.0</Text>
+                <Text style={styles.footer}>GALINT{version ? ` ${version}` : ''} · {hasServer ? `${serverIP}:${serverPort}` : 'servidor não configurado'}</Text>
             </ScrollView>
+
+            <Modal visible={configOpen} transparent animationType="fade" onRequestClose={() => setConfigOpen(false)}>
+                <View style={styles.modalBackdrop}>
+                    <View style={styles.modalCard}>
+                        <Text style={styles.modalTitle}>Servidor do GALINT</Text>
+                        <Text style={styles.modalLabel}>IP</Text>
+                        <TextInput style={styles.input} value={serverIP} onChangeText={setServerIP} placeholder="ex.: 10.0.0.245" placeholderTextColor={heroPalette.textMuted} keyboardType="numeric" autoCapitalize="none" />
+                        <Text style={styles.modalLabel}>Porta</Text>
+                        <TextInput style={styles.input} value={serverPort} onChangeText={setServerPort} placeholder="ex.: 5000" placeholderTextColor={heroPalette.textMuted} keyboardType="numeric" />
+                        {testResult ? (
+                            <Text style={[styles.testResult, { color: testResult.ok ? heroPalette.success : heroPalette.danger }]}>
+                                {testResult.ok ? '✔ ' : '⚠ '}{testResult.message}
+                            </Text>
+                        ) : null}
+                        <View style={styles.modalRow}>
+                            <TouchableOpacity style={[styles.modalButton, styles.modalButtonGhost]} onPress={handleTest} disabled={testing}>
+                                {testing ? <ActivityIndicator color={heroPalette.text} /> : <Text style={styles.modalButtonGhostText}>Testar</Text>}
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.modalButton} onPress={handleSaveServer} disabled={testing}>
+                                <Text style={styles.modalButtonText}>Salvar</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <View style={styles.modalRow}>
+                            {hasServer ? (
+                                <TouchableOpacity onPress={handleClearServer}>
+                                    <Text style={styles.clearText}>Limpar servidor</Text>
+                                </TouchableOpacity>
+                            ) : <View />}
+                            {hasServer ? (
+                                <TouchableOpacity onPress={() => setConfigOpen(false)}>
+                                    <Text style={styles.closeText}>Fechar</Text>
+                                </TouchableOpacity>
+                            ) : null}
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </KeyboardAvoidingView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#f8fafc',
-    },
-    scrollContent: {
-        flexGrow: 1,
-        paddingHorizontal: 24,
-        paddingVertical: 40,
-        justifyContent: 'center',
-    },
-    
-    // Header com Logo
-    header: {
-        alignItems: 'center',
-        marginBottom: 32,
-    },
-    logoImage: {
-        width: 660,
-        height: 300,
-        marginBottom: 6,
-    },
-    title: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: '#374151',
-        marginTop: 4,
-        letterSpacing: 0.5,
-    },
-    subtitle: {
-        fontSize: 16,
-        color: '#0d6efd',
-        fontWeight: '700',
-        marginTop: 2,
-        letterSpacing: 0.3,
-    },
-
-    // Card de Login
-    loginCard: {
-        backgroundColor: '#ffffff',
-        borderRadius: 16,
-        padding: 24,
-        marginBottom: 16,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
-        elevation: 3,
-        borderWidth: 1,
-        borderColor: '#f1f5f9',
-    },
-    loginTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: '#111827',
-        marginBottom: 20,
-        textAlign: 'center',
-    },
-
-    // Inputs
-    inputContainer: {
-        marginBottom: 16,
-    },
-    inputLabel: {
-        fontSize: 13,
-        fontWeight: '600',
-        color: '#374151',
-        marginBottom: 8,
-        letterSpacing: 0.3,
-    },
-    inputWrapper: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#f9fafb',
-        borderWidth: 1,
-        borderColor: '#e5e7eb',
-        borderRadius: 10,
-        paddingHorizontal: 14,
-        height: 50,
-    },
-    inputIcon: {
-        marginRight: 10,
-        fontSize: 20,
-        color: '#6b7280',
-    },
-    input: {
-        flex: 1,
-        fontSize: 15,
-        color: '#111827',
-        height: '100%',
-    },
-    eyeButton: {
-        padding: 4,
-    },
-
-    // Lembrar Credenciais
-    rememberContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 24,
-        paddingHorizontal: 4,
-    },
-    rememberLabel: {
-        fontSize: 14,
-        color: '#6b7280',
-        fontWeight: '500',
-    },
-
-    // Botão Entrar
-    loginButton: {
-        backgroundColor: '#2563eb',
-        height: 52,
-        borderRadius: 10,
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 16,
-        shadowColor: '#2563eb',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 4,
-    },
-    loginButtonText: {
-        color: '#000',
-        fontSize: 16,
-        fontWeight: '600',
-        letterSpacing: 0.5,
-    },
-
-    // Botão Offline
-    offlineButton: {
-        backgroundColor: '#0f172a',
-        height: 50,
-        borderRadius: 10,
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 12,
-        borderWidth: 1,
-        borderColor: '#0f172a',
-    },
-    offlineButtonText: {
-        color: '#000',
-        fontSize: 15,
-        fontWeight: '600',
-        letterSpacing: 0.4,
-    },
-
-    // Botão Configuração
-    configButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 12,
-        gap: 6,
-    },
-    configButtonText: {
-        fontSize: 13,
-        color: '#6b7280',
-        fontWeight: '500',
-    },
-    connectedDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: '#10b981',
-        marginLeft: 6,
-    },
-
-    // Card de Configuração
-    configCard: {
-        backgroundColor: '#ffffff',
-        borderRadius: 16,
-        padding: 24,
-        marginBottom: 16,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
-        elevation: 3,
-        borderWidth: 1,
-        borderColor: '#f1f5f9',
-    },
-    configHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 20,
-        gap: 10,
-    },
-    configTitle: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#374151',
-    },
-
-    // Botão Testar
-    testButton: {
-        backgroundColor: '#0891b2',
-        height: 48,
-        borderRadius: 10,
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginTop: 8,
-        marginBottom: 12,
-    },
-    testButtonText: {
-        color: '#000',
-        fontSize: 15,
-        fontWeight: '600',
-    },
-
-    // Botão Limpar
-    clearButton: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingVertical: 12,
-        borderRadius: 8,
-        backgroundColor: '#fef2f2',
-        borderWidth: 1,
-        borderColor: '#fecaca',
-    },
-    clearButtonText: {
-        color: '#ef4444',
-        fontSize: 14,
-        fontWeight: '600',
-    },
-
-    // Estados
-    buttonDisabled: {
-        opacity: 0.5,
-    },
-
-    // Footer
-    footer: {
-        textAlign: 'center',
-        color: '#9ca3af',
-        fontSize: 12,
-        fontWeight: '400',
-        marginTop: 24,
-        letterSpacing: 0.5,
-    },
+    container: { flex: 1, backgroundColor: heroPalette.bg },
+    gear: { position: 'absolute', top: 44, right: 18, zIndex: 5, width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: heroPalette.panel, borderWidth: 1, borderColor: heroPalette.border },
+    gearIcon: { color: heroPalette.text, fontSize: 22 },
+    gearDot: { position: 'absolute', top: 8, right: 8, width: 9, height: 9, borderRadius: 5, backgroundColor: heroPalette.warning },
+    scroll: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 40 },
+    brandBox: { alignItems: 'center', marginBottom: 28 },
+    mark: { flexDirection: 'row', alignItems: 'flex-end', height: 34, marginBottom: 12 },
+    markBar: { height: 34, marginHorizontal: 1.5, borderRadius: 1 },
+    brand: { color: heroPalette.text, fontSize: 30, fontWeight: '900', letterSpacing: 8, marginLeft: 8 },
+    subtitle: { color: heroPalette.textMuted, fontSize: 13, marginTop: 4, letterSpacing: 0.4 },
+    card: { backgroundColor: heroPalette.panel, borderRadius: 22, padding: 18, borderWidth: 1, borderColor: heroPalette.border, ...heroShadow },
+    bioButton: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderRadius: 16, backgroundColor: heroPalette.panelAlt, borderWidth: 1, borderColor: heroPalette.borderStrong, marginBottom: 14 },
+    bioIcon: { fontSize: 30 },
+    bioTitle: { color: heroPalette.text, fontSize: 16, fontWeight: '800' },
+    bioUser: { color: heroPalette.textMuted, fontSize: 13, marginTop: 2 },
+    input: { backgroundColor: heroPalette.bgAlt, color: heroPalette.text, borderRadius: 14, borderWidth: 1, borderColor: heroPalette.border, paddingHorizontal: 16, height: 52, fontSize: 16, marginBottom: 12 },
+    passwordRow: { position: 'relative' },
+    passwordInput: { paddingRight: 52 },
+    eye: { position: 'absolute', right: 6, top: 4, height: 44, width: 44, alignItems: 'center', justifyContent: 'center' },
+    eyeIcon: { fontSize: 18 },
+    loginButton: { height: 54, borderRadius: 16, backgroundColor: heroPalette.primaryStrong, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+    loginText: { color: heroPalette.bg, fontSize: 17, fontWeight: '900', letterSpacing: 0.4 },
+    disabled: { opacity: 0.55 },
+    bioHint: { color: heroPalette.textMuted, fontSize: 12, textAlign: 'center', marginTop: 12 },
+    footer: { color: heroPalette.textMuted, fontSize: 12, textAlign: 'center', marginTop: 22 },
+    modalBackdrop: { flex: 1, backgroundColor: 'rgba(2, 6, 23, 0.72)', justifyContent: 'center', padding: 22 },
+    modalCard: { backgroundColor: heroPalette.panel, borderRadius: 22, padding: 18, borderWidth: 1, borderColor: heroPalette.border },
+    modalTitle: { color: heroPalette.text, fontSize: 18, fontWeight: '900', marginBottom: 12 },
+    modalLabel: { color: heroPalette.textSoft, fontSize: 13, fontWeight: '700', marginBottom: 6 },
+    testResult: { fontSize: 13, fontWeight: '700', marginBottom: 10 },
+    modalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginTop: 6 },
+    modalButton: { flex: 1, height: 48, borderRadius: 14, backgroundColor: heroPalette.primaryStrong, alignItems: 'center', justifyContent: 'center' },
+    modalButtonText: { color: heroPalette.bg, fontSize: 15, fontWeight: '900' },
+    modalButtonGhost: { backgroundColor: 'transparent', borderWidth: 1, borderColor: heroPalette.border },
+    modalButtonGhostText: { color: heroPalette.text, fontSize: 15, fontWeight: '800' },
+    clearText: { color: heroPalette.danger, fontSize: 14, fontWeight: '700', paddingVertical: 10 },
+    closeText: { color: heroPalette.textSoft, fontSize: 14, fontWeight: '700', paddingVertical: 10 },
 });

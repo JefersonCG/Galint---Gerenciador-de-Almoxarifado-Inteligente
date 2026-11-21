@@ -1,687 +1,316 @@
-import React, { useMemo, useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
+// Tela inicial do app (2.2.0): a Conferência.
+//
+// Pedido do usuário em 21/11/2026:
+// - no lugar do círculo azul, a câmera do código de barras fica sempre ligada dentro do círculo,
+//   mas só lê quando a pessoa toca nele;
+// - "Consultar estoque" sai: a consulta é a própria conferência (todos veem foto, nome e saldo;
+//   só quem tem "Pode alterar o estoque" grava a quantidade). A busca por nome usa a base do
+//   celular (services/localDb.js), que a sincronização mantém igual à do servidor;
+// - avisos mais visíveis (ninguém olha o Telegram): faixa na tela, sino com número e alerta do
+//   celular quando chega aviso novo com o app aberto;
+// - menu ☰ enxuto: Conferência, Movimento de material, Avisos, Painel e Sair.
+//
+// A tela também cuida da sessão (sinal de vida, inatividade) e da sincronização da base.
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
-    View,
+    ActivityIndicator,
+    Alert,
+    AppState,
+    Dimensions,
+    FlatList,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
-    StyleSheet,
-    FlatList,
-    Alert,
-    RefreshControl,
-    ActivityIndicator,
-    Platform,
-    Image,
-    Keyboard,
-    Modal,
-    ScrollView,
-    BackHandler,
+    Vibration,
+    View,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import NetInfo from '@react-native-community/netinfo';
+import { useIsFocused } from '@react-navigation/native';
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as Notifications from 'expo-notifications';
+
 import ApiService from '../services/api';
-import DailyCustodyPanel from '../components/DailyCustodyPanel';
 import HeartbeatService from '../services/heartbeatService';
 import InactivityService from '../services/inactivityService';
 import SyncService from '../services/dbSync';
-import { 
-    getOnlineSnapshot, 
-    getOfflineDelta, 
-    saveOnlineSnapshot, 
-    searchItems as searchOfflineItems, // Alias para deixar claro que é local
-    upsertItems,
-    listPendingOps
-} from '../services/offlineDb';
-import { formatQuantityWithPackaging } from '../utils/formatQuantity';
-import { heroPalette, heroShadow, heroSoftShadow } from '../theme/heroTheme';
+import { getItemByCodigo, searchItems } from '../services/localDb';
+import { subscribeNotifyInboxChanged } from '../services/notifyEvents';
+import StockCountPanel from '../components/StockCountPanel';
+import { ENTRADAS_FISCAIS_NO_APP } from '../config/features';
+import { heroPalette, heroSoftShadow } from '../theme/heroTheme';
 
-// Função Centralizada de Permissões
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const CIRCLE = Math.round(Math.min(SCREEN_WIDTH * 0.72, 300));
+// Máscara em anel da cor do fundo: no Android a prévia da câmera não respeita borda redonda, então
+// um anel grosso cobre os cantos do quadrado (precisa de pelo menos 21% do diâmetro).
+const MASK = Math.ceil(CIRCLE * 0.22) + 2;
+// A planilha usa Code128; as embalagens costumam ter EAN/UPC.
+const BARCODE_TYPES = ['code128', 'ean13', 'ean8', 'upc_a', 'upc_e', 'code39', 'code93', 'itf14', 'qr'];
+const CAPTURE_WINDOW_MS = 700; // toque logo depois de o código aparecer: usa o que já foi visto
+const ARMED_MS = 4000; // sem código à vista no toque: espera até 4 s pelo primeiro que aparecer
+const INBOX_POLL_MS = 30 * 1000;
+const LAST_ALERTED_KEY = 'galint_ultimo_aviso_alertado';
+
 function getUserRole(user) {
-    if (!user) return 'operacional'; // Default seguro se não tiver user
-    
-    // Normalização segura
-    const cargo = (user.cargo || '').toString().toLowerCase().trim();
-    const setor = (user.setor || '').toString().toLowerCase().trim();
-    
-    // Check Admin explicito '1' ou true
+    if (!user) return 'operacional';
+    const cargo = String(user.cargo || '').toLowerCase().trim();
+    const setor = String(user.setor || '').toLowerCase().trim();
     const isAdmin = user.is_admin === true || user.is_admin === 1 || String(user.is_admin || '').trim() === '1';
-    
-    // Check Legacy
-    const isManagerLegacy = !!user.is_manager; 
-
-    // 1. MASTER (Almoxarifes e Admins)
-    if (isAdmin || cargo.includes('almoxarif') || cargo === 'master') {
-        return 'master';
-    }
-
-    // 2. GERENCIA (inclui supervisor)
-    if (
-        cargo.includes('gerente') ||
-        setor.includes('gerenc') ||
-        setor.includes('adm') ||
-        cargo.includes('supervisor') ||
-        setor.includes('supervisor')
-    ) {
-        return 'gerencia';
-    }
-
-    // 3. OPERACIONAL (Default)
-    return 'operacional'; 
+    if (isAdmin || cargo.includes('almoxarif') || cargo === 'master') return 'master';
+    if (cargo.includes('gerente') || setor.includes('gerenc') || setor.includes('adm') || cargo.includes('supervisor') || setor.includes('supervisor')) return 'gerencia';
+    return 'operacional';
 }
 
-function getRoleLabel(role) {
+function roleLabel(role) {
     if (role === 'master') return 'Master';
     if (role === 'gerencia') return 'Gerência';
     return 'Operação';
 }
 
-function mapNotificationLabel(entry) {
-    const messageType = String(entry?.message_type || '').trim().toLowerCase();
-    const category = String(entry?.category || '').trim().toLowerCase();
-    if (messageType.includes('withdrawal') || category === 'withdrawal') return 'Saídas';
-    if (messageType.includes('inventory') || category === 'inventory') return 'Devoluções';
-    if (messageType.includes('stock') || category === 'stock' || category === 'item') return 'Entradas';
-    return 'Alertas';
+function syncLabel(status) {
+    if (!status.lastSyncAt) return status.online ? 'Baixando a base...' : 'Sem conexão';
+    if (!status.online) return `Sem conexão • ${status.count} itens no celular`;
+    const seconds = Math.max(0, Math.round((Date.now() - status.lastSyncAt) / 1000));
+    const when = seconds < 60 ? 'agora' : `há ${Math.round(seconds / 60)} min`;
+    return `${status.count} itens • atualizada ${when}`;
 }
 
 export default function EstoqueScreen({ navigation, route }) {
-    const [items, setItems] = useState([]);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
-    const [categoriaStats, setCategoriaStats] = useState({});
-    const [selectedCategoria, setSelectedCategoria] = useState(null);
-    const [offlineSnapshot, setOfflineSnapshot] = useState(null); // { totalItens, totalQuantidade }
-    const [offlineDelta, setOfflineDelta] = useState({ entradas: 0, retiradas: 0 });
-    const [isOfflineMode, setIsOfflineMode] = useState(false);
-    const [kpiServer, setKpiServer] = useState(null);
     const [user, setUser] = useState(route.params?.user || null);
-    const [dailyCustodyVisible, setDailyCustodyVisible] = useState(true);
-    const [dailyCustodyLoading, setDailyCustodyLoading] = useState(false);
-    const [dailyCustodyGroups, setDailyCustodyGroups] = useState([]);
-    const [dailyCustodySummary, setDailyCustodySummary] = useState({ employees: 0, tools: 0, overdue: 0 });
-    const [dailyCustodyMessage, setDailyCustodyMessage] = useState('');
-    const [dailyCustodyReturning, setDailyCustodyReturning] = useState(false);
-    const [erpOverview, setErpOverview] = useState(null);
-    
-    // 🔄 Estados para Banner de Conexão
-    const [connectionStatus, setConnectionStatus] = useState('online'); // 'online' | 'offline' | 'syncing'
-    const [pendingOpsCount, setPendingOpsCount] = useState(0);
-    const [isSyncing, setIsSyncing] = useState(false);
-    const [downloadingDatabase, setDownloadingDatabase] = useState(false);
-    // Visual novo (19/11/2026): a tela inicial é só o botão de Conferência; o resto fica no ☰.
-    const [view, setView] = useState('home'); // 'home' | 'estoque'
+    const [permission, requestPermission] = useCameraPermissions();
+    const isFocused = useIsFocused();
+    const [appActive, setAppActive] = useState(AppState.currentState === 'active');
     const [menuOpen, setMenuOpen] = useState(false);
-    const latestSearchRef = useRef('');
+    const [torch, setTorch] = useState(false);
+    const [armed, setArmed] = useState(false);
+    const [panel, setPanel] = useState(null); // { item, loading, note }
+    const [notice, setNotice] = useState(null); // { tone, text }
+    const [counted, setCounted] = useState(0);
+    const [search, setSearch] = useState('');
+    const [results, setResults] = useState([]);
+    const [sync, setSync] = useState(SyncService.getStatus());
+    const [inbox, setInbox] = useState({ unread: 0, latest: null });
+    const lastSeen = useRef({ code: '', at: 0 });
+    const armedUntil = useRef(0);
+    const lookupId = useRef(0);
 
-    // Determinar permissão
     const role = useMemo(() => getUserRole(user), [user]);
-    const roleLabel = useMemo(() => getRoleLabel(role), [role]);
-    const unreadNotifications = Number(erpOverview?.notifications?.unread_count || 0);
-    const canManageDocuments = Boolean(erpOverview?.features?.documentos_fiscais);
-    const recentNotificationLabels = useMemo(() => {
-        const recent = Array.isArray(erpOverview?.notifications?.recent) ? erpOverview.notifications.recent : [];
-        return Array.from(new Set(recent.map((entry) => mapNotificationLabel(entry)).filter(Boolean))).slice(0, 3);
-    }, [erpOverview]);
+    const firstName = String(user?.nome || user?.username || '').trim().split(/\s+/)[0] || '';
+    const cameraActive = Boolean(permission?.granted) && isFocused && appActive && !menuOpen && !panel && !search;
 
-    const loadOverviewSummary = useCallback(async (silent = false) => {
-        const result = await ApiService.getErpOverview();
-        if (result?.success) {
-            setErpOverview(result.data || null);
-            if (result.data?.user && !user) {
-                setUser((current) => current || result.data.user);
-            }
-            return;
-        }
-
-        if (!silent) {
-            setErpOverview(null);
-        }
-    }, [user]);
-
-    const loadDailyCustody = useCallback(async (silent = false) => {
-        if (!silent) {
-            setDailyCustodyLoading(true);
-        }
-
-        try {
-            const result = await ApiService.getDailyCustodyFeed();
-
-            if (result?.success) {
-                const payload = result.data || {};
-                setDailyCustodyVisible(true);
-                setDailyCustodyGroups(Array.isArray(payload.groups) ? payload.groups : []);
-                setDailyCustodySummary(payload.summary || { employees: 0, tools: 0, overdue: 0 });
-                setDailyCustodyMessage('');
-                return;
-            }
-
-            if (Number(result?.status) === 403) {
-                setDailyCustodyVisible(false);
-                setDailyCustodyGroups([]);
-                setDailyCustodySummary({ employees: 0, tools: 0, overdue: 0 });
-                setDailyCustodyMessage('');
-                return;
-            }
-
-            setDailyCustodyVisible(true);
-            setDailyCustodyGroups([]);
-            setDailyCustodySummary({ employees: 0, tools: 0, overdue: 0 });
-            setDailyCustodyMessage(result?.message || 'Não foi possível carregar a custódia diária agora.');
-        } catch (error) {
-            setDailyCustodyVisible(true);
-            setDailyCustodyGroups([]);
-            setDailyCustodySummary({ employees: 0, tools: 0, overdue: 0 });
-            setDailyCustodyMessage(error?.message || 'Não foi possível carregar a custódia diária agora.');
-        } finally {
-            if (!silent) {
-                setDailyCustodyLoading(false);
-            }
-        }
-    }, []);
-
+    // ---------- sessão e sincronização ----------
     useEffect(() => {
-        latestSearchRef.current = searchQuery;
-    }, [searchQuery]);
-
-    // Carregar usuário inicial e iniciar serviços
-    useEffect(() => {
-        // Se verificação de usuário
         if (!route.params?.user) {
             AsyncStorage.getItem('user')
-                .then((stored) => {
-                    if (stored) {
-                        try {
-                            setUser(JSON.parse(stored));
-                        } catch (error) {
-                            setUser(null);
-                        }
-                    }
-                })
+                .then((stored) => stored && setUser(JSON.parse(stored)))
                 .catch(() => {});
         } else {
-             // Atualizar storage com o user vindo da navegação (provavelmente login fresco)
-             AsyncStorage.setItem('user', JSON.stringify(route.params.user)).catch(()=>{});
+            AsyncStorage.setItem('user', JSON.stringify(route.params.user)).catch(() => {});
         }
-        
-        // Iniciar Sync Service (Ciclo de 5s)
+
         SyncService.start();
-
-        // Listener de Sync para atualizar a tela automaticamente
-        const removeSyncListener = SyncService.addListener(() => {
-            // Quando ocorrer um sync, recarregamos dados locais e KPIs
-            // console.log('[EstoqueScreen] Sync detectado, atualizando UI...');
-            loadEstoque(searchQuery, true); // true = silent update
-            loadDailyCustody(true);
-            loadOverviewSummary(true);
-        });
-        
-        // Carregamento inicial direto
-        (async () => {
-             // Tenta carregar local imediatamente para ser rápido
-             const local = await searchOfflineItems('');
-             if(local && local.length > 0) {
-                 setItems(local);
-                 calcularCategoriaStats(local);
-                 setLoading(false);
-             } else {
-                 // Cache vazio! Verificar se está online e fazer pre-load
-                 console.log('[EstoqueScreen] ⚠️ Cache SQLite vazio - verificando conexão...');
-                 try {
-                     const online = await ApiService.isOnline();
-                     if (online) {
-                         console.log('[EstoqueScreen] 🌐 Online detectado - iniciando pre-load automático...');
-                         const preloadResult = await ApiService.preloadEstoqueCompleto();
-                         if (preloadResult.success) {
-                             console.log(`[EstoqueScreen] ✅ Pre-load concluído: ${preloadResult.totalItens} itens`);
-                             // Recarregar do cache após pre-load
-                             const localAfterPreload = await searchOfflineItems('');
-                             if (localAfterPreload && localAfterPreload.length > 0) {
-                                 setItems(localAfterPreload);
-                                 calcularCategoriaStats(localAfterPreload);
-                             }
-                         } else {
-                             console.log('[EstoqueScreen] ⚠️ Pre-load falhou');
-                         }
-                     } else {
-                         console.log('[EstoqueScreen] 📵 Modo offline - não é possível carregar dados');
-                         Alert.alert(
-                             'Sem Dados Disponíveis', 
-                             'O cache local está vazio e você está offline.\\n\\nConecte-se à internet para carregar os dados.',
-                             [{ text: 'OK' }]
-                         );
-                     }
-                 } catch (error) {
-                     console.error('[EstoqueScreen] Erro ao verificar pre-load:', error);
-                 }
-                 setLoading(false);
-             }
-             // Depois roda o full load
-             loadEstoque('', false);
-                             loadDailyCustody(false);
-                             loadOverviewSummary(false);
-        })();
-
+        const removeSync = SyncService.addListener(() => setSync(SyncService.getStatus()));
         HeartbeatService.start();
-        
-        InactivityService.start((reason) => {
-            Alert.alert(
-                'Sessão Expirada',
-                'Você foi desconectado por inatividade (6 minutos sem uso).',
-                [
-                    {
-                        text: 'OK',
-                        onPress: () => {
-                            HeartbeatService.stop();
-                            InactivityService.stop();
-                            SyncService.stop();
-                            ApiService.logout().catch(() => {});
-                            navigation.reset({
-                                index: 0,
-                                routes: [{ name: 'Login' }],
-                            });
-                        }
-                    }
-                ],
-                { cancelable: false }
-            );
+        InactivityService.start(() => {
+            Alert.alert('Sessão encerrada', 'Você saiu por inatividade (6 minutos sem uso).', [
+                {
+                    text: 'OK',
+                    onPress: () => {
+                        HeartbeatService.stop();
+                        InactivityService.stop();
+                        SyncService.stop();
+                        ApiService.logout().catch(() => {});
+                        navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+                    },
+                },
+            ], { cancelable: false });
         });
+        const appStateSub = AppState.addEventListener('change', (state) => setAppActive(state === 'active'));
 
         return () => {
+            removeSync();
+            appStateSub.remove();
             HeartbeatService.stop();
             InactivityService.stop();
             SyncService.stop();
-            removeSyncListener();
         };
-    }, [loadDailyCustody, loadOverviewSummary, navigation]);
+    }, [navigation, route.params?.user]);
 
-    // 📡 Monitorar Conexão e Operações Pendentes
     useEffect(() => {
-        // Atualizar contador de operações pendentes periodicamente
-        const updatePendingOps = async () => {
-            const pending = await listPendingOps();
-            setPendingOpsCount(pending.length);
-        };
+        if (permission && !permission.granted && permission.canAskAgain) requestPermission();
+    }, [permission, requestPermission]);
 
-        updatePendingOps(); // Inicial
-        const timer = setInterval(updatePendingOps, 3000); // A cada 3s
+    // O rótulo "atualizada agora / há N min" anda sozinho.
+    useEffect(() => {
+        const timer = setInterval(() => setSync(SyncService.getStatus()), 20000);
+        return () => clearInterval(timer);
+    }, []);
 
-        // Listener do NetInfo
-        const unsubscribeNetInfo = NetInfo.addEventListener(state => {
-            const isConnected = state.isConnected && state.isInternetReachable !== false;
-            setConnectionStatus(isConnected ? 'online' : 'offline');
-        });
+    // ---------- avisos ----------
+    const loadInbox = useCallback(async () => {
+        const result = await ApiService.getNotifyInbox(1, 3);
+        if (!result?.success) return;
+        const items = Array.isArray(result.items) ? result.items : [];
+        const unread = Number(result.unread_count || 0);
+        const latestUnread = items.find((entry) => entry.status === 'unread') || null;
+        setInbox({ unread, latest: latestUnread });
+        if (!latestUnread) return;
+        // Alerta no celular só para aviso novo de verdade (o primeiro carregamento marca o ponto de partida).
+        const lastAlerted = Number(await AsyncStorage.getItem(LAST_ALERTED_KEY).catch(() => null)) || 0;
+        if (lastAlerted && latestUnread.id > lastAlerted) {
+            Notifications.scheduleNotificationAsync({
+                content: {
+                    title: latestUnread.title || 'GALINT',
+                    body: String(latestUnread.body || '').slice(0, 180),
+                    data: { screen: 'Notifications' },
+                },
+                trigger: null,
+            }).catch(() => {});
+        }
+        if (latestUnread.id > lastAlerted) AsyncStorage.setItem(LAST_ALERTED_KEY, String(latestUnread.id)).catch(() => {});
+    }, []);
 
+    useEffect(() => {
+        if (!isFocused || !appActive) return undefined;
+        loadInbox();
+        const timer = setInterval(loadInbox, INBOX_POLL_MS);
+        const unsubscribe = subscribeNotifyInboxChanged(() => loadInbox());
         return () => {
             clearInterval(timer);
-            unsubscribeNetInfo();
+            unsubscribe();
         };
-    }, []);
+    }, [appActive, isFocused, loadInbox]);
 
-    useEffect(() => {
-        const unsubscribe = navigation.addListener('focus', () => {
-             loadEstoque(latestSearchRef.current, true);
-             loadDailyCustody(true);
-             loadOverviewSummary(true);
-        });
-        return unsubscribe;
-    }, [loadDailyCustody, loadOverviewSummary, navigation]);
-
-    // Função Principal de Carga de Dados
-    // Estratégia: Local First -> Network Update
-    const loadEstoque = async (search = '', silent = false) => {
-        if (!silent && items.length === 0) setLoading(true);
-        
-        try {
-            // 1. Carregar do Banco Local (Sempre, para garantir que estamos vendo o que o user tem)
-            const localItems = await searchOfflineItems(search);
-            // Se tiver dados locais, use-os como source of truth imediato
-            // Por quê? Porque o SyncService está atualizando o sqlite em background.
-            // Então ler do SQLite é ler o estado mais atual 'sincronizado'.
-            if (localItems) {
-                setItems(localItems);
-                calcularCategoriaStats(localItems);
-            }
-
-            // 2. Se NÃO for silent, força um request de rede para garantir que o SyncService não está dormindo
-            // ou se for a primeira carga. Mas o ideal é deixar o SyncService rodar sozinho.
-            // Porem, user quer ver atualizações "na hora".
-            // Se estivermos offline, isOfflineMode ficará true naturalmente pelo SyncService se falhar?
-            // O SyncService não exporta estado de conexão reativo fácil, mas podemos checar ApiService.isOnline se quisermos badge.
-            
-            // Vamos confiar no SyncService para dados pesados e update, mas verificar flag de offline
-            const snapshot = await getOnlineSnapshot();
-            const delta = await getOfflineDelta();
-            setOfflineSnapshot(snapshot);
-            setOfflineDelta(delta);
-            
-            // Verifica se tem pendencias
-            setIsOfflineMode(delta.entradas > 0 || delta.retiradas > 0); 
-            // Ou checa API simples
-            // const online = await ApiService.testConnection(); ... (muito pesado para loop)
-
-        } catch (error) {
-            console.log('Erro loadEstoque', error);
-        } finally {
-            if (!silent) setLoading(false);
-            setRefreshing(false);
-        }
-    };
-
-    const calcularCategoriaStats = (currentItems) => {
-        if (!currentItems) return;
-        const stats = {};
-        currentItems.forEach(item => {
-            const cat = item.categoria || 'Outros';
-            if (!stats[cat]) {
-                stats[cat] = { total: 0, quantidade: 0, nome: cat };
-            }
-            stats[cat].total += 1;
-            stats[cat].quantidade += Number(item.quantidade || 0);
-        });
-        setCategoriaStats(stats);
-    };
-
-    // Autocomplete Logic: Filter items locally based on search query
-    // O items já vem filtrado do sqlite se passamos search no searchOfflineItems,
-    // ENTRETANTO, para performance de digitação, melhor filtrar em memória o que já temos
-    // e disparar a busca no sqlite (que é async) com debounce.
-    const filteredItems = useMemo(() => {
-        if (!searchQuery) return items;
-        const lower = searchQuery.toLowerCase();
-        return items.filter(i => 
-            (i.nome || '').toLowerCase().includes(lower) || 
-            (i.descricao || '').toLowerCase().includes(lower) ||
-            (i.categoria || '').toLowerCase().includes(lower) ||
-            (i.codigo_barras || '').includes(lower)
-        );
-    }, [items, searchQuery]);
-
-    // REMOVIDO: debounce causava fechamento do teclado
-    // A filtragem acontece em memória via useMemo (filteredItems)
-
-    const handleSearch = useCallback((text) => {
-        setSearchQuery(text);
-    }, []);
-
-    const handleClearSearch = useCallback(() => {
-        setSearchQuery('');
-    }, []);
-
-    const handleRefresh = () => {
-        setRefreshing(true);
-        // Forçar um sync Cycle agora (baixa a lista na hora, sem esperar os 2 min do ciclo)
-        SyncService.runSync(true).finally(() => {
-            loadEstoque(searchQuery);
-            loadDailyCustody(true);
-            loadOverviewSummary(true);
-            setRefreshing(false);
-        });
-    };
-
-    const executeDailyCustodyReturn = useCallback(async (entries) => {
-        const normalizedEntries = Array.isArray(entries)
-            ? entries.filter((entry) => entry?.group && entry?.item)
-            : [];
-
-        if (!normalizedEntries.length) {
-            return;
-        }
-
-        setDailyCustodyReturning(true);
+    const openNotifications = useCallback(() => {
         InactivityService.recordActivity();
-
-        try {
-            let successCount = 0;
-            const failures = [];
-
-            for (const entry of normalizedEntries) {
-                const group = entry.group;
-                const item = entry.item;
-                const result = await ApiService.returnDailyCustodyTool({
-                    codigo: item?.codigo,
-                    quantidade: item?.quantidade || 1,
-                    saida_id: item?.saida_id || item?.id || null,
-                    matricula: group?.matricula_full || group?.matricula || '',
-                });
-
-                if (result?.success) {
-                    successCount += 1;
-                } else {
-                    failures.push(`${item?.descricao || item?.codigo || 'Ferramenta'}: ${result?.message || 'Falha ao devolver.'}`);
-                }
-            }
-
-            if (successCount > 0) {
-                await Promise.all([
-                    loadDailyCustody(true),
-                    loadEstoque(latestSearchRef.current, true),
-                ]);
-            }
-
-            if (!failures.length) {
-                Alert.alert(
-                    'Custódia diária',
-                    successCount === 1
-                        ? 'Ferramenta devolvida com sucesso.'
-                        : `${successCount} ferramenta(s) devolvida(s) com sucesso.`
-                );
-                return;
-            }
-
-            if (successCount > 0) {
-                Alert.alert(
-                    'Custódia diária',
-                    `${successCount} devolução(ões) concluída(s) e ${failures.length} falha(s).\n\n${failures.slice(0, 3).join('\n')}`
-                );
-                return;
-            }
-
-            Alert.alert('Custódia diária', failures[0] || 'Não foi possível dar baixa na ferramenta.');
-        } catch (error) {
-            Alert.alert('Custódia diária', error?.message || 'Não foi possível dar baixa na ferramenta.');
-        } finally {
-            setDailyCustodyReturning(false);
-        }
-    }, [loadDailyCustody, loadEstoque]);
-
-    const handleDailyCustodyReturn = useCallback((entries, options = {}) => {
-        const normalizedEntries = Array.isArray(entries)
-            ? entries.filter((entry) => entry?.group && entry?.item)
-            : [];
-
-        if (!normalizedEntries.length) {
-            return;
-        }
-
-        const scope = options?.scope || 'selected';
-        const itemCount = normalizedEntries.length;
-        const collaborators = Array.from(new Set(normalizedEntries.map((entry) => entry?.group?.usuario).filter(Boolean)));
-        let title = 'Dar baixa das ferramentas';
-        let message = `Confirmar a baixa de ${itemCount} ferramenta(s) selecionada(s)?`;
-
-        if (scope === 'group-selected') {
-            title = 'Dar baixa das selecionadas';
-            message = `Confirmar a baixa de ${itemCount} ferramenta(s) selecionada(s) para ${options?.group?.usuario || 'este colaborador'}?`;
-        } else if (scope === 'group-all') {
-            title = 'Dar baixa de todas';
-            message = `Confirmar a baixa de todas as ${itemCount} ferramenta(s) em custódia de ${options?.group?.usuario || 'este colaborador'}?`;
-        } else if (scope === 'global-selected') {
-            title = 'Dar baixa das selecionadas';
-            message = `Confirmar a baixa de ${itemCount} ferramenta(s) distribuída(s) em ${collaborators.length} colaborador(es)?`;
-        } else if (scope === 'global-all') {
-            title = 'Dar baixa de tudo';
-            message = `Confirmar a baixa de todas as ${itemCount} ferramenta(s) visíveis na custódia diária?`;
-        } else if (itemCount === 1) {
-            title = 'Dar baixa da ferramenta';
-            message = `Confirmar a baixa de ${normalizedEntries[0]?.item?.descricao || 'esta ferramenta'}?`;
-        }
-
-        Alert.alert(
-            title,
-            message,
-            [
-                { text: 'Cancelar', style: 'cancel' },
-                { text: 'Dar baixa', onPress: () => executeDailyCustodyReturn(normalizedEntries) },
-            ]
-        );
-    }, [executeDailyCustodyReturn]);
-
-    // 🔄 Sincronização Manual (botão no banner offline)
-    const handleManualSync = async () => {
-        try {
-            setIsSyncing(true);
-            setConnectionStatus('syncing');
-            
-            console.log('[ManualSync] Iniciando sincronização manual...');
-            
-            // Forçar sync de operações pendentes (e a lista, sem esperar os 2 min do ciclo)
-            await SyncService.runSync(true);
-            
-            // Recarregar estoque
-            await loadEstoque(searchQuery, true);
-            
-            // Atualizar contador
-            const pending = await listPendingOps();
-            setPendingOpsCount(pending.length);
-            
-            if (pending.length === 0) {
-                Alert.alert('Sucesso', '✅ Todas as operações foram sincronizadas');
-            } else {
-                Alert.alert('Sucesso', `✅ Sincronização concluída\n${pending.length} operação(ões) ainda pendente(s)`);
-            }
-            
-            console.log(`[ManualSync] ✅ Sincronização completa. Pendentes: ${pending.length}`);
-        } catch (error) {
-            console.error('[ManualSync] Erro:', error);
-            Alert.alert('Erro', 'Falha ao sincronizar. Verifique sua conexão.');
-        } finally {
-            setIsSyncing(false);
-            // Restaurar status baseado na conexão real
-            const netState = await NetInfo.fetch();
-            const isConnected = netState.isConnected && netState.isInternetReachable !== false;
-            setConnectionStatus(isConnected ? 'online' : 'offline');
-        }
-    };
-
-    // Navigation Handlers
-    const handleAction = (action, params = {}) => {
-        InactivityService.recordActivity();
-        navigation.navigate(action, { user, ...params });
-    };
-
-    // 📥 Função para baixar/atualizar base de dados completa
-    const handleDownloadDatabase = async () => {
-        const online = await ApiService.isOnline();
-        if (!online) {
-            Alert.alert(
-                'Sem Conexão',
-                'Você precisa estar online para baixar a base de dados.',
-                [{ text: 'OK' }]
-            );
-            return;
-        }
-
-        Alert.alert(
-            'Baixar Base de Dados',
-            'Deseja baixar todos os itens do estoque? Isso pode levar alguns segundos.',
-            [
-                { text: 'Cancelar', style: 'cancel' },
-                {
-                    text: 'Baixar',
-                    onPress: async () => {
-                        setDownloadingDatabase(true);
-                        try {
-                            const result = await ApiService.preloadEstoqueCompleto();
-                            if (result.success) {
-                                Alert.alert(
-                                    '✅ Sucesso',
-                                    `Base de dados atualizada!\n\n${result.totalItens} itens baixados para o cache local.`,
-                                    [{ text: 'OK' }]
-                                );
-                                // Recarregar dados após download
-                                await loadEstoque('', false);
-                            } else {
-                                Alert.alert(
-                                    '⚠️ Erro',
-                                    result.message || 'Não foi possível baixar a base de dados.',
-                                    [{ text: 'OK' }]
-                                );
-                            }
-                        } catch (error) {
-                            Alert.alert(
-                                '❌ Erro',
-                                'Falha ao baixar base de dados. Tente novamente.',
-                                [{ text: 'OK' }]
-                            );
-                        } finally {
-                            setDownloadingDatabase(false);
-                        }
-                    }
-                }
-            ]
-        );
-    };
-
-    const getCategoriaIcon = (categoria) => {
-        const icons = {
-            'Material Elétrico': '⚡',
-            'Material Hidráulico': '💧',
-            'Material de Construção': '🔨',
-            'Materiais de Limpeza': '🧽',
-            'Material Descartável': '🧽',
-            'Ferramentas': '🔧',
-            'EPI': '🦺',
-        };
-        return icons[categoria] || '📦';
-    };
-
-    const handleItemPress = (item) => {
-        if (role === 'master') {
-            Alert.alert(
-                'Consulta somente',
-                'A manutenção de itens foi removida do app mobile. Utilize a interface web administrativa para editar cadastros.'
-            );
-        }
-    };
-
-    const handleCategoriaPress = (categoria) => {
-        setSearchQuery(categoria);
-    };
-
-    const handleOpenMenu = useCallback(() => {
-        InactivityService.recordActivity();
-        setMenuOpen(true);
-    }, []);
-
-    const handleOpenNotifications = useCallback(() => {
-        InactivityService.recordActivity();
+        setMenuOpen(false);
         navigation.navigate('Notifications');
     }, [navigation]);
 
-    const handleOpenDocumentos = useCallback(() => {
-        if (!canManageDocuments) {
-            Alert.alert('Acesso restrito', 'Entradas fiscais e documentos fiscais no mobile agora ficam disponíveis somente para administradores cadastrados no servidor.');
+    // ---------- leitura e consulta ----------
+    const lookup = useCallback(async (rawCode) => {
+        const code = String(rawCode || '').trim();
+        if (!code) return;
+        InactivityService.recordActivity();
+        const requestId = ++lookupId.current;
+        Vibration.vibrate(50);
+        setArmed(false);
+        armedUntil.current = 0;
+        setNotice(null);
+        setSearch('');
+        setResults([]);
+
+        const local = await getItemByCodigo(code).catch(() => null);
+        const localItem = local ? { ...local, codigo: local.codigo_barras || local.id || code } : null;
+        if (requestId !== lookupId.current) return;
+        setPanel({ item: localItem || { codigo: code, descricao: 'Procurando...' }, loading: true, note: '' });
+
+        const result = await ApiService.buscarItemContagem(code);
+        if (requestId !== lookupId.current) return;
+        if (result.success && result.item) {
+            setPanel({ item: { ...localItem, ...result.item }, loading: false, note: '' });
             return;
         }
-        InactivityService.recordActivity();
-        navigation.navigate('DocumentosFiscais');
-    }, [canManageDocuments, navigation]);
+        if (result.authError) {
+            Alert.alert('Sessão', result.message || 'Faça login novamente.');
+        }
+        if (result.notFound && !localItem) {
+            setPanel(null);
+            Vibration.vibrate([0, 80, 80, 80]);
+            setNotice({ tone: 'error', text: `Código ${code} não encontrado no GALINT.` });
+            return;
+        }
+        if (localItem) {
+            // Sem resposta do servidor: mostra o que a base do celular tem, só para consulta.
+            setPanel({
+                item: { ...localItem, pode_ajustar: false },
+                loading: false,
+                note: result.notFound ? 'O servidor não achou este código.' : (result.message || 'Sem conexão: só consulta agora.'),
+            });
+            return;
+        }
+        setPanel(null);
+        setNotice({ tone: 'error', text: result.message || 'Não foi possível buscar o item.' });
+    }, []);
 
-    const handleOpenConferencia = useCallback(() => {
-        InactivityService.recordActivity();
-        setMenuOpen(false);
-        navigation.navigate('ContagemFisica', { user });
-    }, [navigation, user]);
+    const onBarcode = useCallback(({ data }) => {
+        const code = String(data || '').trim();
+        if (!code) return;
+        lastSeen.current = { code, at: Date.now() };
+        if (armedUntil.current && armedUntil.current >= Date.now()) {
+            armedUntil.current = 0;
+            lookup(code);
+        }
+    }, [lookup]);
 
-    const handleMenuNavigate = useCallback((screen, params = {}) => {
+    // Só lê quando a pessoa toca no círculo.
+    const capture = useCallback(() => {
+        InactivityService.recordActivity();
+        if (!permission?.granted) {
+            requestPermission();
+            return;
+        }
+        const seen = lastSeen.current;
+        if (seen.code && Date.now() - seen.at <= CAPTURE_WINDOW_MS) {
+            lookup(seen.code);
+            return;
+        }
+        armedUntil.current = Date.now() + ARMED_MS;
+        setArmed(true);
+        setNotice(null);
+        setTimeout(() => {
+            if (armedUntil.current && armedUntil.current <= Date.now()) {
+                armedUntil.current = 0;
+                setArmed(false);
+                setNotice({ tone: 'error', text: 'Nenhum código lido. Aproxime o código do círculo e toque de novo.' });
+            }
+        }, ARMED_MS + 100);
+    }, [lookup, permission?.granted, requestPermission]);
+
+    const closePanel = useCallback(() => {
+        lookupId.current += 1;
+        setPanel(null);
+        lastSeen.current = { code: '', at: 0 };
+    }, []);
+
+    const onSaved = useCallback((item, result) => {
+        setCounted((total) => total + 1);
+        const before = item?.saldo_display || '';
+        const after = result?.saldo_display || '';
+        setNotice({
+            tone: 'success',
+            text: result?.changed ? `${item?.descricao}: ${before} → ${after}` : `${item?.descricao}: já estava certo (${after || before}).`,
+        });
+        closePanel();
+    }, [closePanel]);
+
+    useEffect(() => {
+        const term = search.trim();
+        if (!term) {
+            setResults([]);
+            return undefined;
+        }
+        const timer = setTimeout(() => {
+            searchItems(term, 40).then(setResults).catch(() => setResults([]));
+        }, 180);
+        return () => clearTimeout(timer);
+    }, [search]);
+
+    // ---------- menu e cabeçalho ----------
+    const go = useCallback((screen, params = {}) => {
         InactivityService.recordActivity();
         setMenuOpen(false);
         navigation.navigate(screen, { user, ...params });
     }, [navigation, user]);
 
-    const handleLogout = useCallback(() => {
+    const logout = useCallback(() => {
         setMenuOpen(false);
-        Alert.alert('Sair', 'Deseja sair do GALINT neste aparelho?', [
+        Alert.alert('Sair', 'Sair do GALINT neste celular?', [
             { text: 'Cancelar', style: 'cancel' },
             {
                 text: 'Sair',
@@ -691,342 +320,54 @@ export default function EstoqueScreen({ navigation, route }) {
                     InactivityService.stop();
                     SyncService.stop();
                     ApiService.logout().catch(() => {});
-                    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+                    navigation.reset({ index: 0, routes: [{ name: 'Login', params: { fromLogout: true } }] });
                 },
             },
         ]);
     }, [navigation]);
 
-    // Cabeçalho: ☰ abre o menu lateral; sino com as notificações.
+    const refreshBase = useCallback(async () => {
+        setMenuOpen(false);
+        setNotice({ tone: 'info', text: 'Atualizando a base do celular...' });
+        await SyncService.syncNow({ full: true });
+        const status = SyncService.getStatus();
+        setSync(status);
+        setNotice(status.online && !status.lastError
+            ? { tone: 'success', text: `Base atualizada: ${status.count} itens.` }
+            : { tone: 'error', text: status.lastError || 'Sem conexão com o servidor.' });
+    }, []);
+
     useLayoutEffect(() => {
         navigation.setOptions({
-            title: view === 'estoque' ? 'Consultar estoque' : 'GALINT',
+            title: 'GALINT',
             headerLeft: () => (
-                <TouchableOpacity onPress={handleOpenMenu} style={styles.headerIconButton} accessibilityLabel="Abrir menu">
+                <TouchableOpacity onPress={() => { InactivityService.recordActivity(); setMenuOpen(true); }} style={styles.headerButton} accessibilityLabel="Abrir menu">
                     <Text style={styles.headerHamburger}>☰</Text>
                 </TouchableOpacity>
             ),
             headerRight: () => (
-                <TouchableOpacity onPress={handleOpenNotifications} style={styles.headerIconButton} accessibilityLabel="Notificações">
+                <TouchableOpacity onPress={openNotifications} style={[styles.headerButton, inbox.unread > 0 && styles.headerBellOn]} accessibilityLabel={`Avisos${inbox.unread ? `, ${inbox.unread} novos` : ''}`}>
                     <Text style={styles.headerBell}>🔔</Text>
-                    {unreadNotifications > 0 ? (
-                        <View style={styles.headerBellBadge}>
-                            <Text style={styles.headerBellBadgeText}>{unreadNotifications > 99 ? '99+' : unreadNotifications}</Text>
+                    {inbox.unread > 0 ? (
+                        <View style={styles.headerBadge}>
+                            <Text style={styles.headerBadgeText}>{inbox.unread > 99 ? '99+' : inbox.unread}</Text>
                         </View>
                     ) : null}
                 </TouchableOpacity>
             ),
         });
-    }, [handleOpenMenu, handleOpenNotifications, navigation, unreadNotifications, view]);
-
-    // Botão voltar do Android: da consulta de estoque volta para a tela inicial.
-    useEffect(() => {
-        if (view === 'home') return undefined;
-        const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-            setView('home');
-            return true;
-        });
-        return () => subscription.remove();
-    }, [view]);
-
-    const renderItem = useCallback(({ item }) => {
-        const q = Number(item?.quantidade ?? 0);
-        const quantidadeInt = Number.isFinite(q) ? Math.trunc(q) : 0;
-        const quantidadeFormatada = formatQuantityWithPackaging(item.quantidade, item);
-        return (
-        <TouchableOpacity
-            style={styles.itemCard}
-            activeOpacity={role === 'master' ? 0.7 : 1}
-            onPress={() => handleItemPress(item)}
-        >
-            <View style={styles.itemHeader}>
-                <Text style={styles.itemName}>{item.descricao || item.nome}</Text>
-                <View style={[
-                    styles.badge,
-                    quantidadeInt > 10 ? styles.badgeSuccess :
-                        quantidadeInt > 0 ? styles.badgeWarning : styles.badgeDanger
-                ]}>
-                    <Text style={styles.badgeText}>{quantidadeFormatada}</Text>
-                </View>
-            </View>
-
-            {item.codigo_barras ? (
-                <Text style={styles.itemBarcode}>Código: {item.codigo_barras}</Text>
-            ) : null}
-
-            <View style={styles.itemDetails}>
-                {item.categoria ? (
-                    <Text style={styles.itemDetail}>Categoria: {item.categoria}</Text>
-                ) : null}
-                {item.localizacao ? (
-                    <Text style={styles.itemDetail}>Local: {item.localizacao}</Text>
-                ) : null}
-                {item.marca ? (
-                    <Text style={styles.itemDetail}>Marca: {item.marca}</Text>
-                ) : null}
-            </View>
-        </TouchableOpacity>
-        );
-    }, [role]);
-
-    const renderCategoryCard = (catName) => {
-        const stats = categoriaStats[catName] || { total: 0 };
-        return (
-            <TouchableOpacity 
-                key={catName}
-                style={styles.categoryCard} 
-                onPress={() => handleCategoriaPress(catName)}
-                activeOpacity={0.8}
-            >
-                <Text style={styles.categoryIcon}>{getCategoriaIcon(catName)}</Text>
-                <Text style={styles.categoryTitle}>{catName}</Text>
-                <Text style={styles.categoryCount}>{stats.total} itens</Text>
-            </TouchableOpacity>
-        );
-    };
-
-    const listHeaderComponent = useMemo(() => {
-        const availableCategories = Object.keys(categoriaStats);
-        const pendingLocalOps = offlineDelta.entradas + offlineDelta.retiradas;
-        const displayName = user?.nome || user?.username || 'Usuário';
-        const displayUserRef = user?.matricula || user?.username || 'sem matrícula';
-        
-        return (
-            <View>
-                <View style={styles.modernHeader}>
-                    <View style={styles.headerTop}>
-                        <View style={styles.headerTextContainer}>
-                            <Text style={styles.headerEyebrow}>Shell hero</Text>
-                            <Text style={styles.headerTitle}>GALINT Mobile</Text>
-                            <Text style={styles.headerOperatorName}>{displayName}</Text>
-                            <Text style={styles.headerSubtitle}>{roleLabel} • {displayUserRef}</Text>
-                        </View>
-                        <View style={styles.headerButtons}>
-                            <TouchableOpacity
-                                onPress={handleOpenNotifications}
-                                style={styles.modernMenuButton}
-                                activeOpacity={0.85}
-                            >
-                                <Text style={styles.modernMenuIcon}>🔔</Text>
-                                {unreadNotifications > 0 ? (
-                                    <View style={styles.headerNotifyBadge}>
-                                        <Text style={styles.headerNotifyBadgeText}>{unreadNotifications > 99 ? '99+' : unreadNotifications}</Text>
-                                    </View>
-                                ) : null}
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                onPress={handleDownloadDatabase}
-                                style={[styles.modernMenuButton, styles.downloadDatabaseButton]}
-                                disabled={downloadingDatabase}
-                                activeOpacity={0.85}
-                            >
-                                {downloadingDatabase ? (
-                                    <ActivityIndicator size="small" color={heroPalette.text} />
-                                ) : (
-                                    <Text style={styles.downloadDatabaseButtonText}>⬇ Base</Text>
-                                )}
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                onPress={handleOpenMenu}
-                                style={styles.modernMenuButton}
-                                activeOpacity={0.85}
-                            >
-                                <Text style={styles.modernMenuIcon}>☰</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-
-                    <View style={styles.headerMetaRow}>
-                        <View style={styles.headerMetaCard}>
-                            <Text style={styles.headerMetaLabel}>Base local</Text>
-                            <Text style={styles.headerMetaValue}>{items.length}</Text>
-                            <Text style={styles.headerMetaHint}>itens no aparelho</Text>
-                        </View>
-                        <View style={styles.headerMetaCard}>
-                            <Text style={styles.headerMetaLabel}>Conexão</Text>
-                            <Text style={styles.headerMetaValue}>
-                                {connectionStatus === 'syncing' ? 'Sincronizando' : connectionStatus === 'offline' ? 'Offline' : 'Online'}
-                            </Text>
-                            <Text style={styles.headerMetaHint}>{pendingOpsCount} pendência(s)</Text>
-                        </View>
-                    </View>
-                    
-                    <View style={styles.headerSearchContainer}>
-                        <Text style={styles.searchIcon}>🔍</Text>
-                        <TextInput
-                            style={styles.headerSearchInput}
-                            placeholder="Pesquisar item, código ou categoria"
-                            placeholderTextColor={heroPalette.textMuted}
-                            value={searchQuery}
-                            onChangeText={handleSearch}
-                            returnKeyType="search"
-                            blurOnSubmit={false}
-                            autoCorrect={false}
-                        />
-                        {searchQuery !== '' && (
-                            <TouchableOpacity onPress={handleClearSearch} activeOpacity={0.85}>
-                                <Text style={styles.clearSearchIcon}>✕</Text>
-                            </TouchableOpacity>
-                        )}
-                    </View>
-                </View>
-
-                {isOfflineMode && (
-                    <View style={styles.kpiSection}>
-                        <View style={styles.kpiHeader}>
-                            <Text style={styles.kpiTitle}>Indicador local</Text>
-                            <View style={styles.offlineModeBadge}>
-                                <Text style={styles.offlineModeText}>Modo offline</Text>
-                            </View>
-                        </View>
-                        <View style={styles.kpiGrid}>
-                            <View style={[styles.kpiCard, styles.kpiOfflineEntradas]}>
-                                <View style={styles.kpiValueContainer}>
-                                    <Text style={styles.kpiValue}>{pendingLocalOps}</Text>
-                                </View>
-                                <Text style={styles.kpiLabel}>Operações pendentes</Text>
-                            </View>
-                            <View style={[styles.kpiCard, styles.kpiInventoryCard]}>
-                                <View style={styles.kpiValueContainer}>
-                                    <Text style={styles.kpiValue}>{offlineSnapshot?.totalItens || items.length}</Text>
-                                </View>
-                                <Text style={styles.kpiLabel}>Itens no cache</Text>
-                            </View>
-                        </View>
-                    </View>
-                )}
-
-                {role === 'gerencia' && (
-                    <View style={styles.actionsSection}>
-                        <View style={styles.actionsTitleContainer}>
-                            <Text style={styles.actionsTitle}>Categorias rápidas</Text>
-                        </View>
-                        <View style={styles.actionsGrid}>
-                            {availableCategories.map(cat => renderCategoryCard(cat))}
-                            {availableCategories.length === 0 && (
-                                <Text style={styles.emptyText}>Sem categorias disponíveis</Text>
-                            )}
-                        </View>
-                    </View>
-                )}
-
-                {(role === 'operacional' || role === 'master') && (
-                    <View style={styles.actionsSection}>
-                        <View style={styles.actionsTitleContainer}>
-                            <Text style={styles.actionsTitle}>Ações rápidas</Text>
-                            <Text style={styles.actionsSubtitle}>Botões maiores para o fluxo principal do almoxarifado.</Text>
-                        </View>
-                        <View style={styles.actionsGrid}>
-                            {canManageDocuments ? (
-                                <TouchableOpacity
-                                    style={[styles.actionCard, styles.actionCardWide, styles.documentsCard]}
-                                    onPress={handleOpenDocumentos}
-                                    activeOpacity={0.86}
-                                >
-                                    <Text style={styles.actionIcon}>🧾</Text>
-                                    <Text style={styles.actionLabel}>Entradas fiscais</Text>
-                                    <Text style={styles.actionSubLabel}>NF, cupom, recibo e lançamento manual</Text>
-                                </TouchableOpacity>
-                            ) : (
-                                <View style={[styles.actionCard, styles.actionCardWide, styles.lockedActionCard]}>
-                                    <Text style={styles.actionIcon}>🔒</Text>
-                                    <Text style={styles.actionLabel}>Entradas fiscais</Text>
-                                    <Text style={styles.actionSubLabel}>Disponível apenas para administradores do servidor</Text>
-                                </View>
-                            )}
-
-                            <TouchableOpacity
-                                style={[styles.actionCard, styles.materialCard]}
-                                onPress={() => handleAction('Scanner', { mode: 'withdraw' })}
-                                activeOpacity={0.8}
-                            >
-                                <Text style={styles.actionIcon}>📤</Text>
-                                <Text style={styles.actionLabel}>Retirar Material</Text>
-                                <Text style={styles.actionSubLabel}>Saída rápida por código ou câmera</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                style={[styles.actionCard, styles.returnMaterialCard]}
-                                onPress={() => handleAction('Scanner', { mode: 'return' })}
-                                activeOpacity={0.8}
-                            >
-                                <Text style={styles.actionIcon}>📥</Text>
-                                <Text style={styles.actionLabel}>Devolver</Text>
-                                <Text style={styles.actionSubLabel}>Retorno simples ao estoque</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                style={[styles.actionCard, styles.multipleCard]}
-                                onPress={() => handleAction('Retirada', { multi: true, items: [] })}
-                                activeOpacity={0.8}
-                            >
-                                <Text style={styles.actionIcon}>🧰</Text>
-                                <Text style={styles.actionLabel}>Retirada Múltipla</Text>
-                                <Text style={styles.actionSubLabel}>Monte a saída com vários itens</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                style={[styles.actionCard, styles.fractionCard]}
-                                onPress={() => handleAction('Scanner', { mode: 'withdraw_fraction' })}
-                                activeOpacity={0.8}
-                            >
-                                <Text style={styles.actionIcon}>✂️</Text>
-                                <Text style={styles.actionLabel}>Retirada Fracionada</Text>
-                                <Text style={styles.actionSubLabel}>Movimente frações sem sair da base</Text>
-                            </TouchableOpacity>
-
-                        </View>
-                    </View>
-                )}
-
-                {dailyCustodyVisible && (
-                    <DailyCustodyPanel
-                        groups={dailyCustodyGroups}
-                        summary={dailyCustodySummary}
-                        loading={dailyCustodyLoading}
-                        message={dailyCustodyMessage}
-                        isReturning={dailyCustodyReturning}
-                        onReload={loadDailyCustody}
-                        onReturnSelectedPress={handleDailyCustodyReturn}
-                        onReturnAllPress={handleDailyCustodyReturn}
-                    />
-                )}
-            </View>
-        );
-    }, [canManageDocuments, categoriaStats, connectionStatus, dailyCustodyGroups, dailyCustodyLoading, dailyCustodyMessage, dailyCustodyReturning, dailyCustodySummary, dailyCustodyVisible, downloadingDatabase, handleClearSearch, handleDailyCustodyReturn, handleDownloadDatabase, handleOpenDocumentos, handleOpenMenu, handleOpenNotifications, items.length, loadDailyCustody, offlineDelta.entradas, offlineDelta.retiradas, offlineSnapshot?.totalItens, pendingOpsCount, recentNotificationLabels, role, roleLabel, searchQuery, unreadNotifications, user]);
-
-
-                    {(unreadNotifications > 0 || recentNotificationLabels.length > 0) && (
-                        <TouchableOpacity
-                            style={styles.alertHighlightCard}
-                            onPress={handleOpenNotifications}
-                            activeOpacity={0.86}
-                        >
-                            <View style={styles.alertHighlightHeader}>
-                                <Text style={styles.alertHighlightTitle}>Notificações operacionais</Text>
-                                <Text style={styles.alertHighlightCount}>{unreadNotifications > 0 ? `${unreadNotifications} nova(s)` : 'Inbox'}</Text>
-                            </View>
-                            <Text style={styles.alertHighlightText}>
-                                {recentNotificationLabels.length > 0
-                                    ? `Saídas, entradas e devoluções em destaque: ${recentNotificationLabels.join(' • ')}`
-                                    : 'Abra o inbox para acompanhar as movimentações do dia.'}
-                            </Text>
-                        </TouchableOpacity>
-                    )}
-    const canOperate = role === 'operacional' || role === 'master';
-    const firstName = String(user?.nome || user?.username || '').trim().split(/\s+/)[0] || '';
-    const connectionLabel = connectionStatus === 'syncing' ? 'Sincronizando' : connectionStatus === 'offline' ? 'Offline' : 'Online';
+    }, [inbox.unread, navigation, openNotifications]);
 
     const menuEntry = (icon, label, onPress, hint = null, badge = 0) => (
         <TouchableOpacity key={label} style={styles.menuEntry} onPress={onPress} activeOpacity={0.8}>
             <Text style={styles.menuEntryIcon}>{icon}</Text>
-            <View style={styles.menuEntryTextBox}>
+            <View style={{ flex: 1 }}>
                 <Text style={styles.menuEntryLabel}>{label}</Text>
                 {hint ? <Text style={styles.menuEntryHint}>{hint}</Text> : null}
             </View>
             {badge > 0 ? (
-                <View style={styles.menuEntryBadge}>
-                    <Text style={styles.menuEntryBadgeText}>{badge > 99 ? '99+' : badge}</Text>
+                <View style={styles.menuBadge}>
+                    <Text style={styles.menuBadgeText}>{badge > 99 ? '99+' : badge}</Text>
                 </View>
             ) : null}
         </TouchableOpacity>
@@ -1039,683 +380,223 @@ export default function EstoqueScreen({ navigation, route }) {
                     <View style={styles.menuHeader}>
                         <Text style={styles.menuTitle}>GALINT</Text>
                         <Text style={styles.menuUser}>{user?.nome || user?.username || 'Usuário'}</Text>
-                        <Text style={styles.menuUserMeta}>{roleLabel} • {connectionLabel}{pendingOpsCount > 0 ? ` • ${pendingOpsCount} pendência(s)` : ''}</Text>
+                        <Text style={styles.menuMeta}>{roleLabel(role)} • {syncLabel(sync)}</Text>
                     </View>
                     <ScrollView contentContainerStyle={styles.menuList}>
-                        {menuEntry('🏠', 'Início', () => { setMenuOpen(false); setView('home'); })}
-                        {menuEntry('📋', 'Conferência física', handleOpenConferencia, 'Ler a planilha e contar')}
-                        {menuEntry('📦', 'Consultar estoque', () => { setMenuOpen(false); setView('estoque'); }, 'Busca, categorias e custódia do dia')}
-                        {canOperate ? (
-                            <>
-                                <Text style={styles.menuSection}>Movimentações</Text>
-                                {menuEntry('📤', 'Retirar material', () => handleMenuNavigate('Scanner', { mode: 'withdraw' }))}
-                                {menuEntry('📥', 'Devolver', () => handleMenuNavigate('Scanner', { mode: 'return' }))}
-                                {menuEntry('🧰', 'Retirada múltipla', () => handleMenuNavigate('Retirada', { multi: true, items: [] }))}
-                                {menuEntry('✂️', 'Retirada fracionada', () => handleMenuNavigate('Scanner', { mode: 'withdraw_fraction' }))}
-                                {menuEntry(canManageDocuments ? '🧾' : '🔒', 'Entradas fiscais', () => { setMenuOpen(false); handleOpenDocumentos(); }, canManageDocuments ? 'NF, cupom, recibo' : 'Só administradores')}
-                            </>
-                        ) : null}
-                        <Text style={styles.menuSection}>Geral</Text>
-                        {menuEntry('🔔', 'Notificações', () => { setMenuOpen(false); handleOpenNotifications(); }, null, unreadNotifications)}
-                        {menuEntry('🗂️', 'Painel, relatórios e configurações', () => handleMenuNavigate('Menu'))}
-                        {menuEntry('⬇️', downloadingDatabase ? 'Baixando base...' : 'Baixar base offline', () => { setMenuOpen(false); handleDownloadDatabase(); })}
-                        {menuEntry('🔄', isSyncing ? 'Sincronizando...' : 'Sincronizar agora', () => { setMenuOpen(false); handleManualSync(); })}
-                        {menuEntry('🚪', 'Sair', handleLogout)}
+                        {menuEntry('📷', 'Conferência', () => setMenuOpen(false), 'Ler código, consultar e contar')}
+                        {role !== 'gerencia' ? menuEntry('🔄', 'Movimento de material', () => go('Movimento'), 'Materiais, ferramentas, fracionados e devoluções') : null}
+                        {menuEntry('🔔', 'Avisos', openNotifications, 'Saídas, devoluções e alertas do estoque', inbox.unread)}
+                        {ENTRADAS_FISCAIS_NO_APP ? menuEntry('🧾', 'Entradas fiscais', () => go('DocumentosFiscais'), 'NF, cupom, recibo') : null}
+                        {menuEntry('🗂️', 'Painel, relatórios e configurações', () => go('Menu'))}
+                        {menuEntry('⟳', 'Atualizar a base agora', refreshBase, syncLabel(sync))}
+                        {menuEntry('🚪', 'Sair', logout)}
                     </ScrollView>
                 </View>
-                <TouchableOpacity style={styles.menuOutside} activeOpacity={1} onPress={() => setMenuOpen(false)} accessibilityLabel="Fechar menu" />
+                <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setMenuOpen(false)} accessibilityLabel="Fechar menu" />
             </View>
         </Modal>
     );
 
-    const connectionBanners = (
-        <>
-            {connectionStatus === 'offline' && (
-                <View style={styles.offlineBanner}>
-                    <View style={styles.offlineBannerContent}>
-                        <Text style={styles.offlineBannerText}>
-                            Modo offline
-                            {pendingOpsCount > 0 && ` - ${pendingOpsCount} operação(ões) pendente(s)`}
-                        </Text>
-                        <TouchableOpacity style={styles.syncButton} onPress={handleManualSync} disabled={isSyncing}>
-                            <Text style={styles.syncButtonText}>{isSyncing ? 'Sincronizando...' : 'Sincronizar'}</Text>
-                        </TouchableOpacity>
+    // ---------- tela ----------
+    const noticeView = notice ? (
+        <View style={[styles.notice, notice.tone === 'success' ? styles.noticeSuccess : notice.tone === 'info' ? styles.noticeInfo : styles.noticeError]}>
+            <Text style={styles.noticeText}>{notice.tone === 'success' ? '✔ ' : notice.tone === 'info' ? '' : '⚠ '}{notice.text}</Text>
+        </View>
+    ) : null;
+
+    const inboxBanner = inbox.unread > 0 ? (
+        <TouchableOpacity style={styles.inbox} onPress={openNotifications} activeOpacity={0.85}>
+            <Text style={styles.inboxIcon}>🔔</Text>
+            <View style={{ flex: 1 }}>
+                <Text style={styles.inboxTitle}>{inbox.unread === 1 ? '1 aviso novo' : `${inbox.unread > 999 ? '999+' : inbox.unread} avisos novos`}</Text>
+                {inbox.latest?.title ? <Text style={styles.inboxText} numberOfLines={1}>{inbox.latest.title}</Text> : null}
+            </View>
+            <Text style={styles.inboxArrow}>›</Text>
+        </TouchableOpacity>
+    ) : null;
+
+    const circle = (
+        <View style={styles.circleWrap}>
+            <View style={styles.circle}>
+                {cameraActive ? (
+                    <CameraView
+                        style={StyleSheet.absoluteFill}
+                        facing="back"
+                        enableTorch={torch}
+                        autoFocus="on"
+                        barcodeScannerSettings={{ barcodeTypes: BARCODE_TYPES }}
+                        onBarcodeScanned={onBarcode}
+                    />
+                ) : (
+                    <View style={styles.cameraOff}>
+                        <Text style={styles.cameraOffIcon}>📷</Text>
+                        <Text style={styles.cameraOffText}>{permission?.granted ? 'Câmera em pausa' : 'Toque para permitir a câmera'}</Text>
                     </View>
+                )}
+            </View>
+            <View pointerEvents="none" style={styles.circleMask} />
+            <View pointerEvents="none" style={[styles.circleRing, armed && styles.circleRingArmed]} />
+            <TouchableOpacity style={styles.circleTouch} onPress={capture} activeOpacity={0.7} accessibilityLabel="Ler código de barras">
+                <View style={styles.reticle}>
+                    <View style={[styles.reticleLine, armed && styles.reticleLineArmed]} />
                 </View>
-            )}
-            {connectionStatus === 'syncing' && (
-                <View style={[styles.offlineBanner, styles.syncingBanner]}>
-                    <View style={styles.offlineBannerContent}>
-                        <Text style={styles.offlineBannerText}>Sincronizando operações...</Text>
-                    </View>
+                <View style={styles.circleLabel}>
+                    {armed ? <ActivityIndicator color="#fff" size="small" /> : null}
+                    <Text style={styles.circleLabelText}>{armed ? 'Procurando o código...' : 'TOQUE PARA LER'}</Text>
                 </View>
-            )}
-        </>
+            </TouchableOpacity>
+        </View>
     );
 
-    if (view === 'home') {
-        return (
-            <View style={styles.container}>
-                {connectionBanners}
-                <View style={styles.homeWrap}>
-                    <Text style={styles.homeGreeting}>{firstName ? `Olá, ${firstName}` : 'Olá'}</Text>
-                    <Text style={styles.homeMeta}>{roleLabel} • {connectionLabel}</Text>
-                    <TouchableOpacity style={styles.homeButton} onPress={handleOpenConferencia} activeOpacity={0.85} accessibilityLabel="Conferência física">
-                        <Text style={styles.homeButtonIcon}>📋</Text>
-                        <Text style={styles.homeButtonTitle}>Conferência</Text>
-                        <Text style={styles.homeButtonHint}>Leia o código da planilha{'\n'}e informe a quantidade</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.homeFooter}>As outras funções ficam no menu ☰</Text>
-                </View>
-                {sideMenu}
-            </View>
-        );
-    }
-
     return (
-        <View style={styles.container}>
-            {sideMenu}
-            {/* 🌐 Banner de Status de Conexão */}
-            {connectionStatus === 'offline' && (
-                <View style={styles.offlineBanner}>
-                    <View style={styles.offlineBannerContent}>
-                        <Text style={styles.offlineBannerText}>
-                            Modo offline
-                            {pendingOpsCount > 0 && ` - ${pendingOpsCount} operação(ões) pendente(s)`}
-                        </Text>
-                        <TouchableOpacity
-                            style={styles.syncButton}
-                            onPress={handleManualSync}
-                            disabled={isSyncing}
-                        >
-                            <Text style={styles.syncButtonText}>
-                                {isSyncing ? 'Sincronizando...' : 'Sincronizar'}
-                            </Text>
+        <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <View style={styles.topRow}>
+                <Text style={styles.greeting} numberOfLines={1}>{firstName ? `Olá, ${firstName}` : 'Olá'}</Text>
+                <View style={[styles.syncChip, !sync.online && styles.syncChipOff]}>
+                    <View style={[styles.syncDot, { backgroundColor: sync.online ? heroPalette.success : heroPalette.danger }]} />
+                    <Text style={styles.syncText} numberOfLines={1}>{syncLabel(sync)}</Text>
+                </View>
+            </View>
+            {inboxBanner}
+            {noticeView}
+
+            {panel ? (
+                <ScrollView contentContainerStyle={styles.panelScroll} keyboardShouldPersistTaps="handled">
+                    <StockCountPanel item={panel.item} detailsLoading={panel.loading} note={panel.note} onSaved={onSaved} onClose={closePanel} />
+                </ScrollView>
+            ) : search.trim() ? (
+                <FlatList
+                    style={styles.results}
+                    data={results}
+                    keyExtractor={(entry, index) => String(entry.codigo_barras || entry.id || index)}
+                    keyboardShouldPersistTaps="handled"
+                    ListEmptyComponent={<Text style={styles.emptyText}>{sync.count ? 'Nenhum item com esse nome ou código.' : 'A base do celular ainda está vazia.'}</Text>}
+                    renderItem={({ item: entry }) => (
+                        <TouchableOpacity style={styles.result} onPress={() => lookup(entry.codigo_barras || entry.id)} activeOpacity={0.8}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.resultName} numberOfLines={2}>{entry.descricao}</Text>
+                                <Text style={styles.resultMeta} numberOfLines={1}>{entry.codigo_barras || entry.id}{entry.categoria ? ` • ${entry.categoria}` : ''}</Text>
+                            </View>
+                            <Text style={styles.resultBalance}>{entry.saldo_display || ''}</Text>
                         </TouchableOpacity>
+                    )}
+                />
+            ) : (
+                <View style={styles.center}>
+                    {circle}
+                    <View style={styles.tools}>
+                        <TouchableOpacity style={[styles.toolChip, torch && styles.toolChipOn]} onPress={() => setTorch((value) => !value)} activeOpacity={0.85}>
+                            <Text style={styles.toolText}>{torch ? '🔦 Lanterna ligada' : '💡 Lanterna'}</Text>
+                        </TouchableOpacity>
+                        {counted > 0 ? <Text style={styles.counter}>{counted === 1 ? '1 item contado' : `${counted} itens contados`}</Text> : null}
                     </View>
                 </View>
             )}
-            {connectionStatus === 'syncing' && (
-                <View style={[styles.offlineBanner, styles.syncingBanner]}>
-                    <View style={styles.offlineBannerContent}>
-                        <Text style={styles.offlineBannerText}>
-                            Sincronizando operações...
-                        </Text>
-                    </View>
+
+            {!panel ? (
+                <View style={styles.searchBox}>
+                    <Text style={styles.searchIcon}>🔍</Text>
+                    <TextInput
+                        style={styles.searchInput}
+                        value={search}
+                        onChangeText={(text) => { InactivityService.recordActivity(); setSearch(text); }}
+                        placeholder="Buscar pelo nome ou digitar o código"
+                        placeholderTextColor={heroPalette.textMuted}
+                        autoCorrect={false}
+                        returnKeyType="search"
+                        onSubmitEditing={() => {
+                            // Código digitado inteiro: abre direto.
+                            if (results.length === 1) lookup(results[0].codigo_barras || results[0].id);
+                            else if (search.trim() && !results.length) lookup(search.trim());
+                        }}
+                    />
+                    {search ? (
+                        <TouchableOpacity onPress={() => setSearch('')} hitSlop={10}>
+                            <Text style={styles.searchClear}>✕</Text>
+                        </TouchableOpacity>
+                    ) : null}
                 </View>
-            )}
-            
-            <FlatList
-                data={filteredItems}
-                renderItem={renderItem}
-                keyExtractor={(item, index) => item.codigo_barras || item.id?.toString() || `${item.descricao || item.nome || 'item'}-${index}`}
-                contentContainerStyle={styles.listContainer}
-                ListHeaderComponent={listHeaderComponent}
-                refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#22c55e']} />
-                }
-                initialNumToRender={10}
-                maxToRenderPerBatch={10}
-                windowSize={5}
-                removeClippedSubviews={false}
-                keyboardShouldPersistTaps="always"
-                keyboardDismissMode="none"
-                ListEmptyComponent={
-                    !loading && (
-                        <View style={styles.emptyContainer}>
-                            <Text style={styles.emptyText}>Nenhum item encontrado</Text>
-                        </View>
-                    )
-                }
-            />
-            {loading && !refreshing && items.length === 0 && (
-                 <View style={styles.loadingOverlay}>
-                    <ActivityIndicator size="large" color="#22c55e" />
-                    <Text style={styles.loadingText}>Sincronizando...</Text>
-                 </View>
-            )}
-        </View>
+            ) : null}
+            {sideMenu}
+        </KeyboardAvoidingView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: heroPalette.bg,
-    },
-    // Visual novo: tela inicial com um botão só e menu lateral (☰).
-    headerIconButton: { paddingHorizontal: 12, paddingVertical: 6, justifyContent: 'center', alignItems: 'center' },
+    container: { flex: 1, backgroundColor: heroPalette.bg },
+    headerButton: { paddingHorizontal: 12, paddingVertical: 6, justifyContent: 'center', alignItems: 'center', borderRadius: 18 },
     headerHamburger: { color: heroPalette.text, fontSize: 26, fontWeight: '700' },
-    headerBell: { fontSize: 22 },
-    headerBellBadge: { position: 'absolute', top: 0, right: 4, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: heroPalette.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
-    headerBellBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
-    homeWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-    homeGreeting: { color: heroPalette.text, fontSize: 24, fontWeight: '800' },
-    homeMeta: { color: heroPalette.textMuted, fontSize: 14, marginTop: 4, marginBottom: 36 },
-    homeButton: {
-        width: 250,
-        height: 250,
-        borderRadius: 125,
-        backgroundColor: heroPalette.primaryStrong,
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 20,
-        borderWidth: 6,
-        borderColor: 'rgba(103, 232, 249, 0.35)',
-        ...heroShadow,
-    },
-    homeButtonIcon: { fontSize: 64 },
-    homeButtonTitle: { color: heroPalette.bg, fontSize: 26, fontWeight: '900', marginTop: 6 },
-    homeButtonHint: { color: '#083344', fontSize: 13, fontWeight: '700', textAlign: 'center', marginTop: 6 },
-    homeFooter: { color: heroPalette.textMuted, fontSize: 13, marginTop: 36 },
-    menuBackdrop: { flex: 1, flexDirection: 'row', backgroundColor: 'rgba(2, 6, 23, 0.6)' },
-    menuPanel: { width: '80%', maxWidth: 340, backgroundColor: heroPalette.bgAlt, borderRightWidth: 1, borderRightColor: heroPalette.border, paddingTop: 36 },
-    menuOutside: { flex: 1 },
-    menuHeader: { paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: heroPalette.border },
-    menuTitle: { color: heroPalette.primary, fontSize: 22, fontWeight: '900', letterSpacing: 1 },
-    menuUser: { color: heroPalette.text, fontSize: 16, fontWeight: '700', marginTop: 6 },
-    menuUserMeta: { color: heroPalette.textMuted, fontSize: 12, marginTop: 2 },
-    menuList: { paddingVertical: 8, paddingBottom: 32 },
-    menuSection: { color: heroPalette.textMuted, fontSize: 11, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', paddingHorizontal: 20, marginTop: 14, marginBottom: 4 },
-    menuEntry: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 20 },
-    menuEntryIcon: { fontSize: 22, width: 34 },
-    menuEntryTextBox: { flex: 1 },
-    menuEntryLabel: { color: heroPalette.text, fontSize: 16, fontWeight: '700' },
-    menuEntryHint: { color: heroPalette.textMuted, fontSize: 12, marginTop: 1 },
-    menuEntryBadge: { minWidth: 22, height: 22, borderRadius: 11, backgroundColor: heroPalette.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
-    menuEntryBadgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
-    loadingOverlay: {
+    headerBellOn: { backgroundColor: 'rgba(251, 113, 133, 0.18)' },
+    headerBell: { fontSize: 24 },
+    headerBadge: { position: 'absolute', top: -2, right: 2, minWidth: 20, height: 20, borderRadius: 10, backgroundColor: heroPalette.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
+    headerBadgeText: { color: '#fff', fontSize: 11, fontWeight: '900' },
+    topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 12, gap: 10 },
+    greeting: { color: heroPalette.text, fontSize: 20, fontWeight: '800', flexShrink: 1 },
+    syncChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: heroPalette.panel, borderWidth: 1, borderColor: heroPalette.border, maxWidth: '62%' },
+    syncChipOff: { borderColor: 'rgba(251, 113, 133, 0.5)' },
+    syncDot: { width: 8, height: 8, borderRadius: 4 },
+    syncText: { color: heroPalette.textMuted, fontSize: 11, fontWeight: '700' },
+    inbox: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 16, marginTop: 12, padding: 12, borderRadius: 16, backgroundColor: 'rgba(251, 113, 133, 0.14)', borderWidth: 1, borderColor: 'rgba(251, 113, 133, 0.45)' },
+    inboxIcon: { fontSize: 24 },
+    inboxTitle: { color: heroPalette.text, fontSize: 15, fontWeight: '900' },
+    inboxText: { color: heroPalette.textSoft, fontSize: 13, marginTop: 2 },
+    inboxArrow: { color: heroPalette.textSoft, fontSize: 24 },
+    notice: { marginHorizontal: 16, marginTop: 10, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 14 },
+    noticeSuccess: { backgroundColor: 'rgba(34,197,94,0.92)' },
+    noticeError: { backgroundColor: 'rgba(225,29,72,0.92)' },
+    noticeInfo: { backgroundColor: heroPalette.panelAlt },
+    noticeText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+    circleWrap: { width: CIRCLE, height: CIRCLE, marginVertical: MASK * 0.35 },
+    circle: { width: CIRCLE, height: CIRCLE, borderRadius: CIRCLE / 2, overflow: 'hidden', backgroundColor: '#000' },
+    circleMask: {
         position: 'absolute',
-        top: 0, left: 0, right: 0, bottom: 0,
-        backgroundColor: 'rgba(6,16,27,0.88)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        zIndex: 10,
-    },
-    loadingText: {
-        marginTop: 10,
-        color: heroPalette.primary,
-        fontWeight: 'bold',
-    },
-    modernHeader: {
-        marginTop: 14,
-        marginHorizontal: 14,
-        marginBottom: 14,
-        backgroundColor: heroPalette.panel,
-        borderRadius: 28,
-        borderWidth: 1,
-        borderColor: heroPalette.border,
-        paddingTop: Platform.OS === 'ios' ? 18 : 16,
-        paddingBottom: 16,
-        paddingHorizontal: 16,
-        ...heroShadow,
-    },
-    headerTop: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: 14,
-    },
-    headerTextContainer: {
-        flex: 1,
-        paddingRight: 12,
-    },
-    headerEyebrow: {
-        fontSize: 10,
-        fontWeight: '900',
-        letterSpacing: 1.2,
-        textTransform: 'uppercase',
-        color: heroPalette.primary,
-    },
-    headerOperatorName: {
-        marginTop: 12,
-        fontSize: 17,
-        fontWeight: '700',
-        color: heroPalette.text,
-    },
-    headerTitle: {
-        marginTop: 6,
-        fontSize: 26,
-        fontWeight: '800',
-        color: heroPalette.text,
-        letterSpacing: -0.6,
-    },
-    headerSubtitle: {
-        fontSize: 12,
-        fontWeight: '600',
-        color: heroPalette.textMuted,
-        marginTop: 4,
-    },
-    modernMenuButton: {
-        minWidth: 44,
-        minHeight: 44,
-        backgroundColor: heroPalette.panelAlt,
-        borderRadius: 14,
-        paddingHorizontal: 10,
-        paddingVertical: 10,
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: heroPalette.border,
-        ...heroSoftShadow,
-    },
-    headerButtons: {
-        flexDirection: 'row',
-        gap: 8,
-        alignItems: 'center',
-    },
-    headerNotifyBadge: {
-        position: 'absolute',
-        top: -6,
-        right: -6,
-        minWidth: 20,
-        height: 20,
-        borderRadius: 10,
-        paddingHorizontal: 4,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: heroPalette.danger,
-        borderWidth: 1,
+        left: -MASK,
+        top: -MASK,
+        width: CIRCLE + MASK * 2,
+        height: CIRCLE + MASK * 2,
+        borderRadius: (CIRCLE + MASK * 2) / 2,
+        borderWidth: MASK,
         borderColor: heroPalette.bg,
     },
-    headerNotifyBadgeText: {
-        color: '#fff',
-        fontSize: 10,
-        fontWeight: '800',
-    },
-    modernMenuIcon: {
-        fontSize: 18,
-        fontWeight: '900',
-        color: heroPalette.text,
-    },
-    downloadDatabaseButton: {
-        minWidth: 92,
-    },
-    downloadDatabaseButtonText: {
-        fontSize: 12,
-        fontWeight: '800',
-        color: heroPalette.text,
-    },
-    headerMetaRow: {
-        flexDirection: 'row',
-        gap: 10,
-        marginBottom: 14,
-    },
-    headerMetaCard: {
-        flex: 1,
-        borderRadius: 18,
-        paddingHorizontal: 14,
-        paddingVertical: 12,
-        backgroundColor: heroPalette.panelAlt,
-        borderWidth: 1,
-        borderColor: heroPalette.border,
-    },
-    headerMetaLabel: {
-        fontSize: 10,
-        fontWeight: '900',
-        textTransform: 'uppercase',
-        letterSpacing: 0.9,
-        color: heroPalette.textMuted,
-    },
-    headerMetaValue: {
-        marginTop: 8,
-        fontSize: 18,
-        fontWeight: '800',
-        color: heroPalette.text,
-    },
-    headerMetaHint: {
-        marginTop: 2,
-        fontSize: 11,
-        color: heroPalette.textMuted,
-    },
-    headerSearchContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: heroPalette.bgAlt,
-        borderRadius: 20,
-        paddingHorizontal: 16,
-        paddingVertical: 13,
-        borderWidth: 1,
-        borderColor: heroPalette.borderStrong,
-    },
-    searchIcon: {
-        fontSize: 18,
-        marginRight: 10,
-        color: heroPalette.primary,
-    },
-    headerSearchInput: {
-        flex: 1,
-        fontSize: 15,
-        color: heroPalette.text,
-        fontWeight: '600',
-    },
-    clearSearchIcon: {
-        fontSize: 18,
-        color: heroPalette.textMuted,
-        paddingLeft: 8,
-    },
-    alertHighlightCard: {
-        marginTop: 14,
-        borderRadius: 18,
-        borderWidth: 1,
-        borderColor: 'rgba(251, 191, 36, 0.34)',
-        backgroundColor: 'rgba(251, 191, 36, 0.1)',
-        paddingHorizontal: 14,
-        paddingVertical: 14,
-    },
-    alertHighlightHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 6,
-        gap: 12,
-    },
-    alertHighlightTitle: {
-        color: heroPalette.text,
-        fontSize: 14,
-        fontWeight: '800',
-    },
-    alertHighlightCount: {
-        color: heroPalette.warning,
-        fontSize: 12,
-        fontWeight: '900',
-        textTransform: 'uppercase',
-        letterSpacing: 0.6,
-    },
-    alertHighlightText: {
-        color: heroPalette.textSoft,
-        fontSize: 12,
-        lineHeight: 18,
-    },
-    kpiSection: {
-        padding: 16,
-        backgroundColor: heroPalette.panel,
-        marginBottom: 12,
-        marginHorizontal: 14,
-        borderRadius: 24,
-        borderWidth: 1,
-        borderColor: heroPalette.border,
-        ...heroSoftShadow,
-    },
-    kpiHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 14,
-    },
-    kpiTitle: {
-        fontSize: 17,
-        fontWeight: '700',
-        color: heroPalette.text,
-    },
-    offlineModeBadge: {
-        backgroundColor: 'rgba(251, 113, 133, 0.14)',
-        paddingHorizontal: 12,
-        paddingVertical: 5,
-        borderRadius: 14,
-        borderWidth: 1,
-        borderColor: 'rgba(251, 113, 133, 0.35)',
-    },
-    offlineModeText: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: heroPalette.danger,
-    },
-    kpiGrid: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        gap: 12,
-    },
-    kpiCard: {
-        flex: 1,
-        borderRadius: 18,
-        paddingVertical: 16,
-        alignItems: 'center',
-        borderWidth: 1,
-        paddingHorizontal: 10,
-    },
-    kpiOfflineEntradas: {
-        backgroundColor: 'rgba(251, 191, 36, 0.14)',
-        minHeight: 120,
-        borderColor: 'rgba(251, 191, 36, 0.32)',
-    },
-    kpiInventoryCard: {
-        backgroundColor: 'rgba(34, 211, 238, 0.12)',
-        minHeight: 120,
-        borderColor: 'rgba(34, 211, 238, 0.28)',
-    },
-    kpiValue: {
-        fontSize: 22,
-        fontWeight: '800',
-        color: heroPalette.text,
-    },
-    kpiLabel: {
-        marginTop: 5,
-        fontSize: 12,
-        fontWeight: '600',
-        color: heroPalette.textMuted,
-    },
-    kpiValueContainer: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-    },
-    actionsSection: {
-        paddingHorizontal: 14,
-        paddingBottom: 12,
-        backgroundColor: heroPalette.panel,
-        marginBottom: 12,
-        marginHorizontal: 14,
-        borderRadius: 24,
-        borderWidth: 1,
-        borderColor: heroPalette.border,
-        ...heroSoftShadow,
-    },
-    actionsTitleContainer: {
-        paddingTop: 14,
-        paddingBottom: 8,
-    },
-    actionsTitle: {
-        fontSize: 18,
-        fontWeight: '800',
-        color: heroPalette.text,
-    },
-    actionsSubtitle: {
-        marginTop: 4,
-        fontSize: 12,
-        color: heroPalette.textMuted,
-    },
-    actionsGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'space-between',
-        gap: 12,
-        paddingBottom: 14,
-    },
-    actionCard: {
-        width: '48%',
-        minHeight: 132,
-        borderRadius: 22,
-        paddingVertical: 20,
-        paddingHorizontal: 16,
-        alignItems: 'flex-start',
-        justifyContent: 'flex-end',
-        borderWidth: 1,
-        ...heroSoftShadow,
-    },
-    actionCardWide: {
-        width: '100%',
-        minHeight: 116,
-    },
-    categoryCard: {
-        width: '48%',
-        backgroundColor: heroPalette.panelAlt,
-        borderRadius: 20,
-        padding: 18,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: heroPalette.border,
-        marginBottom: 8,
-        ...heroSoftShadow,
-    },
-    categoryIcon: {
-        fontSize: 34,
-        marginBottom: 10,
-    },
-    categoryTitle: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: heroPalette.text,
-        textAlign: 'center',
-        marginBottom: 4,
-    },
-    categoryCount: {
-        fontSize: 12,
-        color: heroPalette.textMuted,
-    },
-    actionIcon: {
-        fontSize: 30,
-        marginBottom: 10,
-    },
-    actionLabel: {
-        color: heroPalette.text,
-        fontWeight: '800',
-        fontSize: 16,
-        lineHeight: 20,
-    },
-    actionSubLabel: {
-        marginTop: 6,
-        color: heroPalette.textMuted,
-        fontSize: 12,
-        lineHeight: 17,
-    },
-    materialCard: { backgroundColor: 'rgba(96, 165, 250, 0.16)', borderColor: 'rgba(96, 165, 250, 0.38)' },
-    multipleCard: { backgroundColor: 'rgba(167, 139, 250, 0.16)', borderColor: 'rgba(167, 139, 250, 0.38)' },
-    toolCard: { backgroundColor: 'rgba(251, 146, 60, 0.16)', borderColor: 'rgba(251, 146, 60, 0.38)' },
-    returnCard: { backgroundColor: 'rgba(251, 113, 133, 0.14)', borderColor: 'rgba(251, 113, 133, 0.35)' },
-    returnMaterialCard: { backgroundColor: 'rgba(52, 211, 153, 0.15)', borderColor: 'rgba(52, 211, 153, 0.35)' },
-    fractionCard: { backgroundColor: 'rgba(34, 211, 238, 0.15)', borderColor: 'rgba(34, 211, 238, 0.35)' },
-    documentsCard: { backgroundColor: 'rgba(251, 191, 36, 0.14)', borderColor: 'rgba(251, 191, 36, 0.38)' },
-    lockedActionCard: { backgroundColor: 'rgba(148, 163, 184, 0.12)', borderColor: 'rgba(148, 163, 184, 0.28)' },
-    multipleToolsCard: { backgroundColor: '#fef3c7', borderWidth: 2, borderColor: '#fbbf24' },
-    multipleReturnToolsCard: { backgroundColor: '#ddd6fe', borderWidth: 2, borderColor: '#a78bfa' },
-    multipleReturnMaterialsCard: { backgroundColor: '#bbf7d0', borderWidth: 2, borderColor: '#4ade80' },
-    cadastroCard: { backgroundColor: '#dcfce7', borderWidth: 2, borderColor: '#22c55e' },
-    ferramentasCard: { backgroundColor: '#e0e7ff', borderWidth: 2, borderColor: '#6366f1' },
-    
-    listContainer: {
-        paddingBottom: 28,
-    },
-    itemCard: {
-        backgroundColor: heroPalette.panel,
-        borderRadius: 20,
-        padding: 16,
-        marginBottom: 12,
-        marginHorizontal: 14,
-        borderWidth: 1,
-        borderColor: heroPalette.border,
-        ...heroSoftShadow,
-    },
-    itemHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: 10,
-    },
-    itemName: {
-        flex: 1,
-        fontSize: 16,
-        fontWeight: '700',
-        color: heroPalette.text,
-        marginRight: 10,
-    },
-    badge: {
-        paddingHorizontal: 13,
-        paddingVertical: 7,
-        borderRadius: 14,
-        minWidth: 50,
-        alignItems: 'center',
-    },
-    badgeSuccess: { backgroundColor: '#22c55e' },
-    badgeWarning: { backgroundColor: '#f59e0b' },
-    badgeDanger: { backgroundColor: '#ef4444' },
-    badgeText: {
-        color: '#fff',
-        fontWeight: '800',
-        fontSize: 14,
-    },
-    itemBarcode: {
-        fontSize: 13,
-        color: heroPalette.primary,
-        marginBottom: 6,
-        fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-        fontWeight: '500',
-    },
-    itemDetails: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 12,
-    },
-    itemDetail: {
-        fontSize: 13,
-        color: heroPalette.textMuted,
-        fontWeight: '500',
-    },
-    emptyContainer: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 70,
-        paddingHorizontal: 24,
-    },
-    emptyIcon: {
-        fontSize: 68,
-        marginBottom: 16,
-    },
-    emptyText: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: heroPalette.text,
-        marginBottom: 6,
-    },
-    emptySubtext: {
-        fontSize: 14,
-        color: heroPalette.textMuted,
-        fontWeight: '500',
-    },
-    offlineBanner: {
-        backgroundColor: '#9a3412',
-        paddingVertical: 11,
-        paddingHorizontal: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: 'rgba(255,255,255,0.12)',
-    },
-    syncingBanner: {
-        backgroundColor: '#0f766e',
-        borderBottomColor: 'rgba(255,255,255,0.12)',
-    },
-    offlineBannerContent: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    offlineBannerText: {
-        color: '#fff',
-        fontSize: 14,
-        fontWeight: '700',
-        flex: 1,
-    },
-    syncButton: {
-        backgroundColor: 'rgba(255,255,255,0.18)',
-        paddingVertical: 7,
-        paddingHorizontal: 14,
-        borderRadius: 10,
-        marginLeft: 10,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.18)',
-    },
-    syncButtonText: {
-        color: '#fff',
-        fontSize: 12,
-        fontWeight: '800',
-    },
+    circleRing: { position: 'absolute', left: -3, top: -3, width: CIRCLE + 6, height: CIRCLE + 6, borderRadius: (CIRCLE + 6) / 2, borderWidth: 5, borderColor: heroPalette.primaryStrong },
+    circleRingArmed: { borderColor: heroPalette.warning },
+    circleTouch: { position: 'absolute', left: 0, top: 0, width: CIRCLE, height: CIRCLE, borderRadius: CIRCLE / 2, alignItems: 'center', justifyContent: 'center' },
+    reticle: { width: CIRCLE * 0.62, height: CIRCLE * 0.3, borderRadius: 14, borderWidth: 2, borderColor: 'rgba(255,255,255,0.75)', alignItems: 'center', justifyContent: 'center' },
+    reticleLine: { width: '86%', height: 2, backgroundColor: 'rgba(251, 113, 133, 0.9)' },
+    reticleLineArmed: { backgroundColor: heroPalette.warning, height: 3 },
+    circleLabel: { position: 'absolute', bottom: CIRCLE * 0.12, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 999, backgroundColor: 'rgba(6,16,27,0.7)' },
+    circleLabelText: { color: '#fff', fontSize: 13, fontWeight: '900', letterSpacing: 1 },
+    cameraOff: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: heroPalette.panel },
+    cameraOffIcon: { fontSize: 44 },
+    cameraOffText: { color: heroPalette.textMuted, fontSize: 13, marginTop: 6, textAlign: 'center', paddingHorizontal: 30 },
+    tools: { alignItems: 'center', gap: 8, marginTop: 4 },
+    toolChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: heroPalette.border, backgroundColor: heroPalette.panel },
+    toolChipOn: { borderColor: heroPalette.warning },
+    toolText: { color: heroPalette.textSoft, fontSize: 13, fontWeight: '700' },
+    counter: { color: heroPalette.primary, fontSize: 13, fontWeight: '800' },
+    panelScroll: { padding: 16, paddingBottom: 40 },
+    results: { flex: 1, marginTop: 10 },
+    result: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 16, marginBottom: 8, padding: 14, borderRadius: 14, backgroundColor: heroPalette.panel, borderWidth: 1, borderColor: heroPalette.border },
+    resultName: { color: heroPalette.text, fontSize: 15, fontWeight: '800' },
+    resultMeta: { color: heroPalette.textMuted, fontSize: 12, marginTop: 2 },
+    resultBalance: { color: heroPalette.primary, fontSize: 13, fontWeight: '800', maxWidth: '35%', textAlign: 'right' },
+    emptyText: { color: heroPalette.textMuted, textAlign: 'center', marginTop: 30 },
+    searchBox: { flexDirection: 'row', alignItems: 'center', gap: 8, margin: 16, marginTop: 8, paddingHorizontal: 14, height: 52, borderRadius: 16, backgroundColor: heroPalette.panel, borderWidth: 1, borderColor: heroPalette.border, ...heroSoftShadow },
+    searchIcon: { fontSize: 16 },
+    searchInput: { flex: 1, color: heroPalette.text, fontSize: 15 },
+    searchClear: { color: heroPalette.textMuted, fontSize: 18, paddingHorizontal: 4 },
+    menuBackdrop: { flex: 1, flexDirection: 'row', backgroundColor: 'rgba(2, 6, 23, 0.6)' },
+    menuPanel: { width: '82%', maxWidth: 340, backgroundColor: heroPalette.bgAlt, borderRightWidth: 1, borderRightColor: heroPalette.border, paddingTop: 36 },
+    menuHeader: { paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: heroPalette.border },
+    menuTitle: { color: heroPalette.primary, fontSize: 22, fontWeight: '900', letterSpacing: 4 },
+    menuUser: { color: heroPalette.text, fontSize: 16, fontWeight: '700', marginTop: 6 },
+    menuMeta: { color: heroPalette.textMuted, fontSize: 12, marginTop: 2 },
+    menuList: { paddingVertical: 8, paddingBottom: 32 },
+    menuEntry: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 20 },
+    menuEntryIcon: { fontSize: 22, width: 36, color: heroPalette.text },
+    menuEntryLabel: { color: heroPalette.text, fontSize: 16, fontWeight: '700' },
+    menuEntryHint: { color: heroPalette.textMuted, fontSize: 12, marginTop: 1 },
+    menuBadge: { minWidth: 24, height: 24, borderRadius: 12, backgroundColor: heroPalette.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+    menuBadgeText: { color: '#fff', fontSize: 11, fontWeight: '900' },
 });

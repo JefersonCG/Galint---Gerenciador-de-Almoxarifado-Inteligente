@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ApiService from '../services/api';
-import { searchItems as searchOfflineItems } from '../services/offlineDb';
+import { searchItems as searchOfflineItems } from '../services/localDb';
 
 export default function RetiradaMultiplaFerramentasScreen({ navigation, route }) {
     const user = route.params?.user;

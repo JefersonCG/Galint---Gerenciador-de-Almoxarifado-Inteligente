@@ -9,18 +9,13 @@ try {
     NetInfoModule = null;
 }
 import {
-    initOfflineDb,
+    initLocalDb,
+    clearLocalDb,
     upsertItem,
     upsertItems,
-    getItemByCodigo as getOfflineItemByCodigo,
-    searchItems as searchOfflineItems,
-    addPendingOp,
-    listPendingOps,
-    markPendingOpSynced,
-    markPendingOpFailed,
-    incrementPendingRetry,
-    adjustLocalSaldo,
-} from './offlineDb';
+    getItemByCodigo as getLocalItemByCodigo,
+    searchItems as searchLocalItems,
+} from './localDb';
 
 /**
  * Captura informações do dispositivo Android
@@ -107,64 +102,28 @@ function normalizeEstoquePayload(payload) {
     return [];
 }
 
-async function queueRetiradaOffline(data) {
-    await addPendingOp('retirada', data);
-    const codigo = String(data?.codigo || data?.item_id || '').trim();
-    const quantidadeNum = Number.isFinite(Number(data?.quantidade))
-        ? Number(Number(data.quantidade).toFixed(6))
-        : 0;
-    if (codigo && quantidadeNum > 0) {
-        await adjustLocalSaldo(codigo, -quantidadeNum);
-    }
+// Sem modo offline (desde a 2.2.0). Até a 2.1.1, sem rede (ou com o servidor demorando mais de
+// 10 s) a operação "entrava na fila" e o app dizia "registrada offline, sincronização pendente".
+// A fila gravava numa base que nunca abria: a retirada ou devolução se perdia sem aviso. Agora,
+// sem conexão, a operação não é feita e a tela diz isso.
+const OFFLINE_NOT_DONE_MESSAGE = 'Sem conexão com o servidor. A operação NÃO foi feita: tente de novo.';
+const TIMEOUT_UNKNOWN_MESSAGE = 'O servidor demorou a responder. Confira no histórico se a operação entrou antes de repetir.';
+
+function notDone(error) {
+    return {
+        success: false,
+        offline: true,
+        message: error && isTimeoutError(error) ? TIMEOUT_UNKNOWN_MESSAGE : OFFLINE_NOT_DONE_MESSAGE,
+    };
 }
 
-async function queueDevolucaoFerramentaOffline(data) {
-    await addPendingOp('devolucao_ferramenta', data);
-    const codigo = String(data?.codigo || '').trim();
-    const quantidadeNum = Number.isFinite(Number(data?.quantidade))
-        ? Number(Number(data.quantidade).toFixed(6))
-        : 0;
-    if (codigo && quantidadeNum > 0) {
-        await adjustLocalSaldo(codigo, quantidadeNum);
-    }
-}
+// Gravações de estoque feitas pelo app: depois de cada uma (deu certo, deu erro ou demorou), a base
+// do celular é sincronizada na hora (dbSync.js se inscreve em onStockWrite).
+const STOCK_WRITE_PATH = /\/api\/mobile\/(retirar|retirar_multipla|devolver|devolver_material|devolver_multipla_ferramentas|devolver_multipla_materiais|conferencia-estoque\/ajuste|documentos-fiscais|estoque)(\/|$|\?)/;
 
-async function queueDevolucaoMaterialOffline(data) {
-    await addPendingOp('devolucao_material', data);
-    const codigo = String(data?.codigo || '').trim();
-    const quantidadeNum = Number.isFinite(Number(data?.quantidade))
-        ? Number(Number(data.quantidade).toFixed(6))
-        : 0;
-    if (codigo && quantidadeNum > 0) {
-        await adjustLocalSaldo(codigo, quantidadeNum);
-    }
-}
-
-async function queueCadastroItemOffline(itemData) {
-    await addPendingOp('cadastro_item', itemData);
-    await upsertItem({
-        ...itemData,
-        quantidade: itemData?.quantidade ?? 0,
-    });
-}
-
-async function queueRetiradaMultiplaOffline(data) {
-    await addPendingOp('retirada_multipla', data);
-    const itens = Array.isArray(data?.itens) ? data.itens : [];
-    for (const entry of itens) {
-        const codigo = String(entry?.codigo || '').trim();
-        const quantidadeNum = Number.isFinite(Number(entry?.quantidade))
-            ? Number(Number(entry.quantidade).toFixed(6))
-            : 0;
-        if (codigo && quantidadeNum > 0) {
-            await adjustLocalSaldo(codigo, -quantidadeNum);
-        }
-    }
-    return itens.map((entry) => ({
-        success: true,
-        codigo: entry?.codigo,
-        message: 'Registrado offline',
-    }));
+function isStockWrite(config) {
+    const method = String(config?.method || 'get').toLowerCase();
+    return method !== 'get' && STOCK_WRITE_PATH.test(String(config?.url || ''));
 }
 
 class ApiService {
@@ -172,38 +131,41 @@ class ApiService {
         this.baseURL = null;
         this.token = null;
         this.client = null;
-        this.offlineReady = false;
-        this.offlineForced = false;
+        this.localReady = false;
+        this.stockWriteListeners = [];
     }
 
-    async setOfflineMode(isOffline) {
-        this.offlineForced = Boolean(isOffline);
+    // Abre a base do celular. Um erro aqui fica no log (até a 2.1.1 ele era engolido).
+    async ensureLocalReady() {
+        if (this.localReady) return;
         try {
-            await AsyncStorage.setItem('offline_mode', this.offlineForced ? 'true' : 'false');
+            await initLocalDb();
+            this.localReady = true;
         } catch (error) {
-            // silencioso
+            console.warn('[LocalDb] Falha ao abrir a base do celular:', error?.message || error);
         }
     }
 
-    async loadOfflineMode() {
-        try {
-            const value = await AsyncStorage.getItem('offline_mode');
-            this.offlineForced = value === 'true';
-        } catch (error) {
-            this.offlineForced = false;
-        }
+    onStockWrite(callback) {
+        this.stockWriteListeners.push(callback);
+        return () => {
+            this.stockWriteListeners = this.stockWriteListeners.filter((entry) => entry !== callback);
+        };
     }
 
-    async ensureOfflineReady() {
-        if (this.offlineReady) return;
-        await initOfflineDb();
-        this.offlineReady = true;
-        await this.loadOfflineMode();
+    notifyStockWrite(config) {
+        if (!isStockWrite(config)) return;
+        this.stockWriteListeners.forEach((callback) => {
+            try {
+                callback();
+            } catch (error) {
+                // um ouvinte com erro não impede os outros
+            }
+        });
     }
 
     async isOnline() {
         try {
-            if (this.offlineForced) return false;
             if (!this.client || !this.baseURL) return false;
             if (!NetInfoModule) return true;
             const state = await NetInfoModule.fetch();
@@ -241,8 +203,6 @@ class ApiService {
         const nextBaseURL = `http://${serverIP}:${serverPort}`;
         const changedServer = this.baseURL && this.baseURL !== nextBaseURL;
         this.baseURL = nextBaseURL;
-        this.offlineForced = false;
-        await this.setOfflineMode(false);
 
         if (changedServer) {
             // Limpar token/usuário ao trocar de servidor
@@ -271,10 +231,27 @@ class ApiService {
             (error) => Promise.reject(error)
         );
 
+        // Toda gravação de estoque dispara a sincronização da base do celular, mesmo com erro ou
+        // demora (a gravação pode ter entrado no servidor).
+        this.client.interceptors.response.use(
+            (response) => {
+                this.notifyStockWrite(response?.config);
+                return response;
+            },
+            (error) => {
+                this.notifyStockWrite(error?.config);
+                return Promise.reject(error);
+            }
+        );
+
         // Salvar configuração
         await AsyncStorage.setItem('serverIP', serverIP);
         await AsyncStorage.setItem('serverPort', serverPort.toString());
-        await this.ensureOfflineReady();
+        await this.ensureLocalReady();
+        if (changedServer) {
+            // A base do outro servidor não vale aqui.
+            await clearLocalDb().catch(() => {});
+        }
     }
 
     async loadSavedConfig() {
@@ -285,7 +262,7 @@ class ApiService {
             await this.initialize(serverIP, parseInt(serverPort));
             return { serverIP, serverPort: parseInt(serverPort) };
         }
-        await this.ensureOfflineReady();
+        await this.ensureLocalReady();
         return null;
     }
 
@@ -611,15 +588,10 @@ class ApiService {
 
     async registrarRetirada(data) {
         try {
-            await this.ensureOfflineReady();
+            await this.ensureLocalReady();
             const online = await this.isOnline();
             if (!online) {
-                await queueRetiradaOffline(data);
-                return {
-                    success: true,
-                    offline: true,
-                    message: 'Retirada registrada offline. Sincronização pendente.'
-                };
+                return notDone();
             }
 
             const token = await AsyncStorage.getItem('token');
@@ -647,12 +619,7 @@ class ApiService {
             }
 
             if (isNetworkError(error)) {
-                await queueRetiradaOffline(data);
-                return {
-                    success: true,
-                    offline: true,
-                    message: 'Retirada registrada offline. Sincronização pendente.'
-                };
+                return notDone(error);
             }
 
             return {
@@ -664,15 +631,10 @@ class ApiService {
 
     async registrarDevolucaoFerramenta(data) {
         try {
-            await this.ensureOfflineReady();
+            await this.ensureLocalReady();
             const online = await this.isOnline();
             if (!online) {
-                await queueDevolucaoFerramentaOffline(data);
-                return {
-                    success: true,
-                    offline: true,
-                    message: 'Devolução registrada offline. Sincronização pendente.'
-                };
+                return notDone();
             }
 
             const token = await AsyncStorage.getItem('token');
@@ -700,12 +662,7 @@ class ApiService {
             }
 
             if (isNetworkError(error)) {
-                await queueDevolucaoFerramentaOffline(data);
-                return {
-                    success: true,
-                    offline: true,
-                    message: 'Devolução registrada offline. Sincronização pendente.'
-                };
+                return notDone(error);
             }
 
             return {
@@ -722,7 +679,7 @@ class ApiService {
      */
     async getFerramentasAtivas(matricula) {
         try {
-            await this.ensureOfflineReady();
+            await this.ensureLocalReady();
             const online = await this.isOnline();
             
             if (!online) {
@@ -759,7 +716,7 @@ class ApiService {
 
     async getDailyCustodyFeed() {
         try {
-            await this.ensureOfflineReady();
+            await this.ensureLocalReady();
             const online = await this.isOnline();
 
             if (!online) {
@@ -794,7 +751,7 @@ class ApiService {
 
     async returnDailyCustodyTool(data) {
         try {
-            await this.ensureOfflineReady();
+            await this.ensureLocalReady();
             const online = await this.isOnline();
 
             if (!online) {
@@ -842,7 +799,7 @@ class ApiService {
      */
     async registrarDevolucaoMultiplaFerramentas(data) {
         try {
-            await this.ensureOfflineReady();
+            await this.ensureLocalReady();
             const online = await this.isOnline();
             
             if (!online) {
@@ -887,7 +844,7 @@ class ApiService {
      */
     async registrarDevolucaoMultiplaMateriais(data) {
         try {
-            await this.ensureOfflineReady();
+            await this.ensureLocalReady();
             const online = await this.isOnline();
             
             if (!online) {
@@ -962,15 +919,10 @@ class ApiService {
 
     async devolverMaterial(data) {
         try {
-            await this.ensureOfflineReady();
+            await this.ensureLocalReady();
             const online = await this.isOnline();
             if (!online) {
-                await queueDevolucaoMaterialOffline(data);
-                return {
-                    success: true,
-                    offline: true,
-                    message: 'Devolução registrada offline. Sincronização pendente.'
-                };
+                return notDone();
             }
 
             const token = await AsyncStorage.getItem('token');
@@ -998,12 +950,7 @@ class ApiService {
             }
 
             if (isNetworkError(error)) {
-                await queueDevolucaoMaterialOffline(data);
-                return {
-                    success: true,
-                    offline: true,
-                    message: 'Devolução registrada offline. Sincronização pendente.'
-                };
+                return notDone(error);
             }
 
             return {
@@ -1013,45 +960,44 @@ class ApiService {
         }
     }
 
-    // Devolve o item ou null. Quando o servidor não responde, procura na base do celular; se
-    // também não achar lá, lastItemLookupFailure diz o motivo ('network') para a tela não
-    // mostrar "Item não encontrado" quando o problema foi a conexão.
+    // Devolve o item ou null. Procura primeiro na base do celular (sempre sincronizada com o
+    // servidor), que responde na hora; só pergunta ao servidor quando o código não está nela.
+    // lastItemLookupFailure = 'network' quando o servidor não respondeu e o item não está na
+    // base: a tela não deve dizer "Item não encontrado" se o problema foi a conexão.
     async buscarItemPorCodigo(codigo) {
         this.lastItemLookupFailure = null;
-        const fromOfflineBase = async () => {
-            const offlineItem = await getOfflineItemByCodigo(codigo);
-            if (!offlineItem) this.lastItemLookupFailure = 'network';
-            return offlineItem;
-        };
+        const code = String(codigo || '').trim();
+        if (!code) return null;
+        await this.ensureLocalReady();
+        const local = await getLocalItemByCodigo(code).catch(() => null);
+        if (local) return local;
         try {
-            await this.ensureOfflineReady();
             const online = await this.isOnline();
             if (!online) {
-                return await fromOfflineBase();
+                this.lastItemLookupFailure = 'network';
+                return null;
             }
             const token = await AsyncStorage.getItem('token');
             if (!token) {
                 throw new Error('Token não encontrado');
             }
-
             const response = await this.client.get(
-                `/api/mobile/itens/${encodeURIComponent(String(codigo || '').trim())}`,
+                `/api/mobile/itens/${encodeURIComponent(code)}`,
                 {
                     headers: {
                         'Authorization': `Bearer ${token}`,
                     },
                 }
             );
-
             const item = response.data?.data || null;
             if (item) {
-                await upsertItem(item);
+                await upsertItem(item).catch(() => {});
             }
             return item;
         } catch (error) {
             console.error('Erro ao buscar item:', error);
             if (isNetworkError(error)) {
-                return await fromOfflineBase();
+                this.lastItemLookupFailure = 'network';
             }
             return null;
         }
@@ -1108,10 +1054,10 @@ class ApiService {
 
     async getEstoque(search = '') {
         try {
-            await this.ensureOfflineReady();
+            await this.ensureLocalReady();
             const online = await this.isOnline();
             if (!online) {
-                const items = await searchOfflineItems(search);
+                const items = await searchLocalItems(search);
                 return { success: true, data: items, items, offline: true };
             }
             // Lista completa: espera até 60 s em vez de desistir em 10 s e pedir de novo.
@@ -1124,7 +1070,7 @@ class ApiService {
             return { success: true, data: items, items };
         } catch (error) {
             if (isNetworkError(error)) {
-                const items = await searchOfflineItems(search);
+                const items = await searchLocalItems(search);
                 return { success: true, data: items, items, offline: true };
             }
             return {
@@ -1280,10 +1226,10 @@ class ApiService {
 
     async getItemByBarcode(barcode) {
         try {
-            await this.ensureOfflineReady();
+            await this.ensureLocalReady();
             const online = await this.isOnline();
             if (!online) {
-                const item = await getOfflineItemByCodigo(barcode);
+                const item = await getLocalItemByCodigo(barcode);
                 if (item) {
                     return { success: true, data: item, offline: true };
                 }
@@ -1297,7 +1243,7 @@ class ApiService {
             return { success: true, data: response.data };
         } catch (error) {
             if (isNetworkError(error)) {
-                const item = await getOfflineItemByCodigo(barcode);
+                const item = await getLocalItemByCodigo(barcode);
                 if (item) {
                     return { success: true, data: item, offline: true };
                 }
@@ -1408,16 +1354,10 @@ class ApiService {
 
     async registrarRetiradaMultipla(data) {
         try {
-            await this.ensureOfflineReady();
+            await this.ensureLocalReady();
             const online = await this.isOnline();
             if (!online) {
-                const resultados = await queueRetiradaMultiplaOffline(data);
-                return {
-                    success: true,
-                    offline: true,
-                    resultados,
-                    message: 'Retirada múltipla registrada offline. Sincronização pendente.'
-                };
+                return { ...notDone(), resultados: [] };
             }
             const token = await AsyncStorage.getItem('token');
             if (!token) {
@@ -1445,13 +1385,7 @@ class ApiService {
             }
 
             if (isNetworkError(error)) {
-                const resultados = await queueRetiradaMultiplaOffline(data);
-                return {
-                    success: true,
-                    offline: true,
-                    resultados,
-                    message: 'Retirada múltipla registrada offline. Sincronização pendente.'
-                };
+                return { ...notDone(error), resultados: [] };
             }
 
             return {
@@ -1470,68 +1404,61 @@ class ApiService {
         };
     }
 
-    async syncPendingOps() {
-        await this.ensureOfflineReady();
-        if (!this.client || !this.baseURL) {
-            return { success: false, message: 'Servidor não configurado' };
+    // "O que mudou?" no estoque desde o cursor (dbSync.js). Sem cursor, a lista inteira.
+    async getEstoqueMudancas(cursor = null) {
+        if (!this.client) {
+            return { success: false, offline: true, message: 'Servidor não configurado.' };
         }
-        const online = await this.isOnline();
-        if (!online) {
-            return { success: false, message: 'Sem conexão' };
-        }
-
-        const token = await AsyncStorage.getItem('token');
-        if (!token) {
-            return { success: false, message: 'Token não encontrado' };
-        }
-
-        const pendentes = await listPendingOps();
-        let synced = 0;
-
-        for (const op of pendentes) {
-            let payload = {};
-            try {
-                payload = JSON.parse(op.payload || '{}');
-            } catch (error) {
-                payload = {};
+        try {
+            const token = await AsyncStorage.getItem('token');
+            if (!token) {
+                return { success: false, message: 'Sessão não iniciada.' };
             }
-
-            try {
-                let response;
-                if (op.type === 'retirada') {
-                    response = await this.client.post('/api/mobile/retirar', payload);
-                } else if (op.type === 'retirada_multipla') {
-                    response = await this.client.post('/api/mobile/retirar_multipla', payload);
-                } else if (op.type === 'devolucao_ferramenta') {
-                    response = await this.client.post('/api/mobile/devolver', payload);
-                } else if (op.type === 'devolucao_material') {
-                    response = await this.client.post('/api/mobile/devolver_material', payload);
-                } else if (op.type === 'cadastro_item') {
-                    await markPendingOpSynced(op.id);
-                    synced += 1;
-                    continue;
-                }
-
-                const success = response?.data?.success !== false;
-                if (success) {
-                    await markPendingOpSynced(op.id);
-                    synced += 1;
-
-                    const item = response?.data?.data?.item || response?.data?.data || null;
-                    if (item) {
-                        await upsertItem(item);
-                    }
-                } else {
-                    await markPendingOpFailed(op.id);
-                    await incrementPendingRetry(op.id);
-                }
-            } catch (error) {
-                await markPendingOpFailed(op.id);
-                await incrementPendingRetry(op.id);
+            const response = await this.client.get('/api/mobile/estoque/mudancas', {
+                params: cursor ? { cursor } : {},
+                headers: { Authorization: `Bearer ${token}` },
+                timeout: cursor ? 20000 : FULL_STOCK_TIMEOUT_MS,
+            });
+            return response.data?.success ? response.data : { success: false, message: response.data?.message || 'Resposta inválida.' };
+        } catch (error) {
+            if (isNetworkError(error)) {
+                return { success: false, offline: true, message: 'Sem conexão com o servidor.' };
             }
+            return {
+                success: false,
+                status: error.response?.status,
+                message: error.response?.data?.message || 'Falha ao sincronizar a base.',
+            };
         }
+    }
 
-        return { success: true, synced };
+    async markAllNotifyRead() {
+        try {
+            const token = await AsyncStorage.getItem('token');
+            if (!token) {
+                throw new Error('Token não encontrado');
+            }
+            const response = await this.client.post('/api/mobile/notifications/inbox/read-all', {}, {
+                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            });
+            return response.data;
+        } catch (error) {
+            return {
+                success: false,
+                message: error.response?.data?.message || 'Não foi possível marcar os avisos como lidos.',
+            };
+        }
+    }
+
+    // Cores da Aparência (Configurações do site). Sem login: a abertura e o login também usam.
+    async getTema() {
+        if (!this.client) return { success: false };
+        try {
+            const response = await this.client.get('/api/mobile/tema', { timeout: 2500 });
+            return response.data?.success ? { success: true, tema: response.data.tema } : { success: false };
+        } catch (error) {
+            return { success: false };
+        }
     }
 }
 
