@@ -13,6 +13,7 @@ from typing import Any
 import jwt
 from pathlib import Path
 from flask import Blueprint, current_app, g, jsonify, request, send_file
+from sqlalchemy import func as sa_func
 from sqlalchemy.orm import selectinload
 
 # Configurar poppler automaticamente (Windows)
@@ -62,6 +63,8 @@ from ..models import (
     InventarioEvento,
     Item,
     Saida,
+    StockBalance,
+    StockMovement,
     Usuario,
     RetiradaFerramenta,
 )
@@ -750,6 +753,7 @@ def mobile_login():
                     "is_admin": is_admin,
                     "cargo": getattr(user, "cargo", None),
                     "is_manager": is_manager,
+                    "pode_ajustar_estoque": stock_count_service.can_adjust_stock(user),
                 },
                 "device": {
                     "device_uuid": getattr(device, "device_uuid", None),
@@ -967,6 +971,15 @@ def mobile_notifications_mark_read(message_id: int):
     return jsonify({"success": True, "message_id": message_id, "status": recipient.status})
 
 
+@blueprint.post("/notifications/inbox/read-all")
+@mobile_login_required
+def mobile_notifications_mark_all_read():
+    from ..services.galint_notify_service import GalintNotifyService
+
+    updated = GalintNotifyService.mark_all_read(matricula=g.mobile_user.matricula)
+    return jsonify({"success": True, "updated": updated, "unread_count": 0})
+
+
 @blueprint.get("/itens/<codigo>")
 @token_required
 def buscar_item_por_codigo(current_user: Usuario, codigo: str):
@@ -1006,6 +1019,7 @@ def mobile_stock_count_lookup():
     payload["foto_url"] = operation_visual_payload_service._build_photo_url(stock_count_service.photo_static_path(item))
     payload["categoria"] = item.categoria
     payload["localizacao"] = item.localizacao
+    payload["pode_ajustar"] = stock_count_service.can_adjust_stock(g.mobile_user)
     return jsonify({"success": True, "item": payload}), 200
 
 
@@ -1021,6 +1035,7 @@ def mobile_stock_count_adjust():
     user = g.mobile_user
     user_id = str(getattr(user, "matricula", "") or "").strip()
     try:
+        stock_count_service.ensure_can_adjust_stock(user)
         result = stock_count_service.apply_count(
             codigo,
             data,
@@ -3467,6 +3482,18 @@ def mobile_registrar_documento_fiscal():
         return jsonify({"success": False, "message": f"Erro ao registrar documento fiscal: {str(exc)}"}), 500
 
 
+@blueprint.get("/tema")
+def mobile_theme():
+    """Cores da Aparência para o app. Sem login: a abertura e a tela de entrada também usam."""
+    from ..models import EmpresaConfig
+    from ..services import theme_service
+
+    config = EmpresaConfig.query.order_by(EmpresaConfig.id).first()
+    response = jsonify({"success": True, "tema": theme_service.app_palette(config)})
+    response.headers["Cache-Control"] = "no-store"
+    return response, 200
+
+
 @blueprint.get("/health")
 def health_check():
     """Verifica se API está funcionando."""
@@ -3528,6 +3555,128 @@ def listar_estoque():
     with balance_provider.prefetched_balances(items):
         payload = [_serialize_mobile_stock_item(item) for item in items]
     return jsonify(payload), 200
+
+
+# --- Base do app sempre igual à do servidor (21/11/2026) -----------------------------------
+# O app guarda o estoque inteiro no celular e, a cada 15 s, pergunta "o que mudou?". Sem
+# mudança, a resposta custa 7 consultas de máximo/contagem (milissegundos). Com mudança, só os
+# itens tocados descem. O cursor é opaco para o app: marcadores do banco em base64.
+_STOCK_CURSOR_VERSION = 1
+# Margem contra corridas de commit (um id menor gravado depois de um maior, um updated_at
+# anterior ao último visto): reenviar alguns itens a mais não faz mal, perder um faz.
+_STOCK_CURSOR_ID_OVERLAP = 5
+_STOCK_CURSOR_TIME_OVERLAP = timedelta(seconds=10)
+
+
+def _stock_change_markers() -> dict[str, Any]:
+    def max_of(column):
+        return db.session.query(sa_func.max(column)).scalar()
+
+    def iso(value):
+        return value.isoformat() if isinstance(value, datetime) else None
+
+    return {
+        "ver": _STOCK_CURSOR_VERSION,
+        "n": int(db.session.query(sa_func.count(Item.codigo_item)).scalar() or 0),
+        "e": int(max_of(Entrada.id_entrada) or 0),
+        "s": int(max_of(Saida.id_saida) or 0),
+        "v": int(max_of(InventarioEvento.id_evento) or 0),
+        "m": int(max_of(StockMovement.id) or 0),
+        "b": iso(max_of(StockBalance.updated_at)),
+        "u": iso(max_of(Item.ultima_edicao_em)),
+    }
+
+
+def _encode_stock_cursor(markers: dict[str, Any]) -> str:
+    import base64
+    import json
+
+    raw = json.dumps(markers, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    return base64.urlsafe_b64encode(raw).decode("ascii")
+
+
+def _decode_stock_cursor(value: str | None) -> dict[str, Any] | None:
+    import base64
+    import json
+
+    text = (value or "").strip()
+    if not text:
+        return None
+    try:
+        decoded = json.loads(base64.urlsafe_b64decode(text.encode("ascii")).decode("utf-8"))
+    except Exception:
+        return None
+    if not isinstance(decoded, dict) or decoded.get("ver") != _STOCK_CURSOR_VERSION:
+        return None
+    return decoded
+
+
+def _parse_cursor_time(value: Any) -> datetime | None:
+    try:
+        return datetime.fromisoformat(str(value)) if value else None
+    except ValueError:
+        return None
+
+
+def _changed_item_codes(previous: dict[str, Any], current: dict[str, Any]) -> set[str]:
+    codes: set[str] = set()
+
+    def ids_after(column, item_column, key):
+        last_seen = int(previous.get(key) or 0)
+        if int(current.get(key) or 0) <= last_seen:
+            return
+        start = max(0, last_seen - _STOCK_CURSOR_ID_OVERLAP)
+        rows = db.session.query(item_column).filter(column > start, item_column.isnot(None)).distinct().all()
+        codes.update(str(row[0]) for row in rows if row[0])
+
+    def touched_after(column, item_column, key):
+        last_seen = _parse_cursor_time(previous.get(key))
+        now_seen = _parse_cursor_time(current.get(key))
+        if now_seen is None or (last_seen is not None and now_seen <= last_seen):
+            return
+        query = db.session.query(item_column).filter(column.isnot(None))
+        if last_seen is not None:
+            query = query.filter(column > last_seen - _STOCK_CURSOR_TIME_OVERLAP)
+        rows = query.filter(item_column.isnot(None)).distinct().all()
+        codes.update(str(row[0]) for row in rows if row[0])
+
+    ids_after(Entrada.id_entrada, Entrada.codigo_item, "e")
+    ids_after(Saida.id_saida, Saida.codigo_item, "s")
+    ids_after(InventarioEvento.id_evento, InventarioEvento.codigo_item, "v")
+    ids_after(StockMovement.id, StockMovement.product_id, "m")
+    touched_after(StockBalance.updated_at, StockBalance.product_id, "b")
+    touched_after(Item.ultima_edicao_em, Item.codigo_item, "u")
+    return codes
+
+
+@blueprint.get("/estoque/mudancas")
+@mobile_login_required
+def estoque_mudancas():
+    """O que mudou no estoque desde o cursor do app (sem cursor ou com itens novos/apagados: tudo)."""
+    current = _stock_change_markers()
+    cursor_in = request.args.get("cursor")
+    previous = _decode_stock_cursor(cursor_in)
+    cursor_out = _encode_stock_cursor(current)
+
+    if previous is None or int(previous.get("n") or -1) != current["n"]:
+        items = Item.query.options(selectinload(Item.product_units)).order_by(Item.descricao).all()
+        full = True
+    else:
+        codes = _changed_item_codes(previous, current)
+        if not codes:
+            return jsonify({"success": True, "full": False, "cursor": cursor_out, "items": [], "total_itens": current["n"]}), 200
+        items = Item.query.options(selectinload(Item.product_units)).filter(Item.codigo_item.in_(codes)).all()
+        full = False
+
+    with balance_provider.prefetched_balances(items):
+        payload = [_serialize_mobile_stock_item(item) for item in items]
+    return jsonify({
+        "success": True,
+        "full": full,
+        "cursor": cursor_out,
+        "items": payload,
+        "total_itens": current["n"],
+    }), 200
 
 
 @blueprint.get("/estoque/resumo")

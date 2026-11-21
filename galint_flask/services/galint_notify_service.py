@@ -133,6 +133,16 @@ class GalintNotifyService:
         return recipient
 
     @staticmethod
+    def mark_all_read(*, matricula: str) -> int:
+        """Marca todos os avisos da pessoa como lidos (em 21/11/2026 havia 18 mil sem ler)."""
+        updated = (
+            GalintNotifyRecipient.query.filter_by(matricula=matricula, status="unread")
+            .update({"status": "read", "read_at": TimeService.now_db()}, synchronize_session=False)
+        )
+        db.session.commit()
+        return int(updated or 0)
+
+    @staticmethod
     def list_reports() -> list[dict[str, Any]]:
         return [
             {

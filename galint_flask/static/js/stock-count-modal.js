@@ -30,7 +30,8 @@
                 return;
             }
             feedback.textContent = message || '';
-            feedback.className = message ? `small alert alert-${isError ? 'danger' : 'success'} py-2` : 'small';
+            const tone = isError === 'info' ? 'info' : (isError ? 'danger' : 'success');
+            feedback.className = message ? `small alert alert-${tone} py-2` : 'small';
         }
 
         function setUnit(unit) {
@@ -82,10 +83,13 @@
 
             const input = item.input || {};
             const packaged = Boolean(input.supports_packaging);
-            const pending = Boolean(item.pre_cadastro_pendente);
+            // Sem "Pode alterar o estoque" (Usuários), a pessoa só consulta foto e saldo (21/11/2026).
+            const readOnly = item.pode_ajustar === false;
+            const pending = Boolean(item.pre_cadastro_pendente) || readOnly;
             setUnit(input.internal_unit_display || item.unidade || 'un');
-            directGroup.classList.toggle('d-none', packaged);
-            packageGroup.classList.toggle('d-none', !packaged);
+            directGroup.classList.toggle('d-none', packaged || readOnly);
+            packageGroup.classList.toggle('d-none', !packaged || readOnly);
+            submitButton.classList.toggle('d-none', readOnly);
             directInput.disabled = packaged || pending;
             packageInput.disabled = !packaged || pending;
             internalInput.disabled = !packaged || pending;
@@ -100,10 +104,16 @@
 
             document.getElementById('stockCountPackageHint').textContent =
                 input.package_content_display || 'Informe embalagens fechadas e quantidade solta.';
-            document.getElementById('stockCountPendingWarning').classList.toggle('d-none', !pending);
+            document.getElementById('stockCountPendingWarning').classList.toggle('d-none', !item.pre_cadastro_pendente);
             submitButton.disabled = pending;
             details.classList.remove('d-none');
-            setFeedback('', false);
+            setFeedback(
+                readOnly ? 'Só consulta: para alterar o estoque, peça a um administrador para marcar "Pode alterar o estoque" no seu cadastro.' : '',
+                readOnly ? 'info' : false
+            );
+            if (readOnly) {
+                return;
+            }
             window.setTimeout(() => {
                 (packaged ? packageInput : directInput).focus();
             }, 120);

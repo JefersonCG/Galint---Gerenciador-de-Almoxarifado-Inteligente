@@ -18,12 +18,22 @@ class _AuthenticatedWorker:
     is_active = True
     is_anonymous = False
     is_admin = False
+    pode_ajustar_estoque = 1
     id = "worker-1"
     matricula = "worker-1"
     nome = "Operador"
 
     def get_id(self):
         return self.id
+
+
+class _ReadOnlyWorker(_AuthenticatedWorker):
+    """Sem "Pode alterar o estoque": consulta, mas não grava (regra de 21/11/2026)."""
+
+    pode_ajustar_estoque = 0
+    id = "worker-2"
+    matricula = "worker-2"
+    nome = "Consulta"
 
 
 @pytest.fixture
@@ -40,7 +50,7 @@ def stock_count_client():
 
     @manager.user_loader
     def load_user(user_id):
-        return _AuthenticatedWorker() if user_id == "worker-1" else None
+        return {"worker-1": _AuthenticatedWorker, "worker-2": _ReadOnlyWorker}.get(user_id, lambda: None)()
 
     app.register_blueprint(blueprint)
     with app.app_context():
@@ -259,7 +269,7 @@ def test_stock_count_download_filters_by_chosen_categories(stock_count_client, m
     assert unknown.get_json()["message"] == "Nenhum item nas categorias escolhidas."
 
 
-def test_any_authenticated_user_can_lookup_item_and_apply_zero_count(stock_count_client, monkeypatch):
+def test_user_with_stock_permission_can_lookup_item_and_apply_zero_count(stock_count_client, monkeypatch):
     app, client = stock_count_client
     snapshot = {
         "codigo": "COUNT-001",
@@ -290,6 +300,7 @@ def test_any_authenticated_user_can_lookup_item_and_apply_zero_count(stock_count
         )
 
     assert lookup.status_code == 200
+    assert lookup.get_json()["item"]["pode_ajustar"] is True
     assert lookup.get_json()["item"]["saldo"] == 4.0
     assert lookup.get_json()["item"]["foto_url"] == "/static/uploads/itens/COUNT-001.jpg"
     assert adjustment.status_code == 200
@@ -297,3 +308,32 @@ def test_any_authenticated_user_can_lookup_item_and_apply_zero_count(stock_count
     assert calls[0]["adjustment_payload"]["admin_balance_direct_value"] == "0"
     assert calls[0]["matricula"] == "worker-1"
     assert calls[0]["audit_context"]["source"] == "barcode_stock_count_modal"
+
+
+def test_user_without_stock_permission_only_consults(stock_count_client, monkeypatch):
+    app, client = stock_count_client
+    calls = []
+    monkeypatch.setattr(
+        inventory_service,
+        "get_stock_count_snapshot",
+        lambda code: {
+            "codigo": code, "descricao": "Material de teste", "unidade": "Unidade", "saldo_exibido": 4.0,
+            "saldo_display": "4 unidades", "admin_balance_input": {}, "pre_cadastro_pendente": False,
+        },
+    )
+    monkeypatch.setattr(inventory_service, "apply_admin_item_adjustments", lambda **kwargs: calls.append(kwargs) or {})
+    with client.session_transaction() as session:
+        session["_user_id"] = "worker-2"
+
+    with app.app_context():
+        lookup = client.get("/itens/api/conferencia-estoque/item?codigo=COUNT-001")
+        adjustment = client.post(
+            "/itens/api/conferencia-estoque/item/COUNT-001/ajuste",
+            json={"mode": "direct", "quantity": "0"},
+        )
+
+    assert lookup.status_code == 200
+    assert lookup.get_json()["item"]["pode_ajustar"] is False
+    assert adjustment.status_code == 403
+    assert "Pode alterar o estoque" in adjustment.get_json()["message"]
+    assert calls == []

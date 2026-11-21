@@ -1,5 +1,5 @@
 """Views para configuração da empresa e relatórios."""
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, make_response
 from flask_login import login_required, current_user
 
 from ..services.config_service import ConfigService
@@ -9,7 +9,8 @@ from ..services.notification_template_service import NotificationTemplateService
 from ..services.notification_router import NotificationRouterService
 from ..services.telegram_service import TelegramService
 from ..extensions import db
-from ..models import NotificationRouterConfig, TelegramConfig, TelegramUser, Usuario
+from ..models import EmpresaConfig, NotificationRouterConfig, TelegramConfig, TelegramUser, Usuario
+from ..services import theme_service
 
 
 bp = Blueprint("config", __name__, url_prefix="/configuracoes")
@@ -516,3 +517,68 @@ def resetar_templates():
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+
+
+# --- Aparência (21/11/2026): as cores do site e do app, no molde da skin do Pipocas ----------
+def _empresa_config() -> EmpresaConfig | None:
+    return EmpresaConfig.query.order_by(EmpresaConfig.id).first()
+
+
+@bp.get("/aparencia")
+@login_required
+def aparencia():
+    if not current_user.is_admin:
+        flash("Acesso negado. Apenas administradores podem mudar a aparência.", "danger")
+        return redirect(url_for("pages.config"))
+    colors = theme_service.current(_empresa_config())
+    return render_template(
+        "config/aparencia.html",
+        colors=colors,
+        targets=theme_service.TARGETS,
+        escuras=theme_service.ESCURAS,
+        vivas=theme_service.VIVAS,
+        presets=theme_service.preset_cards(colors),
+    )
+
+
+@bp.post("/aparencia")
+@login_required
+def aparencia_salvar():
+    if not current_user.is_admin:
+        flash("Acesso negado. Apenas administradores podem mudar a aparência.", "danger")
+        return redirect(url_for("pages.config"))
+    config = _empresa_config()
+    if config is None:
+        flash("Cadastre os dados da empresa antes de mudar a aparência.", "warning")
+        return redirect(url_for("config.empresa"))
+    try:
+        colors = theme_service.save(config, request.form)
+    except ValueError as exc:
+        flash(str(exc), "danger")
+        return redirect(url_for("config.aparencia"))
+    db.session.commit()
+    if colors == theme_service.DEFAULTS:
+        flash("Aparência padrão restaurada.", "success")
+    else:
+        flash("Aparência salva: o site já usa as novas cores, e o app passa a usar ao abrir de novo.", "success")
+    return redirect(url_for("config.aparencia"))
+
+
+@bp.get("/aparencia/previa.json")
+@login_required
+def aparencia_previa():
+    if not current_user.is_admin:
+        return jsonify({"error": "Acesso negado"}), 403
+    colors = {key: theme_service.normalize(request.args.get(key)) for key in theme_service.DEFAULTS}
+    if not all(colors.values()):
+        return jsonify({"error": "Informe as três cores em hexadecimal, como #2563eb."}), 400
+    return jsonify(theme_service.preview(colors))
+
+
+@bp.get("/tema.css")
+def theme_css():
+    """Liberada sem login (só expõe cores). Sem cache, para a aparência salva valer no próximo carregamento."""
+    response = make_response(theme_service.stylesheet(_empresa_config()))
+    response.headers["Content-Type"] = "text/css; charset=utf-8"
+    response.headers["Cache-Control"] = "no-store"
+    return response

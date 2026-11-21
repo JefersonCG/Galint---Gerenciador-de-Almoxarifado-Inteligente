@@ -1460,6 +1460,9 @@
                                 {% if membro.is_standard %}
                                 <span class="users-member-tag is-standard">Padrão</span>
                                 {% endif %}
+                                {% if membro.pode_ajustar_estoque and not membro.is_admin %}
+                                <span class="users-member-tag is-standard" title="Pode alterar o estoque na conferência física">Altera estoque</span>
+                                {% endif %}
                             </div>
                         </div>
 

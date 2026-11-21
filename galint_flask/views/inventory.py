@@ -2216,6 +2216,7 @@ def stock_count_item_lookup():
     # A foto ajuda a conferir que o código lido é mesmo o item que está na mão.
     foto_path = stock_count_service.photo_static_path(item)
     payload["foto_url"] = url_for("static", filename=foto_path) if foto_path else None
+    payload["pode_ajustar"] = stock_count_service.can_adjust_stock(current_user)
     return jsonify({"success": True, "item": payload})
 
 
@@ -2224,6 +2225,7 @@ def stock_count_item_lookup():
 def stock_count_item_adjust(codigo: str):
     user_id = str(getattr(current_user, "matricula", "") or getattr(current_user, "id", "")).strip()
     try:
+        stock_count_service.ensure_can_adjust_stock(current_user)
         result = stock_count_service.apply_count(
             codigo,
             request.get_json(silent=True),

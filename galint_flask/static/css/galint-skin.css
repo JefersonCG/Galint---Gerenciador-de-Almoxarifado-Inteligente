@@ -1,0 +1,59 @@
+/*
+ * Aparência do GALINT (Configurações → Aparência), pedida em 21/11/2026 no molde da skin do Pipocas.
+ *
+ * As variáveis --skin-* vêm de /configuracoes/tema.css e só existem quando a aparência foi
+ * personalizada. Cada regra usa a cor original do qss_like.css (ou do Bootstrap) como reserva:
+ * sem personalização, o site fica idêntico ao padrão. As contas dos tons ficam em
+ * services/theme_service.py.
+ */
+:root {
+    --accent: var(--skin-accent, var(--galint-azul-500, #2563eb));
+}
+
+body,
+html,
+.layout-shell,
+.sidebar-column {
+    background: var(--skin-bg, var(--bg));
+}
+
+.app-body {
+    background: linear-gradient(180deg, var(--skin-body-1, #0c1119), var(--skin-body-2, var(--galint-neutro-900, #0f172a)));
+}
+
+.sidebar-wrapper {
+    background: linear-gradient(180deg, var(--skin-menu-1, #0f1725), var(--skin-menu-2, #111827) 58%, var(--skin-menu-3, var(--galint-neutro-900, #0f172a)));
+}
+
+.topbar {
+    background: linear-gradient(120deg, var(--skin-topbar-1, #1e3a8a), var(--skin-topbar-2, var(--galint-azul-500, #2563eb)) 58%, var(--skin-topbar-3, var(--galint-ciano-400, #38bdf8)));
+}
+
+.sidebar-link.active {
+    background: linear-gradient(135deg, var(--skin-accent-soft, rgba(37, 99, 235, 0.22)), var(--skin-accent-softer, rgba(56, 189, 248, 0.12)));
+    border-color: var(--skin-accent-line, rgba(96, 165, 250, 0.28));
+}
+
+.sidebar-menu .collapse > .sidebar-link.active {
+    background: linear-gradient(135deg, var(--skin-accent-soft, rgba(37, 99, 235, 0.3)), var(--skin-accent-softer, rgba(59, 130, 246, 0.14)));
+    border-color: var(--skin-accent-line, rgba(125, 211, 252, 0.28));
+}
+
+.sidebar-menu .collapse > .sidebar-link.active::before {
+    background: var(--skin-brand, var(--galint-ciano-300, #7dd3fc));
+}
+
+.btn-primary {
+    --bs-btn-color: var(--skin-on-accent, #fff);
+    --bs-btn-bg: var(--skin-accent, #0d6efd);
+    --bs-btn-border-color: var(--skin-accent, #0d6efd);
+    --bs-btn-hover-color: var(--skin-on-accent, #fff);
+    --bs-btn-hover-bg: var(--skin-accent-hover, #0b5ed7);
+    --bs-btn-hover-border-color: var(--skin-accent-hover, #0a58ca);
+    --bs-btn-active-color: var(--skin-on-accent, #fff);
+    --bs-btn-active-bg: var(--skin-accent-hover, #0a58ca);
+    --bs-btn-active-border-color: var(--skin-accent-hover, #0a53be);
+    --bs-btn-disabled-color: var(--skin-on-accent, #fff);
+    --bs-btn-disabled-bg: var(--skin-accent, #0d6efd);
+    --bs-btn-disabled-border-color: var(--skin-accent, #0d6efd);
+}

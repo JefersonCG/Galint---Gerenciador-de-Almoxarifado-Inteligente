@@ -9,6 +9,8 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <link rel="stylesheet" href="${url_for('static', filename='css/galint-tokens.css')}?v=20260924">
     <link rel="stylesheet" href="${url_for('static', filename='css/qss_like.css')}?v=20261106">
+    <link rel="stylesheet" href="${url_for('static', filename='css/galint-skin.css')}?v=20261121">
+    <link rel="stylesheet" href="${url_for('config.theme_css')}">
     <link rel="stylesheet" href="${url_for('static', filename='css/consumption-search.css')}?v=20261106">
     <link rel="stylesheet" href="${url_for('static', filename='css/stock-count-modal.css')}?v=20261119-categorias">
     <script src="${url_for('static', filename='js/galint-core.js')}?v=20260924"></script>
@@ -231,7 +233,7 @@
     <script src="${url_for('static', filename='js/nf-search-modal.js')}?v=20261105"></script>
     % endif
     % if current_user.is_authenticated and endpoint_exists('inventory.stock_count_item_lookup'):
-    <script src="${url_for('static', filename='js/stock-count-modal.js')}?v=20261119-foto"></script>
+    <script src="${url_for('static', filename='js/stock-count-modal.js')}?v=20261121-permissao"></script>
     % endif
     % if current_user.is_authenticated and endpoint_exists('inventory.stock_count_workbook') and endpoint_exists('inventory.stock_count_categories'):
     <script src="${url_for('static', filename='js/stock-count-workbook.js')}?v=20261119"></script>

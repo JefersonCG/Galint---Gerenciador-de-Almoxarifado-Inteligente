@@ -27,6 +27,7 @@ class UserPayload:
     senha: str | None
     is_admin: bool
     is_standard: bool
+    pode_ajustar_estoque: bool = False
 
 
 class UserService:
@@ -94,6 +95,7 @@ class UserService:
             senha_hash=senha_hash,
             is_admin=int(payload.is_admin),
             is_standard=int(payload.is_standard),
+            pode_ajustar_estoque=int(payload.pode_ajustar_estoque),
             barcode_token=self._generate_unique_barcode(matricula),
         )
         db.session.add(usuario)
@@ -120,6 +122,7 @@ class UserService:
         usuario.cargo = payload.cargo or ""
         usuario.is_admin = int(payload.is_admin)
         usuario.is_standard = int(payload.is_standard)
+        usuario.pode_ajustar_estoque = int(payload.pode_ajustar_estoque)
         if payload.senha:
             usuario.senha_hash = generate_password_hash(payload.senha)
 
@@ -421,6 +424,7 @@ class UserService:
             "cargo": usuario.cargo,
             "is_admin": bool(usuario.is_admin),
             "is_standard": bool(usuario.is_standard),
+            "pode_ajustar_estoque": bool(getattr(usuario, "pode_ajustar_estoque", 0)),
             "barcode_token": usuario.barcode_token,
         }
 

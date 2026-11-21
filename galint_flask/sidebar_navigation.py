@@ -135,6 +135,7 @@ def _build_system_settings_navigation(path: str, *, is_admin: bool) -> list[dict
 
     config_root_url = _optional_url("pages.config")
     system_images_url = _optional_url("config.imagens")
+    aparencia_url = _optional_url("config.aparencia") if is_admin else None
     empresa_url = _optional_url("config.empresa")
     relatorios_config_url = _optional_url("config.relatorios")
     updates_url = _optional_url("updates.index")
@@ -152,6 +153,7 @@ def _build_system_settings_navigation(path: str, *, is_admin: bool) -> list[dict
     settings_targets = [
         config_root_url,
         system_images_url,
+        aparencia_url,
         empresa_url,
         relatorios_config_url,
         updates_url,
@@ -173,6 +175,8 @@ def _build_system_settings_navigation(path: str, *, is_admin: bool) -> list[dict
         settings_children.append(_link_item("Painel do Sistema", config_root_url, "bi-gear-fill", path == config_root_url))
     if system_images_url:
         settings_children.append(_link_item("Imagens do Sistema", system_images_url, "bi-images", _path_matches(path, system_images_url)))
+    if aparencia_url:
+        settings_children.append(_link_item("Aparência", aparencia_url, "bi-palette-fill", _path_matches(path, aparencia_url)))
     if empresa_url:
         settings_children.append(_link_item("Empresa", empresa_url, "bi-building", _path_matches(path, empresa_url)))
     if relatorios_config_url:
@@ -296,6 +300,7 @@ def build_sidebar_navigation() -> dict[str, Any]:
 
     config_root_url = _optional_url("pages.config")
     system_images_url = _optional_url("config.imagens")
+    aparencia_url = _optional_url("config.aparencia") if is_admin else None
     empresa_url = _optional_url("config.empresa")
     relatorios_config_url = _optional_url("config.relatorios")
     updates_url = _optional_url("updates.index")
@@ -330,6 +335,7 @@ def build_sidebar_navigation() -> dict[str, Any]:
         [
             config_root_url,
             system_images_url,
+            aparencia_url,
             empresa_url,
             relatorios_config_url,
             updates_url,
@@ -413,6 +419,8 @@ def build_sidebar_navigation() -> dict[str, Any]:
             configuracoes_children.append(_link_item("Painel do Sistema", config_root_url, "bi-gear-fill", path == config_root_url))
         if system_images_url:
             configuracoes_children.append(_link_item("Imagens do Sistema", system_images_url, "bi-images", _path_matches(path, system_images_url)))
+        if aparencia_url:
+            configuracoes_children.append(_link_item("Aparência", aparencia_url, "bi-palette-fill", _path_matches(path, aparencia_url)))
         if empresa_url:
             configuracoes_children.append(_link_item("Empresa", empresa_url, "bi-building", _path_matches(path, empresa_url)))
         if relatorios_config_url:

@@ -868,6 +868,9 @@ class Usuario(UserMixin, db.Model):
     senha_hash: Mapped[str | None] = mapped_column(String, nullable=True)
     is_admin: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_standard: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    # Pode gravar a quantidade contada na conferência física (app e modal do site). Administradores
+    # podem sempre; os demais só consultam até o administrador marcar esta caixa (pedido de 21/11/2026).
+    pode_ajustar_estoque: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     barcode_token: Mapped[str | None] = mapped_column(String, unique=True, nullable=True)
     active_session_id: Mapped[str | None] = mapped_column(String, nullable=True)
 
@@ -2168,7 +2171,13 @@ class EmpresaConfig(db.Model):
     logo_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
     logo_width: Mapped[int] = mapped_column(Integer, default=150)
     logo_height: Mapped[int] = mapped_column(Integer, default=80)
-    
+
+    # Aparência (Configurações → Aparência): menu, destaque e fundo em #rrggbb. Vazio = cores
+    # originais do GALINT. O app lê as mesmas cores em /api/mobile/tema.
+    tema_menu: Mapped[str | None] = mapped_column(String(7), nullable=True)
+    tema_destaque: Mapped[str | None] = mapped_column(String(7), nullable=True)
+    tema_fundo: Mapped[str | None] = mapped_column(String(7), nullable=True)
+
     # Sistema
     primeira_execucao: Mapped[bool] = mapped_column(Boolean, default=True)
     setup_completo: Mapped[bool] = mapped_column(Boolean, default=False)

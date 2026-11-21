@@ -21,12 +21,34 @@ MOTIVO_BY_SOURCE = {
 }
 
 
+NO_PERMISSION_MESSAGE = (
+    "Você pode consultar, mas não alterar o estoque. "
+    "Peça a um administrador para marcar \"Pode alterar o estoque\" no seu cadastro."
+)
+
+
 class StockCountError(ValueError):
     """Erro que vira mensagem para quem está contando (status HTTP junto)."""
 
     def __init__(self, message: str, status: int = 400):
         super().__init__(message)
         self.status = status
+
+
+def can_adjust_stock(user: Any) -> bool:
+    """Gravar a contagem: administradores sempre; os demais só com "Pode alterar o estoque".
+
+    Até 21/11/2026 qualquer usuário logado gravava. A partir daí, por decisão do usuário, a consulta
+    continua livre e a gravação depende da permissão marcada em Usuários.
+    """
+    if user is None:
+        return False
+    return bool(getattr(user, "is_admin", 0)) or bool(getattr(user, "pode_ajustar_estoque", 0))
+
+
+def ensure_can_adjust_stock(user: Any) -> None:
+    if not can_adjust_stock(user):
+        raise StockCountError(NO_PERMISSION_MESSAGE, status=403)
 
 
 def photo_static_path(item: Item) -> str | None:

@@ -16,6 +16,14 @@ from galint_flask.views import api_mobile
 class _MobileUser:
     matricula = "op-7"
     nome = "Operador do App"
+    is_admin = 0
+    pode_ajustar_estoque = 1
+
+
+class _ReadOnlyMobileUser(_MobileUser):
+    matricula = "op-8"
+    nome = "Só consulta"
+    pode_ajustar_estoque = 0
 
 
 SNAPSHOT = {
@@ -39,7 +47,8 @@ def mobile_client(monkeypatch):
         GALINT_DISABLE_BACKGROUND_SERVICES=True,
     )
     app.register_blueprint(api_mobile.blueprint)
-    monkeypatch.setattr(api_mobile, "get_mobile_user", lambda token: _MobileUser() if token == "token-ok" else None)
+    users = {"token-ok": _MobileUser, "token-consulta": _ReadOnlyMobileUser}
+    monkeypatch.setattr(api_mobile, "get_mobile_user", lambda token: users[token]() if token in users else None)
     monkeypatch.setattr(api_mobile, "_mobile_user_block_info", lambda user: (False, None))
     monkeypatch.setattr(api_mobile, "_validate_mobile_session_token", lambda token, user: (True, None))
     monkeypatch.setattr(inventory_service, "get_stock_count_snapshot", lambda code: dict(SNAPSHOT, codigo=code))
@@ -130,3 +139,31 @@ def test_adjust_returns_engine_validation_message(mobile_client, monkeypatch):
     assert bad_mode.status_code == 400
     assert bad_mode.get_json()["message"] == "Modo de contagem inválido."
     assert no_code.status_code == 400
+
+
+def test_lookup_tells_app_whether_user_may_adjust(mobile_client):
+    allowed = mobile_client.get("/api/mobile/conferencia-estoque/item", query_string={"codigo": "7891133006266"}, headers=AUTH)
+    readonly = mobile_client.get(
+        "/api/mobile/conferencia-estoque/item",
+        query_string={"codigo": "7891133006266"},
+        headers={"Authorization": "Bearer token-consulta"},
+    )
+
+    assert allowed.get_json()["item"]["pode_ajustar"] is True
+    assert readonly.status_code == 200
+    assert readonly.get_json()["item"]["pode_ajustar"] is False
+
+
+def test_adjust_refused_without_stock_permission(mobile_client, monkeypatch):
+    calls = []
+    monkeypatch.setattr(inventory_service, "apply_admin_item_adjustments", lambda **kwargs: calls.append(kwargs) or {})
+
+    response = mobile_client.post(
+        "/api/mobile/conferencia-estoque/ajuste",
+        json={"codigo": "7891133006266", "mode": "direct", "quantity": "2"},
+        headers={"Authorization": "Bearer token-consulta"},
+    )
+
+    assert response.status_code == 403
+    assert "Pode alterar o estoque" in response.get_json()["message"]
+    assert calls == []

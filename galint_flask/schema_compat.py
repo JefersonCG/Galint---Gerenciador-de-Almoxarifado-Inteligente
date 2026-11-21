@@ -108,6 +108,22 @@ RUNTIME_SCHEMA_COMPAT_RULES: tuple[SchemaCompatRule, ...] = (
         ),
     ),
     SchemaCompatRule(
+        table_name="usuarios",
+        required_columns=("pode_ajustar_estoque",),
+        ddl_statements=(
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS pode_ajustar_estoque integer NOT NULL DEFAULT 0",
+        ),
+    ),
+    SchemaCompatRule(
+        table_name="empresa_config",
+        required_columns=("tema_menu", "tema_destaque", "tema_fundo"),
+        ddl_statements=(
+            "ALTER TABLE empresa_config ADD COLUMN IF NOT EXISTS tema_menu varchar(7)",
+            "ALTER TABLE empresa_config ADD COLUMN IF NOT EXISTS tema_destaque varchar(7)",
+            "ALTER TABLE empresa_config ADD COLUMN IF NOT EXISTS tema_fundo varchar(7)",
+        ),
+    ),
+    SchemaCompatRule(
         table_name="service_companies",
         required_columns=(
             "documents_json",

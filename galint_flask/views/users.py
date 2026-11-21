@@ -141,6 +141,7 @@ def _build_payload(form, *, matricula: str | None) -> UserPayload:
         senha=(form.get("senha") or "").strip() or None,
         is_admin=bool(form.get("is_admin")),
         is_standard=bool(form.get("is_standard")),
+        pode_ajustar_estoque=bool(form.get("pode_ajustar_estoque")),
     )
 
 
