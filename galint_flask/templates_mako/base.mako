@@ -10,7 +10,9 @@
     <link rel="stylesheet" href="${url_for('static', filename='css/galint-tokens.css')}?v=20260924">
     <link rel="stylesheet" href="${url_for('static', filename='css/qss_like.css')}?v=20261106">
     <link rel="stylesheet" href="${url_for('static', filename='css/galint-skin.css')}?v=20261121">
+    % if endpoint_exists('config.theme_css'):
     <link rel="stylesheet" href="${url_for('config.theme_css')}">
+    % endif
     <link rel="stylesheet" href="${url_for('static', filename='css/consumption-search.css')}?v=20261106">
     <link rel="stylesheet" href="${url_for('static', filename='css/stock-count-modal.css')}?v=20261119-categorias">
     <script src="${url_for('static', filename='js/galint-core.js')}?v=20260924"></script>
