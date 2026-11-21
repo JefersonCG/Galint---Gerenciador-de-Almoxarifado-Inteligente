@@ -28,6 +28,7 @@ from flask import current_app
 
 
 
+from .operation_visual_payload import human_observation
 from ..extensions import db
 
 from sqlalchemy import exc as sa_exc, func, or_
@@ -4007,9 +4008,10 @@ class TelegramService:
 
 
 
-            if evento.descricao:
+            obs_humana = human_observation(evento.descricao)
+            if obs_humana:
 
-                msg += f"   💬 Obs: {evento.descricao[:50]}\n"
+                msg += f"   💬 Obs: {obs_humana[:50]}\n"
 
 
 

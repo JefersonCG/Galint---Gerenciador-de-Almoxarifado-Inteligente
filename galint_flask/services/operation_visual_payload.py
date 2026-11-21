@@ -24,6 +24,35 @@ _FRACIONADA_RE = re.compile(
     r"RETIRADA\s+FRACIONADA:\s*([0-9]+(?:[.,][0-9]+)?)\s*([A-ZÇÃÕÁÉÍÓÚ]+)",
     re.IGNORECASE,
 )
+_MACHINE_TOKEN_RE = re.compile(r"^\s*[A-Z][A-Z0-9_]{2,}\s*=")
+_ADMIN_ADJUSTMENT_RE = re.compile(
+    r"^\s*Ajuste administrativo de saldo \[(?P<motivo>[^\]]*)\]:\s*exibido\s+(?P<antes>-?[\d.,]+)\s*->\s*(?P<depois>-?[\d.,]+)",
+    re.IGNORECASE,
+)
+
+
+def human_observation(text: Any) -> str | None:
+    """Observação que vale mostrar num aviso: só o que uma pessoa escreveu ou entende de primeira.
+
+    Pedido do usuário em 21/11/2026: o "Obs." dos avisos mostrava "UNIDADE=UNIDADE;QTD_ORIGINAL=1"
+    (dados técnicos gravados na saída para converter a unidade) e, nas contagens, o texto de
+    auditoria do ajuste ("Ajuste administrativo de saldo [Contagem física pelo app ...]: exibido
+    5 -> 4; legado ...; ledger ...; cache ..."). Os dados técnicos somem; o ajuste vira
+    "Conferência física: 5 → 4" (ou "Ajuste de saldo: ..." quando não veio da conferência).
+    """
+    raw = str(text or "").strip()
+    if not raw:
+        return None
+    adjustment = _ADMIN_ADJUSTMENT_RE.match(raw)
+    if adjustment:
+        motivo = adjustment.group("motivo").lower()
+        label = "Conferência física" if "contagem f" in motivo else "Ajuste de saldo"
+        antes = adjustment.group("antes").replace(".", ",")
+        depois = adjustment.group("depois").replace(".", ",")
+        return f"{label}: {antes} → {depois}"
+    parts = [part.strip() for part in raw.split(";")]
+    kept = [part for part in parts if part and not _MACHINE_TOKEN_RE.match(part)]
+    return "; ".join(kept) or None
 
 
 class OperationVisualPayloadService:
@@ -87,7 +116,7 @@ class OperationVisualPayloadService:
             "actor": OperationVisualPayloadService._actor_payload(actor, saida.matricula),
             "context": {
                 "local_servico": (saida.local_servico or "").strip() or None,
-                "observacao": (saida.observacao or "").strip() or None,
+                "observacao": human_observation(saida.observacao),
             },
             "batch_label": OperationVisualPayloadService._batch_label(saida, item),
             "source_label": "notificacao operacional",
@@ -120,10 +149,10 @@ class OperationVisualPayloadService:
                 nome=getattr(actor, "nome", None),
                 matricula=actor_matricula,
             )
-            clean_description = return_metadata.get("clean_description") or (event.descricao or "").strip() or None
+            clean_description = human_observation(return_metadata.get("clean_description") or event.descricao)
         else:
             actor = OperationVisualPayloadService._get_user(event.matricula)
-            clean_description = (event.descricao or "").strip() or None
+            clean_description = human_observation(event.descricao)
 
         return {
             "kind": kind,
@@ -199,7 +228,7 @@ class OperationVisualPayloadService:
             },
             "context": {
                 "local_servico": (str(context.get("local_servico", "") or "").strip() or None),
-                "observacao": (str(context.get("observacao", "") or "").strip() or None),
+                "observacao": human_observation(context.get("observacao")),
             },
             "batch_label": ((getattr(item, "lote", None) or "").strip() if item else None) or None,
             "source_label": source_label or "notificacao operacional",
