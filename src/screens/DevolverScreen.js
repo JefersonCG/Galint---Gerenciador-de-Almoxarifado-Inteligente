@@ -17,7 +17,8 @@ import ApiService from '../services/api';
 import { formatQuantityWithPackaging } from '../utils/formatQuantity';
 import { resolvePhotoUri } from '../components/StockCountPanel';
 import { heroPalette, heroShadow, heroSoftShadow } from '../theme/heroTheme';
-import { returnMessage, shareOnWhatsApp, unitLabel } from '../utils/shareWhatsApp';
+import { returnMessage, unitLabel } from '../utils/shareWhatsApp';
+import DoneModal from '../components/DoneModal';
 
 function sanitizeIntText(text) {
     if (text == null) return '';
@@ -53,6 +54,7 @@ export default function DevolverScreen({ navigation, route }) {
         navigation.setOptions({ title: isFerramenta ? 'Devolver ferramenta' : 'Devolver material' });
     }, [isFerramenta, navigation]);
     const [photoFailed, setPhotoFailed] = useState(false);
+    const [done, setDone] = useState(null); // janela de conclusão (DoneModal)
     const photoUri = photoFailed ? null : resolvePhotoUri(item);
 
     const saldoAtual = useMemo(() => {
@@ -189,16 +191,22 @@ export default function DevolverScreen({ navigation, route }) {
             });
 
             // "Nova devolução" volta ao leitor de código (a tela anterior); "Concluir" volta ao menu.
-            Alert.alert(
-                'Devolução registrada',
-                `${quantidadeTexto} • saldo agora: ${novoSaldoFormatado}`,
-                [
-                    { text: 'WhatsApp', onPress: () => { shareOnWhatsApp(mensagem); navigation.goBack(); } },
-                    { text: 'Nova devolução', onPress: () => navigation.goBack() },
-                    { text: 'Concluir', onPress: () => navigation.navigate('Movimento', { user, tab: 'devolucao' }) },
-                ],
-                { cancelable: false }
-            );
+            setDone({
+                title: 'Devolução registrada',
+                itemName: item?.descricao || item?.nome || 'Item',
+                summary: `${quantidadeTexto} • saldo agora: ${novoSaldoFormatado}`,
+                photoUri: resolvePhotoUri(item),
+                message: mensagem,
+                newLabel: 'Nova devolução',
+                onNew: () => {
+                    setDone(null);
+                    navigation.goBack();
+                },
+                onFinish: () => {
+                    setDone(null);
+                    navigation.navigate('Movimento', { user, tab: 'devolucao' });
+                },
+            });
         } catch (e) {
             Alert.alert('Erro', 'Falha ao registrar devolução');
         } finally {
@@ -312,6 +320,7 @@ export default function DevolverScreen({ navigation, route }) {
                     </TouchableOpacity>
                 </View>
             </ScrollView>
+            <DoneModal done={done} />
         </KeyboardAvoidingView>
     );
 }

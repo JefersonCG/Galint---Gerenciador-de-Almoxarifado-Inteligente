@@ -1,7 +1,8 @@
 // Compartilhar uma saída ou devolução no WhatsApp (2.2.1, pedido do usuário em 21/11/2026: "todas
-// as saídas com a opção de compartilhar para o WhatsApp"). Abre o WhatsApp com a mensagem pronta;
-// sem WhatsApp no celular, abre o compartilhar do Android.
-import { Linking, Share } from 'react-native';
+// as saídas com a opção de compartilhar para o WhatsApp"). Desde a 2.2.2 vai a FOTO do item com o
+// texto como legenda, pelo módulo nativo GalintShare (android/.../GalintShareModule.kt); sem o
+// módulo, sem foto ou sem WhatsApp, cai no texto pelo link do WhatsApp ou no compartilhar do Android.
+import { Linking, NativeModules, Share } from 'react-native';
 
 function nowLabel() {
     try {
@@ -24,7 +25,7 @@ export function unitLabel(quantity, unit) {
 export function withdrawalMessage({ items, retiradoPor, local, custodia, registradoPor }) {
     const list = Array.isArray(items) ? items : [];
     const tools = list.some((entry) => entry?.ferramenta);
-    const lines = [tools && list.length === 1 ? '🔧 *Retirada de ferramenta — GALINT*' : '📤 *Saída de material — GALINT*'];
+    const lines = [tools && list.length === 1 ? '🔧 *Retirada de ferramenta*' : '📤 *Saída de material*'];
     if (list.length === 1) {
         lines.push(`Item: ${list[0].descricao}`);
         lines.push(`Quantidade: ${list[0].quantidade}`);
@@ -41,7 +42,7 @@ export function withdrawalMessage({ items, retiradoPor, local, custodia, registr
 }
 
 export function returnMessage({ descricao, quantidade, devolvidoPor, ferramenta, registradoPor }) {
-    const lines = [ferramenta ? '🔧 *Devolução de ferramenta — GALINT*' : '📥 *Devolução de material — GALINT*'];
+    const lines = [ferramenta ? '🔧 *Devolução de ferramenta*' : '📥 *Devolução de material*'];
     lines.push(`Item: ${descricao}`);
     lines.push(`Quantidade: ${quantidade}`);
     if (devolvidoPor) lines.push(`Devolvido por: ${devolvidoPor}`);
@@ -50,8 +51,18 @@ export function returnMessage({ descricao, quantidade, devolvidoPor, ferramenta,
     return lines.join('\n');
 }
 
-export async function shareOnWhatsApp(text) {
+// photoUrl: endereço completo da foto do item (http://servidor/static/...), ou vazio.
+export async function shareOnWhatsApp(text, photoUrl = null) {
     const message = String(text || '');
+    const nativeShare = NativeModules?.GalintShare;
+    if (nativeShare?.shareToWhatsApp) {
+        try {
+            await nativeShare.shareToWhatsApp(message, photoUrl || null);
+            return true;
+        } catch (error) {
+            // segue para o texto puro
+        }
+    }
     try {
         await Linking.openURL(`whatsapp://send?text=${encodeURIComponent(message)}`);
         return true;

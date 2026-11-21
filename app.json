@@ -2,8 +2,8 @@
   "expo": {
     "name": "GALINT - Sublime Max",
     "slug": "galint-mobile",
-    "version": "2.2.1",
-    "runtimeVersion": "2.2.1",
+    "version": "2.2.2",
+    "runtimeVersion": "2.2.2",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "icon": "./assets/icone1.png",
@@ -21,7 +21,7 @@
     },
     "android": {
       "package": "com.galint.mobile",
-      "versionCode": 14,
+      "versionCode": 15,
       "adaptiveIcon": {
         "foregroundImage": "./assets/icone1.png",
         "backgroundColor": "#0d6efd"

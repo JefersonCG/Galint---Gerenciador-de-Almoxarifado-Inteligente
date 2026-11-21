@@ -18,7 +18,9 @@ import {
 } from 'react-native';
 import ApiService from '../services/api';
 import { heroPalette, heroShadow, heroSoftShadow } from '../theme/heroTheme';
-import { shareOnWhatsApp, unitLabel, withdrawalMessage } from '../utils/shareWhatsApp';
+import { unitLabel, withdrawalMessage } from '../utils/shareWhatsApp';
+import DoneModal from '../components/DoneModal';
+import { resolvePhotoUri } from '../components/StockCountPanel';
 
 function sanitizeIntText(text) {
     if (text == null) return '';
@@ -408,6 +410,8 @@ export default function RetiradaScreen({ navigation, route }) {
         );
     }, [retiranteBusca, usuarios]);
 
+    const [done, setDone] = useState(null); // janela de conclusão (DoneModal)
+
     const titulo = useMemo(() => {
         if (multi) return 'Retirar vários itens';
         if (tipo === 'ferramenta' || isFerramenta) return 'Retirar ferramenta';
@@ -613,23 +617,28 @@ export default function RetiradaScreen({ navigation, route }) {
                                         local: localServicoNormalizado,
                                         registradoPor: user?.nome,
                                     });
-                                    Alert.alert(
-                                        'Retirada registrada',
-                                        `${sucessos.length} item(ns) retirado(s) por ${retiranteSelecionado.nome}.`,
-                                        [
-                                            { text: 'WhatsApp', onPress: () => { shareOnWhatsApp(mensagem); navigation.goBack(); } },
-                                            {
-                                                text: 'Nova Retirada',
-                                                onPress: () => {
-                                                    setItensRetirada([]);
-                                                    setItemAtual({ item: null, quantidade: '1', codigoBusca: '' });
-                                                    setItemAtualId(0);
-                                                    setLocalServico('');
-                                                }
-                                            },
-                                            { text: 'Voltar', onPress: () => navigation.goBack() }
-                                        ]
-                                    );
+                                    const comFoto = itensRetirada.find((entry) => resolvePhotoUri(entry?.item));
+                                    setDone({
+                                        title: 'Retirada registrada',
+                                        itemName: itensRetirada.length === 1
+                                            ? (itensRetirada[0]?.item?.descricao || 'Item')
+                                            : `${sucessos.length} itens`,
+                                        summary: `Retirado por ${retiranteSelecionado.nome}`,
+                                        photoUri: comFoto ? resolvePhotoUri(comFoto.item) : null,
+                                        message: mensagem,
+                                        newLabel: 'Nova retirada',
+                                        onNew: () => {
+                                            setDone(null);
+                                            setItensRetirada([]);
+                                            setItemAtual({ item: null, quantidade: '1', codigoBusca: '' });
+                                            setItemAtualId(0);
+                                            setLocalServico('');
+                                        },
+                                        onFinish: () => {
+                                            setDone(null);
+                                            navigation.goBack();
+                                        },
+                                    });
                                 }
                             } else {
                                 Alert.alert('Erro', result.message || 'Falha ao processar retirada múltipla');
@@ -809,16 +818,22 @@ export default function RetiradaScreen({ navigation, route }) {
             });
 
             // "Nova retirada" volta ao leitor de código (a tela anterior); "Concluir" volta ao menu.
-            Alert.alert(
-                'Retirada registrada',
-                `${quantidadeTexto} • saldo agora: ${novoSaldo ?? 'atualizado'}`,
-                [
-                    { text: 'WhatsApp', onPress: () => { shareOnWhatsApp(mensagem); navigation.goBack(); } },
-                    { text: 'Nova retirada', onPress: () => navigation.goBack() },
-                    { text: 'Concluir', onPress: () => navigation.navigate('Movimento', { user }) },
-                ],
-                { cancelable: false }
-            );
+            setDone({
+                title: 'Retirada registrada',
+                itemName: itemAtual.item?.descricao || itemAtual.item?.nome || 'Item',
+                summary: `${quantidadeTexto} • saldo agora: ${novoSaldo ?? 'atualizado'}`,
+                photoUri: resolvePhotoUri(itemAtual.item),
+                message: mensagem,
+                newLabel: 'Nova retirada',
+                onNew: () => {
+                    setDone(null);
+                    navigation.goBack();
+                },
+                onFinish: () => {
+                    setDone(null);
+                    navigation.navigate('Movimento', { user });
+                },
+            });
         } catch (e) {
             Alert.alert('Erro', 'Falha ao registrar retirada');
         } finally {
@@ -1232,6 +1247,8 @@ export default function RetiradaScreen({ navigation, route }) {
                     </TouchableOpacity>
                 </View>
             </ScrollView>
+
+            <DoneModal done={done} />
 
             {/* Modal de Embalagens (igual Flask web) */}
             <Modal
