@@ -409,8 +409,8 @@ export default function EstoqueScreen({ navigation, route }) {
 
     const handleRefresh = () => {
         setRefreshing(true);
-        // Forçar um sync Cycle agora
-        SyncService.runSync().finally(() => {
+        // Forçar um sync Cycle agora (baixa a lista na hora, sem esperar os 2 min do ciclo)
+        SyncService.runSync(true).finally(() => {
             loadEstoque(searchQuery);
             loadDailyCustody(true);
             loadOverviewSummary(true);
@@ -534,8 +534,8 @@ export default function EstoqueScreen({ navigation, route }) {
             
             console.log('[ManualSync] Iniciando sincronização manual...');
             
-            // Forçar sync de operações pendentes
-            await SyncService.runSync();
+            // Forçar sync de operações pendentes (e a lista, sem esperar os 2 min do ciclo)
+            await SyncService.runSync(true);
             
             // Recarregar estoque
             await loadEstoque(searchQuery, true);

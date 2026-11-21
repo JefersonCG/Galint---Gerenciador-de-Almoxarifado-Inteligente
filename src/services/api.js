@@ -78,6 +78,18 @@ async function getDeviceInfo() {
     }
 }
 
+// Lista completa do estoque: o servidor pode levar alguns segundos; desistir cedo e pedir de novo
+// só acumula trabalho nele. Conferência: um item só, mas com folga se o servidor estiver ocupado.
+const FULL_STOCK_TIMEOUT_MS = 60000;
+const STOCK_COUNT_TIMEOUT_MS = 20000;
+
+function isTimeoutError(error) {
+    if (!error || error.response) return false;
+    const code = (error.code || '').toString().toUpperCase();
+    const message = (error.message || '').toString().toLowerCase();
+    return code === 'ECONNABORTED' || code === 'ETIMEDOUT' || message.includes('timeout');
+}
+
 function isNetworkError(error) {
     if (!error) return false;
     if (!error.response) return true;
@@ -1001,12 +1013,21 @@ class ApiService {
         }
     }
 
+    // Devolve o item ou null. Quando o servidor não responde, procura na base do celular; se
+    // também não achar lá, lastItemLookupFailure diz o motivo ('network') para a tela não
+    // mostrar "Item não encontrado" quando o problema foi a conexão.
     async buscarItemPorCodigo(codigo) {
+        this.lastItemLookupFailure = null;
+        const fromOfflineBase = async () => {
+            const offlineItem = await getOfflineItemByCodigo(codigo);
+            if (!offlineItem) this.lastItemLookupFailure = 'network';
+            return offlineItem;
+        };
         try {
             await this.ensureOfflineReady();
             const online = await this.isOnline();
             if (!online) {
-                return await getOfflineItemByCodigo(codigo);
+                return await fromOfflineBase();
             }
             const token = await AsyncStorage.getItem('token');
             if (!token) {
@@ -1030,7 +1051,7 @@ class ApiService {
         } catch (error) {
             console.error('Erro ao buscar item:', error);
             if (isNetworkError(error)) {
-                return await getOfflineItemByCodigo(codigo);
+                return await fromOfflineBase();
             }
             return null;
         }
@@ -1093,8 +1114,10 @@ class ApiService {
                 const items = await searchOfflineItems(search);
                 return { success: true, data: items, items, offline: true };
             }
+            // Lista completa: espera até 60 s em vez de desistir em 10 s e pedir de novo.
             const response = await this.client.get('/api/mobile/estoque', {
-                params: { search }
+                params: { search },
+                timeout: FULL_STOCK_TIMEOUT_MS,
             });
             const items = normalizeEstoquePayload(response.data);
             await upsertItems(items);
@@ -1223,7 +1246,8 @@ class ApiService {
 
             // Buscar estoque completo (sem filtro)
             const response = await this.client.get('/api/mobile/estoque', {
-                params: { search: '' }
+                params: { search: '' },
+                timeout: FULL_STOCK_TIMEOUT_MS,
             });
 
             const items = normalizeEstoquePayload(response.data);
@@ -1304,9 +1328,13 @@ class ApiService {
             const response = await this.client.get('/api/mobile/conferencia-estoque/item', {
                 params: { codigo: code },
                 headers: token ? { Authorization: `Bearer ${token}` } : {},
+                timeout: STOCK_COUNT_TIMEOUT_MS,
             });
             return { success: true, item: response.data?.item || null };
         } catch (error) {
+            if (isTimeoutError(error)) {
+                return { success: false, offline: true, message: 'O servidor demorou a responder. Leia o código de novo.' };
+            }
             if (isNetworkError(error)) {
                 return { success: false, offline: true, message: 'Sem conexão com o servidor. A conferência precisa estar online.' };
             }
@@ -1330,9 +1358,14 @@ class ApiService {
             const token = await AsyncStorage.getItem('token');
             const response = await this.client.post('/api/mobile/conferencia-estoque/ajuste', payload, {
                 headers: token ? { Authorization: `Bearer ${token}` } : {},
+                timeout: STOCK_COUNT_TIMEOUT_MS,
             });
             return { success: true, ...(response.data || {}) };
         } catch (error) {
+            if (isTimeoutError(error)) {
+                // A gravação pode ter chegado ao servidor: quem conta confere o saldo ao ler de novo.
+                return { success: false, offline: true, message: 'O servidor demorou a responder. Leia o código de novo para ver se a contagem foi gravada.' };
+            }
             if (isNetworkError(error)) {
                 return { success: false, offline: true, message: 'Sem conexão com o servidor. A contagem não foi salva.' };
             }

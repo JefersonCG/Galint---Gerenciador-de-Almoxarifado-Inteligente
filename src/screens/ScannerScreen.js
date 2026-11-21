@@ -17,6 +17,15 @@ import ApiService from '../services/api';
 
 const { width } = Dimensions.get('window');
 
+// "Item não encontrado" só quando o servidor respondeu que não existe; se ele não respondeu e o
+// item também não está na base do celular, a mensagem diz isso (antes as duas eram iguais).
+function itemNotFoundMessage() {
+    if (ApiService.lastItemLookupFailure === 'network') {
+        return 'O servidor não respondeu e este item não está na base do celular. Tente ler de novo.';
+    }
+    return 'Item não encontrado';
+}
+
 export default function ScannerScreen({ navigation, route }) {
     const mode = route?.params?.mode || 'lookup';
     const user = route?.params?.user;
@@ -83,7 +92,7 @@ export default function ScannerScreen({ navigation, route }) {
             if (mode === 'withdraw_multi') {
                 const item = await ApiService.buscarItemPorCodigo(data);
                 if (!item) {
-                    Alert.alert('Erro', 'Item não encontrado');
+                    Alert.alert('Erro', itemNotFoundMessage());
                     setScanned(false);
                     return;
                 }
@@ -104,7 +113,7 @@ export default function ScannerScreen({ navigation, route }) {
             if (mode === 'withdraw' || mode === 'withdraw_fraction' || mode === 'tool_withdraw' || mode === 'tool_return' || mode === 'material_return' || mode === 'return') {
                 const item = await ApiService.buscarItemPorCodigo(data);
                 if (!item) {
-                    Alert.alert('Erro', 'Item não encontrado');
+                    Alert.alert('Erro', itemNotFoundMessage());
                     setScanned(false);
                     return;
                 }

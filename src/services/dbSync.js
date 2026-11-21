@@ -10,9 +10,15 @@ import {
 } from './offlineDb';
 import NetInfo from '@react-native-community/netinfo';
 
+// O ciclo de 5 s só envia operações feitas offline (quando existem). A lista completa do
+// estoque desce no máximo a cada 2 min: em 21/11/2026 ela descia a cada 5 s, o servidor levava
+// ~28 s para montá-la, o app desistia em 10 s e pedia de novo, e os pedidos abandonados
+// entupiam o servidor (a leitura de código dava "Sem conexão" / "Item não encontrado").
 const SYNC_INTERVAL_MS = 5000;
+const PULL_INTERVAL_MS = 2 * 60 * 1000;
 let syncInterval = null;
 let isSyncing = false;
+let lastPullAttemptAt = 0;
 let syncListeners = [];
 
 export const SyncService = {
@@ -42,9 +48,10 @@ export const SyncService = {
         syncListeners.forEach(cb => cb(event));
     },
 
-    runSync: async () => {
+    // force = true: "Sincronizar agora" do menu (baixa a lista na hora, sem esperar os 2 min).
+    runSync: async (force = false) => {
         if (isSyncing) return;
-        
+
         try {
             const state = await NetInfo.fetch();
             if (!state.isConnected) {
@@ -52,17 +59,23 @@ export const SyncService = {
             }
 
             isSyncing = true;
-            // console.log('[SyncService] Sincronizando...');
 
-            // 1. PUSH: Enviar pendências para a API
-            await SyncService.pushPendingOps();
+            // 1. PUSH: Enviar pendências para a API (só chama o servidor se houver alguma)
+            const pushed = await SyncService.pushPendingOps();
 
-            // 2. PULL: Atualizar estoque local (Full Snapshot ou Delta se a API suportar)
-            // Por simplicidade, faremos um fetch do estoque para manter sync total
-            // Se o payload for muito grande, a API deveria suportar delta, mas aqui vamos full.
-            await SyncService.pullEstoque();
+            // 2. PULL: lista completa no máximo a cada 2 min. Conta a partir da tentativa,
+            // não do sucesso: se o servidor estiver lento, não insiste a cada 5 s.
+            const now = Date.now();
+            const pullDue = force === true || now - lastPullAttemptAt >= PULL_INTERVAL_MS;
+            if (pullDue) {
+                lastPullAttemptAt = now;
+                await SyncService.pullEstoque();
+            }
 
-            SyncService.notifyListeners('synced');
+            // As telas recarregam resumo e custódia ao ouvir este aviso: só avisar quando algo mudou.
+            if (pullDue || pushed > 0) {
+                SyncService.notifyListeners('synced');
+            }
 
         } catch (error) {
             console.error('[SyncService] Erro no ciclo:', error);
@@ -73,7 +86,7 @@ export const SyncService = {
 
     pushPendingOps: async () => {
         const ops = await listPendingOps();
-        if (ops.length === 0) return;
+        if (ops.length === 0) return 0;
 
         console.log(`[SyncService] Enviando ${ops.length} operações pendentes...`);
 
@@ -126,6 +139,7 @@ export const SyncService = {
                 await incrementPendingRetry(op.id);
             }
         }
+        return ops.length;
     },
 
     pullEstoque: async () => {
