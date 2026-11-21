@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <link rel="stylesheet" href="${url_for('static', filename='css/galint-tokens.css')}?v=20260924">
     <link rel="stylesheet" href="${url_for('static', filename='css/qss_like.css')}?v=20261106">
-    <link rel="stylesheet" href="${url_for('static', filename='css/galint-skin.css')}?v=20261121">
+    <link rel="stylesheet" href="${url_for('static', filename='css/galint-skin.css')}?v=20261121b">
     % if endpoint_exists('config.theme_css'):
     <link rel="stylesheet" href="${url_for('config.theme_css')}">
     % endif

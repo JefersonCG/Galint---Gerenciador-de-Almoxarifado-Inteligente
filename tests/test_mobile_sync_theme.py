@@ -187,31 +187,49 @@ def test_theme_defaults_keep_site_identical():
     assert theme_service.stylesheet(None).startswith("/*")
     assert theme_service.problems(dict(theme_service.DEFAULTS)) == ([], [])
     preview = theme_service.preview(dict(theme_service.DEFAULTS))
-    assert set(preview["variables"].values()) == {"initial"}
+    skin = {name: value for name, value in preview["variables"].items() if name.startswith("--skin-")}
+    assert set(skin.values()) == {"initial"}
+    # As variáveis do próprio Bootstrap voltam aos valores dele (initial apagaria a cor primária).
+    assert preview["variables"]["--bs-primary"] == "#0d6efd"
 
 
-def test_theme_refuses_light_background_or_menu():
+def test_theme_refuses_dark_background_like_pipocas():
+    # O conteúdo do GALINT é claro (textos escuros): o fundo só aceita tons claros.
     config = SimpleNamespace(tema_menu=None, tema_destaque=None, tema_fundo=None)
-    with pytest.raises(ValueError, match="fundo está claro demais"):
-        theme_service.save(config, {"menu": "#111827", "destaque": "#2563eb", "fundo": "#fffaf2"})
-    with pytest.raises(ValueError, match="menu lateral está claro demais"):
-        theme_service.save(config, {"menu": "#f8c8dc", "destaque": "#2563eb", "fundo": "#141822"})
+    with pytest.raises(ValueError, match="fundo está escuro demais"):
+        theme_service.save(config, {"menu": "#111827", "destaque": "#2563eb", "fundo": "#15120e"})
     assert config.tema_fundo is None
+    # O menu aceita qualquer cor, pastel inclusive: o texto dele fica escuro sozinho.
+    saved = theme_service.save(config, {"menu": "#f7c6e8", "destaque": "#bfe3ff", "fundo": "#fff8fc"})
+    assert saved["menu"] == "#f7c6e8"
+    assert theme_service.derive(**saved)["--skin-on-menu"] == theme_service.DARK_TEXT
 
 
-def test_custom_theme_reaches_site_and_app_with_readable_tones():
+def test_dark_background_saved_by_first_version_falls_back_to_default():
+    # Skin "Brasa" salva em 21/11/2026 na primeira versão (fundo escuro): o conteúdo ficaria ilegível.
+    config = SimpleNamespace(tema_menu="#1f1a14", tema_destaque="#f47c20", tema_fundo="#15120e")
+    colors = theme_service.current(config)
+    assert colors == {"menu": "#1f1a14", "destaque": "#f47c20", "fundo": theme_service.DEFAULTS["fundo"]}
+    assert "--skin-content-bg:radial-gradient" in theme_service.stylesheet(config)
+
+
+def test_custom_theme_reaches_site_cards_and_app_with_readable_tones():
     config = SimpleNamespace(tema_menu=None, tema_destaque=None, tema_fundo=None)
-    saved = theme_service.save(config, {"menu": "#0b2234", "destaque": "#0fa3b1", "fundo": "#0a1a26"})
+    saved = theme_service.save(config, {"menu": "#1b2a4a", "destaque": "#0fa3b1", "fundo": "#f3f8fb"})
 
     css = theme_service.stylesheet(config)
     palette = theme_service.app_palette(config)
 
-    assert saved == {"menu": "#0b2234", "destaque": "#0fa3b1", "fundo": "#0a1a26"}
-    assert "--skin-accent:#0fa3b1" in css and "--skin-bg:#0a1a26" in css
+    assert saved == {"menu": "#1b2a4a", "destaque": "#0fa3b1", "fundo": "#f3f8fb"}
+    for name in ("--skin-accent:#0fa3b1", "--skin-bg:#f3f8fb", "--skin-panel-line:", "--bs-primary:", "--skin-content-bg:"):
+        assert name in css
+    # Links e text-primary sobre o fundo claro ficam legíveis.
+    derived = theme_service.derive(**saved)
+    assert theme_service.contrast(derived["--bs-primary"], "#f3f8fb") >= 4.5
+    # O app segue escuro, no matiz do menu, e os botões (texto escuro) leem bem sobre o fundo dele.
     assert palette["personalizada"] is True
-    assert palette["app"]["bg"] == "#0a1a26" and palette["app"]["bgAlt"] == "#0b2234"
-    # Botões do app levam texto escuro: o destaque é clareado até ler bem sobre o fundo.
-    assert theme_service.contrast(palette["app"]["primaryStrong"], "#0a1a26") >= 4.5
+    assert theme_service.luminance(palette["app"]["bg"]) < 0.02
+    assert theme_service.contrast(palette["app"]["primaryStrong"], palette["app"]["bg"]) >= 4.5
 
     theme_service.save(config, {"acao": "padrao"})
     assert config.tema_menu is None and theme_service.app_palette(config)["personalizada"] is False

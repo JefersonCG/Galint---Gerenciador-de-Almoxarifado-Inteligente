@@ -7,42 +7,148 @@
  * services/theme_service.py.
  */
 :root {
-    --accent: var(--skin-accent, var(--galint-azul-500, #2563eb));
+    --accent: var(--skin-accent-text, var(--galint-azul-500, #2563eb));
 }
 
+/* ---------- casca (atrás do menu) e barra do topo ---------- */
 body,
 html,
-.layout-shell,
-.sidebar-column {
-    background: var(--skin-bg, var(--bg));
+.layout-shell {
+    background: var(--skin-menu-3, var(--bg));
 }
 
 .app-body {
-    background: linear-gradient(180deg, var(--skin-body-1, #0c1119), var(--skin-body-2, var(--galint-neutro-900, #0f172a)));
+    background: var(--skin-menu-3, linear-gradient(180deg, #0c1119, var(--galint-neutro-900, #0f172a)));
+}
+
+.topbar {
+    background: linear-gradient(120deg, var(--skin-topbar-1, #1e3a8a), var(--skin-topbar-2, var(--galint-azul-500, #2563eb)) 58%, var(--skin-topbar-3, var(--galint-ciano-400, #38bdf8)));
+    /* A barra tem shadow-sm (!important) no base.html: a faixa do destaque vai na borda. */
+    border-bottom: var(--skin-topbar-border, 1px solid rgba(255, 255, 255, 0.08));
+}
+
+/* ---------- menu lateral (qualquer cor: o texto acompanha) ---------- */
+.sidebar-column {
+    background: var(--skin-menu-3, var(--bg));
+    border-right-color: var(--skin-menu-line, var(--shell-border));
 }
 
 .sidebar-wrapper {
     background: linear-gradient(180deg, var(--skin-menu-1, #0f1725), var(--skin-menu-2, #111827) 58%, var(--skin-menu-3, var(--galint-neutro-900, #0f172a)));
 }
 
-.topbar {
-    background: linear-gradient(120deg, var(--skin-topbar-1, #1e3a8a), var(--skin-topbar-2, var(--galint-azul-500, #2563eb)) 58%, var(--skin-topbar-3, var(--galint-ciano-400, #38bdf8)));
+.sidebar-brand {
+    background: var(--skin-menu-soft, rgba(255, 255, 255, 0.03));
+    border-bottom-color: var(--skin-menu-line, var(--shell-border));
+}
+
+.sidebar-wrapper .text-light {
+    color: var(--skin-on-menu, rgba(var(--bs-light-rgb), var(--bs-text-opacity, 1))) !important;
+}
+
+.sidebar-wrapper .text-white-50 {
+    color: var(--skin-nav, rgba(255, 255, 255, 0.5)) !important;
+}
+
+.sidebar-wrapper .text-muted {
+    color: var(--skin-nav, var(--bs-secondary-color)) !important;
+}
+
+.sidebar-link,
+.sidebar-sublink,
+.sidebar-group-toggle {
+    color: var(--skin-nav, var(--text-light));
+}
+
+.sidebar-link:hover,
+.sidebar-sublink:hover,
+.sidebar-group-toggle:hover {
+    background: var(--skin-menu-hover, rgba(255, 255, 255, 0.07));
+    border-color: var(--skin-menu-line, rgba(148, 163, 184, 0.14));
 }
 
 .sidebar-link.active {
+    color: var(--skin-on-menu, var(--text-light));
     background: linear-gradient(135deg, var(--skin-accent-soft, rgba(37, 99, 235, 0.22)), var(--skin-accent-softer, rgba(56, 189, 248, 0.12)));
     border-color: var(--skin-accent-line, rgba(96, 165, 250, 0.28));
 }
 
+.sidebar-menu .collapse::before {
+    background: var(--skin-menu-line, linear-gradient(180deg, rgba(96, 165, 250, 0.08), rgba(148, 163, 184, 0.2), rgba(96, 165, 250, 0.08)));
+}
+
+.sidebar-menu .collapse > .sidebar-link {
+    color: var(--skin-nav, rgba(226, 232, 240, 0.9));
+    background: var(--skin-menu-soft, rgba(15, 23, 42, 0.18));
+}
+
+.sidebar-menu .collapse > .sidebar-link::before {
+    background: var(--skin-menu-line, rgba(148, 163, 184, 0.42));
+}
+
+.sidebar-menu .collapse > .sidebar-link:hover {
+    color: var(--skin-on-menu, var(--galint-azul-025, #f8fbff));
+    background: var(--skin-accent-softer, rgba(37, 99, 235, 0.14));
+    border-color: var(--skin-accent-line, rgba(96, 165, 250, 0.16));
+}
+
+.sidebar-menu .collapse > .sidebar-link:hover::before {
+    background: var(--skin-accent, rgba(125, 211, 252, 0.78));
+}
+
 .sidebar-menu .collapse > .sidebar-link.active {
+    color: var(--skin-on-menu, var(--galint-branco, #ffffff));
     background: linear-gradient(135deg, var(--skin-accent-soft, rgba(37, 99, 235, 0.3)), var(--skin-accent-softer, rgba(59, 130, 246, 0.14)));
     border-color: var(--skin-accent-line, rgba(125, 211, 252, 0.28));
 }
 
 .sidebar-menu .collapse > .sidebar-link.active::before {
-    background: var(--skin-brand, var(--galint-ciano-300, #7dd3fc));
+    background: var(--skin-accent, var(--galint-ciano-300, #7dd3fc));
 }
 
+.sidebar-divider {
+    background: var(--skin-menu-line, var(--shell-border));
+}
+
+.sidebar-footer {
+    background: var(--skin-menu-footer, rgba(15, 23, 36, 0.92));
+    border-top-color: var(--skin-menu-line, var(--shell-border));
+}
+
+.sidebar-wrapper .btn-outline-light {
+    --bs-btn-color: var(--skin-on-menu, #f8f9fa);
+    --bs-btn-border-color: var(--skin-on-menu, #f8f9fa);
+    --bs-btn-hover-bg: var(--skin-on-menu, #f8f9fa);
+    --bs-btn-hover-color: var(--skin-menu-2, #000);
+}
+
+/* ---------- fundo das páginas (como o body do Pipocas) ---------- */
+.content-panel {
+    background: var(--skin-content-bg, linear-gradient(180deg, #eef4fb, #f5f8fd));
+}
+
+/* ---------- cards: borda e cabeçalho no tom do menu ---------- */
+.content-panel .card {
+    --bs-card-border-color: var(--skin-panel-line, var(--bs-border-color-translucent));
+    --bs-card-cap-bg: var(--skin-brand-soft, rgba(var(--bs-body-color-rgb), 0.03));
+}
+
+/* Contorno por dentro (outline) em vez de borda: sem tema, nada muda de tamanho. */
+.summary-card,
+.section-panel {
+    outline: 1px solid var(--skin-panel-line, transparent);
+    outline-offset: -1px;
+}
+
+.summary-card .label {
+    color: var(--skin-eyebrow, var(--muted));
+}
+
+.tag-pill {
+    background: var(--skin-accent-softer, rgba(37, 99, 235, 0.12));
+}
+
+/* ---------- Bootstrap: botões, abas e caixas no destaque ---------- */
 .btn-primary {
     --bs-btn-color: var(--skin-on-accent, #fff);
     --bs-btn-bg: var(--skin-accent, #0d6efd);
@@ -56,4 +162,26 @@ html,
     --bs-btn-disabled-color: var(--skin-on-accent, #fff);
     --bs-btn-disabled-bg: var(--skin-accent, #0d6efd);
     --bs-btn-disabled-border-color: var(--skin-accent, #0d6efd);
+}
+
+.btn-outline-primary {
+    --bs-btn-color: var(--skin-accent-text, #0d6efd);
+    --bs-btn-border-color: var(--skin-accent-text, #0d6efd);
+    --bs-btn-hover-color: var(--skin-on-accent, #fff);
+    --bs-btn-hover-bg: var(--skin-accent, #0d6efd);
+    --bs-btn-hover-border-color: var(--skin-accent, #0d6efd);
+    --bs-btn-active-color: var(--skin-on-accent, #fff);
+    --bs-btn-active-bg: var(--skin-accent, #0d6efd);
+    --bs-btn-active-border-color: var(--skin-accent, #0d6efd);
+}
+
+.nav-pills {
+    --bs-nav-pills-link-active-bg: var(--skin-accent, #0d6efd);
+    --bs-nav-pills-link-active-color: var(--skin-on-accent, #fff);
+}
+
+/* Tom do destaque que se lê sobre o fundo: o ✓ branco aparece mesmo com destaque pastel. */
+.form-check-input:checked {
+    background-color: var(--skin-accent-text, #0d6efd);
+    border-color: var(--skin-accent-text, #0d6efd);
 }

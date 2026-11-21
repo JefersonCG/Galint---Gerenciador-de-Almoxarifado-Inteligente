@@ -535,8 +535,8 @@ def aparencia():
         "config/aparencia.html",
         colors=colors,
         targets=theme_service.TARGETS,
-        escuras=theme_service.ESCURAS,
-        vivas=theme_service.VIVAS,
+        pasteis=theme_service.PASTEIS,
+        solidas=theme_service.SOLIDAS,
         presets=theme_service.preset_cards(colors),
     )
 
