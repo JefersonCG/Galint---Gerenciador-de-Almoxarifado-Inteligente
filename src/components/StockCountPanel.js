@@ -43,7 +43,8 @@ function isValidQuantity(text, allowDecimal) {
 
 // item: o que a busca devolveu. detailsLoading: ainda esperando o servidor (o painel já mostra o
 // que veio da base do celular). note: aviso sobre o item (ex.: sem conexão, só consulta).
-export default function StockCountPanel({ item, detailsLoading, note, onSaved, onClose }) {
+// onMenu: abre o ☰ do item (lançar entrada com NF); só vem para quem pode lançar (administrador).
+export default function StockCountPanel({ item, detailsLoading, note, onSaved, onClose, onMenu }) {
     const [quantity, setQuantity] = useState('');
     const [packages, setPackages] = useState('');
     const [loose, setLoose] = useState('');
@@ -62,6 +63,8 @@ export default function StockCountPanel({ item, detailsLoading, note, onSaved, o
         : isValidQuantity(quantity, allowDecimal));
     const photoUri = photoFailed ? null : resolvePhotoUri(item);
     const codigo = item?.codigo || item?.codigo_barras || item?.id || '';
+    // Itens antigos têm "None" gravado no local: não mostrar.
+    const local = ['', 'none', 'null'].includes(String(item?.localizacao || '').trim().toLowerCase()) ? '' : item.localizacao;
 
     const save = useCallback(async () => {
         if (!canSave || saving) return;
@@ -84,6 +87,11 @@ export default function StockCountPanel({ item, detailsLoading, note, onSaved, o
 
     return (
         <View style={styles.card}>
+            {onMenu ? (
+                <TouchableOpacity style={styles.menuButton} onPress={onMenu} accessibilityLabel="Mais opções do item" hitSlop={10}>
+                    <Text style={styles.menuIcon}>☰</Text>
+                </TouchableOpacity>
+            ) : null}
             <View style={styles.photoBox}>
                 {photoUri ? (
                     <Image source={{ uri: photoUri }} style={styles.photo} resizeMode="contain" onError={() => setPhotoFailed(true)} />
@@ -96,7 +104,7 @@ export default function StockCountPanel({ item, detailsLoading, note, onSaved, o
             </View>
             <Text style={styles.name}>{item?.descricao || item?.nome || 'Item'}</Text>
             <Text style={styles.code}>Código: {codigo}</Text>
-            {item?.categoria ? <Text style={styles.meta}>{item.categoria}{item.localizacao ? ` • ${item.localizacao}` : ''}</Text> : null}
+            {item?.categoria ? <Text style={styles.meta}>{item.categoria}{local ? ` • ${local}` : ''}</Text> : null}
             <View style={styles.balanceBox}>
                 <Text style={styles.balanceLabel}>NO SISTEMA</Text>
                 <Text style={styles.balanceValue}>{item?.saldo_display || '—'}</Text>
@@ -144,6 +152,8 @@ export default function StockCountPanel({ item, detailsLoading, note, onSaved, o
 
 const styles = StyleSheet.create({
     card: { backgroundColor: heroPalette.panel, borderRadius: 22, padding: 16, borderWidth: 1, borderColor: heroPalette.border, alignItems: 'stretch', ...heroSoftShadow },
+    menuButton: { position: 'absolute', top: 10, right: 10, zIndex: 2, width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: heroPalette.panelAlt, borderWidth: 1, borderColor: heroPalette.border },
+    menuIcon: { color: heroPalette.text, fontSize: 22, fontWeight: '800' },
     photoBox: { alignSelf: 'center', width: 160, height: 160, borderRadius: 16, backgroundColor: '#fff', overflow: 'hidden', marginBottom: 12, alignItems: 'center', justifyContent: 'center' },
     photo: { width: '100%', height: '100%' },
     photoEmpty: { flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center', backgroundColor: heroPalette.panelAlt },

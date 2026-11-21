@@ -1432,6 +1432,22 @@ class ApiService {
         }
     }
 
+    // Chave de acesso lida pela câmera → número da NF, série, CNPJ e fornecedor (lançar entrada, 2.2.3).
+    async lerChaveAcesso(chave) {
+        if (!this.client) {
+            return { success: false, message: 'Servidor não configurado.' };
+        }
+        try {
+            const response = await this.client.get('/api/mobile/chave-acesso', { params: { chave }, timeout: 15000 });
+            return response.data;
+        } catch (error) {
+            if (isNetworkError(error)) {
+                return { success: false, offline: true, message: 'Sem conexão com o servidor.' };
+            }
+            return { success: false, message: error.response?.data?.message || 'Não foi possível ler a chave.' };
+        }
+    }
+
     async markAllNotifyRead() {
         try {
             const token = await AsyncStorage.getItem('token');

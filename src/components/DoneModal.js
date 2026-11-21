@@ -52,14 +52,19 @@ export default function DoneModal({ done }) {
                         </View>
                     </View>
 
-                    <Text style={styles.question}>{shared ? 'Enviado para o WhatsApp.' : 'Deseja compartilhar no WhatsApp?'}</Text>
-                    <TouchableOpacity style={[styles.share, (sharing || shared) && styles.shareDone]} onPress={share} disabled={sharing} activeOpacity={0.85}>
-                        {sharing ? (
-                            <ActivityIndicator color={heroPalette.bg} />
-                        ) : (
-                            <Text style={styles.shareText}>{shared ? 'Compartilhar de novo' : 'Compartilhar no WhatsApp'}</Text>
-                        )}
-                    </TouchableOpacity>
+                    {/* Sem mensagem (ex.: entrada com NF), não há o que compartilhar. */}
+                    {done.message ? (
+                        <>
+                            <Text style={styles.question}>{shared ? 'Enviado para o WhatsApp.' : 'Deseja compartilhar no WhatsApp?'}</Text>
+                            <TouchableOpacity style={[styles.share, (sharing || shared) && styles.shareDone]} onPress={share} disabled={sharing} activeOpacity={0.85}>
+                                {sharing ? (
+                                    <ActivityIndicator color={heroPalette.bg} />
+                                ) : (
+                                    <Text style={styles.shareText}>{shared ? 'Compartilhar de novo' : 'Compartilhar no WhatsApp'}</Text>
+                                )}
+                            </TouchableOpacity>
+                        </>
+                    ) : null}
 
                     <View style={styles.row}>
                         <TouchableOpacity style={styles.ghost} onPress={done.onNew} activeOpacity={0.85}>
@@ -93,7 +98,7 @@ const styles = StyleSheet.create({
     share: { height: 52, borderRadius: 16, backgroundColor: heroPalette.primaryStrong, alignItems: 'center', justifyContent: 'center' },
     shareDone: { opacity: 0.7 },
     shareText: { color: heroPalette.bg, fontSize: 16, fontWeight: '900' },
-    row: { flexDirection: 'row', gap: 10, marginTop: 12 },
+    row: { flexDirection: 'row', gap: 10, marginTop: 16 },
     ghost: { flex: 1, height: 48, borderRadius: 14, borderWidth: 1, borderColor: heroPalette.border, alignItems: 'center', justifyContent: 'center' },
     ghostText: { color: heroPalette.text, fontSize: 15, fontWeight: '800' },
 });

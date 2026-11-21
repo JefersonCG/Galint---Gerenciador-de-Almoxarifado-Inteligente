@@ -31,6 +31,7 @@ function loadScreens() {
             LoginScreen: require('./src/screens/LoginScreen').default,
             EstoqueScreen: require('./src/screens/EstoqueScreen').default,
             MovimentoScreen: require('./src/screens/MovimentoScreen').default,
+            EntradaNFScreen: require('./src/screens/EntradaNFScreen').default,
             ScannerScreen: require('./src/screens/ScannerScreen').default,
             EditarItemScreen: require('./src/screens/EditarItemScreen').default,
             RetiradaScreen: require('./src/screens/RetiradaScreen').default,
@@ -273,6 +274,7 @@ function AppNavigator() {
                     <Stack.Screen name="Login" component={S.LoginScreen} options={{ headerShown: false }} />
                     <Stack.Screen name="Estoque" component={S.EstoqueScreen} options={{ title: 'GALINT', headerBackVisible: false }} />
                     <Stack.Screen name="Movimento" component={S.MovimentoScreen} options={{ title: 'Movimento de material' }} />
+                    <Stack.Screen name="EntradaNF" component={S.EntradaNFScreen} options={{ title: 'Lançar entrada' }} />
                     {/* Em espera desde a 2.2.0 (config/features.js): a rota fica, o menu não mostra. */}
                     <Stack.Screen name="DocumentosFiscais" component={S.DocumentosFiscaisScreen} options={{ title: 'Documentos Fiscais' }} />
                     <Stack.Screen name="Scanner" component={S.ScannerScreen} options={{ title: 'Escanear Código', headerTransparent: true }} />

@@ -98,11 +98,14 @@ export default function EstoqueScreen({ navigation, route }) {
     const [results, setResults] = useState([]);
     const [sync, setSync] = useState(SyncService.getStatus());
     const [inbox, setInbox] = useState({ unread: 0, latest: null });
+    const [itemMenu, setItemMenu] = useState(false); // ☰ do item lido (lançar entrada com NF)
     const lastSeen = useRef({ code: '', at: 0 });
     const armedUntil = useRef(0);
     const lookupId = useRef(0);
 
     const role = useMemo(() => getUserRole(user), [user]);
+    // Lançar entrada com NF usa a rota dos documentos fiscais: só administradores (como no servidor).
+    const canLaunchEntry = user?.is_admin === true || user?.is_admin === 1 || String(user?.is_admin || '') === '1';
     const firstName = String(user?.nome || user?.username || '').trim().split(/\s+/)[0] || '';
     const cameraActive = Boolean(permission?.granted) && isFocused && appActive && !menuOpen && !panel && !search;
 
@@ -241,6 +244,21 @@ export default function EstoqueScreen({ navigation, route }) {
         setPanel(null);
         setNotice({ tone: 'error', text: result.message || 'Não foi possível buscar o item.' });
     }, []);
+
+    // Voltou de outra tela (ex.: lançar entrada) com um item aberto: o saldo dele se atualiza sozinho.
+    const wasFocused = useRef(isFocused);
+    useEffect(() => {
+        const codigo = panel?.item?.codigo;
+        if (isFocused && !wasFocused.current && codigo && !panel?.loading) {
+            ApiService.buscarItemContagem(codigo).then((result) => {
+                if (!result?.success || !result.item) return;
+                setPanel((current) => (current && current.item?.codigo === codigo
+                    ? { ...current, item: { ...current.item, ...result.item } }
+                    : current));
+            });
+        }
+        wasFocused.current = isFocused;
+    }, [isFocused, panel?.item?.codigo, panel?.loading]);
 
     const onBarcode = useCallback(({ data }) => {
         const code = String(data || '').trim();
@@ -468,7 +486,14 @@ export default function EstoqueScreen({ navigation, route }) {
 
             {panel ? (
                 <ScrollView contentContainerStyle={styles.panelScroll} keyboardShouldPersistTaps="handled">
-                    <StockCountPanel item={panel.item} detailsLoading={panel.loading} note={panel.note} onSaved={onSaved} onClose={closePanel} />
+                    <StockCountPanel
+                        item={panel.item}
+                        detailsLoading={panel.loading}
+                        note={panel.note}
+                        onSaved={onSaved}
+                        onClose={closePanel}
+                        onMenu={canLaunchEntry && !panel.loading && panel.item?.descricao ? () => setItemMenu(true) : undefined}
+                    />
                 </ScrollView>
             ) : search.trim() ? (
                 <FlatList
@@ -524,6 +549,24 @@ export default function EstoqueScreen({ navigation, route }) {
                 </View>
             ) : null}
             {sideMenu}
+            <Modal visible={itemMenu} transparent animationType="fade" onRequestClose={() => setItemMenu(false)}>
+                <TouchableOpacity style={styles.itemMenuBackdrop} activeOpacity={1} onPress={() => setItemMenu(false)}>
+                    <View style={[styles.itemMenuCard, { marginBottom: insets.bottom + 16 }]}>
+                        <Text style={styles.itemMenuTitle} numberOfLines={1}>{panel?.item?.descricao}</Text>
+                        <TouchableOpacity
+                            style={styles.itemMenuEntry}
+                            onPress={() => {
+                                setItemMenu(false);
+                                go('EntradaNF', { item: panel?.item });
+                            }}
+                            activeOpacity={0.85}
+                        >
+                            <Text style={styles.itemMenuIcon}>📥</Text>
+                            <Text style={styles.itemMenuLabel}>Lançar entrada com NF</Text>
+                        </TouchableOpacity>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
         </KeyboardAvoidingView>
     );
 }
@@ -592,6 +635,12 @@ const styles = StyleSheet.create({
     searchIcon: { fontSize: 16 },
     searchInput: { flex: 1, color: heroPalette.text, fontSize: 15 },
     searchClear: { color: heroPalette.textMuted, fontSize: 18, paddingHorizontal: 4 },
+    itemMenuBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(2, 6, 23, 0.6)', paddingHorizontal: 16 },
+    itemMenuCard: { backgroundColor: heroPalette.panel, borderRadius: 20, padding: 8, borderWidth: 1, borderColor: heroPalette.border },
+    itemMenuTitle: { color: heroPalette.textMuted, fontSize: 13, fontWeight: '700', paddingHorizontal: 14, paddingTop: 10, paddingBottom: 6 },
+    itemMenuEntry: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 14, paddingVertical: 16, borderRadius: 14 },
+    itemMenuIcon: { fontSize: 24 },
+    itemMenuLabel: { color: heroPalette.text, fontSize: 17, fontWeight: '800' },
     menuBackdrop: { flex: 1, flexDirection: 'row', backgroundColor: 'rgba(2, 6, 23, 0.6)' },
     menuPanel: { width: '82%', maxWidth: 340, backgroundColor: heroPalette.bgAlt, borderRightWidth: 1, borderRightColor: heroPalette.border, paddingTop: 36 },
     menuHeader: { paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: heroPalette.border },
