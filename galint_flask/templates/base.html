@@ -25,7 +25,7 @@
     {% if endpoint_exists('config.theme_css') %}<link rel="stylesheet" href="{{ url_for('config.theme_css') }}">{% endif %}
     <script src="{{ url_for('static', filename='js/galint-core.js', v='20260924') }}"></script>
     {% if general_search_available %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/general-search-modal.css', v='20260506-admin') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/general-search-modal.css', v='20261123b') }}">
     {% endif %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/consumption-search.css', v='20261106') }}">
     {% if stock_count_available or stock_count_workbook_available %}
@@ -813,7 +813,7 @@
     {% endif %}
 
     {% if general_search_available %}
-    <script src="{{ url_for('static', filename='js/general-search-modal.js', v='20261123') }}"></script>
+    <script src="{{ url_for('static', filename='js/general-search-modal.js', v='20261123b') }}"></script>
     {% endif %}
 
     <script>

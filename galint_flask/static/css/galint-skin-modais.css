@@ -114,3 +114,94 @@ html .modal-content.price-suggest-modal:not(.galint-bs-modal) .modal-header,
 html .modal-content.docf-card .modal-header {
     background: var(--skin-modal-light-head) !important;
 }
+
+/* ---------- pesquisa geral: o que ainda ficava azul-marinho (23/11/2026, print do usuário) ---------- */
+html .general-search-modal .general-search-scope-btn:not(.is-active) {
+    background: rgba(var(--skin-surface-2-rgb), 0.62) !important;
+    border-color: var(--skin-modal-line) !important;
+    color: rgba(255, 255, 255, 0.86) !important;
+}
+
+html .general-search-modal .general-search-field-card,
+html .general-search-modal .general-search-actions-card {
+    border-color: var(--skin-modal-line) !important;
+    box-shadow: none !important;
+}
+
+html .general-search-modal .general-search-suggestions {
+    background: var(--skin-surface-1) !important;
+    border-color: var(--skin-modal-line) !important;
+}
+
+html .general-search-modal .general-search-suggestion-btn {
+    border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+html .general-search-modal .general-search-suggestion-meta {
+    color: rgba(255, 255, 255, 0.7) !important;
+}
+
+html .general-search-modal .general-search-table thead th {
+    background: rgba(var(--skin-surface-1-rgb), 0.94) !important;
+    border-bottom-color: var(--skin-modal-line) !important;
+}
+
+html .general-search-modal .general-search-section-kicker,
+html .general-search-modal .general-search-kicker,
+html .general-search-modal .general-search-expandable-badge {
+    background: rgba(var(--skin-accent-rgb), 0.14) !important;
+    border-color: rgba(var(--skin-accent-rgb), 0.3) !important;
+    color: var(--skin-accent-on-dark) !important;
+}
+
+html .general-search-modal .general-search-hero-badge,
+html .general-search-modal .general-search-meta-pill,
+html .general-search-modal .general-search-kpi-chip,
+html .general-search-modal .general-search-expandable-icon,
+html .general-search-modal .general-search-photo-panel {
+    background: rgba(var(--skin-surface-2-rgb), 0.6) !important;
+    border-color: var(--skin-modal-line) !important;
+    color: rgba(255, 255, 255, 0.88) !important;
+}
+
+html .general-search-modal .general-search-message.is-info {
+    border-color: var(--skin-modal-line) !important;
+}
+
+/* ---------- campos dos modais escuros: fundo no tom do tema, foco no destaque ---------- */
+html .modal-content.bg-dark :is(.form-control, .form-select),
+html .modal-content.galint-bs-modal :is(.form-control, .form-select),
+html .modal-content.galint-dark-surface :is(.form-control, .form-select),
+html .modal-content.stock-count-modal-content :is(.form-control, .form-select),
+html .modal-content.nf-search-modal-content :is(.form-control, .form-select),
+html .modal-content.consumption-modal-content :is(.form-control, .form-select),
+html .modal-content.users-modal-surface :is(.form-control, .form-select),
+html .modal-content.kit-assignment-modal :is(.form-control, .form-select),
+html .modal-content.galint-item-modal :is(.form-control, .form-select),
+html .modal-content.photo-assistant-modal :is(.form-control, .form-select),
+html .modal-content.galint-custody-modal-content :is(.form-control, .form-select),
+html .modal-content.scope-report-modal :is(.form-control, .form-select),
+html .modal-content.general-search-modal :is(.form-control, .form-select),
+html .mobile-modal .modal-content :is(.form-control, .form-select) {
+    background-color: var(--skin-surface-0) !important;
+    border-color: rgba(255, 255, 255, 0.16) !important;
+    color: #f8fafc !important;
+}
+
+html .modal-content.bg-dark :is(.form-control, .form-select):focus,
+html .modal-content.galint-bs-modal :is(.form-control, .form-select):focus,
+html .modal-content.galint-dark-surface :is(.form-control, .form-select):focus,
+html .modal-content.stock-count-modal-content :is(.form-control, .form-select):focus,
+html .modal-content.nf-search-modal-content :is(.form-control, .form-select):focus,
+html .modal-content.consumption-modal-content :is(.form-control, .form-select):focus,
+html .modal-content.users-modal-surface :is(.form-control, .form-select):focus,
+html .modal-content.kit-assignment-modal :is(.form-control, .form-select):focus,
+html .modal-content.galint-item-modal :is(.form-control, .form-select):focus,
+html .modal-content.photo-assistant-modal :is(.form-control, .form-select):focus,
+html .modal-content.galint-custody-modal-content :is(.form-control, .form-select):focus,
+html .modal-content.scope-report-modal :is(.form-control, .form-select):focus,
+html .modal-content.general-search-modal :is(.form-control, .form-select):focus,
+html .mobile-modal .modal-content :is(.form-control, .form-select):focus {
+    border-color: rgba(var(--skin-accent-rgb), 0.7) !important;
+    box-shadow: 0 0 0 0.2rem rgba(var(--skin-accent-rgb), 0.2) !important;
+}

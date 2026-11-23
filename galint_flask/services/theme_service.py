@@ -298,7 +298,7 @@ def preset_cards(colors: dict[str, str]) -> list[dict[str, Any]]:
     ]
 
 
-MODALS_CSS_VERSION = "20261123"
+MODALS_CSS_VERSION = "20261123b"
 
 
 def _modals_css_url() -> str:

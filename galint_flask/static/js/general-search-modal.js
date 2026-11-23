@@ -873,6 +873,31 @@
             void runSearch();
         });
 
+        // Sem botão Pesquisar (pedido do usuário em 23/11/2026): o Enter faz a busca. O formulário
+        // tem texto e data, então o navegador não envia sozinho; o Enter é tratado aqui.
+        [searchInput, searchDate].forEach((field) => {
+            field?.addEventListener('keydown', function (event) {
+                if (event.key !== 'Enter' || event.isComposing) {
+                    return;
+                }
+                event.preventDefault();
+                hideSuggestions();
+                void runSearch();
+            });
+        });
+
+        // No Diário a data basta: escolheu no calendário, já busca. Período só refaz uma busca já digitada.
+        searchDate?.addEventListener('change', function () {
+            if (state.scope === 'diario' && searchDate.value) {
+                void runSearch();
+            }
+        });
+        searchPeriod?.addEventListener('change', function () {
+            if (String(searchInput.value || '').trim()) {
+                void runSearch();
+            }
+        });
+
         searchInput?.addEventListener('input', function () {
             scheduleSuggestions();
         });
