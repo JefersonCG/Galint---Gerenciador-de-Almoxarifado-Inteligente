@@ -1115,7 +1115,10 @@
                 <a class="btn btn-outline-success btn-sm" href="{{ valor_estoque_pdf_url }}"><i class="bi bi-file-earmark-pdf me-1"></i>Prestação de contas</a>
                 {% endif %}
                 <a class="btn btn-outline-success btn-sm" href="{{ url_for('inventory.consumption_report_pdf', exercicio=exercise.label) }}"><i class="bi bi-file-earmark-pdf me-1"></i>Consumo PDF</a>
+                {# endpoint_exists: o modelo é lido do disco na hora; até o servidor ser religado a rota não existe. #}
+                {% if endpoint_exists('inventory.consumption_report_xlsx') %}
                 <a class="btn btn-outline-success btn-sm" href="{{ url_for('inventory.consumption_report_xlsx', exercicio=exercise.label) }}"><i class="bi bi-file-earmark-excel me-1"></i>Consumo Excel</a>
+                {% endif %}
             </div>
         </div>
         <ul class="nav nav-pills fin-tabs" role="tablist">
@@ -1443,7 +1446,7 @@
 
     {# ---------------- Modal do consumo (local, categoria ou colaborador) ---------------- #}
     <div class="modal fade" id="fin-consumo-modal" tabindex="-1" aria-labelledby="fin-consumo-title" aria-hidden="true"
-        data-url="{{ url_for('inventory.consumption_detail') }}" data-exercicio="{{ exercise.label }}">
+        data-url="{{ url_for('inventory.consumption_detail') if endpoint_exists('inventory.consumption_detail') else '' }}" data-exercicio="{{ exercise.label }}">
         <div class="modal-dialog modal-xl modal-dialog-scrollable">
             <div class="modal-content bg-dark text-white fin-modal">
                 <div class="modal-header gap-2">
@@ -1818,7 +1821,7 @@
     const consumoModal = consumoModalEl ? bootstrap.Modal.getOrCreateInstance(consumoModalEl) : null;
 
     const openConsumo = async (kind, value, label) => {
-        if (!consumoModalEl || !value) return;
+        if (!consumoModalEl || !value || !consumoModalEl.dataset.url) return;
         const url = new URL(consumoModalEl.dataset.url, window.location.origin);
         url.searchParams.set('exercicio', consumoModalEl.dataset.exercicio || '');
         url.searchParams.set(kind, value);
