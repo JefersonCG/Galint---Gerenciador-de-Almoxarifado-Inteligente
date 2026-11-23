@@ -404,8 +404,7 @@ def build_sidebar_navigation() -> dict[str, Any]:
     power_bi_children: list[dict[str, Any]] = []
     if analytics_url and is_admin:
         power_bi_children.append(_link_item("Central Analítica", analytics_url, "bi-bar-chart-line", _path_matches(path, analytics_url)))
-    if consumo_painel_url:
-        power_bi_children.append(_link_item("Consumo", consumo_painel_url, "bi-geo-alt", _path_matches(path, consumo_painel_url)))
+    # Consumo virou a aba Consumo do Financeiro (23/11/2026); o endereço antigo leva para lá.
     if valor_estoque_url:
         power_bi_children.append(_link_item("Financeiro", valor_estoque_url, "bi-cash-stack", _path_matches(path, valor_estoque_url)))
     if power_bi_children:

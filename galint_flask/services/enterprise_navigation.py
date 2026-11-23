@@ -82,7 +82,6 @@ def build_enterprise_sections(*, is_admin: bool) -> list[dict[str, Any]]:
             [
                 _item("Resumo de Estoque", _optional_url("dashboard.index"), "bi-grid-1x2-fill", "DASH-001", "Leitura", "cyan"),
                 _item("Central de Operações", _optional_url("operations.central_operations"), "bi-activity", "DASH-002", "Leitura", "green"),
-                _item("Consumo", _optional_url("inventory.consumption_dashboard"), "bi-geo-alt", "DASH-003", "Leitura", "cyan"),
             ],
         ),
         _section(
@@ -103,7 +102,6 @@ def build_enterprise_sections(*, is_admin: bool) -> list[dict[str, Any]]:
             "enterprisePowerBiMenu",
             [
                 _item("Central Analítica", _optional_url("analytics.index"), "bi-bar-chart-line", "BI-001", "Analytics", "cyan"),
-                _item("Consumo", _optional_url("inventory.consumption_dashboard"), "bi-geo-alt", "BI-002", "Analytics", "cyan"),
                 _item("Financeiro", _optional_url("inventory.valor_estoque"), "bi-cash-stack", "BI-003", "Analytics", "green"),
                 _item("Projeção", _optional_url("inventory.purchase_projection_page"), "bi-graph-up-arrow", "BI-004", "Analytics", "green"),
             ],

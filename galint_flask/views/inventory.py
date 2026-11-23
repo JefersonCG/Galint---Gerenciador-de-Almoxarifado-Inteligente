@@ -34,6 +34,7 @@ from ..services.category_catalog import (
     normalize_inventory_category_name,
 )
 from ..services.config_service import ConfigService
+from ..services import report_export_service
 from ..services.finance_service import _build_document_item_display_metadata, _resolve_internal_content_document_unit, finance_service
 from ..services.inventory import (
     BASE_ITEM_UNIT_OPTIONS,
@@ -2814,107 +2815,115 @@ def valor_estoque_pdf():
     return send_file(pdf_buffer, mimetype="application/pdf", as_attachment=True, download_name=filename)
 
 
+def _consumption_filters() -> dict[str, str]:
+    """Filtros do consumo vindos da URL (exercício e um recorte: local, categoria ou colaborador)."""
+    return {
+        key: value
+        for key in ("exercicio", "local", "categoria", "matricula")
+        if (value := (request.args.get(key) or "").strip())
+    }
+
+
+def _consumption_panel(filters: dict[str, str]) -> dict[str, object]:
+    return finance_service.get_consumption_panel_report(
+        filters.get("exercicio"),
+        local_name=filters.get("local"),
+        category_name=filters.get("categoria"),
+        employee_id=filters.get("matricula"),
+    )
+
+
+# O painel de Consumo e as subpáginas (local, categoria, colaborador) viraram a aba Consumo do
+# Financeiro, com o detalhe num modal (pedido do usuário em 23/11/2026: "tudo em uma única página
+# dividida por abas, cards e modais"). Os endereços antigos seguem valendo e levam para lá.
 @blueprint.get("/consumo")
 @login_required
 def consumption_dashboard():
     _require_admin()
-    panel = finance_service.get_consumption_panel_report(request.args.get("exercicio"))
-    return render_template("inventory/consumption_panel.html", panel=panel)
+    return redirect(url_for("inventory.valor_estoque", aba="consumo", **_consumption_filters()))
 
 
 @blueprint.get("/consumo/local")
 @login_required
 def consumption_by_local():
-    _require_admin()
-    local_name = (request.args.get("local") or "").strip()
-    exercise_label = (request.args.get("exercicio") or "").strip() or None
-    if not local_name:
-        flash("Informe o local para abrir a subpágina de consumo.", "warning")
-        return redirect(url_for("inventory.consumption_dashboard", exercicio=exercise_label))
-
-    panel = finance_service.get_consumption_panel_report(exercise_label, local_name=local_name)
-    if not panel.get("entries"):
-        flash(f"Nenhum consumo encontrado para o local '{local_name}'.", "warning")
-        return redirect(url_for("inventory.consumption_dashboard", exercicio=exercise_label))
-    return render_template("inventory/consumption_panel.html", panel=panel)
+    return consumption_dashboard()
 
 
 @blueprint.get("/consumo/categoria")
 @login_required
 def consumption_by_category():
-    _require_admin()
-    category_name = (request.args.get("categoria") or "").strip()
-    exercise_label = (request.args.get("exercicio") or "").strip() or None
-    if not category_name:
-        flash("Informe a categoria para abrir a subpágina de consumo.", "warning")
-        return redirect(url_for("inventory.consumption_dashboard", exercicio=exercise_label))
-
-    panel = finance_service.get_consumption_panel_report(exercise_label, category_name=category_name)
-    if not panel.get("entries"):
-        flash(f"Nenhum consumo encontrado para a categoria '{category_name}'.", "warning")
-        return redirect(url_for("inventory.consumption_dashboard", exercicio=exercise_label))
-    return render_template("inventory/consumption_panel.html", panel=panel)
+    return consumption_dashboard()
 
 
 @blueprint.get("/consumo/funcionario/<matricula>")
 @login_required
 def consumption_by_employee(matricula: str):
     _require_admin()
-    employee_id = (matricula or "").strip()
-    exercise_label = (request.args.get("exercicio") or "").strip() or None
-    if not employee_id:
-        flash("Informe o colaborador para abrir a subpágina de consumo.", "warning")
-        return redirect(url_for("inventory.consumption_dashboard", exercicio=exercise_label))
+    filters = _consumption_filters()
+    filters["matricula"] = (matricula or "").strip()
+    return redirect(url_for("inventory.valor_estoque", aba="consumo", **filters))
 
-    panel = finance_service.get_consumption_panel_report(exercise_label, employee_id=employee_id)
-    if not panel.get("entries"):
-        flash(f"Nenhum consumo encontrado para o colaborador '{employee_id}'.", "warning")
-        return redirect(url_for("inventory.consumption_dashboard", exercicio=exercise_label))
-    return render_template("inventory/consumption_panel.html", panel=panel)
+
+@blueprint.get("/consumo/detalhe")
+@login_required
+def consumption_detail():
+    """Consumo de um local, categoria ou colaborador para o modal da aba Consumo do Financeiro."""
+    _require_admin()
+    filters = _consumption_filters()
+    panel = _consumption_panel(filters)
+    report = report_export_service.consumption_report(panel=panel)
+    entries = panel.get("entries") or []
+    rows = []
+    for entry in entries[:400]:
+        local = (entry.get("local") or "SEM LOCAL").strip()
+        context = (entry.get("contexto_uso") or "").strip()
+        if context and context.upper() != local.upper():
+            local = f"{local} · {context}"
+        rows.append({
+            "data": entry.get("data_saida_label") or "-",
+            "colaborador": entry.get("colaborador_nome") or "Não informado",
+            "material": entry.get("descricao_item") or "Item sem descrição",
+            "local": local,
+            "quantidade": entry.get("quantidade_display") or "0",
+            "valor": float(entry.get("valor_total") or 0),
+        })
+    return _json_no_store({
+        "success": True,
+        "titulo": report.scope,
+        "resumo": [{"rotulo": label, "valor": value} for label, value in report.summary],
+        "linhas": rows,
+        "total_linhas": len(entries),
+        "pdf_url": url_for("inventory.consumption_report_pdf", **filters),
+        "xlsx_url": url_for("inventory.consumption_report_xlsx", **filters),
+    })
+
+
+def _consumption_report_file(fmt: str):
+    filters = _consumption_filters()
+    report = report_export_service.consumption_report(panel=_consumption_panel(filters))
+    if report.is_empty:
+        flash("Não há dados de consumo para gerar o relatório solicitado.", "warning")
+        return redirect(url_for("inventory.valor_estoque", aba="consumo", exercicio=filters.get("exercicio")))
+    return send_file(
+        BytesIO(report.render(fmt)),
+        mimetype=report_export_service.FORMATS[fmt],
+        as_attachment=True,
+        download_name=report.filename(fmt),
+    )
 
 
 @blueprint.get("/consumo/relatorio/pdf")
 @login_required
 def consumption_report_pdf():
     _require_admin()
-    exercise_label = (request.args.get("exercicio") or "").strip() or None
-    local_name = (request.args.get("local") or "").strip() or None
-    category_name = (request.args.get("categoria") or "").strip() or None
-    employee_id = (request.args.get("matricula") or "").strip() or None
+    return _consumption_report_file("pdf")
 
-    panel = finance_service.get_consumption_panel_report(
-        exercise_label,
-        local_name=local_name,
-        category_name=category_name,
-        employee_id=employee_id,
-    )
-    if not panel.get("entries"):
-        flash("Não há dados de consumo para gerar o relatório solicitado.", "warning")
-        return redirect(url_for("inventory.consumption_dashboard", exercicio=exercise_label))
 
-    pdf_buffer = finance_service.build_consumption_panel_pdf(
-        exercise_label,
-        local_name=local_name,
-        category_name=category_name,
-        employee_id=employee_id,
-    )
-
-    scope_type = panel.get("scope_type") or "geral"
-    if scope_type == "local":
-        scope_value = panel.get("filters", {}).get("local") or "local"
-    elif scope_type == "categoria":
-        scope_value = panel.get("filters", {}).get("categoria") or "categoria"
-    elif scope_type == "funcionario":
-        scope_value = panel.get("filters", {}).get("matricula") or "funcionario"
-    else:
-        scope_value = "geral"
-
-    filename = (
-        f"relatorio_consumo_{scope_type}_"
-        f"{_sanitize_filename_component(str(scope_value))}_"
-        f"{TimeService.now_local().strftime('%Y%m%d_%H%M%S')}.pdf"
-    )
-    return send_file(pdf_buffer, mimetype="application/pdf", as_attachment=True, download_name=filename)
+@blueprint.get("/consumo/relatorio/xlsx")
+@login_required
+def consumption_report_xlsx():
+    _require_admin()
+    return _consumption_report_file("xlsx")
 
 
 @blueprint.get("/lojas")

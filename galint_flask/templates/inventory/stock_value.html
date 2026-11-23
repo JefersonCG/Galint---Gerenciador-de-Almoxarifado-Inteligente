@@ -31,67 +31,6 @@
 {% set consumo_analitico_recentes = consumo_analitico.get('recent_entries', []) if consumo_analitico else [] %}
 {% set valor_estoque_pdf_url = url_for('inventory.valor_estoque_pdf', exercicio=exercise.label) if endpoint_exists('inventory.valor_estoque_pdf') else None %}
 
-<div class="finance-shell">
-    <section class="finance-topbar mb-4">
-        <div class="finance-topbar-main">
-            <div class="finance-title-block">
-                <div class="finance-badge"><i class="bi bi-cash-stack"></i> Financeiro</div>
-                <h1>Financeiro do estoque</h1>
-                <p class="mb-0">Leitura direta do exercício {{ exercise.label }} com foco em saldo atual, consumo, reposição e pendências fiscais{% if uf_empresa %} • UF padrão {{ uf_empresa }}{% endif %}.</p>
-            </div>
-            <div class="finance-context-grid">
-                <article class="finance-context-card">
-                    <span class="finance-context-label">Exercício</span>
-                    <strong>{{ exercise.label }}</strong>
-                </article>
-                <article class="finance-context-card">
-                    <span class="finance-context-label">Categorias</span>
-                    <strong>{{ category_cards|length }}</strong>
-                </article>
-                <article class="finance-context-card">
-                    <span class="finance-context-label">Sem comprovação</span>
-                    <strong>{{ brl(total_sem_comprovacao_exercicio) }}</strong>
-                </article>
-            </div>
-        </div>
-
-        <div class="finance-toolbar">
-            <div class="finance-toolbar-left">
-                {% if exercise_options %}
-                <form class="finance-toolbar-form" method="get">
-                    <select class="form-select finance-control" name="exercicio" onchange="this.form.submit()">
-                        {% for option in exercise_options %}
-                        <option value="{{ option.label }}" {% if option.label == exercise.label %}selected{% endif %}>Exercício {{ option.label }}</option>
-                        {% endfor %}
-                    </select>
-                </form>
-                {% endif %}
-                <span class="finance-chip">Estoque atual + prestação de contas</span>
-                <span class="finance-chip">Visual ERP compacto</span>
-            </div>
-            <div class="finance-toolbar-right">
-                <div class="finance-toggle-group">
-                    <button class="btn btn-outline-secondary btn-sm" type="button" data-finance-expand-all>
-                        <i class="bi bi-arrows-expand me-1"></i> Expandir tudo
-                    </button>
-                    <button class="btn btn-outline-secondary btn-sm" type="button" data-finance-collapse-all>
-                        <i class="bi bi-arrows-collapse me-1"></i> Recolher tudo
-                    </button>
-                </div>
-                <div class="d-flex gap-2 flex-wrap">
-                    {% if valor_estoque_pdf_url %}
-                    <a class="btn btn-outline-success btn-sm finance-action-btn" href="{{ valor_estoque_pdf_url }}">
-                        <i class="bi bi-file-earmark-pdf me-1"></i> Exportar PDF
-                    </a>
-                    {% endif %}
-                    <a class="btn btn-outline-light btn-sm finance-action-btn" href="{{ url_for('inventory.list_items') }}">
-                        <i class="bi bi-boxes me-1"></i> Voltar para Itens
-                    </a>
-                </div>
-            </div>
-        </div>
-    </section>
-
 <style>
     @import url("{{ url_for('static', filename='css/category-visual-system.css') }}");
 
@@ -1006,538 +945,535 @@
             padding-inline: 1rem;
         }
     }
+
+    /* ---------- Financeiro numa página só (23/11/2026): abas, cartões de categoria e modais ---------- */
+    /* Com Aparência personalizada, as superfícies escuras seguem o tema (as mesmas variáveis dos
+       modais, que o /configuracoes/tema.css só emite quando há tema); sem tema, ficam como eram. */
+    .finance-shell {
+        --finance-surface-card: var(--skin-modal-bg, linear-gradient(180deg, rgba(12, 18, 28, 0.98), rgba(16, 24, 37, 0.96)));
+        --finance-surface-card-strong: var(--skin-modal-bg, linear-gradient(180deg, rgba(15, 21, 33, 0.98), rgba(17, 26, 40, 0.98)));
+        --finance-border-soft: var(--skin-modal-line, rgba(129, 146, 169, 0.2));
+        --fin-surface-row: rgba(var(--skin-surface-2-rgb, 15, 23, 42), 0.55);
+        background: var(--skin-surface-0, linear-gradient(180deg, #0a1018 0%, #0d131c 100%));
+    }
+
+    .finance-shell .value-table {
+        background: var(--finance-surface-card);
+    }
+
+    .finance-shell .value-table thead th {
+        background: rgba(var(--skin-surface-1-rgb, 15, 23, 42), 0.92);
+        color: var(--skin-accent-on-dark, var(--galint-azul-200, #93c5fd));
+    }
+
+    .fin-top { padding: 0.95rem 1.1rem 0.8rem; }
+    .fin-top-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; }
+    .fin-title { margin: 0; font-size: 1.45rem; font-weight: 800; color: var(--finance-text-primary); display: flex; align-items: center; gap: 0.55rem; }
+    .fin-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+    .fin-exercise .form-select { min-width: 10rem; }
+    .fin-tabs { margin-top: 0.85rem; gap: 0.35rem; }
+    .fin-tabs .nav-link {
+        border-radius: 999px;
+        font-weight: 700;
+        color: var(--finance-text-secondary);
+        border: 1px solid var(--finance-border-soft);
+        background: var(--fin-surface-row);
+        padding: 0.45rem 1rem;
+    }
+    .fin-tabs .nav-link.active {
+        color: var(--skin-on-accent, #0f172a);
+        background: var(--skin-accent, var(--galint-azul-300, #60a5fa));
+        border-color: transparent;
+    }
+
+    .finance-shell .finance-topbar { background: var(--finance-surface-card); }
+    /* Pizzas: 5 colunas cortavam o valor e a porcentagem da legenda (prévia de 23/11/2026). */
+    .finance-pizza-grid { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+    .finance-shell .finance-pizza-kpi {
+        min-height: 0;
+        border-color: var(--finance-border-soft);
+        background: radial-gradient(circle at top left, var(--category-soft), transparent 26%), var(--finance-surface-card-strong);
+    }
+    .finance-kpi-grid.fin-kpi-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .finance-kpi-grid.fin-kpi-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .finance-shell .finance-kpi-card { min-height: 0; }
+
+    .fin-cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 0.8rem; }
+    .fin-cat-card {
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+        text-align: left;
+        border-radius: 16px;
+        padding: 0.85rem 0.95rem;
+        color: var(--finance-text-primary);
+        border: 1px solid var(--finance-border-soft);
+        border-left: 5px solid var(--category-accent, #60a5fa);
+        background:
+            radial-gradient(circle at top left, var(--category-soft, transparent), transparent 40%),
+            var(--finance-surface-card);
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .fin-cat-card:hover,
+    .fin-cat-card:focus-visible { transform: translateY(-2px); box-shadow: 0 12px 26px rgba(2, 6, 23, 0.35); }
+    .fin-cat-head { display: flex; align-items: center; gap: 0.5rem; }
+    .fin-cat-head strong { flex: 1; font-size: 1rem; line-height: 1.2; }
+    .fin-cat-icon { font-size: 1.25rem; }
+    .fin-cat-count {
+        font-size: 0.75rem;
+        font-weight: 800;
+        padding: 0.15rem 0.55rem;
+        border-radius: 999px;
+        background: var(--category-soft-strong, rgba(148, 163, 184, 0.2));
+    }
+    .fin-cat-values { display: grid; gap: 0.2rem; }
+    .fin-cat-values > span { display: flex; justify-content: space-between; align-items: baseline; gap: 0.75rem; }
+    .fin-cat-values small { font-size: 0.76rem; color: var(--finance-text-muted); font-weight: 600; }
+    .fin-cat-values b { font-size: 0.92rem; white-space: nowrap; }
+
+    .fin-cons-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 0.8rem; margin-top: 0.8rem; }
+    .fin-panel {
+        border-radius: 16px;
+        padding: 0.85rem 0.95rem;
+        border: 1px solid var(--finance-border-soft);
+        background: var(--finance-surface-card);
+    }
+    .fin-panel-title { font-size: 1rem; font-weight: 800; color: var(--finance-text-primary); margin-bottom: 0.4rem; }
+    .fin-scroll { max-height: 420px; overflow-y: auto; }
+    .finance-shell .fin-table { --bs-table-bg: transparent; --bs-table-color: var(--finance-text-primary); margin: 0; }
+    .finance-shell .fin-table td { border-color: var(--finance-border-soft); padding: 0.55rem 0.4rem; vertical-align: middle; }
+    .finance-shell .fin-table td small { display: block; color: var(--finance-text-muted); font-size: 0.76rem; }
+    .finance-shell .fin-table td.text-end,
+    .fin-modal .value-table td.text-end,
+    .fin-modal .value-table td:nth-child(2) { white-space: nowrap; }
+    .finance-shell .fin-table tr[data-fin-consumo] { cursor: pointer; }
+    .finance-shell .fin-table tr[data-fin-consumo]:hover td,
+    .finance-shell .fin-table tr[data-fin-consumo]:focus-visible td { background: var(--fin-surface-row); }
+    .finance-shell .fin-cat-cell { border-left: 4px solid var(--category-accent, transparent); padding-left: 0.6rem; }
+    .fin-empty { color: var(--finance-text-muted); }
+
+    /* Os modais ficam fora do .finance-shell (o Bootstrap precisa deles soltos na página): as
+       variáveis de cor vêm aqui também. */
+    .fin-modal {
+        --finance-text-primary: #f4f7fb;
+        --finance-text-muted: rgba(164, 177, 196, 0.9);
+        --finance-border-soft: var(--skin-modal-line, rgba(129, 146, 169, 0.2));
+        --finance-surface-card: var(--skin-modal-bg, linear-gradient(180deg, rgba(12, 18, 28, 0.98), rgba(16, 24, 37, 0.96)));
+        color: var(--finance-text-primary);
+    }
+    .fin-modal .value-table { background: var(--finance-surface-card); border-radius: 14px; }
+    .fin-modal .value-table thead th {
+        background: rgba(var(--skin-surface-1-rgb, 15, 23, 42), 0.92);
+        color: var(--skin-accent-on-dark, var(--galint-azul-200, #93c5fd));
+    }
+    .fin-modal .table { --bs-table-bg: transparent; --bs-table-color: var(--finance-text-primary); --bs-table-hover-color: var(--finance-text-primary); }
+    .fin-modal-kpis { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.85rem; }
+    .fin-modal-kpis > div {
+        flex: 1 1 150px;
+        border-radius: 12px;
+        padding: 0.5rem 0.75rem;
+        background: rgba(148, 163, 184, 0.12);
+        border-left: 4px solid var(--category-accent, var(--skin-accent, #60a5fa));
+    }
+    .fin-modal-kpis span { display: block; font-size: 0.72rem; font-weight: 600; color: var(--finance-text-muted, #a4b1c4); }
+    .fin-modal-kpis strong { font-size: 1.05rem; }
+    .fin-sub { font-size: 0.78rem; color: var(--finance-text-muted, #a4b1c4); }
+
+    @media (max-width: 991.98px) {
+        .finance-kpi-grid.fin-kpi-4,
+        .finance-kpi-grid.fin-kpi-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .fin-cons-grid { grid-template-columns: 1fr; }
+    }
 </style>
 
-<section class="finance-section mb-4">
-    <div class="finance-section-head">
-        <div>
-            <div class="finance-section-kicker">Resumo executivo</div>
-            <h2 class="finance-section-title">Indicadores principais do exercício</h2>
-            <p class="finance-section-note">Painel direto, com leitura de caixa, consumo, reposição e pendência fiscal sem cards superdimensionados.</p>
-        </div>
-        <button class="finance-section-toggle" type="button"
-            data-bs-toggle="collapse" data-bs-target="#finance-summary-panel"
-            aria-expanded="true" aria-controls="finance-summary-panel"
-            data-finance-toggle data-toggle-expand-label="Expandir" data-toggle-collapse-label="Recolher">
-            <span data-toggle-label>Recolher</span>
-            <i class="bi bi-chevron-up" data-toggle-icon></i>
-        </button>
-    </div>
-    <div class="collapse show finance-collapse" id="finance-summary-panel" data-finance-collapsible>
-        <div class="finance-kpi-grid">
-            <article class="finance-kpi-card">
-                <div class="finance-kpi-label">Estoque por compra</div>
-                <div class="finance-kpi-value">{{ brl(total_compra) }}</div>
-                <p class="finance-kpi-meta">{{ missing_compra }} item(ns) sem valor de compra preenchido.</p>
-            </article>
-            <article class="finance-kpi-card accent-green">
-                <div class="finance-kpi-label">Estoque por reposição</div>
-                <div class="finance-kpi-value">{{ brl(total_reposicao) }}</div>
-                <p class="finance-kpi-meta">{{ missing_reposicao }} item(ns) sem preço de reposição.</p>
-            </article>
-            <article class="finance-kpi-card accent-amber">
-                <div class="finance-kpi-label">Investido no exercício</div>
-                <div class="finance-kpi-value">{{ brl(total_investido_exercicio) }}</div>
-                <p class="finance-kpi-meta">{% if exercise.start_date is defined and exercise.end_date is defined %}{{ exercise.start_date.strftime('%d/%m/%Y') }} até {{ exercise.end_date.strftime('%d/%m/%Y') }}{% else %}Período do exercício atual.{% endif %}</p>
-            </article>
-            <article class="finance-kpi-card accent-violet">
-                <div class="finance-kpi-label">Consumido no exercício</div>
-                <div class="finance-kpi-value">{{ brl(total_consumido_exercicio) }}</div>
-                <p class="finance-kpi-meta">Consumo estimado com base no custo de compra normalizado.</p>
-            </article>
-            <article class="finance-kpi-card accent-rose">
-                <div class="finance-kpi-label">Sem comprovação</div>
-                <div class="finance-kpi-value">{{ brl(total_sem_comprovacao_exercicio) }}</div>
-                <p class="finance-kpi-meta">Compras manuais, estimadas ou ainda sem documento fiscal vinculado.</p>
-            </article>
-        </div>
-    </div>
-</section>
+{# Financeiro numa página só (23/11/2026). Pedido do usuário: "centralizar as informações financeiras
+   do GALINT, tudo em uma única página dividida por abas, cards e modais, excluir toda verbosidade".
+   Antes eram o Financeiro (seções que abriam e fechavam, com uma frase de explicação em cada bloco)
+   e o painel de Consumo em outra página, com três subpáginas (local, categoria, colaborador). Agora:
+   abas Resumo, Categorias, Consumo e Fracionado; a categoria abre num modal com os itens e o
+   consumo de um local, categoria ou colaborador abre num modal (JSON de /consumo/detalhe). #}
+{% set fin_tabs = [('resumo', 'Resumo', 'bi-speedometer2'), ('categorias', 'Categorias', 'bi-grid-3x3-gap'), ('consumo', 'Consumo', 'bi-geo-alt')] %}
+{% if consumo_fracionado_por_local %}{% set fin_tabs = fin_tabs + [('fracionado', 'Fracionado', 'bi-droplet-half')] %}{% endif %}
+{% set fin_tab = request.args.get('aba') or 'resumo' %}
 
-{% if finance_category_kpis %}
-<section class="finance-section mb-4">
-    <div class="finance-section-head">
-        <div>
-            <div class="finance-section-kicker">ERP por categoria</div>
-            <h2 class="finance-section-title">KPIs pizza com cores padrão das categorias</h2>
-            <p class="finance-section-note">Cada KPI é fatiado pelas categorias do estoque e respeita a mesma cor padrão usada nos cards e nos demais indicadores do sistema.</p>
+<div class="finance-shell">
+    <section class="finance-topbar fin-top mb-3">
+        <div class="fin-top-row">
+            <h1 class="fin-title"><i class="bi bi-cash-stack"></i> Financeiro</h1>
+            <div class="fin-actions">
+                {% if exercise_options %}
+                <form method="get" class="fin-exercise">
+                    <input type="hidden" name="aba" value="{{ fin_tab }}" data-fin-aba-input>
+                    <select class="form-select form-select-sm finance-control" name="exercicio" onchange="this.form.submit()" aria-label="Exercício">
+                        {% for option in exercise_options %}
+                        <option value="{{ option.label }}" {% if option.label == exercise.label %}selected{% endif %}>Exercício {{ option.label }}</option>
+                        {% endfor %}
+                    </select>
+                </form>
+                {% endif %}
+                {% if valor_estoque_pdf_url %}
+                <a class="btn btn-outline-success btn-sm" href="{{ valor_estoque_pdf_url }}"><i class="bi bi-file-earmark-pdf me-1"></i>Prestação de contas</a>
+                {% endif %}
+                <a class="btn btn-outline-success btn-sm" href="{{ url_for('inventory.consumption_report_pdf', exercicio=exercise.label) }}"><i class="bi bi-file-earmark-pdf me-1"></i>Consumo PDF</a>
+                <a class="btn btn-outline-success btn-sm" href="{{ url_for('inventory.consumption_report_xlsx', exercicio=exercise.label) }}"><i class="bi bi-file-earmark-excel me-1"></i>Consumo Excel</a>
+            </div>
         </div>
-        <button class="finance-section-toggle" type="button"
-            data-bs-toggle="collapse" data-bs-target="#finance-category-pizza-panel"
-            aria-expanded="true" aria-controls="finance-category-pizza-panel"
-            data-finance-toggle data-toggle-expand-label="Expandir" data-toggle-collapse-label="Recolher">
-            <span data-toggle-label>Recolher</span>
-            <i class="bi bi-chevron-up" data-toggle-icon></i>
-        </button>
-    </div>
-    <div class="collapse show finance-collapse" id="finance-category-pizza-panel" data-finance-collapsible>
-        {% set legend_items = category_visual_catalog %}
-        {% set legend_kicker = 'Padrao oficial' %}
-        {% set legend_title = 'Cores oficiais das categorias' %}
-        {% set legend_note = 'A mesma paleta governa estas pizzas, os cards financeiros e a classificacao do item.' %}
-        {% set legend_badge = 'Leitura ERP' %}
-        {% set legend_compact = true %}
-        {% include 'partials/category_visual_legend.html' %}
-        <div class="finance-pizza-grid">
-            {% for kpi in finance_category_kpis %}
-            <article class="finance-pizza-kpi"
-                style="--category-accent: {{ kpi.accent_color }}; --category-soft: {{ kpi.accent_soft }}; --kpi-ring: {{ kpi.ring_gradient }};">
-                <div class="finance-pizza-kpi-top">
-                    <div>
-                        <div class="finance-kpi-label">{{ kpi.title }}</div>
-                        <div class="finance-pizza-value">{{ brl(kpi.value) }}</div>
-                    </div>
-                    <div class="finance-pizza-ring" aria-hidden="true">
-                        <div class="finance-pizza-core">
-                            <div>
-                                <strong>{{ kpi.segments_count }}</strong>
-                                <span>cats</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <p class="finance-pizza-note">{{ kpi.note }}</p>
-                {% if kpi.legend_note %}
-                <p class="finance-pizza-legend-note">{{ kpi.legend_note }}</p>
-                {% endif %}
-                {% if kpi.top_category %}
-                <div class="finance-pizza-highlight">
-                    <span class="finance-pizza-highlight-dot"></span>
-                    <span><strong>{{ kpi.top_category }}</strong> lidera com {{ kpi.top_share_pct|number_br(1, True) }}%.</span>
-                </div>
-                {% endif %}
-                <div class="finance-pizza-legend">
-                    {% for segment in kpi.segments %}
-                    <div class="finance-pizza-legend-row{% if segment.is_aggregate %} is-aggregate{% endif %}">
-                        <div class="finance-pizza-legend-label">
-                            <span class="finance-pizza-dot" style="background: {{ segment.color }};"></span>
-                            <span>{{ segment.categoria }}</span>
-                            {% if segment.hidden_categories_count %}
-                            <span class="finance-pizza-legend-tag">{{ segment.hidden_categories_count }} agrupadas</span>
-                            {% endif %}
-                        </div>
-                        <div class="finance-pizza-legend-values">
-                            <strong>{{ brl(segment.value) }}</strong>
-                            <span>{{ segment.share_pct|round(1)|number_br }}%</span>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </article>
+        <ul class="nav nav-pills fin-tabs" role="tablist">
+            {% for key, label, icon in fin_tabs %}
+            <li class="nav-item" role="presentation">
+                <button class="nav-link{% if key == fin_tab %} active{% endif %}" type="button" role="tab"
+                    data-bs-toggle="pill" data-bs-target="#fin-{{ key }}" data-fin-tab="{{ key }}"
+                    aria-controls="fin-{{ key }}" aria-selected="{{ 'true' if key == fin_tab else 'false' }}">
+                    <i class="bi {{ icon }} me-1"></i>{{ label }}
+                </button>
+            </li>
             {% endfor %}
-        </div>
-    </div>
-</section>
-{% endif %}
-
-{% if consumo_fracionado_por_local %}
-<section class="finance-section mb-4">
-    <div class="finance-section-head">
-        <div>
-            <div class="finance-section-kicker">Consumo fracionado</div>
-            <h2 class="finance-section-title">Resumo por local</h2>
-            <p class="finance-section-note">Mostra somente saídas com litros ou quilos registrados e custo interno calculado por capacidade.</p>
-        </div>
-        <button class="finance-section-toggle" type="button"
-            data-bs-toggle="collapse" data-bs-target="#finance-fracionado-panel"
-            aria-expanded="false" aria-controls="finance-fracionado-panel"
-            data-finance-toggle data-toggle-expand-label="Expandir" data-toggle-collapse-label="Recolher">
-            <span data-toggle-label>Expandir</span>
-            <i class="bi bi-chevron-down" data-toggle-icon></i>
-        </button>
-    </div>
-    <div class="collapse finance-collapse" id="finance-fracionado-panel" data-finance-collapsible>
-        <section class="value-table value-table-fracionado p-3">
-            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
-                <div>
-                    <h2 class="h5 mb-1">Consumo fracionado por local</h2>
-                    <div class="text-muted small">
-                        Considera apenas saídas com litros/kg registrados; custo interno = preço da embalagem ÷ capacidade.
-                    </div>
-                </div>
-                <div class="d-flex flex-wrap gap-2 align-items-start">
-                    <div class="text-end small text-muted">
-                        <div><strong>{{ brl(total_fracionado_valor) }}</strong></div>
-                        <div>{{ total_fracionado_litros|number_br(2, True) }} L • {{ total_fracionado_quilos|number_br(2, True) }} Kg</div>
-                        {% if fracionado_linhas_ignoradas %}
-                        <div>{{ fracionado_linhas_ignoradas }} linha(s) ignorada(s) (sem preço/capacidade).</div>
-                        {% endif %}
-                    </div>
-                    <div class="d-flex gap-2 flex-wrap">
-                        <a class="btn btn-sm btn-outline-info" href="{{ url_for('inventory.consumption_dashboard', exercicio=exercise.label) }}">
-                            <i class="bi bi-geo-alt me-1"></i> Abrir painel
-                        </a>
-                        <a class="btn btn-sm btn-outline-success" href="{{ url_for('inventory.consumption_report_pdf', exercicio=exercise.label) }}">
-                            <i class="bi bi-file-earmark-pdf me-1"></i> PDF geral
-                        </a>
-                    </div>
-                </div>
-            </div>
-            <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead>
-                        <tr>
-                            <th>Local</th>
-                            <th>Colaborador</th>
-                            <th>Cargo</th>
-                            <th>Material</th>
-                            <th>Onde usou</th>
-                            <th class="text-end">Litros</th>
-                            <th class="text-end">Kg</th>
-                            <th class="text-end">Saídas</th>
-                            <th class="text-end">Itens</th>
-                            <th class="text-end">Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in consumo_fracionado_por_local %}
-                        <tr>
-                            <td class="fw-semibold">{{ row.local }}</td>
-                            <td>{{ row.ultimo_colaborador_nome or 'Não informado' }}</td>
-                            <td class="text-muted">{{ row.ultimo_colaborador_cargo or 'Sem cargo' }}</td>
-                            <td>{{ row.ultimo_material_nome or '—' }}</td>
-                            <td class="text-muted">{{ row.ultimo_contexto or row.local }}</td>
-                            <td class="text-end text-muted">{{ (row.total_litros or 0)|number_br(2, True) }}</td>
-                            <td class="text-end text-muted">{{ (row.total_quilos or 0)|number_br(2, True) }}</td>
-                            <td class="text-end text-muted">{{ row.saidas or 0 }}</td>
-                            <td class="text-end text-muted">{{ row.itens or 0 }}</td>
-                            <td class="text-end">{{ brl(row.total_valor) }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </section>
-    </div>
-</section>
-{% endif %}
-
-{% if consumo_analitico_locais or consumo_analitico_recentes %}
-<section class="finance-section mb-4">
-    <div class="finance-section-head">
-        <div>
-            <div class="finance-section-kicker">Consumo rastreado</div>
-            <h2 class="finance-section-title">Painel analítico por local, categoria e colaborador</h2>
-            <p class="finance-section-note">Mantém a leitura executiva compacta e abre o detalhe analítico só quando necessário.</p>
-        </div>
-        <button class="finance-section-toggle" type="button"
-            data-bs-toggle="collapse" data-bs-target="#finance-consumo-panel"
-            aria-expanded="false" aria-controls="finance-consumo-panel"
-            data-finance-toggle data-toggle-expand-label="Expandir" data-toggle-collapse-label="Recolher">
-            <span data-toggle-label>Expandir</span>
-            <i class="bi bi-chevron-down" data-toggle-icon></i>
-        </button>
-    </div>
-    <div class="collapse finance-collapse" id="finance-consumo-panel" data-finance-collapsible>
-<section class="consumption-hub">
-    <div class="consumption-hub-head d-flex justify-content-between align-items-start flex-wrap gap-3">
-        <div>
-            <h2 class="h4 mb-1">Painel de consumo rastreado</h2>
-            <p class="text-muted mb-0">Cruza local, colaborador, cargo, material, quantidade, valor e contexto de uso para abrir a próxima fase da análise por local.</p>
-        </div>
-        <div class="d-flex gap-2 flex-wrap">
-            <a class="btn btn-outline-info rounded-pill px-4" href="{{ url_for('inventory.consumption_dashboard', exercicio=exercise.label) }}">
-                <i class="bi bi-bar-chart-line me-1"></i> Painel completo
-            </a>
-            <a class="btn btn-outline-success rounded-pill px-4" href="{{ url_for('inventory.consumption_report_pdf', exercicio=exercise.label) }}">
-                <i class="bi bi-file-earmark-pdf me-1"></i> Relatório geral
-            </a>
-        </div>
-    </div>
-
-    <div class="consumption-summary-grid">
-        <article class="consumption-summary-card">
-            <span class="consumption-summary-label">Valor rastreado</span>
-            <div class="consumption-summary-value">{{ brl(consumo_analitico_resumo.total_valor) }}</div>
-            <div class="consumption-summary-caption">Valor consumido com base no custo de compra normalizado do exercício.</div>
-        </article>
-        <article class="consumption-summary-card">
-            <span class="consumption-summary-label">Saídas rastreadas</span>
-            <div class="consumption-summary-value">{{ consumo_analitico_resumo.saidas or 0 }}</div>
-            <div class="consumption-summary-caption">Lançamentos com item, responsável, local e quantidade consolidados.</div>
-        </article>
-        <article class="consumption-summary-card">
-            <span class="consumption-summary-label">Locais atendidos</span>
-            <div class="consumption-summary-value">{{ consumo_analitico_resumo.locais or 0 }}</div>
-            <div class="consumption-summary-caption">Frentes de uso com rastreabilidade operacional dentro do exercício.</div>
-        </article>
-        <article class="consumption-summary-card">
-            <span class="consumption-summary-label">Colaboradores</span>
-            <div class="consumption-summary-value">{{ consumo_analitico_resumo.colaboradores or 0 }}</div>
-            <div class="consumption-summary-caption">Responsáveis identificados nos consumos rastreados.</div>
-        </article>
-    </div>
-
-    <div class="consumption-panels">
-        <article class="consumption-card">
-            <div class="consumption-card-head d-flex justify-content-between align-items-start gap-2 flex-wrap">
-                <div>
-                    <h3 class="h6 mb-1">Locais com maior consumo</h3>
-                    <div class="text-muted small">Cada linha já expõe o último responsável, cargo e material usado naquele local.</div>
-                </div>
-                <span class="consumption-chip"><i class="bi bi-geo-alt"></i> Drilldown por local</span>
-            </div>
-            <div class="consumption-card-body table-responsive">
-                <table class="table consumption-mini-table mb-0">
-                    <thead>
-                        <tr>
-                            <th>Local</th>
-                            <th>Colaborador</th>
-                            <th>Material</th>
-                            <th class="text-end">Valor</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in consumo_analitico_locais[:6] %}
-                        <tr>
-                            <td>
-                                <div class="fw-semibold">{{ row.local }}</div>
-                                <div class="text-muted small">{{ row.saidas or 0 }} saída(s) • {{ row.itens or 0 }} item(ns)</div>
-                            </td>
-                            <td>
-                                <div>{{ row.ultimo_colaborador_nome or row.colaborador_destaque or 'Não informado' }}</div>
-                                <div class="text-muted small">{{ row.ultimo_colaborador_cargo or row.cargo_destaque or 'Sem cargo' }}</div>
-                            </td>
-                            <td>
-                                <div>{{ row.ultimo_material_nome or row.material_destaque or '—' }}</div>
-                                <div class="text-muted small">{{ row.ultimo_contexto or 'Sem contexto' }}</div>
-                            </td>
-                            <td class="text-end">{{ brl(row.total_valor) }}</td>
-                            <td class="text-end">
-                                <a class="btn btn-sm btn-outline-info" href="{{ url_for('inventory.consumption_by_local', local=row.local, exercicio=exercise.label) }}">Abrir</a>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </article>
-
-        <article class="consumption-card">
-            <div class="consumption-card-head">
-                <h3 class="h6 mb-1">Últimos consumos rastreados</h3>
-                <div class="text-muted small">Nome, cargo, material, onde usou, quantidade e valor já aparecem na visão principal.</div>
-            </div>
-            <div class="consumption-card-body consumption-list">
-                {% for row in consumo_analitico_recentes[:6] %}
-                <div class="consumption-list-item">
-                    <div class="d-flex justify-content-between gap-2 flex-wrap">
-                        <strong>{{ row.colaborador_nome or 'Não informado' }}</strong>
-                        <span class="text-muted small">{{ row.data_saida_label or '-' }}</span>
-                    </div>
-                    <div class="consumption-list-meta">{{ row.cargo or 'Sem cargo' }} • {{ row.descricao_item }} • {{ row.local }}</div>
-                    <div class="consumption-list-meta">{{ row.quantidade_display }} • {{ brl(row.valor_total) }}</div>
-                    <div class="consumption-list-meta">{{ row.contexto_uso or row.local }}</div>
-                </div>
-                {% endfor %}
-            </div>
-        </article>
-    </div>
-
-    <div class="consumption-subgrid">
-        <article class="consumption-card">
-            <div class="consumption-card-head">
-                <h3 class="h6 mb-1">Categorias mais consumidas</h3>
-                <div class="text-muted small">Cada categoria abre sua subpágina com materiais, locais e responsáveis.</div>
-            </div>
-            <div class="consumption-card-body consumption-list">
-                {% for row in consumo_analitico_categorias[:5] %}
-                <div class="consumption-list-item category-accented" style="--category-accent: {{ row.color }}; --category-soft: {{ row.soft }}; --category-soft-strong: {{ row.soft_strong }};">
-                    <div class="d-flex justify-content-between gap-2 flex-wrap">
-                        <div class="consumption-category-heading">
-                            <span class="consumption-category-icon">{{ row.icon }}</span>
-                            <strong>{{ row.categoria }}</strong>
-                        </div>
-                        <span>{{ brl(row.total_valor) }}</span>
-                    </div>
-                    <div class="consumption-list-meta">{{ row.saidas or 0 }} saída(s) • {{ row.locais or 0 }} local(is) • {{ row.colaboradores or 0 }} colaborador(es)</div>
-                    <div class="consumption-list-meta">Destaque: {{ row.material_destaque or '—' }} • Local: {{ row.local_destaque or '—' }}</div>
-                    <div class="mt-2">
-                        <a class="btn btn-sm btn-outline-info" href="{{ url_for('inventory.consumption_by_category', categoria=row.categoria, exercicio=exercise.label) }}">Ver categoria</a>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-        </article>
-
-        <article class="consumption-card">
-            <div class="consumption-card-head">
-                <h3 class="h6 mb-1">Colaboradores com maior consumo</h3>
-                <div class="text-muted small">O parecer administrativo avalia rastreabilidade operacional, não produtividade isolada.</div>
-            </div>
-            <div class="consumption-card-body consumption-list">
-                {% for row in consumo_analitico_funcionarios[:5] %}
-                <div class="consumption-list-item">
-                    <div class="d-flex justify-content-between gap-2 flex-wrap">
-                        <strong>{{ row.nome or 'Não informado' }}</strong>
-                        <span>{{ brl(row.total_valor) }}</span>
-                    </div>
-                    <div class="consumption-list-meta">{{ row.cargo or 'Sem cargo' }} • {{ row.saidas or 0 }} saída(s) • {{ row.locais or 0 }} local(is)</div>
-                    <div class="consumption-list-meta">Parecer: {{ row.parecer_administrativo.label if row.parecer_administrativo else 'Sem base' }}</div>
-                    {% if row.matricula %}
-                    <div class="mt-2">
-                        <a class="btn btn-sm btn-outline-info" href="{{ url_for('inventory.consumption_by_employee', matricula=row.matricula, exercicio=exercise.label) }}">Ver colaborador</a>
-                    </div>
-                    {% endif %}
-                </div>
-                {% endfor %}
-            </div>
-        </article>
-    </div>
-</section>
-    </div>
-</section>
-{% endif %}
-
-<section class="finance-section mb-4">
-    <div class="finance-section-head">
-        <div>
-            <div class="finance-section-kicker">Categorias</div>
-            <h2 class="finance-section-title">Carteira financeira por categoria</h2>
-            <p class="finance-section-note">Cada card mostra o resumo da categoria e abre a grade analítica somente sob demanda.</p>
-        </div>
-        <div class="text-end small text-muted">{{ category_cards|length }} categoria(s) carregada(s)</div>
-    </div>
-</section>
-
-<div class="d-grid gap-3">
-    {% for card in category_cards %}
-    {% set cat_id = 'cat_' ~ loop.index %}
-    <section class="category-card" style="--category-accent: {{ card.color }}; --category-soft: {{ card.soft }}; --category-soft-strong: {{ card.soft_strong }};">
-        <div class="category-head">
-            <div class="category-head-main">
-                <div class="category-head-identity">
-                    <div class="category-icon">{{ card.icon }}</div>
-                    <div>
-                        <div class="category-eyebrow">Categoria</div>
-                        <div class="category-title-row">
-                            <h2 class="h5 mb-0">{{ card.categoria }}</h2>
-                            <span class="category-chip">{{ card['items']|length }} item(ns)</span>
-                        </div>
-                        <div class="text-muted small">Carteira financeira e consumo rastreado usando a mesma cor padrão desta categoria.</div>
-                    </div>
-                </div>
-                <div class="category-head-side small text-muted">
-                    {% if card.top_item_nome %}
-                    Mais usado: <strong>{{ card.top_item_nome }}</strong> ({{ card.top_item_quantidade }})
-                    {% else %}
-                    Ainda sem consumo registrado neste exercício.
-                    {% endif %}
-                    {% if card.top_fornecedor_nome %}
-                    <div>Fornecedor destaque: <strong>{{ card.top_fornecedor_nome }}</strong></div>
-                    {% endif %}
-                    <button class="finance-section-toggle" type="button"
-                        data-bs-toggle="collapse" data-bs-target="#{{ cat_id }}"
-                        aria-expanded="{{ 'true' if loop.first else 'false' }}" aria-controls="{{ cat_id }}"
-                        data-finance-toggle data-toggle-expand-label="Abrir detalhes" data-toggle-collapse-label="Fechar detalhes">
-                        <span data-toggle-label>{{ 'Fechar detalhes' if loop.first else 'Abrir detalhes' }}</span>
-                        <i class="bi {{ 'bi-chevron-up' if loop.first else 'bi-chevron-down' }}" data-toggle-icon></i>
-                    </button>
-                </div>
-            </div>
-            <div class="category-metrics">
-                <div class="category-metric">
-                    <div class="label">Investido</div>
-                    <div class="value">{{ brl(card.total_investido) }}</div>
-                </div>
-                <div class="category-metric">
-                    <div class="label">Consumido</div>
-                    <div class="value">{{ brl(card.total_consumido) }}</div>
-                </div>
-                <div class="category-metric">
-                    <div class="label">Atual compra</div>
-                    <div class="value">{{ brl(card.total_atual_compra) }}</div>
-                </div>
-                <div class="category-metric">
-                    <div class="label">Atual reposição</div>
-                    <div class="value">{{ brl(card.total_atual_reposicao) }}</div>
-                </div>
-                <div class="category-metric">
-                    <div class="label">Sem comprovação</div>
-                    <div class="value">{{ brl(card.total_sem_comprovacao) }}</div>
-                </div>
-            </div>
-        </div>
-        <div class="collapse finance-category-collapse{% if loop.first %} show{% endif %}" id="{{ cat_id }}" data-finance-collapsible>
-        <div class="table-responsive value-table category-table-wrap" style="border:none; box-shadow:none; border-radius:0;">
-            <table class="table table-hover mb-0">
-                <thead>
-                    <tr>
-                        <th>Item</th>
-                        <th>Saldo</th>
-                        <th>Investido no exercício</th>
-                        <th>Compra atual</th>
-                        <th>Consumo</th>
-                        <th>Reposição</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in card['items'] %}
-                    <tr>
-                        <td>
-                            <div class="fw-semibold">{{ item.descricao }}</div>
-                            <div class="text-muted small">
-                                <span class="value-pill">Código {{ item.codigo }}</span>
-                                {% if item.fornecedor_preferido_nome %}
-                                <span class="value-pill">{{ item.fornecedor_preferido_nome }}</span>
-                                {% endif %}
-                            </div>
-                        </td>
-                        <td class="text-muted">{{ item.saldo_display or item.saldo }}</td>
-                        <td>
-                            <div>{{ brl(item.investido_exercicio) }}</div>
-                            <div class="text-muted small">Sem comprov.: {{ brl(item.sem_comprovacao_valor_exercicio) }}</div>
-                        </td>
-                        <td>
-                            {% if item.preco_compra_unitario_base is not none %}
-                            <div>{{ brl(item.preco_compra_unitario_base) }}</div>
-                            {% if item.preco_compra_unitario is not none and item.preco_compra_unitario != item.preco_compra_unitario_base %}
-                            <div class="text-muted small">Informado: {{ brl(item.preco_compra_unitario) }}{% if item.preco_compra_unidade_preco %} / {{ item.preco_compra_unidade_preco|upper }}{% endif %}</div>
-                            {% endif %}
-                            <div class="text-muted small">Atual: {{ brl(item.valor_estoque_compra_total) }}</div>
-                            {% else %}
-                            <span class="missing">—</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <div>{{ item.consumo_quantidade_exercicio or 0 }}</div>
-                            <div class="text-muted small">{{ brl(item.consumo_valor_exercicio) }}</div>
-                        </td>
-                        <td>
-                            {% if item.preco_reposicao_unitario_base is not none %}
-                            <div>{{ brl(item.preco_reposicao_unitario_base) }}</div>
-                            {% if item.preco_reposicao_unitario is not none and item.preco_reposicao_unitario != item.preco_reposicao_unitario_base %}
-                            <div class="text-muted small">Informado: {{ brl(item.preco_reposicao_unitario) }}{% if item.preco_reposicao_unidade_preco %} / {{ item.preco_reposicao_unidade_preco|upper }}{% endif %}</div>
-                            {% endif %}
-                            <div class="text-muted small">Atual: {{ brl(item.valor_estoque_reposicao_total) }}</div>
-                            {% else %}
-                            <span class="missing">—</span>
-                            {% endif %}
-                        </td>
-                        <td class="text-end">
-                            <div class="d-inline-flex gap-2">
-                                <button class="btn btn-sm btn-outline-primary" type="button"
-                                    data-preco-codigo="{{ item.codigo|e }}">
-                                    <i class="bi bi-search me-1"></i> Buscar preco...
-                                </button>
-                                <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('inventory.edit_item_form', codigo=item.codigo) }}">
-                                    <i class="bi bi-pencil me-1"></i> Editar
-                                </a>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        </div>
+        </ul>
     </section>
-    {% endfor %}
-</div>
+
+    <div class="tab-content">
+        {# ---------------- Resumo ---------------- #}
+        <div class="tab-pane fade{% if fin_tab == 'resumo' %} show active{% endif %}" id="fin-resumo" role="tabpanel">
+            <div class="finance-kpi-grid">
+                <article class="finance-kpi-card">
+                    <div class="finance-kpi-label">Estoque (compra)</div>
+                    <div class="finance-kpi-value">{{ brl(total_compra) }}</div>
+                    {% if missing_compra %}<p class="finance-kpi-meta">{{ missing_compra }} sem preço</p>{% endif %}
+                </article>
+                <article class="finance-kpi-card accent-green">
+                    <div class="finance-kpi-label">Estoque (reposição)</div>
+                    <div class="finance-kpi-value">{{ brl(total_reposicao) }}</div>
+                    {% if missing_reposicao %}<p class="finance-kpi-meta">{{ missing_reposicao }} sem preço</p>{% endif %}
+                </article>
+                <article class="finance-kpi-card accent-amber">
+                    <div class="finance-kpi-label">Investido</div>
+                    <div class="finance-kpi-value">{{ brl(total_investido_exercicio) }}</div>
+                    {% if exercise.start_date is defined and exercise.end_date is defined %}
+                    <p class="finance-kpi-meta">{{ exercise.start_date.strftime('%d/%m/%Y') }} a {{ exercise.end_date.strftime('%d/%m/%Y') }}</p>
+                    {% endif %}
+                </article>
+                <article class="finance-kpi-card accent-violet">
+                    <div class="finance-kpi-label">Consumido</div>
+                    <div class="finance-kpi-value">{{ brl(total_consumido_exercicio) }}</div>
+                </article>
+                <article class="finance-kpi-card accent-rose">
+                    <div class="finance-kpi-label">Sem comprovação</div>
+                    <div class="finance-kpi-value">{{ brl(total_sem_comprovacao_exercicio) }}</div>
+                </article>
+            </div>
+
+            {% if finance_category_kpis %}
+            <div class="finance-pizza-grid mt-3">
+                {% for kpi in finance_category_kpis %}
+                <article class="finance-pizza-kpi"
+                    style="--category-accent: {{ kpi.accent_color }}; --category-soft: {{ kpi.accent_soft }}; --kpi-ring: {{ kpi.ring_gradient }};">
+                    <div class="finance-pizza-kpi-top">
+                        <div>
+                            <div class="finance-kpi-label">{{ kpi.title }}</div>
+                            <div class="finance-pizza-value">{{ brl(kpi.value) }}</div>
+                        </div>
+                        <div class="finance-pizza-ring" aria-hidden="true">
+                            <div class="finance-pizza-core"><div><strong>{{ kpi.segments_count }}</strong><span>cats</span></div></div>
+                        </div>
+                    </div>
+                    <div class="finance-pizza-legend">
+                        {% for segment in kpi.segments %}
+                        <div class="finance-pizza-legend-row{% if segment.is_aggregate %} is-aggregate{% endif %}">
+                            <div class="finance-pizza-legend-label">
+                                <span class="finance-pizza-dot" style="background: {{ segment.color }};"></span>
+                                <span>{{ segment.categoria }}</span>
+                            </div>
+                            <div class="finance-pizza-legend-values">
+                                <strong>{{ brl(segment.value) }}</strong>
+                                <span>{{ segment.share_pct|round(1)|number_br }}%</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        {# ---------------- Categorias ---------------- #}
+        <div class="tab-pane fade{% if fin_tab == 'categorias' %} show active{% endif %}" id="fin-categorias" role="tabpanel">
+            <div class="fin-cat-grid">
+                {% for card in category_cards %}
+                <button type="button" class="fin-cat-card" data-bs-toggle="modal" data-bs-target="#fin-cat-{{ loop.index }}"
+                    style="--category-accent: {{ card.color }}; --category-soft: {{ card.soft }}; --category-soft-strong: {{ card.soft_strong }};">
+                    <span class="fin-cat-head">
+                        <span class="fin-cat-icon">{{ card.icon }}</span>
+                        <strong>{{ card.categoria }}</strong>
+                        <span class="fin-cat-count">{{ card['items']|length }}</span>
+                    </span>
+                    <span class="fin-cat-values">
+                        <span><small>Atual</small><b>{{ brl(card.total_atual_compra) }}</b></span>
+                        <span><small>Investido</small><b>{{ brl(card.total_investido) }}</b></span>
+                        <span><small>Consumido</small><b>{{ brl(card.total_consumido) }}</b></span>
+                    </span>
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+
+        {# ---------------- Consumo ---------------- #}
+        <div class="tab-pane fade{% if fin_tab == 'consumo' %} show active{% endif %}" id="fin-consumo" role="tabpanel">
+            <div class="finance-kpi-grid fin-kpi-4">
+                <article class="finance-kpi-card accent-violet">
+                    <div class="finance-kpi-label">Valor consumido</div>
+                    <div class="finance-kpi-value">{{ brl(consumo_analitico_resumo.total_valor) }}</div>
+                </article>
+                <article class="finance-kpi-card">
+                    <div class="finance-kpi-label">Saídas</div>
+                    <div class="finance-kpi-value">{{ consumo_analitico_resumo.saidas or 0 }}</div>
+                </article>
+                <article class="finance-kpi-card accent-green">
+                    <div class="finance-kpi-label">Locais</div>
+                    <div class="finance-kpi-value">{{ consumo_analitico_resumo.locais or 0 }}</div>
+                </article>
+                <article class="finance-kpi-card accent-amber">
+                    <div class="finance-kpi-label">Colaboradores</div>
+                    <div class="finance-kpi-value">{{ consumo_analitico_resumo.colaboradores or 0 }}</div>
+                </article>
+            </div>
+
+            <div class="fin-cons-grid">
+                <article class="fin-panel">
+                    <h2 class="fin-panel-title"><i class="bi bi-geo-alt me-1"></i>Locais</h2>
+                    <div class="fin-scroll">
+                        <table class="table fin-table mb-0">
+                            <tbody>
+                                {% for row in consumo_analitico_locais %}
+                                <tr data-fin-consumo="local" data-fin-value="{{ row.local }}" tabindex="0">
+                                    <td>{{ row.local }}<small>{{ row.saidas or 0 }} saída(s) · {{ row.itens or 0 }} item(ns)</small></td>
+                                    <td class="text-end fw-bold">{{ brl(row.total_valor) }}</td>
+                                </tr>
+                                {% else %}
+                                <tr><td class="fin-empty">Sem consumo no exercício.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+
+                <article class="fin-panel">
+                    <h2 class="fin-panel-title"><i class="bi bi-tags me-1"></i>Categorias</h2>
+                    <div class="fin-scroll">
+                        <table class="table fin-table mb-0">
+                            <tbody>
+                                {% for row in consumo_analitico_categorias %}
+                                <tr data-fin-consumo="categoria" data-fin-value="{{ row.categoria }}" tabindex="0" style="--category-accent: {{ row.color }};">
+                                    <td class="fin-cat-cell">{{ row.icon }} {{ row.categoria }}<small>{{ row.saidas or 0 }} saída(s) · {{ row.locais or 0 }} local(is)</small></td>
+                                    <td class="text-end fw-bold">{{ brl(row.total_valor) }}</td>
+                                </tr>
+                                {% else %}
+                                <tr><td class="fin-empty">Sem consumo no exercício.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+
+                <article class="fin-panel">
+                    <h2 class="fin-panel-title"><i class="bi bi-people me-1"></i>Colaboradores</h2>
+                    <div class="fin-scroll">
+                        <table class="table fin-table mb-0">
+                            <tbody>
+                                {% for row in consumo_analitico_funcionarios %}
+                                <tr {% if row.matricula %}data-fin-consumo="matricula" data-fin-value="{{ row.matricula }}" data-fin-label="{{ row.nome }}" tabindex="0"{% endif %}>
+                                    <td>{{ row.nome or 'Não informado' }}<small>{{ row.cargo or 'Sem cargo' }} · {{ row.saidas or 0 }} saída(s){% if row.parecer_administrativo %} · {{ row.parecer_administrativo.label }}{% endif %}</small></td>
+                                    <td class="text-end fw-bold">{{ brl(row.total_valor) }}</td>
+                                </tr>
+                                {% else %}
+                                <tr><td class="fin-empty">Sem consumo no exercício.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+
+                <article class="fin-panel">
+                    <h2 class="fin-panel-title"><i class="bi bi-clock-history me-1"></i>Últimos consumos</h2>
+                    <div class="fin-scroll">
+                        <table class="table fin-table mb-0">
+                            <tbody>
+                                {% for row in consumo_analitico_recentes %}
+                                <tr>
+                                    <td>{{ row.descricao_item }}<small>{{ row.data_saida_label or '-' }} · {{ row.colaborador_nome or 'Não informado' }} · {{ row.local }}</small></td>
+                                    <td class="text-end">{{ row.quantidade_display }}<small>{{ brl(row.valor_total) }}</small></td>
+                                </tr>
+                                {% else %}
+                                <tr><td class="fin-empty">Sem consumo no exercício.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+            </div>
+        </div>
+
+        {# ---------------- Fracionado ---------------- #}
+        {% if consumo_fracionado_por_local %}
+        <div class="tab-pane fade{% if fin_tab == 'fracionado' %} show active{% endif %}" id="fin-fracionado" role="tabpanel">
+            <div class="finance-kpi-grid fin-kpi-3">
+                <article class="finance-kpi-card accent-violet">
+                    <div class="finance-kpi-label">Valor</div>
+                    <div class="finance-kpi-value">{{ brl(total_fracionado_valor) }}</div>
+                    {% if fracionado_linhas_ignoradas %}<p class="finance-kpi-meta">{{ fracionado_linhas_ignoradas }} sem preço ou capacidade</p>{% endif %}
+                </article>
+                <article class="finance-kpi-card">
+                    <div class="finance-kpi-label">Litros</div>
+                    <div class="finance-kpi-value">{{ total_fracionado_litros|number_br(2, True) }}</div>
+                </article>
+                <article class="finance-kpi-card accent-amber">
+                    <div class="finance-kpi-label">Quilos</div>
+                    <div class="finance-kpi-value">{{ total_fracionado_quilos|number_br(2, True) }}</div>
+                </article>
+            </div>
+            <section class="value-table value-table-fracionado mt-3">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Local</th>
+                                <th>Colaborador</th>
+                                <th>Material</th>
+                                <th class="text-end">Litros</th>
+                                <th class="text-end">Kg</th>
+                                <th class="text-end">Saídas</th>
+                                <th class="text-end">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in consumo_fracionado_por_local %}
+                            <tr>
+                                <td class="fw-semibold">{{ row.local }}</td>
+                                <td>{{ row.ultimo_colaborador_nome or 'Não informado' }}</td>
+                                <td>{{ row.ultimo_material_nome or '—' }}</td>
+                                <td class="text-end">{{ (row.total_litros or 0)|number_br(2, True) }}</td>
+                                <td class="text-end">{{ (row.total_quilos or 0)|number_br(2, True) }}</td>
+                                <td class="text-end">{{ row.saidas or 0 }}</td>
+                                <td class="text-end fw-bold">{{ brl(row.total_valor) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+        {% endif %}
+    </div>
 
 </div>
+
+{# ---------------- Modais das categorias ---------------- #}
+    {% for card in category_cards %}
+    <div class="modal fade" id="fin-cat-{{ loop.index }}" tabindex="-1" aria-labelledby="fin-cat-{{ loop.index }}-title" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content bg-dark text-white fin-modal" style="--category-accent: {{ card.color }};">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="fin-cat-{{ loop.index }}-title">{{ card.icon }} {{ card.categoria }}</h2>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="fin-modal-kpis">
+                        <div><span>Atual (compra)</span><strong>{{ brl(card.total_atual_compra) }}</strong></div>
+                        <div><span>Atual (reposição)</span><strong>{{ brl(card.total_atual_reposicao) }}</strong></div>
+                        <div><span>Investido</span><strong>{{ brl(card.total_investido) }}</strong></div>
+                        <div><span>Consumido</span><strong>{{ brl(card.total_consumido) }}</strong></div>
+                        <div><span>Sem comprovação</span><strong>{{ brl(card.total_sem_comprovacao) }}</strong></div>
+                    </div>
+                    <div class="table-responsive value-table">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Saldo</th>
+                                    <th class="text-end">Investido</th>
+                                    <th class="text-end">Compra</th>
+                                    <th class="text-end">Consumo</th>
+                                    <th class="text-end">Reposição</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in card['items'] %}
+                                <tr>
+                                    <td>
+                                        <div class="fw-semibold">{{ item.descricao }}</div>
+                                        <div class="fin-sub">{{ item.codigo }}{% if item.fornecedor_preferido_nome %} · {{ item.fornecedor_preferido_nome }}{% endif %}</div>
+                                    </td>
+                                    <td>{{ item.saldo_display or item.saldo }}</td>
+                                    <td class="text-end">{{ brl(item.investido_exercicio) }}</td>
+                                    <td class="text-end">
+                                        {% if item.preco_compra_unitario_base is not none %}
+                                        {{ brl(item.preco_compra_unitario_base) }}
+                                        <div class="fin-sub">{{ brl(item.valor_estoque_compra_total) }}</div>
+                                        {% else %}<span class="missing">—</span>{% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        {{ item.consumo_quantidade_exercicio or 0 }}
+                                        <div class="fin-sub">{{ brl(item.consumo_valor_exercicio) }}</div>
+                                    </td>
+                                    <td class="text-end">
+                                        {% if item.preco_reposicao_unitario_base is not none %}
+                                        {{ brl(item.preco_reposicao_unitario_base) }}
+                                        <div class="fin-sub">{{ brl(item.valor_estoque_reposicao_total) }}</div>
+                                        {% else %}<span class="missing">—</span>{% endif %}
+                                    </td>
+                                    <td class="text-end text-nowrap">
+                                        <button class="btn btn-sm btn-outline-primary" type="button" data-preco-codigo="{{ item.codigo|e }}" title="Buscar preço de reposição">
+                                            <i class="bi bi-search"></i>
+                                        </button>
+                                        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('inventory.edit_item_form', codigo=item.codigo) }}" title="Editar item">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    {# ---------------- Modal do consumo (local, categoria ou colaborador) ---------------- #}
+    <div class="modal fade" id="fin-consumo-modal" tabindex="-1" aria-labelledby="fin-consumo-title" aria-hidden="true"
+        data-url="{{ url_for('inventory.consumption_detail') }}" data-exercicio="{{ exercise.label }}">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content bg-dark text-white fin-modal">
+                <div class="modal-header gap-2">
+                    <h2 class="modal-title fs-5" id="fin-consumo-title" data-fin-cm-title>Consumo</h2>
+                    <a class="btn btn-sm btn-outline-success ms-auto" href="#" data-fin-cm-pdf><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
+                    <a class="btn btn-sm btn-outline-success" href="#" data-fin-cm-xlsx><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>
+                    <button type="button" class="btn-close btn-close-white ms-1" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="fin-modal-kpis" data-fin-cm-kpis></div>
+                    <div class="table-responsive value-table">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Colaborador</th>
+                                    <th>Material</th>
+                                    <th>Local</th>
+                                    <th class="text-end">Qtd</th>
+                                    <th class="text-end">Valor</th>
+                                </tr>
+                            </thead>
+                            <tbody data-fin-cm-rows></tbody>
+                        </table>
+                    </div>
+                    <div class="fin-sub mt-2" data-fin-cm-more></div>
+                </div>
+            </div>
+        </div>
+    </div>
 
 <div class="modal fade" id="priceSuggestionsModal" tabindex="-1" aria-labelledby="priceSuggestionsModalLabel"
     aria-hidden="true">
@@ -1641,44 +1577,6 @@
         } catch (_) {
             throw new Error('Resposta JSON invalida do servidor.');
         }
-    };
-
-    const setupFinancePanels = () => {
-        const setToggleState = (button, expanded) => {
-            const label = button.querySelector('[data-toggle-label]');
-            const icon = button.querySelector('[data-toggle-icon]');
-            const expandLabel = button.getAttribute('data-toggle-expand-label') || 'Expandir';
-            const collapseLabel = button.getAttribute('data-toggle-collapse-label') || 'Recolher';
-
-            if (label) {
-                label.textContent = expanded ? collapseLabel : expandLabel;
-            }
-            if (icon) {
-                icon.classList.toggle('bi-chevron-up', expanded);
-                icon.classList.toggle('bi-chevron-down', !expanded);
-            }
-            button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-        };
-
-        document.querySelectorAll('[data-finance-toggle]').forEach((button) => {
-            const targetSelector = button.getAttribute('data-bs-target');
-            const target = targetSelector ? document.querySelector(targetSelector) : null;
-            if (!target) return;
-
-            setToggleState(button, target.classList.contains('show'));
-            target.addEventListener('shown.bs.collapse', () => setToggleState(button, true));
-            target.addEventListener('hidden.bs.collapse', () => setToggleState(button, false));
-        });
-
-        const allPanels = Array.from(document.querySelectorAll('[data-finance-collapsible]'));
-        const runPanelAction = (method) => {
-            allPanels.forEach((panel) => {
-                bootstrap.Collapse.getOrCreateInstance(panel, { toggle: false })[method]();
-            });
-        };
-
-        document.querySelector('[data-finance-expand-all]')?.addEventListener('click', () => runPanelAction('show'));
-        document.querySelector('[data-finance-collapse-all]')?.addEventListener('click', () => runPanelAction('hide'));
     };
 
     const normalizePriceQueryText = (value) => String(value || '')
@@ -1883,7 +1781,7 @@
                     const updated = data.item || {};
                     Object.assign(currentPriceItem, updated);
                     priceModalInstance?.hide();
-                    window.location.reload();
+                    reloadKeepingPlace();
                 } catch (err) {
                     if (window.Swal) {
                         await Swal.fire('Erro', String(err?.message || err), 'error');
@@ -1895,17 +1793,136 @@
         }
     };
 
-    document.querySelectorAll('[data-preco-codigo]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-            const codigo = btn.getAttribute('data-preco-codigo');
-            const item = itemsByCode.get(String(codigo));
-            if (item) {
-                openPriceModal(item);
+    // ---------- Abas: a aba aberta fica no endereço (?aba=), para voltar nela depois de salvar ----------
+    const setupFinanceTabs = () => {
+        const abaInput = document.querySelector('[data-fin-aba-input]');
+        document.querySelectorAll('[data-fin-tab]').forEach((button) => {
+            button.addEventListener('shown.bs.tab', () => {
+                const aba = button.getAttribute('data-fin-tab');
+                const url = new URL(window.location.href);
+                url.searchParams.set('aba', aba);
+                ['local', 'categoria', 'matricula', 'cat'].forEach((key) => url.searchParams.delete(key));
+                window.history.replaceState(null, '', url);
+                if (abaInput) abaInput.value = aba;
+            });
+        });
+    };
+
+    const showFinanceTab = (aba) => {
+        const button = document.querySelector(`[data-fin-tab="${aba}"]`);
+        if (button) bootstrap.Tab.getOrCreateInstance(button).show();
+    };
+
+    // ---------- Consumo de um local, categoria ou colaborador num modal ----------
+    const consumoModalEl = document.getElementById('fin-consumo-modal');
+    const consumoModal = consumoModalEl ? bootstrap.Modal.getOrCreateInstance(consumoModalEl) : null;
+
+    const openConsumo = async (kind, value, label) => {
+        if (!consumoModalEl || !value) return;
+        const url = new URL(consumoModalEl.dataset.url, window.location.origin);
+        url.searchParams.set('exercicio', consumoModalEl.dataset.exercicio || '');
+        url.searchParams.set(kind, value);
+        const titleEl = consumoModalEl.querySelector('[data-fin-cm-title]');
+        const kpisEl = consumoModalEl.querySelector('[data-fin-cm-kpis]');
+        const rowsEl = consumoModalEl.querySelector('[data-fin-cm-rows]');
+        const moreEl = consumoModalEl.querySelector('[data-fin-cm-more]');
+        titleEl.textContent = label || value;
+        kpisEl.innerHTML = '';
+        moreEl.textContent = '';
+        rowsEl.innerHTML = '<tr><td colspan="6"><div class="spinner-border spinner-border-sm"></div></td></tr>';
+        consumoModal.show();
+        try {
+            const response = await fetch(url, { headers: { Accept: 'application/json' } });
+            const data = await readJsonResponse(response);
+            if (!response.ok || !data?.success) throw new Error(data?.message || 'Falha ao carregar.');
+            titleEl.textContent = data.titulo || label || value;
+            consumoModalEl.querySelector('[data-fin-cm-pdf]').href = data.pdf_url;
+            consumoModalEl.querySelector('[data-fin-cm-xlsx]').href = data.xlsx_url;
+            kpisEl.innerHTML = (data.resumo || [])
+                .map((kpi) => `<div><span>${escapeHtml(kpi.rotulo)}</span><strong>${escapeHtml(kpi.valor)}</strong></div>`)
+                .join('');
+            rowsEl.innerHTML = (data.linhas || []).map((row) => `
+                <tr>
+                    <td class="text-nowrap">${escapeHtml(row.data)}</td>
+                    <td>${escapeHtml(row.colaborador)}</td>
+                    <td>${escapeHtml(row.material)}</td>
+                    <td>${escapeHtml(row.local)}</td>
+                    <td class="text-end text-nowrap">${escapeHtml(row.quantidade)}</td>
+                    <td class="text-end text-nowrap">${formatBrl(row.valor)}</td>
+                </tr>`).join('') || '<tr><td colspan="6">Sem consumo.</td></tr>';
+            if (data.total_linhas > (data.linhas || []).length) {
+                moreEl.textContent = `${(data.linhas || []).length} de ${data.total_linhas} lançamentos. Todos estão no PDF e no Excel.`;
             }
+        } catch (error) {
+            rowsEl.innerHTML = `<tr><td colspan="6" class="text-danger">${escapeHtml(error?.message || error)}</td></tr>`;
+        }
+    };
+
+    document.querySelectorAll('[data-fin-consumo]').forEach((row) => {
+        const open = () => openConsumo(row.dataset.finConsumo, row.dataset.finValue, row.dataset.finLabel);
+        row.addEventListener('click', open);
+        row.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') open();
         });
     });
 
-    setupFinancePanels();
+    // ---------- Buscar preço a partir do modal da categoria ----------
+    // Dois modais do Bootstrap abertos ao mesmo tempo brigam pelo fundo: o da categoria fecha, o de
+    // preço abre e, ao fechar o de preço, a categoria volta. Depois de salvar, a página recarrega na
+    // mesma aba com a mesma categoria aberta (?aba=categorias&cat=...).
+    let categoryModalToRestore = null;
+
+    document.querySelectorAll('[data-preco-codigo]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const item = itemsByCode.get(String(btn.getAttribute('data-preco-codigo')));
+            if (!item) return;
+            const parentModal = btn.closest('.modal');
+            if (!parentModal) {
+                openPriceModal(item);
+                return;
+            }
+            categoryModalToRestore = parentModal;
+            parentModal.addEventListener('hidden.bs.modal', () => openPriceModal(item), { once: true });
+            bootstrap.Modal.getOrCreateInstance(parentModal).hide();
+        });
+    });
+
+    priceModalElement?.addEventListener('hidden.bs.modal', () => {
+        if (categoryModalToRestore) {
+            bootstrap.Modal.getOrCreateInstance(categoryModalToRestore).show();
+            categoryModalToRestore = null;
+        }
+    });
+
+    const reloadKeepingPlace = () => {
+        const url = new URL(window.location.href);
+        if (categoryModalToRestore) {
+            url.searchParams.set('aba', 'categorias');
+            url.searchParams.set('cat', categoryModalToRestore.id);
+        }
+        categoryModalToRestore = null;
+        window.location.replace(url);
+    };
+
+    setupFinanceTabs();
     bindPriceModalControls();
+
+    // Endereço antigo do painel de Consumo (/consumo/local?local=...) chega aqui com o filtro: abre o modal.
+    (() => {
+        const params = new URLSearchParams(window.location.search);
+        const catModal = params.get('cat') ? document.getElementById(params.get('cat')) : null;
+        if (catModal) {
+            showFinanceTab('categorias');
+            bootstrap.Modal.getOrCreateInstance(catModal).show();
+            return;
+        }
+        for (const kind of ['local', 'categoria', 'matricula']) {
+            if (params.get(kind)) {
+                showFinanceTab('consumo');
+                openConsumo(kind, params.get(kind), params.get(kind));
+                return;
+            }
+        }
+    })();
 </script>
 {% endblock %}
