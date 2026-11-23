@@ -24,6 +24,7 @@ import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import ApiService from '../services/api';
 import InactivityService from '../services/inactivityService';
 import DoneModal from '../components/DoneModal';
+import ItemPhotoLinkModal from '../components/ItemPhotoLinkModal';
 import { resolvePhotoUri } from '../components/StockCountPanel';
 import { heroPalette, heroSoftShadow } from '../theme/heroTheme';
 
@@ -53,7 +54,10 @@ function normalizeDecimal(text) {
 }
 
 export default function EntradaNFScreen({ navigation, route }) {
-    const item = route.params?.item || {};
+    const [fotoNova, setFotoNova] = useState(null);
+    const [photoModal, setPhotoModal] = useState(false);
+    const baseItem = route.params?.item || {};
+    const item = fotoNova ? { ...baseItem, foto_url: fotoNova } : baseItem;
     const codigo = String(item.codigo || item.codigo_barras || item.id || '').trim();
     const [permission, requestPermission] = useCameraPermissions();
     const [quantidade, setQuantidade] = useState('');
@@ -192,7 +196,10 @@ export default function EntradaNFScreen({ navigation, route }) {
                     {photoUri ? (
                         <Image source={{ uri: photoUri }} style={styles.photo} resizeMode="cover" onError={() => setPhotoFailed(true)} />
                     ) : (
-                        <View style={[styles.photo, styles.photoEmpty]}><Text style={styles.photoEmptyText}>📦</Text></View>
+                        <TouchableOpacity style={[styles.photo, styles.photoEmpty]} onPress={() => setPhotoModal(true)} activeOpacity={0.8} accessibilityLabel="Pôr foto no item">
+                            <Text style={styles.photoEmptyText}>📷</Text>
+                            <Text style={styles.photoAdd}>Pôr foto</Text>
+                        </TouchableOpacity>
                     )}
                     <View style={{ flex: 1 }}>
                         <Text style={styles.itemName} numberOfLines={2}>{item.descricao || 'Item'}</Text>
@@ -274,6 +281,16 @@ export default function EntradaNFScreen({ navigation, route }) {
                 </View>
             </Modal>
 
+            <ItemPhotoLinkModal
+                item={item}
+                visible={photoModal}
+                onClose={() => setPhotoModal(false)}
+                onSaved={(fotoUrl) => {
+                    setPhotoModal(false);
+                    setPhotoFailed(false);
+                    setFotoNova(fotoUrl);
+                }}
+            />
             <DoneModal done={done} />
         </KeyboardAvoidingView>
     );
@@ -285,7 +302,8 @@ const styles = StyleSheet.create({
     itemRow: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderRadius: 18, backgroundColor: heroPalette.panel, borderWidth: 1, borderColor: heroPalette.border, ...heroSoftShadow },
     photo: { width: 72, height: 72, borderRadius: 14, backgroundColor: '#fff' },
     photoEmpty: { alignItems: 'center', justifyContent: 'center', backgroundColor: heroPalette.panelAlt },
-    photoEmptyText: { fontSize: 28 },
+    photoEmptyText: { fontSize: 24 },
+    photoAdd: { color: heroPalette.primary, fontSize: 11, fontWeight: '800', marginTop: 2 },
     itemName: { color: heroPalette.text, fontSize: 16, fontWeight: '800' },
     itemMeta: { color: heroPalette.textMuted, fontSize: 13, marginTop: 2 },
     label: { color: heroPalette.textSoft, fontSize: 14, fontWeight: '800', marginTop: 18, marginBottom: 8 },

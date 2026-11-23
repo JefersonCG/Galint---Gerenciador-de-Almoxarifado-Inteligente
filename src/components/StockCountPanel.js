@@ -44,7 +44,8 @@ function isValidQuantity(text, allowDecimal) {
 // item: o que a busca devolveu. detailsLoading: ainda esperando o servidor (o painel já mostra o
 // que veio da base do celular). note: aviso sobre o item (ex.: sem conexão, só consulta).
 // onMenu: abre o ☰ do item (lançar entrada com NF); só vem para quem pode lançar (administrador).
-export default function StockCountPanel({ item, detailsLoading, note, onSaved, onClose, onMenu }) {
+// onAddPhoto: item sem foto, toque abre a foto pelo link (só administradores).
+export default function StockCountPanel({ item, detailsLoading, note, onSaved, onClose, onMenu, onAddPhoto }) {
     const [quantity, setQuantity] = useState('');
     const [packages, setPackages] = useState('');
     const [loose, setLoose] = useState('');
@@ -95,6 +96,11 @@ export default function StockCountPanel({ item, detailsLoading, note, onSaved, o
             <View style={styles.photoBox}>
                 {photoUri ? (
                     <Image source={{ uri: photoUri }} style={styles.photo} resizeMode="contain" onError={() => setPhotoFailed(true)} />
+                ) : onAddPhoto ? (
+                    <TouchableOpacity style={styles.photoEmpty} onPress={onAddPhoto} activeOpacity={0.8} accessibilityLabel="Pôr foto no item">
+                        <Text style={styles.photoEmptyIcon}>📷</Text>
+                        <Text style={styles.photoAddText}>Pôr foto</Text>
+                    </TouchableOpacity>
                 ) : (
                     <View style={styles.photoEmpty}>
                         <Text style={styles.photoEmptyIcon}>🖼️</Text>
@@ -159,6 +165,7 @@ const styles = StyleSheet.create({
     photoEmpty: { flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center', backgroundColor: heroPalette.panelAlt },
     photoEmptyIcon: { fontSize: 38 },
     photoEmptyText: { color: heroPalette.textMuted, marginTop: 4 },
+    photoAddText: { color: heroPalette.primary, marginTop: 4, fontWeight: '800' },
     name: { color: heroPalette.text, fontSize: 19, fontWeight: '800', textAlign: 'center' },
     code: { color: heroPalette.textMuted, fontSize: 13, marginTop: 4, textAlign: 'center' },
     meta: { color: heroPalette.textSoft, fontSize: 13, marginTop: 2, textAlign: 'center' },

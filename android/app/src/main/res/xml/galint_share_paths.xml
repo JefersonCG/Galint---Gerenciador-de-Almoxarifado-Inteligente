@@ -2,4 +2,6 @@
 <!-- Pasta da foto que vai para o WhatsApp (GalintShareModule). -->
 <paths>
   <cache-path name="compartilhar" path="compartilhar/" />
+  <!-- APK da atualização sozinha (GalintUpdateModule). -->
+  <cache-path name="atualizacao" path="atualizacao/" />
 </paths>

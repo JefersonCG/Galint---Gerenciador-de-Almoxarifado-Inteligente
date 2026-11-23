@@ -43,6 +43,7 @@ import SyncService from '../services/dbSync';
 import { getItemByCodigo, searchItems } from '../services/localDb';
 import { subscribeNotifyInboxChanged } from '../services/notifyEvents';
 import StockCountPanel from '../components/StockCountPanel';
+import ItemPhotoLinkModal from '../components/ItemPhotoLinkModal';
 import { ENTRADAS_FISCAIS_NO_APP } from '../config/features';
 import { heroPalette, heroSoftShadow } from '../theme/heroTheme';
 
@@ -99,6 +100,7 @@ export default function EstoqueScreen({ navigation, route }) {
     const [sync, setSync] = useState(SyncService.getStatus());
     const [inbox, setInbox] = useState({ unread: 0, latest: null });
     const [itemMenu, setItemMenu] = useState(false); // ☰ do item lido (lançar entrada com NF)
+    const [photoModal, setPhotoModal] = useState(false); // foto do item pelo link
     const lastSeen = useRef({ code: '', at: 0 });
     const armedUntil = useRef(0);
     const lookupId = useRef(0);
@@ -493,6 +495,7 @@ export default function EstoqueScreen({ navigation, route }) {
                         onSaved={onSaved}
                         onClose={closePanel}
                         onMenu={canLaunchEntry && !panel.loading && panel.item?.descricao ? () => setItemMenu(true) : undefined}
+                        onAddPhoto={canLaunchEntry && !panel.loading && panel.item?.descricao ? () => setPhotoModal(true) : undefined}
                     />
                 </ScrollView>
             ) : search.trim() ? (
@@ -549,6 +552,15 @@ export default function EstoqueScreen({ navigation, route }) {
                 </View>
             ) : null}
             {sideMenu}
+            <ItemPhotoLinkModal
+                item={panel?.item}
+                visible={photoModal}
+                onClose={() => setPhotoModal(false)}
+                onSaved={(fotoUrl) => {
+                    setPhotoModal(false);
+                    setPanel((current) => (current ? { ...current, item: { ...current.item, foto_url: fotoUrl } } : current));
+                }}
+            />
             <Modal visible={itemMenu} transparent animationType="fade" onRequestClose={() => setItemMenu(false)}>
                 <TouchableOpacity style={styles.itemMenuBackdrop} activeOpacity={1} onPress={() => setItemMenu(false)}>
                     <View style={[styles.itemMenuCard, { marginBottom: insets.bottom + 16 }]}>

@@ -1448,6 +1448,35 @@ class ApiService {
         }
     }
 
+    // Atualização sozinha (2.2.4): o GALINT publica o APK em instance/apks e responde se há versão nova.
+    async verificarAtualizacao(versionCode) {
+        if (!this.client) return { success: false };
+        try {
+            const response = await this.client.get('/api/mobile/app/atualizacao', { params: { code: versionCode }, timeout: 8000 });
+            return response.data || { success: false };
+        } catch (error) {
+            return { success: false };
+        }
+    }
+
+    // Foto do item pelo link copiado da busca de imagens (2.2.4, só administradores).
+    async salvarFotoItemPorLink(codigo, url) {
+        if (!this.client) return { success: false, message: 'Servidor não configurado.' };
+        try {
+            const response = await this.client.post(
+                `/api/mobile/itens/${encodeURIComponent(String(codigo || '').trim())}/foto/url`,
+                { url },
+                { timeout: 30000 }
+            );
+            return response.data;
+        } catch (error) {
+            if (isNetworkError(error)) {
+                return { success: false, offline: true, message: 'Sem conexão com o servidor.' };
+            }
+            return { success: false, message: error.response?.data?.message || 'Não foi possível salvar a foto.' };
+        }
+    }
+
     async markAllNotifyRead() {
         try {
             const token = await AsyncStorage.getItem('token');

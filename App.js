@@ -32,6 +32,7 @@ function loadScreens() {
             EstoqueScreen: require('./src/screens/EstoqueScreen').default,
             MovimentoScreen: require('./src/screens/MovimentoScreen').default,
             EntradaNFScreen: require('./src/screens/EntradaNFScreen').default,
+            AppUpdatePrompt: require('./src/components/AppUpdatePrompt').default,
             ScannerScreen: require('./src/screens/ScannerScreen').default,
             EditarItemScreen: require('./src/screens/EditarItemScreen').default,
             RetiradaScreen: require('./src/screens/RetiradaScreen').default,
@@ -292,6 +293,8 @@ function AppNavigator() {
                     <Stack.Screen name="ReportsHistory" component={S.ReportsHistoryScreen} options={{ title: 'Histórico de Relatórios' }} />
                 </Stack.Navigator>
             </NavigationContainer>
+            {/* Atualização sozinha do APK (2.2.4), como no Pipocas. */}
+            <S.AppUpdatePrompt />
         </AppErrorBoundary>
     );
 }

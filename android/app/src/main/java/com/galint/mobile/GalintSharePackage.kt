@@ -6,10 +6,11 @@ import com.facebook.react.bridge.NativeModule
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.uimanager.ViewManager
 
-/** Registra o GalintShareModule (foto do item + texto no WhatsApp). Ver MainApplication.kt. */
+/** Registra os módulos do próprio app: GalintShare (foto + texto no WhatsApp) e GalintUpdate
+ * (atualização sozinha do APK). Ver MainApplication.kt. */
 class GalintSharePackage : ReactPackage {
     override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> =
-        listOf(GalintShareModule(reactContext))
+        listOf(GalintShareModule(reactContext), GalintUpdateModule(reactContext))
 
     override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> = emptyList()
 }
