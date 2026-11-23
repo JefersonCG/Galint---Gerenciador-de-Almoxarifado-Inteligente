@@ -240,6 +240,14 @@ class ApiService {
             },
             (error) => {
                 this.notifyStockWrite(error?.config);
+                // Rota que o servidor ainda não tem (servidor não religado depois de uma atualização):
+                // o Flask responde "The requested URL was not found on the server..." em inglês, e o
+                // app mostrava esse texto (prints de 23/11/2026 na foto por link e na chave da NF).
+                const data = error?.response?.data;
+                if (error?.response?.status === 404 && data && typeof data === 'object'
+                    && /requested URL was not found/i.test(String(data.message || ''))) {
+                    data.message = 'O servidor do GALINT ainda não tem esta função. Religue o GALINT.';
+                }
                 return Promise.reject(error);
             }
         );
@@ -407,82 +415,33 @@ class ApiService {
         }
     }
 
-    async getReportsHistory(params = {}) {
+    // Relatórios (2.2.5, 23/11/2026): uma rota só no servidor, /api/mobile/relatorios/<dia|mes|consumo>.
+    // formato=resumo devolve o que a tela mostra; pdf e xlsx devolvem o arquivo que vai no WhatsApp
+    // (baixado pelo módulo nativo GalintShare, com o token).
+    async getRelatorio(tipo, params = {}) {
         try {
-            const token = await AsyncStorage.getItem('token');
-            if (!token) {
-                throw new Error('Token não encontrado');
-            }
-
-            const response = await this.client.get('/api/mobile/reports/history', {
-                params,
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-            });
-
+            const response = await this.client.get(`/api/mobile/relatorios/${tipo}`, { params: { ...params, formato: 'resumo' } });
             return response.data;
         } catch (error) {
+            if (!error.response) {
+                return { success: false, message: 'Sem conexão com o servidor.' };
+            }
             return {
                 success: false,
-                reports: [],
-                count: 0,
-                message: error.response?.data?.message || error.response?.data?.error || 'Erro ao carregar histórico de relatórios',
+                message: error.response?.data?.message || error.response?.data?.error || 'Não foi possível carregar o relatório.',
             };
         }
     }
 
-    async getConsumptionPanel(params = {}) {
-        try {
-            const token = await AsyncStorage.getItem('token');
-            if (!token) {
-                throw new Error('Token não encontrado');
-            }
-
-            const response = await this.client.get('/api/mobile/reports/consumption', {
-                params,
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-            });
-
-            return response.data;
-        } catch (error) {
-            return {
-                success: false,
-                message: error.response?.data?.message || error.response?.data?.error || 'Erro ao carregar painel de consumo',
-            };
-        }
-    }
-
-    getReportUrl(type, params = {}) {
+    getRelatorioUrl(tipo, params = {}) {
         if (!this.baseURL) {
             throw new Error('Servidor não configurado');
         }
-
         const query = Object.entries(params)
-            .filter(([, value]) => value !== undefined && value !== null)
+            .filter(([, value]) => value !== undefined && value !== null && value !== '')
             .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
             .join('&');
-
-        if (type === 'daily') {
-            return `${this.baseURL}/api/mobile/reports/daily${query ? `?${query}` : ''}`;
-        }
-        if (type === 'monthly') {
-            return `${this.baseURL}/api/mobile/reports/monthly${query ? `?${query}` : ''}`;
-        }
-        if (type === 'consumption') {
-            return `${this.baseURL}/api/mobile/reports/consumption/pdf${query ? `?${query}` : ''}`;
-        }
-        if (type === 'download') {
-            const filename = String(params.filename || '').trim();
-            if (!filename) {
-                throw new Error('Arquivo não informado');
-            }
-            return `${this.baseURL}/api/mobile/reports/download/${encodeURIComponent(filename)}`;
-        }
-
-        throw new Error('Tipo de relatório inválido');
+        return `${this.baseURL}/api/mobile/relatorios/${tipo}${query ? `?${query}` : ''}`;
     }
 
     async testConnection() {

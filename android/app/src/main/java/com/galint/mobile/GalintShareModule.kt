@@ -16,6 +16,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import org.json.JSONObject
 
 /**
  * Compartilhar uma saída ou devolução no WhatsApp com a FOTO do item e o texto como legenda
@@ -69,6 +70,88 @@ class GalintShareModule(private val context: ReactApplicationContext) : ReactCon
                 promise.reject("share_failed", error.message, error)
             }
         }.start()
+    }
+
+    /**
+     * Relatório em PDF ou Excel (pedido do usuário em 23/11/2026: "compartilhar os relatórios via
+     * WhatsApp tanto em PDF e em XLS"). Baixa o arquivo com o token do app, confere a resposta (a
+     * mensagem de erro do servidor vira o erro da promessa) e manda o arquivo no WhatsApp; sem
+     * WhatsApp, abre o compartilhar do Android. Com openOnly = true só abre o arquivo no celular.
+     *
+     * Substitui o expo-file-system + expo-sharing das telas antigas: o app tinha o expo-file-system
+     * 17 com o Expo 54 (que pede o 19) e o compartilhar genérico do Android, sem ir ao WhatsApp.
+     */
+    @ReactMethod
+    fun shareFile(url: String, token: String, fileName: String, mimeType: String, openOnly: Boolean, promise: Promise) {
+        Thread {
+            try {
+                val dir = File(context.cacheDir, "compartilhar/relatorios").apply { mkdirs() }
+                val oneHourAgo = System.currentTimeMillis() - 60 * 60 * 1000
+                dir.listFiles()?.filter { it.lastModified() < oneHourAgo }?.forEach { it.delete() }
+                val file = File(dir, fileName.replace(Regex("[^A-Za-z0-9._-]"), "_"))
+                val connection = (URL(url).openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 15000
+                    readTimeout = 90000
+                    setRequestProperty("Authorization", "Bearer $token")
+                }
+                try {
+                    val code = connection.responseCode
+                    if (code !in 200..299) {
+                        val body = try {
+                            connection.errorStream?.bufferedReader()?.use { it.readText() }
+                        } catch (error: Exception) {
+                            null
+                        }
+                        promise.reject("http_$code", serverMessage(body) ?: "O servidor não gerou o relatório (erro $code).")
+                        return@Thread
+                    }
+                    connection.inputStream.use { input -> FileOutputStream(file).use { input.copyTo(it) } }
+                } finally {
+                    connection.disconnect()
+                }
+                val uri = FileProvider.getUriForFile(context, context.packageName + ".galintshare", file)
+                var whatsapp: String? = null
+                val intent = if (openOnly) {
+                    Intent(Intent.ACTION_VIEW).setDataAndType(uri, mimeType)
+                } else {
+                    val send = Intent(Intent.ACTION_SEND).apply {
+                        type = mimeType
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                    }
+                    whatsapp = WHATSAPP_PACKAGES.firstOrNull { isInstalled(it) }
+                    if (whatsapp != null) {
+                        context.grantUriPermission(whatsapp, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        Intent(send).setPackage(whatsapp)
+                    } else {
+                        Intent.createChooser(send, "Compartilhar")
+                    }
+                }
+                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+                UiThreadUtil.runOnUiThread {
+                    try {
+                        val activity = context.currentActivity
+                        if (activity != null) activity.startActivity(intent) else context.startActivity(intent)
+                        promise.resolve(whatsapp != null)
+                    } catch (error: android.content.ActivityNotFoundException) {
+                        promise.reject("no_app", "Nenhum app neste celular abre este arquivo.", error)
+                    } catch (error: Exception) {
+                        promise.reject("share_failed", error.message, error)
+                    }
+                }
+            } catch (error: Exception) {
+                promise.reject("download_failed", error.message ?: "Falha ao baixar o relatório.", error)
+            }
+        }.start()
+    }
+
+    private fun serverMessage(body: String?): String? {
+        if (body.isNullOrBlank()) return null
+        return try {
+            val json = JSONObject(body)
+            json.optString("message").ifBlank { json.optString("error") }.ifBlank { null }
+        } catch (error: Exception) {
+            null
+        }
     }
 
     private fun isInstalled(packageName: String): Boolean = try {

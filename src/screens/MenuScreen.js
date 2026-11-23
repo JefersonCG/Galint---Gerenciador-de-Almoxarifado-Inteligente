@@ -1,42 +1,31 @@
+// Painel (2.2.5). Pedido do usuário em 23/11/2026: "excluir toda verbosidade". Saíram o cartão de
+// título com frase de apresentação, os subtítulos de cada cartão e os cartões que já estão no ☰
+// (Avisos, Relatórios, Consumo). Ficam os números do dia, Perfil, Configurações e as últimas
+// movimentações.
 import React, { useCallback, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import ApiService from '../services/api';
-import HeroScreen from '../components/HeroScreen';
 import { subscribeNotifyInboxChanged } from '../services/notifyEvents';
-import { heroPalette, heroShadow, heroSoftShadow } from '../theme/heroTheme';
-import { ENTRADAS_FISCAIS_NO_APP } from '../config/features';
+import { heroPalette } from '../theme/heroTheme';
 
 export default function MenuScreen({ navigation }) {
     const [overview, setOverview] = useState(null);
     const [loading, setLoading] = useState(true);
 
     const loadOverview = useCallback(async (silent = false) => {
-        if (!silent) {
-            setLoading(true);
-        }
-
+        if (!silent) setLoading(true);
         const result = await ApiService.getErpOverview();
-        if (result?.success) {
-            setOverview(result.data || null);
-        } else {
-            setOverview(null);
-        }
-
-        if (!silent) {
-            setLoading(false);
-        }
+        setOverview(result?.success ? result.data || null : null);
+        if (!silent) setLoading(false);
     }, []);
 
     useFocusEffect(
         useCallback(() => {
             loadOverview();
             const intervalId = setInterval(() => loadOverview(true), 12000);
-            const unsubscribeNotify = subscribeNotifyInboxChanged(() => {
-                loadOverview(true);
-            });
-
+            const unsubscribeNotify = subscribeNotifyInboxChanged(() => loadOverview(true));
             return () => {
                 clearInterval(intervalId);
                 unsubscribeNotify();
@@ -45,406 +34,70 @@ export default function MenuScreen({ navigation }) {
     );
 
     const unreadCount = Number(overview?.notifications?.unread_count || 0);
-    const movementStats = overview?.movement_stats?.today || {};
-    const totalToday = Number(movementStats.entradas || 0) + Number(movementStats.saidas || 0) + Number(movementStats.inventario || 0);
+    const today = overview?.movement_stats?.today || {};
+    const totalToday = Number(today.entradas || 0) + Number(today.saidas || 0) + Number(today.inventario || 0);
     const totalItems = Number(overview?.stock?.total_itens || 0);
-    const userName = String(overview?.user?.nome || '').trim();
-    const firstName = userName ? userName.split(' ')[0] : '';
-    const recentMovements = Array.isArray(overview?.recent_movements) ? overview.recent_movements.slice(0, 4) : [];
-    const documentModes = Array.isArray(overview?.features?.document_modes) ? overview.features.document_modes : [];
-    const canManageDocuments = Boolean(overview?.features?.documentos_fiscais);
-    const canViewReports = Boolean(
-        overview?.features?.reports?.daily
-        || overview?.features?.reports?.monthly
-        || overview?.features?.reports?.history
-        || overview?.features?.reports?.consumption
+    const recent = Array.isArray(overview?.recent_movements) ? overview.recent_movements.slice(0, 6) : [];
+
+    const stat = (label, value) => (
+        <View style={styles.stat}>
+            <Text style={styles.statValue}>{value}</Text>
+            <Text style={styles.statLabel}>{label}</Text>
+        </View>
     );
-    const canViewConsumption = Boolean(overview?.features?.reports?.consumption);
+
+    const entry = (icon, label, screen) => (
+        <TouchableOpacity style={styles.entry} onPress={() => navigation.navigate(screen)} activeOpacity={0.85}>
+            <Text style={styles.entryIcon}>{icon}</Text>
+            <Text style={styles.entryLabel}>{label}</Text>
+            <Text style={styles.entryArrow}>›</Text>
+        </TouchableOpacity>
+    );
 
     return (
-        <HeroScreen
-            eyebrow="Central mobile"
-            title={firstName ? `Operação rápida de ${firstName}` : 'Central mobile'}
-            subtitle="O mobile agora vira a camada rápida do GALINT: acesso direto a notificações, entradas documentais, relatórios e leitura operacional do dia."
-            heroContent={
-                <View style={styles.heroStats}>
-                    <View style={styles.heroStatCard}>
-                        <Text style={styles.heroStatLabel}>Notificações</Text>
-                        <Text style={styles.heroStatValue}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
-                    </View>
-                    <View style={styles.heroStatCard}>
-                        <Text style={styles.heroStatLabel}>Hoje</Text>
-                        <Text style={styles.heroStatValue}>{totalToday}</Text>
-                    </View>
-                    <View style={styles.heroStatCard}>
-                        <Text style={styles.heroStatLabel}>Estoque</Text>
-                        <Text style={styles.heroStatValue}>{totalItems}</Text>
-                    </View>
-                </View>
-            }
-        >
-            {loading ? (
-                <View style={styles.loadingBox}>
-                    <ActivityIndicator color={heroPalette.primaryStrong} />
-                    <Text style={styles.loadingText}>Atualizando central mobile...</Text>
-                </View>
-            ) : null}
-
-            <TouchableOpacity 
-                style={[styles.modernCard, styles.profileCard]} 
-                onPress={() => navigation.navigate('Profile')}
-                activeOpacity={0.85}
-            >
-                <View style={styles.cardIconContainer}>
-                    <Text style={styles.cardIcon}>👤</Text>
-                </View>
-                <View style={styles.cardContent}>
-                    <Text style={styles.cardTitle}>Perfil</Text>
-                    <Text style={styles.cardSubtitle}>Dados do usuário e informações da conta</Text>
-                </View>
-                <Text style={styles.cardArrow}>›</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-                style={[styles.modernCard, styles.notificationsCard]} 
-                onPress={() => navigation.navigate('Notifications')}
-                activeOpacity={0.85}
-            >
-                <View style={styles.cardIconContainer}>
-                    <Text style={styles.cardIcon}>🔔</Text>
-                </View>
-                <View style={styles.cardContent}>
-                    <Text style={styles.cardTitle}>Notificações</Text>
-                    <Text style={styles.cardSubtitle}>Mensagens operacionais e leitura de alertas</Text>
-                </View>
-                {unreadCount > 0 ? (
-                    <View style={styles.notificationBadge}>
-                        <Text style={styles.notificationBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
-                    </View>
-                ) : null}
-                <Text style={styles.cardArrow}>›</Text>
-            </TouchableOpacity>
-
-            {/* Documentos fiscais em espera (config/features.js). */}
-            {!ENTRADAS_FISCAIS_NO_APP ? null : canManageDocuments ? (
-                <TouchableOpacity
-                    style={[styles.modernCard, styles.documentsCard]}
-                    onPress={() => navigation.navigate('DocumentosFiscais')}
-                    activeOpacity={0.85}
-                >
-                    <View style={styles.cardIconContainer}>
-                        <Text style={styles.cardIcon}>🧾</Text>
-                    </View>
-                    <View style={styles.cardContent}>
-                        <Text style={styles.cardTitle}>Documentos Fiscais</Text>
-                        <Text style={styles.cardSubtitle}>Cadastro mobile para NF, cupom, recibo e lançamento manual</Text>
-                    </View>
-                    <Text style={styles.cardArrow}>›</Text>
-                </TouchableOpacity>
-            ) : (
-                <View style={[styles.modernCard, styles.lockedCard]}>
-                    <View style={styles.cardIconContainer}>
-                        <Text style={styles.cardIcon}>🔒</Text>
-                    </View>
-                    <View style={styles.cardContent}>
-                        <Text style={styles.cardTitle}>Documentos Fiscais</Text>
-                        <Text style={styles.cardSubtitle}>Disponível somente para administradores cadastrados no servidor.</Text>
-                    </View>
-                </View>
-            )}
-
-            {canViewConsumption ? (
-                <TouchableOpacity
-                    style={[styles.modernCard, styles.consumptionCard]}
-                    onPress={() => navigation.navigate('ReportsConsumption')}
-                    activeOpacity={0.85}
-                >
-                    <View style={styles.cardIconContainer}>
-                        <Text style={styles.cardIcon}>📊</Text>
-                    </View>
-                    <View style={styles.cardContent}>
-                        <Text style={styles.cardTitle}>Consumo analítico</Text>
-                        <Text style={styles.cardSubtitle}>Categoria, local e funcionário em leitura simplificada para o aparelho.</Text>
-                    </View>
-                    <Text style={styles.cardArrow}>›</Text>
-                </TouchableOpacity>
-            ) : null}
-
-            <TouchableOpacity 
-                style={[styles.modernCard, styles.updatesCard]} 
-                onPress={() => navigation.navigate('Config')}
-                activeOpacity={0.85}
-            >
-                <View style={styles.cardIconContainer}>
-                    <Text style={styles.cardIcon}>🔄</Text>
-                </View>
-                <View style={styles.cardContent}>
-                    <Text style={styles.cardTitle}>Atualizações</Text>
-                    <Text style={styles.cardSubtitle}>Servidor, OTA e configurações do dispositivo</Text>
-                </View>
-                <Text style={styles.cardArrow}>›</Text>
-            </TouchableOpacity>
-
-            {canViewReports ? (
-                <TouchableOpacity 
-                    style={[styles.modernCard, styles.reportsCard]} 
-                    onPress={() => navigation.navigate('Reports')}
-                    activeOpacity={0.85}
-                >
-                    <View style={styles.cardIconContainer}>
-                        <Text style={styles.cardIcon}>📄</Text>
-                    </View>
-                    <View style={styles.cardContent}>
-                        <Text style={styles.cardTitle}>Relatórios</Text>
-                        <Text style={styles.cardSubtitle}>Relatórios diários, mensais e históricos</Text>
-                    </View>
-                    <Text style={styles.cardArrow}>›</Text>
-                </TouchableOpacity>
-            ) : (
-                <View style={[styles.modernCard, styles.lockedCard]}>
-                    <View style={styles.cardIconContainer}>
-                        <Text style={styles.cardIcon}>🔒</Text>
-                    </View>
-                    <View style={styles.cardContent}>
-                        <Text style={styles.cardTitle}>Relatórios</Text>
-                        <Text style={styles.cardSubtitle}>Acesso liberado somente para administradores do GALINT.</Text>
-                    </View>
-                </View>
-            )}
-
-            {documentModes.length ? (
-                <View style={styles.modeBox}>
-                    <Text style={styles.modeTitle}>Entradas disponíveis no mobile</Text>
-                    <View style={styles.modeRow}>
-                        {documentModes.map((mode) => (
-                            <View key={mode.value} style={styles.modeChip}>
-                                <Text style={styles.modeChipText}>{mode.label}</Text>
-                            </View>
-                        ))}
-                    </View>
-                </View>
-            ) : null}
-
-            <View style={styles.footerInfo}>
-                <Text style={styles.footerText}>Movimentações recentes</Text>
-                {recentMovements.length ? recentMovements.map((movement, index) => (
-                    <View key={`${movement.id || index}-${movement.tipo}`} style={styles.movementRow}>
-                        <View style={styles.movementCopy}>
-                            <Text style={styles.movementTitle}>{movement.tipo || 'Movimento'} • {movement.descricao || movement.codigo || 'Item'}</Text>
-                            <Text style={styles.movementMeta}>{movement.responsavel || 'Sem responsavel'}{movement.local_servico ? ` • ${movement.local_servico}` : ''}</Text>
-                        </View>
-                        <Text style={styles.movementQty}>{movement.quantidade}</Text>
-                    </View>
-                )) : (
-                    <Text style={styles.footerSubtext}>Sem movimentacoes recentes carregadas para este aparelho.</Text>
-                )}
+        <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+            <View style={styles.stats}>
+                {stat('Avisos', unreadCount > 99 ? '99+' : unreadCount)}
+                {stat('Hoje', totalToday)}
+                {stat('Itens', totalItems)}
             </View>
-        </HeroScreen>
+
+            {entry('👤', 'Perfil', 'Profile')}
+            {entry('⚙️', 'Configurações', 'Config')}
+
+            <Text style={styles.section}>Últimas movimentações</Text>
+            {loading && !overview ? <ActivityIndicator color={heroPalette.primary} style={styles.loading} /> : null}
+            {recent.map((movement, index) => (
+                <View key={`${movement.id || index}-${movement.tipo}`} style={styles.row}>
+                    <View style={styles.rowText}>
+                        <Text style={styles.rowTitle} numberOfLines={2}>{movement.descricao || movement.codigo || 'Item'}</Text>
+                        <Text style={styles.rowDetail} numberOfLines={1}>
+                            {[movement.tipo, movement.responsavel, movement.local_servico].filter(Boolean).join(' · ')}
+                        </Text>
+                    </View>
+                    <Text style={styles.rowValue}>{movement.quantidade}</Text>
+                </View>
+            ))}
+        </ScrollView>
     );
 }
 
 const styles = StyleSheet.create({
-    heroStats: {
-        flexDirection: 'row',
-        gap: 12,
-    },
-    heroStatCard: {
-        flex: 1,
-        borderRadius: 18,
-        paddingHorizontal: 14,
-        paddingVertical: 14,
-        backgroundColor: heroPalette.panelAlt,
-        borderWidth: 1,
-        borderColor: heroPalette.border,
-        ...heroSoftShadow,
-    },
-    heroStatLabel: {
-        color: heroPalette.textMuted,
-        fontSize: 12,
-        fontWeight: '700',
-        textTransform: 'uppercase',
-        letterSpacing: 0.8,
-    },
-    heroStatValue: {
-        marginTop: 8,
-        color: heroPalette.text,
-        fontSize: 22,
-        fontWeight: '900',
-    },
-    modernCard: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: heroPalette.panel,
-        borderRadius: 22,
-        padding: 18,
-        marginBottom: 14,
-        borderWidth: 1,
-        borderColor: heroPalette.border,
-        ...heroShadow,
-    },
-    profileCard: {
-        borderColor: 'rgba(103, 232, 249, 0.24)',
-    },
-    updatesCard: {
-        borderColor: 'rgba(251, 191, 36, 0.24)',
-    },
-    notificationsCard: {
-        borderColor: 'rgba(52, 211, 153, 0.24)',
-    },
-    documentsCard: {
-        borderColor: 'rgba(96, 165, 250, 0.26)',
-    },
-    reportsCard: {
-        borderColor: 'rgba(244, 114, 182, 0.22)',
-    },
-    consumptionCard: {
-        borderColor: 'rgba(251, 191, 36, 0.24)',
-    },
-    lockedCard: {
-        borderColor: 'rgba(148, 163, 184, 0.26)',
-        backgroundColor: 'rgba(15, 27, 49, 0.86)',
-    },
-    cardIconContainer: {
-        width: 56,
-        height: 56,
-        borderRadius: 28,
-        backgroundColor: heroPalette.panelAlt,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 16,
-        borderWidth: 1,
-        borderColor: heroPalette.border,
-    },
-    cardIcon: {
-        fontSize: 28,
-    },
-    cardContent: {
-        flex: 1,
-    },
-    cardTitle: {
-        fontSize: 17,
-        fontWeight: '700',
-        color: heroPalette.text,
-        marginBottom: 4,
-    },
-    cardSubtitle: {
-        fontSize: 13,
-        color: heroPalette.textMuted,
-        lineHeight: 18,
-    },
-    cardArrow: {
-        fontSize: 32,
-        color: heroPalette.textMuted,
-        fontWeight: '300',
-    },
-    notificationBadge: {
-        minWidth: 28,
-        height: 28,
-        borderRadius: 14,
-        paddingHorizontal: 8,
-        marginRight: 10,
-        backgroundColor: heroPalette.danger,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    notificationBadgeText: {
-        color: '#ffffff',
-        fontSize: 12,
-        fontWeight: '800',
-    },
-    loadingBox: {
-        borderRadius: 18,
-        borderWidth: 1,
-        borderColor: heroPalette.border,
-        backgroundColor: heroPalette.panelAlt,
-        paddingHorizontal: 16,
-        paddingVertical: 16,
-        marginBottom: 14,
-        alignItems: 'center',
-    },
-    loadingText: {
-        marginTop: 8,
-        color: heroPalette.textMuted,
-        fontSize: 12,
-    },
-    modeBox: {
-        borderRadius: 18,
-        borderWidth: 1,
-        borderColor: heroPalette.border,
-        backgroundColor: heroPalette.panelAlt,
-        paddingHorizontal: 16,
-        paddingVertical: 16,
-        marginTop: 2,
-        marginBottom: 12,
-    },
-    modeTitle: {
-        color: heroPalette.text,
-        fontSize: 14,
-        fontWeight: '700',
-        marginBottom: 10,
-    },
-    modeRow: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-    },
-    modeChip: {
-        borderRadius: 999,
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        backgroundColor: heroPalette.panel,
-        borderWidth: 1,
-        borderColor: heroPalette.border,
-    },
-    modeChipText: {
-        color: heroPalette.textSoft,
-        fontSize: 11,
-        fontWeight: '700',
-    },
-    footerInfo: {
-        borderRadius: 18,
-        borderWidth: 1,
-        borderColor: heroPalette.border,
-        backgroundColor: heroPalette.panelAlt,
-        paddingHorizontal: 16,
-        paddingVertical: 16,
-        marginTop: 6,
-    },
-    footerText: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: heroPalette.text,
-        marginBottom: 4,
-    },
-    footerSubtext: {
-        fontSize: 12,
-        color: heroPalette.textMuted,
-    },
-    movementRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        gap: 12,
-        paddingTop: 10,
-        borderTopWidth: 1,
-        borderTopColor: heroPalette.border,
-        marginTop: 10,
-    },
-    movementCopy: {
-        flex: 1,
-    },
-    movementTitle: {
-        color: heroPalette.text,
-        fontSize: 13,
-        fontWeight: '700',
-        marginBottom: 3,
-    },
-    movementMeta: {
-        color: heroPalette.textMuted,
-        fontSize: 12,
-    },
-    movementQty: {
-        color: heroPalette.primary,
-        fontSize: 13,
-        fontWeight: '800',
-    },
+    container: { flex: 1, backgroundColor: heroPalette.bg },
+    content: { padding: 16, paddingBottom: 32 },
+    stats: { flexDirection: 'row', gap: 8, marginBottom: 14 },
+    stat: { flex: 1, backgroundColor: heroPalette.panel, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 12, borderWidth: 1, borderColor: heroPalette.border },
+    statValue: { color: heroPalette.text, fontSize: 22, fontWeight: '900' },
+    statLabel: { color: heroPalette.textMuted, fontSize: 12, fontWeight: '700', marginTop: 2 },
+    entry: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: heroPalette.panel, borderRadius: 16, paddingVertical: 15, paddingHorizontal: 16, borderWidth: 1, borderColor: heroPalette.border, marginBottom: 10 },
+    entryIcon: { fontSize: 22 },
+    entryLabel: { flex: 1, color: heroPalette.text, fontSize: 16, fontWeight: '800' },
+    entryArrow: { color: heroPalette.textMuted, fontSize: 26, fontWeight: '300' },
+    section: { color: heroPalette.textMuted, fontSize: 13, fontWeight: '800', marginTop: 16, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.6 },
+    loading: { marginTop: 16 },
+    row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: heroPalette.border },
+    rowText: { flex: 1 },
+    rowTitle: { color: heroPalette.text, fontSize: 15, fontWeight: '700' },
+    rowDetail: { color: heroPalette.textMuted, fontSize: 13, marginTop: 2 },
+    rowValue: { color: heroPalette.primary, fontSize: 16, fontWeight: '900' },
 });

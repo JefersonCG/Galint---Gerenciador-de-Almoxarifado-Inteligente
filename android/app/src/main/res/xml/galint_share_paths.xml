@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Pasta da foto que vai para o WhatsApp (GalintShareModule). -->
+<!-- Pasta da foto e dos relatórios (compartilhar/relatorios) que vão para o WhatsApp (GalintShareModule). -->
 <paths>
   <cache-path name="compartilhar" path="compartilhar/" />
   <!-- APK da atualização sozinha (GalintUpdateModule). -->

@@ -43,10 +43,6 @@ function loadScreens() {
             ProfileScreen: require('./src/screens/ProfileScreen').default,
             NotificationsScreen: require('./src/screens/NotificationsScreen').default,
             ReportsScreen: require('./src/screens/ReportsScreen').default,
-            ReportsDailyScreen: require('./src/screens/ReportsDailyScreen').default,
-            ReportsMonthlyScreen: require('./src/screens/ReportsMonthlyScreen').default,
-            ReportsHistoryScreen: require('./src/screens/ReportsHistoryScreen').default,
-            ReportsConsumptionScreen: require('./src/screens/ReportsConsumptionScreen').default,
         };
         /* eslint-enable global-require */
     }
@@ -287,10 +283,6 @@ function AppNavigator() {
                     <Stack.Screen name="Profile" component={S.ProfileScreen} options={{ title: 'Perfil do Usuário' }} />
                     <Stack.Screen name="Notifications" component={S.NotificationsScreen} options={{ title: 'Avisos' }} />
                     <Stack.Screen name="Reports" component={S.ReportsScreen} options={{ title: 'Relatórios' }} />
-                    <Stack.Screen name="ReportsDaily" component={S.ReportsDailyScreen} options={{ title: 'Relatório Diário' }} />
-                    <Stack.Screen name="ReportsMonthly" component={S.ReportsMonthlyScreen} options={{ title: 'Relatório Mensal' }} />
-                    <Stack.Screen name="ReportsConsumption" component={S.ReportsConsumptionScreen} options={{ title: 'Consumo Analítico' }} />
-                    <Stack.Screen name="ReportsHistory" component={S.ReportsHistoryScreen} options={{ title: 'Histórico de Relatórios' }} />
                 </Stack.Navigator>
             </NavigationContainer>
             {/* Atualização sozinha do APK (2.2.4), como no Pipocas. */}

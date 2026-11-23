@@ -413,7 +413,8 @@ export default function EstoqueScreen({ navigation, route }) {
                         {role !== 'gerencia' ? menuEntry('🔄', 'Movimento de material', () => go('Movimento'), 'Materiais, ferramentas, fracionados e devoluções') : null}
                         {menuEntry('🔔', 'Avisos', openNotifications, 'Saídas, devoluções e alertas do estoque', inbox.unread)}
                         {ENTRADAS_FISCAIS_NO_APP ? menuEntry('🧾', 'Entradas fiscais', () => go('DocumentosFiscais'), 'NF, cupom, recibo') : null}
-                        {menuEntry('🗂️', 'Painel, relatórios e configurações', () => go('Menu'))}
+                        {canLaunchEntry ? menuEntry('📊', 'Relatórios', () => go('Reports'), 'Dia, mês e consumo em PDF ou Excel') : null}
+                        {menuEntry('🗂️', 'Painel e configurações', () => go('Menu'))}
                         {menuEntry('⟳', 'Atualizar a base agora', refreshBase, syncLabel(sync))}
                         {menuEntry('🚪', 'Sair', logout)}
                     </ScrollView>
