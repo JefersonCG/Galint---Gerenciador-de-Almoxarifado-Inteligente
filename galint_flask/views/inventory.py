@@ -4039,6 +4039,9 @@ def update_item(codigo: str):
 
         if should_notify_item_update:
             try:
+                # Import faltava aqui (NameError engolido pelo except: o aviso de item editado nunca saía).
+                from ..services.notification_router import NotificationRouterService
+
                 NotificationRouterService.route_item_updated(
                     updated_codigo,
                     prev=prev_item,

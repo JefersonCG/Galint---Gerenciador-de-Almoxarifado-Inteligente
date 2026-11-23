@@ -7,7 +7,7 @@ import io
 from random import sample
 from typing import Any
 
-from flask import Blueprint, Response, abort, current_app, jsonify, render_template, url_for
+from flask import Blueprint, Response, abort, current_app, jsonify, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from ..services.analytics_service import analytics_service

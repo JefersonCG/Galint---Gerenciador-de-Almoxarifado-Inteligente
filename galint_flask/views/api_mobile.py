@@ -887,7 +887,7 @@ def mobile_logout():
 
         if session:
             session.status = "logged_out"
-            session.logged_out_at = func.now()
+            session.logged_out_at = TimeService.now_db()  # era func.now() sem import (NameError)
 
         if device_uuid:
             device = Device.query.filter_by(device_uuid=device_uuid).first()
@@ -1267,6 +1267,27 @@ def retirar_multipla_mobile(current_user: Usuario):
                     })
                     continue
 
+            # Ferramenta na custódia do dia: confere antes de gravar qualquer coisa deste item (antes a
+            # conferência vinha depois da saída e do razão já estarem na sessão, e o "continue" deixava
+            # a saída gravada mesmo com a ferramenta indisponível).
+            needs_daily_custody = "ferrament" in (item.categoria or "").lower() and tipo_custodia_item != "permanente"
+            tool_quantity = int(max(1, round(float(quantidade_operacao or 1))))
+            if needs_daily_custody:
+                quantidade_em_uso = db.session.query(
+                    sa_func.coalesce(sa_func.sum(RetiradaFerramenta.quantidade), 0)
+                ).filter(
+                    RetiradaFerramenta.codigo_item == item.codigo_item,
+                    RetiradaFerramenta.status == 'em_uso'
+                ).scalar() or 0
+                if saldo_atual - float(quantidade_em_uso) < tool_quantity:
+                    resultados.append({
+                        "index": idx,
+                        "codigo": codigo,
+                        "success": False,
+                        "message": f"Ferramenta indisponível. {int(quantidade_em_uso)} em uso por outro(s) funcionário(s)",
+                    })
+                    continue
+
             # Criar saída
             saida = Saida()
             saida.codigo_item = item.codigo_item
@@ -1296,42 +1317,18 @@ def retirar_multipla_mobile(current_user: Usuario):
             )
 
             db.session.add(saida)
-            # Se for ferramenta, também criar registro em retiradas_ferramentas (apenas custódia diária)
-            try:
-                categoria_text = (item.categoria or '').lower()
-                if 'ferrament' in categoria_text and tipo_custodia_item != "permanente":
-                    # VALIDAÇÃO CRÍTICA: Verificar se há saldo disponível para ferramentas
-                    from sqlalchemy import func
-                    quantidade_em_uso = db.session.query(
-                        func.coalesce(func.sum(RetiradaFerramenta.quantidade), 0)
-                    ).filter(
-                        RetiradaFerramenta.codigo_item == item.codigo_item,
-                        RetiradaFerramenta.status == 'em_uso'
-                    ).scalar() or 0
-                    
-                    saldo_disponivel_ferramenta = saldo_atual - quantidade_em_uso
-                    
-                    if saldo_disponivel_ferramenta < quantidade_operacao:
-                        resultados.append({
-                            "index": idx,
-                            "codigo": codigo,
-                            "success": False,
-                            "message": f"Ferramenta indisponível. {int(quantidade_em_uso)} em uso por outro(s) funcionário(s)"
-                        })
-                        continue  # Pula este item
-                    
-                    retirada = RetiradaFerramenta(
-                        codigo_item=item.codigo_item,
-                        matricula=retirante_user.matricula,
-                        quantidade=int(quantidade_int or 1),
-                        local_servico=str(local_servico_geral or '').upper(),
-                        observacao=str(obs_final or '').upper(),
-                        status='em_uso',
-                    )
-                    db.session.add(retirada)
-            except Exception as e:
-                logger.warning(f"Erro ao criar RetiradaFerramenta para {item.codigo_item}: {e}")
-                pass
+            # Ferramenta: registro na custódia do dia (retiradas_ferramentas). Até 23/11/2026 usava
+            # "quantidade_int", que não existe nesta rota desde eb50423a (09/04/2026): o NameError
+            # caía no except e a custódia não era criada.
+            if needs_daily_custody:
+                db.session.add(RetiradaFerramenta(
+                    codigo_item=item.codigo_item,
+                    matricula=retirante_user.matricula,
+                    quantidade=tool_quantity,
+                    local_servico=str(local_servico_geral or '').upper(),
+                    observacao=str(obs_final or '').upper(),
+                    status='em_uso',
+                ))
             saidas_criadas.append(saida)
             ledger_results.append((ledger_result, saida))
             resultados.append({
@@ -1339,7 +1336,9 @@ def retirar_multipla_mobile(current_user: Usuario):
                 "codigo": codigo,
                 "success": True,
                 "descricao": item.descricao,
-                "quantidade": quantidade_int
+                # Era "quantidade_int", nome que não existe aqui desde eb50423a (09/04/2026): o
+                # NameError derrubava toda retirada múltipla com "Erro interno ao processar retiradas".
+                "quantidade": int(quantidade_operacao) if float(quantidade_operacao).is_integer() else float(quantidade_operacao),
             })
 
         if not saidas_criadas:

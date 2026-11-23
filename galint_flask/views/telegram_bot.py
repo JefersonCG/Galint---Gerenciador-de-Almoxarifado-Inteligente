@@ -17,6 +17,7 @@ from flask import Blueprint, request, jsonify, current_app
 from ..extensions import db
 from ..models import Usuario, TelegramUser, Item, Saida, TelegramConfig
 from ..services.telegram_service import TelegramService
+from ..utils.time_service import TimeService
 
 logger = logging.getLogger(__name__)
 
