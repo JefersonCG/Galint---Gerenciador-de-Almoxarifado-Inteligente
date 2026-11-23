@@ -7,7 +7,7 @@ import { ActivityIndicator, Image, Keyboard, Modal, StyleSheet, Text, TouchableO
 import { heroPalette, heroShadow } from '../theme/heroTheme';
 import { shareOnWhatsApp } from '../utils/shareWhatsApp';
 
-// done: { title, summary, itemName, photoUri, message, newLabel, onNew, onFinish } ou null.
+// done: { title, summary, itemName, photoUri, message, newLabel, onNew (opcional), onFinish } ou null.
 export default function DoneModal({ done }) {
     const [sharing, setSharing] = useState(false);
     const [shared, setShared] = useState(false);
@@ -67,9 +67,12 @@ export default function DoneModal({ done }) {
                     ) : null}
 
                     <View style={styles.row}>
-                        <TouchableOpacity style={styles.ghost} onPress={done.onNew} activeOpacity={0.85}>
-                            <Text style={styles.ghostText}>{done.newLabel || 'Nova'}</Text>
-                        </TouchableOpacity>
+                        {/* Sem onNew (ex.: item recém-cadastrado), só "Concluir". */}
+                        {done.onNew ? (
+                            <TouchableOpacity style={styles.ghost} onPress={done.onNew} activeOpacity={0.85}>
+                                <Text style={styles.ghostText}>{done.newLabel || 'Nova'}</Text>
+                            </TouchableOpacity>
+                        ) : null}
                         <TouchableOpacity style={styles.ghost} onPress={done.onFinish} activeOpacity={0.85}>
                             <Text style={styles.ghostText}>Concluir</Text>
                         </TouchableOpacity>

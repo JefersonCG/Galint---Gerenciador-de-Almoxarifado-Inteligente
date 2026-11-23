@@ -3,10 +3,18 @@
 // há campo para digitar a chave nem o número da NF: o número, a série e o CNPJ saem da própria
 // chave, como em Documentos Fiscais do site), datas e valor. Grava pela mesma rota da tela de
 // Documentos Fiscais (/api/mobile/documentos-fiscais), com financeiro, estoque e aviso.
-import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+//
+// Cadastro pelo código lido (2.2.6). Pedido do usuário em 23/11/2026: quando o código lido não existe,
+// o app pergunta se quer cadastrar e abre ESTA tela (route.params.codigoNovo), com o mesmo formulário
+// e a mesma gravação; só entram descrição, categoria e unidade do item novo. A rota cria o item em
+// pré-cadastro, como faz o site com item novo vindo de NF: o saldo entra quando o pré-cadastro é
+// concluído no site.
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
+    FlatList,
     Image,
+    Keyboard,
     KeyboardAvoidingView,
     Modal,
     Platform,
@@ -53,12 +61,23 @@ function normalizeDecimal(text) {
     return String(text || '').replace(/[^0-9.,]/g, '').replace(',', '.');
 }
 
+// As mesmas unidades internas do site (inventory.BASE_ITEM_UNIT_OPTIONS), se a configuração não vier.
+const UNIDADES = ['Unidade', 'Par', 'Metro', 'Quilo', 'Litro'];
+
 export default function EntradaNFScreen({ navigation, route }) {
     const [fotoNova, setFotoNova] = useState(null);
     const [photoModal, setPhotoModal] = useState(false);
-    const baseItem = route.params?.item || {};
+    const codigoNovo = String(route.params?.codigoNovo || '').trim();
+    const [criado, setCriado] = useState(null); // item que esta tela acabou de cadastrar
+    const novo = Boolean(codigoNovo) && !criado;
+    const baseItem = criado || route.params?.item || (codigoNovo ? { codigo: codigoNovo } : {});
     const item = fotoNova ? { ...baseItem, foto_url: fotoNova } : baseItem;
     const codigo = String(item.codigo || item.codigo_barras || item.id || '').trim();
+    const [descricao, setDescricao] = useState('');
+    const [categoria, setCategoria] = useState('');
+    const [unidade, setUnidade] = useState('Unidade');
+    const [opcoes, setOpcoes] = useState({ categorias: [], unidades: UNIDADES });
+    const [escolhendoCategoria, setEscolhendoCategoria] = useState(false);
     const [permission, requestPermission] = useCameraPermissions();
     const [quantidade, setQuantidade] = useState('');
     const [valor, setValor] = useState('');
@@ -74,8 +93,29 @@ export default function EntradaNFScreen({ navigation, route }) {
     const lido = useRef(false);
 
     useLayoutEffect(() => {
-        navigation.setOptions({ title: 'Lançar entrada' });
-    }, [navigation]);
+        navigation.setOptions({ title: novo ? 'Cadastrar item' : 'Lançar entrada' });
+    }, [navigation, novo]);
+
+    // Item novo: categorias e unidades do cadastro do site.
+    useEffect(() => {
+        if (!codigoNovo) return undefined;
+        let ativo = true;
+        ApiService.getDocumentosFiscaisConfig().then((result) => {
+            if (!ativo) return;
+            if (!result?.success) {
+                setErro(result?.offline ? 'Sem conexão com o servidor.' : (result?.message || 'Não foi possível carregar as categorias.'));
+                return;
+            }
+            const data = result.data || {};
+            setOpcoes({
+                categorias: Array.isArray(data.categorias) ? data.categorias : [],
+                unidades: Array.isArray(data.unidades_base) && data.unidades_base.length ? data.unidades_base : UNIDADES,
+            });
+        });
+        return () => {
+            ativo = false;
+        };
+    }, [codigoNovo]);
 
     const abrirLeitor = useCallback(async () => {
         InactivityService.recordActivity();
@@ -132,12 +172,14 @@ export default function EntradaNFScreen({ navigation, route }) {
 
     const quantidadeNum = Number(normalizeDecimal(quantidade));
     const faltando = useMemo(() => {
+        if (novo && !descricao.trim()) return 'Falta a descrição';
+        if (novo && !categoria) return 'Falta a categoria';
         if (!(quantidadeNum > 0)) return 'Falta a quantidade';
         if (!nota) return 'Falta ler a chave';
         if (!emissao) return 'Falta a data de emissão';
         if (!recebimento) return 'Falta a data de recebimento';
         return '';
-    }, [emissao, nota, quantidadeNum, recebimento]);
+    }, [categoria, descricao, emissao, nota, novo, quantidadeNum, recebimento]);
 
     const lancar = useCallback(async () => {
         if (faltando || salvando) return;
@@ -145,12 +187,14 @@ export default function EntradaNFScreen({ navigation, route }) {
         setSalvando(true);
         setErro('');
         const valorNum = Number(normalizeDecimal(valor));
+        const descricaoNova = descricao.trim().toUpperCase();
         const result = await ApiService.registrarDocumentoFiscal({
             doc_mode: 'nf',
             finance_tipo_documento: 'nf',
             finance_origem_valor: 'compra_nf',
             finance_comprovacao_status: 'comprovado',
             codigo,
+            ...(novo ? { novo_codigo: codigo, nova_descricao: descricaoNova, nova_categoria: categoria, nova_unidade: unidade } : {}),
             quantidade: quantidadeNum,
             nota_fiscal: nota.numero,
             chave_acesso: nota.chave,
@@ -164,6 +208,22 @@ export default function EntradaNFScreen({ navigation, route }) {
         setSalvando(false);
         if (!result?.success) {
             setErro(result?.message || 'Não foi possível lançar a entrada.');
+            return;
+        }
+        if (novo) {
+            const itemCriado = { ...(result.data?.item || {}), codigo };
+            itemCriado.descricao = itemCriado.descricao || descricaoNova;
+            setCriado(itemCriado);
+            setDone({
+                title: 'Item cadastrado',
+                itemName: itemCriado.descricao,
+                summary: `NF ${nota.numero} • +${quantidade.replace('.', ',')}${result.data?.pre_cadastro_pendente ? '\nO saldo entra ao concluir o pré-cadastro no site.' : ''}`,
+                photoUri: null,
+                onFinish: () => {
+                    setDone(null);
+                    navigation.goBack();
+                },
+            });
             return;
         }
         const saldo = result.data?.item?.saldo_display || result.data?.item?.saldo;
@@ -185,13 +245,56 @@ export default function EntradaNFScreen({ navigation, route }) {
                 navigation.goBack();
             },
         });
-    }, [codigo, emissao, faltando, item, navigation, nota, quantidade, quantidadeNum, recebimento, salvando, valor]);
+    }, [categoria, codigo, descricao, emissao, faltando, item, navigation, nota, novo, quantidade, quantidadeNum, recebimento, salvando, unidade, valor]);
 
     const photoUri = photoFailed ? null : resolvePhotoUri(item);
 
     return (
         <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+                {novo ? (
+                    <>
+                        <View style={styles.itemRow}>
+                            <View style={[styles.photo, styles.photoEmpty]}>
+                                <Text style={styles.photoEmptyText}>📦</Text>
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.itemName}>Item novo</Text>
+                                <Text style={styles.itemMeta}>{codigo}</Text>
+                            </View>
+                        </View>
+
+                        <Text style={styles.label}>Descrição</Text>
+                        <TextInput
+                            style={[styles.input, styles.inputText]}
+                            value={descricao}
+                            onChangeText={setDescricao}
+                            autoCapitalize="characters"
+                            autoCorrect={false}
+                            placeholder="Nome do item"
+                            placeholderTextColor="#94a3b8"
+                        />
+
+                        <Text style={styles.label}>Categoria</Text>
+                        <TouchableOpacity style={styles.dateField} onPress={() => { Keyboard.dismiss(); setEscolhendoCategoria(true); }} activeOpacity={0.85}>
+                            <Text style={categoria ? styles.dateText : styles.datePlaceholder} numberOfLines={1}>{categoria || 'Escolher'}</Text>
+                        </TouchableOpacity>
+
+                        <Text style={styles.label}>Unidade</Text>
+                        <View style={styles.chips}>
+                            {opcoes.unidades.map((opcao) => (
+                                <TouchableOpacity
+                                    key={opcao}
+                                    style={[styles.chip, unidade === opcao && styles.chipOn]}
+                                    onPress={() => setUnidade(opcao)}
+                                    activeOpacity={0.85}
+                                >
+                                    <Text style={[styles.chipText, unidade === opcao && styles.chipTextOn]}>{opcao}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    </>
+                ) : (
                 <View style={styles.itemRow}>
                     {photoUri ? (
                         <Image source={{ uri: photoUri }} style={styles.photo} resizeMode="cover" onError={() => setPhotoFailed(true)} />
@@ -207,6 +310,7 @@ export default function EntradaNFScreen({ navigation, route }) {
                         {item.saldo_display ? <Text style={styles.itemMeta}>Saldo: {item.saldo_display}</Text> : null}
                     </View>
                 </View>
+                )}
 
                 <Text style={styles.label}>Chave de acesso</Text>
                 {nota ? (
@@ -222,7 +326,7 @@ export default function EntradaNFScreen({ navigation, route }) {
                     </TouchableOpacity>
                 )}
 
-                <Text style={styles.label}>Quantidade{item.unidade ? ` (${String(item.unidade).toLowerCase()})` : ''}</Text>
+                <Text style={styles.label}>Quantidade{(novo ? unidade : item.unidade) ? ` (${String(novo ? unidade : item.unidade).toLowerCase()})` : ''}</Text>
                 <TextInput
                     style={styles.input}
                     value={quantidade}
@@ -281,6 +385,30 @@ export default function EntradaNFScreen({ navigation, route }) {
                 </View>
             </Modal>
 
+            <Modal visible={escolhendoCategoria} transparent animationType="fade" onRequestClose={() => setEscolhendoCategoria(false)}>
+                <TouchableOpacity style={styles.pickerBackdrop} activeOpacity={1} onPress={() => setEscolhendoCategoria(false)}>
+                    <View style={styles.pickerPanel}>
+                        <Text style={styles.pickerTitle}>Categoria</Text>
+                        <FlatList
+                            data={opcoes.categorias}
+                            keyExtractor={(opcao) => opcao}
+                            ListEmptyComponent={<ActivityIndicator color={heroPalette.primaryStrong} style={{ marginVertical: 24 }} />}
+                            renderItem={({ item: opcao }) => (
+                                <TouchableOpacity
+                                    style={[styles.pickerRow, categoria === opcao && styles.pickerRowOn]}
+                                    onPress={() => {
+                                        setCategoria(opcao);
+                                        setEscolhendoCategoria(false);
+                                    }}
+                                >
+                                    <Text style={styles.pickerRowText}>{opcao}</Text>
+                                </TouchableOpacity>
+                            )}
+                        />
+                    </View>
+                </TouchableOpacity>
+            </Modal>
+
             <ItemPhotoLinkModal
                 item={item}
                 visible={photoModal}
@@ -315,6 +443,18 @@ const styles = StyleSheet.create({
     noteKey: { color: heroPalette.textMuted, fontSize: 12, marginTop: 6, letterSpacing: 0.5 },
     noteAgain: { color: heroPalette.primary, fontSize: 13, fontWeight: '800', marginTop: 8 },
     input: { backgroundColor: '#fff', color: '#0f172a', borderRadius: 14, paddingHorizontal: 16, height: 54, fontSize: 20, fontWeight: '800' },
+    inputText: { fontSize: 16, fontWeight: '700' },
+    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    chip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 999, backgroundColor: heroPalette.panel, borderWidth: 1, borderColor: heroPalette.border },
+    chipOn: { backgroundColor: heroPalette.primaryStrong, borderColor: heroPalette.primaryStrong },
+    chipText: { color: heroPalette.textSoft, fontSize: 15, fontWeight: '800' },
+    chipTextOn: { color: heroPalette.bg },
+    pickerBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(2, 6, 23, 0.6)' },
+    pickerPanel: { maxHeight: '70%', backgroundColor: heroPalette.panel, borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingTop: 16, paddingBottom: 24, borderWidth: 1, borderColor: heroPalette.border },
+    pickerTitle: { color: heroPalette.textMuted, fontSize: 13, fontWeight: '800', paddingHorizontal: 20, paddingBottom: 8 },
+    pickerRow: { paddingHorizontal: 20, paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: heroPalette.border },
+    pickerRowOn: { backgroundColor: heroPalette.panelAlt },
+    pickerRowText: { color: heroPalette.text, fontSize: 16, fontWeight: '700' },
     dateRow: { flexDirection: 'row', gap: 12 },
     dateField: { height: 54, borderRadius: 14, backgroundColor: '#fff', justifyContent: 'center', paddingHorizontal: 16 },
     dateText: { color: '#0f172a', fontSize: 17, fontWeight: '800' },

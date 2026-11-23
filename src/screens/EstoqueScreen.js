@@ -9,6 +9,8 @@
 // - avisos mais visíveis (ninguém olha o Telegram): faixa na tela, sino com número e alerta do
 //   celular quando chega aviso novo com o app aberto;
 // - menu ☰ enxuto: Conferência, Movimento de material, Avisos, Painel e Sair.
+// Em 23/11/2026 (2.2.6): código que não existe no GALINT pergunta "Deseja cadastrar?" (só para quem
+// lança entrada) e abre o mesmo "Lançar entrada" com os campos do item novo; na volta, o item abre aqui.
 //
 // A tela também cuida da sessão (sinal de vida, inatividade) e da sincronização da base.
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -45,6 +47,7 @@ import { subscribeNotifyInboxChanged } from '../services/notifyEvents';
 import StockCountPanel from '../components/StockCountPanel';
 import ItemPhotoLinkModal from '../components/ItemPhotoLinkModal';
 import { ENTRADAS_FISCAIS_NO_APP } from '../config/features';
+import { isRegistrableCode } from '../utils/itemCode';
 import { heroPalette, heroSoftShadow } from '../theme/heroTheme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -101,6 +104,8 @@ export default function EstoqueScreen({ navigation, route }) {
     const [inbox, setInbox] = useState({ unread: 0, latest: null });
     const [itemMenu, setItemMenu] = useState(false); // ☰ do item lido (lançar entrada com NF)
     const [photoModal, setPhotoModal] = useState(false); // foto do item pelo link
+    const [missing, setMissing] = useState(null); // código lido que não existe: pergunta se cadastra
+    const registering = useRef(''); // código que foi para o cadastro: abre o item na volta
     const lastSeen = useRef({ code: '', at: 0 });
     const armedUntil = useRef(0);
     const lookupId = useRef(0);
@@ -231,6 +236,10 @@ export default function EstoqueScreen({ navigation, route }) {
         if (result.notFound && !localItem) {
             setPanel(null);
             Vibration.vibrate([0, 80, 80, 80]);
+            if (canLaunchEntry && isRegistrableCode(code)) {
+                setMissing(code);
+                return;
+            }
             setNotice({ tone: 'error', text: `Código ${code} não encontrado no GALINT.` });
             return;
         }
@@ -245,13 +254,21 @@ export default function EstoqueScreen({ navigation, route }) {
         }
         setPanel(null);
         setNotice({ tone: 'error', text: result.message || 'Não foi possível buscar o item.' });
-    }, []);
+    }, [canLaunchEntry]);
 
     // Voltou de outra tela (ex.: lançar entrada) com um item aberto: o saldo dele se atualiza sozinho.
+    // Voltou do cadastro de um código novo: o item cadastrado abre (se a pessoa desistiu, nada abre).
     const wasFocused = useRef(isFocused);
     useEffect(() => {
         const codigo = panel?.item?.codigo;
-        if (isFocused && !wasFocused.current && codigo && !panel?.loading) {
+        if (isFocused && !wasFocused.current && registering.current) {
+            const novoCodigo = registering.current;
+            registering.current = '';
+            ApiService.buscarItemContagem(novoCodigo).then((result) => {
+                if (!result?.success || !result.item) return;
+                setPanel((current) => current || { item: result.item, loading: false, note: '' });
+            });
+        } else if (isFocused && !wasFocused.current && codigo && !panel?.loading) {
             ApiService.buscarItemContagem(codigo).then((result) => {
                 if (!result?.success || !result.item) return;
                 setPanel((current) => (current && current.item?.codigo === codigo
@@ -580,6 +597,32 @@ export default function EstoqueScreen({ navigation, route }) {
                     </View>
                 </TouchableOpacity>
             </Modal>
+            <Modal visible={Boolean(missing)} transparent animationType="fade" onRequestClose={() => setMissing(null)}>
+                <TouchableOpacity style={styles.itemMenuBackdrop} activeOpacity={1} onPress={() => setMissing(null)}>
+                    <View style={[styles.itemMenuCard, styles.missingCard, { marginBottom: insets.bottom + 16 }]} onStartShouldSetResponder={() => true}>
+                        <Text style={styles.missingTitle}>Código não encontrado</Text>
+                        <Text style={styles.missingCode} selectable>{missing}</Text>
+                        <Text style={styles.missingQuestion}>Deseja cadastrar?</Text>
+                        <View style={styles.missingRow}>
+                            <TouchableOpacity style={styles.missingNo} onPress={() => setMissing(null)} activeOpacity={0.85}>
+                                <Text style={styles.missingNoText}>Não</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.missingYes}
+                                onPress={() => {
+                                    const code = missing;
+                                    setMissing(null);
+                                    registering.current = code;
+                                    go('EntradaNF', { codigoNovo: code });
+                                }}
+                                activeOpacity={0.85}
+                            >
+                                <Text style={styles.missingYesText}>Cadastrar</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
         </KeyboardAvoidingView>
     );
 }
@@ -654,6 +697,15 @@ const styles = StyleSheet.create({
     itemMenuEntry: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 14, paddingVertical: 16, borderRadius: 14 },
     itemMenuIcon: { fontSize: 24 },
     itemMenuLabel: { color: heroPalette.text, fontSize: 17, fontWeight: '800' },
+    missingCard: { padding: 18 },
+    missingTitle: { color: heroPalette.text, fontSize: 19, fontWeight: '900', textAlign: 'center' },
+    missingCode: { color: heroPalette.textSoft, fontSize: 16, fontWeight: '700', textAlign: 'center', marginTop: 6, letterSpacing: 0.5 },
+    missingQuestion: { color: heroPalette.textSoft, fontSize: 15, fontWeight: '700', textAlign: 'center', marginTop: 16 },
+    missingRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
+    missingNo: { flex: 1, height: 52, borderRadius: 14, borderWidth: 1, borderColor: heroPalette.border, alignItems: 'center', justifyContent: 'center' },
+    missingNoText: { color: heroPalette.text, fontSize: 16, fontWeight: '800' },
+    missingYes: { flex: 1, height: 52, borderRadius: 14, backgroundColor: heroPalette.primaryStrong, alignItems: 'center', justifyContent: 'center' },
+    missingYesText: { color: heroPalette.bg, fontSize: 16, fontWeight: '900' },
     menuBackdrop: { flex: 1, flexDirection: 'row', backgroundColor: 'rgba(2, 6, 23, 0.6)' },
     menuPanel: { width: '82%', maxWidth: 340, backgroundColor: heroPalette.bgAlt, borderRightWidth: 1, borderRightColor: heroPalette.border, paddingTop: 36 },
     menuHeader: { paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: heroPalette.border },

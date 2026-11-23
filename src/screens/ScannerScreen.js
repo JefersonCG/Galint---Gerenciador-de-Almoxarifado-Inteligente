@@ -15,6 +15,7 @@ import {
 import { useIsFocused } from '@react-navigation/native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import ApiService from '../services/api';
+import { isRegistrableCode } from '../utils/itemCode';
 
 const { width } = Dimensions.get('window');
 
@@ -49,15 +50,36 @@ export default function ScannerScreen({ navigation, route }) {
     const blockedCode = React.useRef({ code: '', until: 0 });
 
     // Erro na leitura: a câmera só volta a ler depois do OK, e o mesmo código fica ignorado por 2,5 s.
+    const releaseAfterError = (code) => {
+        blockedCode.current = { code: String(code || ''), until: Date.now() + SAME_CODE_PAUSE_MS };
+        setScanned(false);
+        setIsProcessing(false);
+    };
+
     const showScanError = (title, message, code) => {
         Vibration.vibrate([0, 80, 80, 80]);
         Alert.alert(title, message, [
+            { text: 'OK', onPress: () => releaseAfterError(code) },
+        ], { cancelable: false });
+    };
+
+    // Código que não existe (23/11/2026, 2.2.6): quem lança entrada pode cadastrar na hora, no mesmo
+    // "Lançar entrada" da Conferência. Sem resposta do servidor, só o aviso de sempre.
+    const isAdmin = user?.is_admin === true || user?.is_admin === 1 || String(user?.is_admin || '').trim() === '1';
+    const showNotFound = (code) => {
+        const codigo = String(code || '').trim();
+        if (!isAdmin || !isRegistrableCode(codigo) || ApiService.lastItemLookupFailure === 'network') {
+            showScanError('Item não encontrado', itemNotFoundMessage(code), code);
+            return;
+        }
+        Vibration.vibrate([0, 80, 80, 80]);
+        Alert.alert('Código não encontrado', `${codigo}\n\nDeseja cadastrar?`, [
+            { text: 'Não', onPress: () => releaseAfterError(code) },
             {
-                text: 'OK',
+                text: 'Cadastrar',
                 onPress: () => {
-                    blockedCode.current = { code: String(code || ''), until: Date.now() + SAME_CODE_PAUSE_MS };
-                    setScanned(false);
-                    setIsProcessing(false);
+                    releaseAfterError(code);
+                    navigation.navigate('EntradaNF', { user, codigoNovo: codigo });
                 },
             },
         ], { cancelable: false });
@@ -115,7 +137,7 @@ export default function ScannerScreen({ navigation, route }) {
             if (mode === 'withdraw_multi') {
                 const item = await ApiService.buscarItemPorCodigo(data);
                 if (!item) {
-                    showScanError('Item não encontrado', itemNotFoundMessage(data), data);
+                    showNotFound(data);
                     return;
                 }
                 // Retornar item escaneado para RetiradaScreen
@@ -135,7 +157,7 @@ export default function ScannerScreen({ navigation, route }) {
             if (mode === 'withdraw' || mode === 'withdraw_fraction' || mode === 'tool_withdraw' || mode === 'tool_return' || mode === 'material_return' || mode === 'return') {
                 const item = await ApiService.buscarItemPorCodigo(data);
                 if (!item) {
-                    showScanError('Item não encontrado', itemNotFoundMessage(data), data);
+                    showNotFound(data);
                     return;
                 }
 
@@ -190,16 +212,7 @@ export default function ScannerScreen({ navigation, route }) {
                     ]
                 );
             } else if (result.notFound) {
-                Alert.alert(
-                    'Item Não Encontrado',
-                    `Código: ${data}\n\nO cadastro mobile foi removido. Cadastre o item pela interface web em Documentos Fiscais.`,
-                    [
-                        {
-                            text: 'OK',
-                            onPress: () => setScanned(false),
-                        },
-                    ]
-                );
+                showNotFound(data);
             } else {
                 Alert.alert('Erro', result.message, [
                     { text: 'OK', onPress: () => {
