@@ -3520,6 +3520,101 @@ def mobile_registrar_documento_fiscal():
         return jsonify({"success": False, "message": f"Erro ao registrar documento fiscal: {str(exc)}"}), 500
 
 
+@blueprint.get("/app/atualizacao")
+def mobile_app_update():
+    """Tem versão nova do app? (atualização sozinha, 23/11/2026). Sem login: o app pergunta ao abrir."""
+    from ..services import app_release_service
+
+    current_code = request.args.get("code", default=0, type=int) or 0
+    latest = app_release_service.latest_release()
+    if latest is None:
+        return jsonify({"success": True, "disponivel": False}), 200
+    return jsonify({
+        "success": True,
+        "disponivel": latest["version_code"] > current_code,
+        "version_name": latest["version_name"],
+        "version_code": latest["version_code"],
+        "tamanho": latest["tamanho"],
+        "sha256": latest["sha256"],
+        "notas": latest["notas"],
+        "url": f"/api/mobile/app/apk/{latest['version_code']}",
+    }), 200
+
+
+@blueprint.get("/app/apk/<int:version_code>")
+def mobile_app_apk(version_code: int):
+    from ..services import app_release_service
+
+    path = app_release_service.release_file(version_code)
+    if path is None:
+        return jsonify({"success": False, "message": "Versão não encontrada."}), 404
+    return send_file(
+        path,
+        mimetype="application/vnd.android.package-archive",
+        as_attachment=True,
+        download_name=path.name,
+        conditional=True,
+    )
+
+
+def _unwrap_image_url(raw_value: str) -> str:
+    """Link copiado do Google/Bing Imagens no celular: às vezes vem a página da busca com a imagem
+    dentro (imgurl= / mediaurl=). Devolve o endereço da imagem."""
+    from urllib.parse import parse_qs, urlparse
+
+    text = (raw_value or "").strip()
+    if text.lower().startswith("data:image/"):
+        return text
+    try:
+        query = parse_qs(urlparse(text).query)
+    except ValueError:
+        return text
+    for key in ("imgurl", "mediaurl"):
+        if query.get(key):
+            return query[key][0]
+    return text
+
+
+@blueprint.post("/itens/<path:codigo>/foto/url")
+@mobile_login_required
+def mobile_item_photo_from_url(codigo: str):
+    """Foto do item pelo app (23/11/2026), como em Documentos Fiscais do site: a pessoa abre a busca
+    de imagens com o nome e a marca, copia o link da imagem e cola; o servidor baixa, reduz e grava.
+    Só administradores, como a mesma ação no site (/itens/<codigo>/foto/url)."""
+    import base64
+
+    if not _mobile_admin_only(g.mobile_user):
+        return jsonify({"success": False, "message": "Só administradores trocam a foto do item."}), 403
+    item = _find_item_by_barcode(codigo)
+    if item is None:
+        return jsonify({"success": False, "message": "Item não encontrado."}), 404
+
+    data = request.get_json(silent=True) or {}
+    image_url = _unwrap_image_url(str(data.get("url") or ""))
+    if not image_url:
+        return jsonify({"success": False, "message": "Cole o link da imagem."}), 400
+    try:
+        if image_url.lower().startswith("data:image/"):
+            # "Copiar imagem" no Chrome do celular às vezes copia a imagem em base64 (data:image/...).
+            encoded = image_url.split(",", 1)[1] if "," in image_url else ""
+            photo_path = ItemFotoService._process_image_bytes(base64.b64decode(encoded), item.codigo_item)
+        else:
+            photo_path = ItemFotoService.download_foto_from_url(image_url, item.codigo_item)
+    except (ValueError, base64.binascii.Error) as exc:
+        return jsonify({"success": False, "message": str(exc) or "Imagem inválida."}), 400
+
+    previous = item.foto_path
+    if previous and previous != photo_path:
+        ItemFotoService.deletar_foto(previous)
+    item.foto_path = photo_path
+    item.ultima_edicao_em = TimeService.now_db()  # a base dos celulares recebe a foto nova
+    db.session.commit()
+    return jsonify({
+        "success": True,
+        "foto_url": operation_visual_payload_service._build_photo_url(stock_count_service.photo_static_path(item)),
+    }), 200
+
+
 @blueprint.get("/tema")
 def mobile_theme():
     """Cores da Aparência para o app. Sem login: a abertura e a tela de entrada também usam."""
