@@ -157,6 +157,11 @@ def derive(menu: str, destaque: str, fundo: str) -> dict[str, str]:
     topbar_mid = legible(top_base, LIGHT_TEXT, 3)
     b_hue, b_light, b_sat = _hls(top_base)
     glow_1, glow_2 = tint(destaque, 0.86), tint(menu, 0.95)
+    # Modais escuros (23/11/2026: "todos os modais se adaptem às mudanças de cor"): superfícies no
+    # matiz do menu, sempre escuras (o texto deles é claro), com o brilho e as bordas do destaque.
+    s_sat = min(saturation, 0.55)
+    surfaces = [_from_hls(hue, lightness_value, s_sat) for lightness_value in (0.05, 0.075, 0.11, 0.15)]
+    accent_rgb = _rgb_text(destaque)
     return {
         # menu lateral
         "--skin-menu-1": shade(menu, 0.01),
@@ -201,6 +206,26 @@ def derive(menu: str, destaque: str, fundo: str) -> dict[str, str]:
         "--bs-link-color-rgb": _rgb_text(accent_text),
         "--bs-link-hover-color": shade(accent_text, -0.1),
         "--bs-link-hover-color-rgb": _rgb_text(shade(accent_text, -0.1)),
+        # modais (regras em static/css/galint-skin-modais.css, carregada só com aparência personalizada)
+        "--skin-surface-0": surfaces[0],
+        "--skin-surface-1": surfaces[1],
+        "--skin-surface-2": surfaces[2],
+        "--skin-surface-3": surfaces[3],
+        "--skin-surface-1-rgb": _rgb_text(surfaces[1]),
+        "--skin-surface-2-rgb": _rgb_text(surfaces[2]),
+        "--skin-accent-rgb": accent_rgb,
+        "--skin-accent-on-dark": legible(destaque, surfaces[1], 4.5),
+        "--skin-modal-bg": (
+            f"radial-gradient(circle at top right, rgba({accent_rgb}, 0.16), transparent 34%), "
+            f"linear-gradient(180deg, {surfaces[1]} 0%, {surfaces[2]} 100%)"
+        ),
+        "--skin-modal-head": (
+            f"radial-gradient(circle at top right, rgba({accent_rgb}, 0.2), transparent 34%), "
+            f"linear-gradient(135deg, {surfaces[3]} 0%, {surfaces[1]} 100%)"
+        ),
+        "--skin-modal-foot": f"linear-gradient(180deg, {surfaces[0]} 0%, {surfaces[1]} 100%)",
+        "--skin-modal-line": f"rgba({accent_rgb}, 0.24)",
+        "--skin-modal-light-head": f"linear-gradient(180deg, {tint(menu, 0.97)} 0%, {tint(menu, 0.92, 0.45)} 100%)",
     }
 
 
@@ -273,12 +298,27 @@ def preset_cards(colors: dict[str, str]) -> list[dict[str, Any]]:
     ]
 
 
+MODALS_CSS_VERSION = "20261123"
+
+
+def _modals_css_url() -> str:
+    try:
+        from flask import url_for
+
+        return url_for("static", filename="css/galint-skin-modais.css", v=MODALS_CSS_VERSION)
+    except Exception:
+        return f"/static/css/galint-skin-modais.css?v={MODALS_CSS_VERSION}"
+
+
 def stylesheet(config: Any) -> str:
-    """Folha dinâmica (/tema.css): só define as variáveis quando a aparência foi personalizada."""
+    """Folha dinâmica (/tema.css): só existe quando a aparência foi personalizada. Aí define as
+    variáveis e puxa as regras dos modais (galint-skin-modais.css), que não têm cor de reserva:
+    sem tema, nem são carregadas, e os modais ficam exatamente como antes."""
     colors = current(config)
     if colors == DEFAULTS:
         return "/* Aparência padrão: valem as cores originais do GALINT. */\n"
-    return ":root{" + ";".join(f"{name}:{value}" for name, value in derive(**colors).items()) + "}\n"
+    variables = ":root{" + ";".join(f"{name}:{value}" for name, value in derive(**colors).items()) + "}\n"
+    return f'@import url("{_modals_css_url()}");\n' + variables
 
 
 def app_palette(config: Any) -> dict[str, Any]:

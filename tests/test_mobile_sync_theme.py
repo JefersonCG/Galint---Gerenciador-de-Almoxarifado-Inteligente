@@ -221,8 +221,11 @@ def test_custom_theme_reaches_site_cards_and_app_with_readable_tones():
     palette = theme_service.app_palette(config)
 
     assert saved == {"menu": "#1b2a4a", "destaque": "#0fa3b1", "fundo": "#f3f8fb"}
-    for name in ("--skin-accent:#0fa3b1", "--skin-bg:#f3f8fb", "--skin-panel-line:", "--bs-primary:", "--skin-content-bg:"):
+    for name in ("--skin-accent:#0fa3b1", "--skin-bg:#f3f8fb", "--skin-panel-line:", "--bs-primary:", "--skin-content-bg:", "--skin-modal-bg:"):
         assert name in css
+    # Os modais seguem o tema por uma folha que só entra com aparência personalizada (23/11/2026).
+    assert css.startswith('@import url("/static/css/galint-skin-modais.css')
+    assert "galint-skin-modais" not in theme_service.stylesheet(None)
     # Links e text-primary sobre o fundo claro ficam legíveis.
     derived = theme_service.derive(**saved)
     assert theme_service.contrast(derived["--bs-primary"], "#f3f8fb") >= 4.5

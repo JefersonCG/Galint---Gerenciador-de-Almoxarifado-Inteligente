@@ -202,7 +202,6 @@
                 <div class="modal-header">
                     <div>
                         <h2 class="modal-title fs-5" id="stockCountWorkbookModalTitle">Conferência física</h2>
-                        <div class="small text-muted">Escolha as categorias que vão para a planilha A4.</div>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                 </div>

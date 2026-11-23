@@ -1,0 +1,116 @@
+/*
+ * Modais do GALINT na Aparência personalizada (pedido do usuário em 23/11/2026: "todos os modais do
+ * sistema se adaptem às mudanças de cor e personalização").
+ *
+ * Esta folha só é carregada quando há aparência personalizada: o /configuracoes/tema.css faz o
+ * @import dela junto com as variáveis. Por isso as regras não têm cor de reserva; sem tema, nada
+ * aqui existe e cada modal fica com as cores dele. Os modais escuros (quase todos) passam a usar
+ * superfícies no matiz do menu, sempre escuras porque o texto deles é claro, com o brilho e as
+ * bordas do destaque. O cabeçalho claro da pesquisa geral ganha o tom claro do menu. Botões,
+ * abas e caixas marcadas já seguem o destaque pelo galint-skin.css.
+ *
+ * "html " na frente e !important: cada modal traz o próprio CSS (alguns dentro da página, depois
+ * desta folha); assim a cor do tema vence sem mexer em cada arquivo.
+ */
+
+.modal {
+    --bs-dark-rgb: var(--skin-surface-1-rgb);
+    --bs-modal-header-border-color: var(--skin-panel-line);
+    --bs-modal-footer-border-color: var(--skin-panel-line);
+}
+
+/* ---------- fundo dos modais escuros ---------- */
+html .modal-content.bg-dark,
+html .modal-content.galint-bs-modal,
+html .modal-content.galint-dark-surface,
+html .modal-content.stock-count-modal-content,
+html .modal-content.nf-search-modal-content,
+html .modal-content.consumption-modal-content,
+html .modal-content.users-modal-surface,
+html .modal-content.kit-assignment-modal,
+html .modal-content.galint-item-modal,
+html .modal-content.photo-assistant-modal,
+html .modal-content.galint-custody-modal-content,
+html .modal-content.scope-report-modal,
+html .modal-content.agenda-alert-content,
+html .modal-content.general-search-modal,
+html .mobile-modal .modal-content {
+    background: var(--skin-modal-bg) !important;
+    border-color: var(--skin-modal-line) !important;
+}
+
+/* ---------- cabeçalho e rodapé dos modais escuros ---------- */
+html .modal-content.bg-dark .modal-header,
+html .modal-content.galint-bs-modal .modal-header,
+html .modal-content.galint-dark-surface .modal-header,
+html .modal-content.stock-count-modal-content .modal-header,
+html .modal-content.nf-search-modal-content .modal-header,
+html .modal-content.consumption-modal-content .modal-header,
+html .modal-content.users-modal-surface .modal-header,
+html .modal-content.kit-assignment-modal .modal-header,
+html .modal-content.galint-item-modal .modal-header,
+html .modal-content.photo-assistant-modal .modal-header,
+html .modal-content.galint-custody-modal-content .modal-header,
+html .modal-content.scope-report-modal .modal-header,
+html .mobile-modal .modal-content .modal-header {
+    background: var(--skin-modal-head) !important;
+    border-bottom-color: var(--skin-modal-line) !important;
+}
+
+html .modal-content.bg-dark .modal-footer,
+html .modal-content.galint-bs-modal .modal-footer,
+html .modal-content.galint-dark-surface .modal-footer,
+html .modal-content.stock-count-modal-content .modal-footer,
+html .modal-content.nf-search-modal-content .modal-footer,
+html .modal-content.consumption-modal-content .modal-footer,
+html .modal-content.users-modal-surface .modal-footer,
+html .modal-content.kit-assignment-modal .modal-footer,
+html .modal-content.galint-item-modal .modal-footer,
+html .modal-content.photo-assistant-modal .modal-footer,
+html .modal-content.galint-custody-modal-content .modal-footer,
+html .modal-content.scope-report-modal .modal-footer,
+html .mobile-modal .modal-content .modal-footer {
+    background: var(--skin-modal-foot) !important;
+    border-top-color: var(--skin-modal-line) !important;
+}
+
+/* Família galint-bs-modal (sky, emerald, amber): o brilho vira o destaque do tema. */
+html .modal-content.galint-bs-modal {
+    --galint-modal-accent-rgb: var(--skin-accent-rgb) !important;
+    --galint-modal-border: var(--skin-modal-line) !important;
+}
+
+/* ---------- pesquisa geral: cabeçalho claro e as cores internas dela ---------- */
+html .general-search-modal {
+    --gs-border: var(--skin-modal-line);
+    --gs-border-strong: rgba(var(--skin-accent-rgb), 0.34);
+    --gs-surface: linear-gradient(180deg, rgba(var(--skin-surface-1-rgb), 0.96), rgba(var(--skin-surface-2-rgb), 0.94));
+    --gs-surface-soft: linear-gradient(180deg, rgba(var(--skin-surface-2-rgb), 0.9), rgba(var(--skin-surface-1-rgb), 0.86));
+    --gs-panel: rgba(var(--skin-surface-2-rgb), 0.52);
+    --gs-panel-strong: rgba(var(--skin-surface-1-rgb), 0.72);
+    --gs-chip: rgba(var(--skin-surface-2-rgb), 0.55);
+    --gs-blue: var(--skin-accent-on-dark);
+    --gs-blue-soft: rgba(var(--skin-accent-rgb), 0.16);
+}
+
+html .general-search-modal .general-search-scope-btn.is-active {
+    border-color: rgba(var(--skin-accent-rgb), 0.5) !important;
+    background: linear-gradient(135deg, rgba(var(--skin-accent-rgb), 0.3), rgba(var(--skin-accent-rgb), 0.14)) !important;
+    box-shadow: 0 14px 30px rgba(var(--skin-accent-rgb), 0.18) !important;
+    color: #ffffff !important;
+}
+
+html .general-search-modal .general-search-scope-btn:hover {
+    border-color: rgba(var(--skin-accent-rgb), 0.34) !important;
+}
+
+html .general-search-modal .general-search-header {
+    background: var(--skin-modal-light-head) !important;
+    border-bottom-color: var(--skin-panel-line) !important;
+}
+
+/* ---------- modais claros do Bootstrap: cabeçalho no tom claro do menu ---------- */
+html .modal-content.price-suggest-modal:not(.galint-bs-modal) .modal-header,
+html .modal-content.docf-card .modal-header {
+    background: var(--skin-modal-light-head) !important;
+}

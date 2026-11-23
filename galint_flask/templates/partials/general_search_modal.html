@@ -15,43 +15,14 @@
         <div class="modal-content general-search-modal">
             <div class="modal-header general-search-header border-0">
                 <div class="general-search-header-copy">
-                    <span class="general-search-top-badge">
-                        <i class="bi bi-stars"></i>
-                        {{ 'Pesquisa administrativa unificada' if general_search_mode|default('operacional') == 'administracao' else 'Pesquisa operacional unificada' }}
-                    </span>
                     <h5 class="modal-title" id="modalPesquisaGeralLabel">{{ 'Pesquisa Administração' if general_search_mode|default('operacional') == 'administracao' else 'Pesquisa geral' }}</h5>
-                    <p class="mb-0">{{ 'Consulte moradores, unidades, placas, telefones, documentos e compromissos administrativos no mesmo modal.' if general_search_mode|default('operacional') == 'administracao' else 'Consulte colaboradores, itens e retiradas do dia no mesmo modal.' }}</p>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
 
             <div class="modal-body general-search-body">
-                <section class="general-search-hero">
-                    <div class="general-search-hero-shell">
-                        <div class="general-search-hero-badges">
-                            <span class="general-search-hero-badge" id="generalSearchHeroBadgePrimary">
-                                <i class="bi bi-compass"></i>
-                                Centro único de consulta
-                            </span>
-                            <span class="general-search-hero-badge general-search-hero-badge-muted" id="generalSearchHeroBadgeSecondary">
-                                <i class="bi bi-lightning-charge"></i>
-                                Colaborador, item e diário no mesmo fluxo
-                            </span>
-                        </div>
-                        <div class="general-search-hero-copy-panel">
-                            <h2 id="generalSearchHeroTitle">Tudo em um único painel</h2>
-                            <p id="generalSearchHeroText">Alterne entre colaborador, item e diário com a mesma interface e mantenha histórico, contexto operacional e conferências do dia no mesmo modal.</p>
-                        </div>
-                    </div>
-                </section>
-
                 <form id="generalSearchForm" class="general-search-filter-card" novalidate>
                     <div class="general-search-filter-head">
-                        <div class="general-search-filter-copy">
-                            <span class="general-search-section-kicker">Pesquisa rápida</span>
-                            <h3>Busque sem sair da tela</h3>
-                            <p>Escolha o foco, informe o termo e veja o resultado logo abaixo.</p>
-                        </div>
                         <div class="general-search-scope-switch {% if general_search_mode|default('operacional') == 'administracao' %}is-admin-mode{% endif %}" role="tablist" aria-label="Modo da pesquisa geral">
                             {% if general_search_mode|default('operacional') == 'administracao' %}
                             <button type="button" class="general-search-scope-btn is-active" data-general-search-scope="administracao">
@@ -91,7 +62,6 @@
                                 >
                                 <div id="generalSearchSuggestions" class="general-search-suggestions d-none"></div>
                             </div>
-                            <div class="form-text" id="generalSearchInputHelp">Digite nome ou matrícula para abrir o histórico.</div>
                         </div>
                         <div class="general-search-field-card" id="generalSearchDateColumn">
                             <label class="form-label" for="generalSearchDate">
@@ -99,7 +69,6 @@
                                 Data de referência
                             </label>
                             <input type="date" class="form-control" id="generalSearchDate">
-                            <div class="form-text" id="generalSearchDateHelp">Usada na visão diária.</div>
                         </div>
                         <div class="general-search-field-card" id="generalSearchPeriodColumn">
                             <label class="form-label" for="generalSearchPeriod">
@@ -114,7 +83,6 @@
                                 <option value="180">180 dias</option>
                                 <option value="365">365 dias</option>
                             </select>
-                            <div class="form-text" id="generalSearchPeriodHelp">Usado na consulta por item.</div>
                         </div>
                         <div class="general-search-actions-card">
                             <div class="general-search-actions">
@@ -137,8 +105,7 @@
                 <section id="generalSearchResults" class="general-search-results-shell">
                     <div class="general-search-empty-state" id="generalSearchEmptyState">
                         <i class="bi bi-radar"></i>
-                        <h3>Pesquisa geral pronta</h3>
-                        <p>{{ 'Busque morador, unidade, placa, telefone, documento ou compromisso administrativo.' if general_search_mode|default('operacional') == 'administracao' else 'Escolha colaborador, item ou diário e faça a busca.' }}</p>
+                        <h3>Faça uma busca</h3>
                     </div>
                 </section>
             </div>

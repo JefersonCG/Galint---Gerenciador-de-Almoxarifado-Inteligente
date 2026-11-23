@@ -75,7 +75,6 @@
                 + '<article class="general-search-summary-card">'
                 + '<small>' + escapeHtml(card.label) + '</small>'
                 + '<strong>' + escapeHtml(card.value) + '</strong>'
-                + '<span>' + escapeHtml(card.help || '') + '</span>'
                 + '</article>';
         }).join('');
     }
@@ -96,7 +95,6 @@
             + '<summary class="general-search-expandable-summary">'
             + '<div class="general-search-expandable-copy">'
             + '<h4>' + escapeHtml(title || '') + '</h4>'
-            + (description ? '<p>' + escapeHtml(description) + '</p>' : '')
             + '</div>'
             + '<div class="general-search-expandable-meta">'
             + (badgeText ? '<span class="general-search-expandable-badge">' + escapeHtml(badgeText) + '</span>' : '')
@@ -302,11 +300,11 @@
             const meta = scopeMeta[nextScope];
             inputLabel.innerHTML = '<i class="bi bi-search"></i> ' + escapeHtml(meta.inputLabel);
             searchInput.placeholder = meta.inputPlaceholder;
-            inputHelp.textContent = meta.inputHelp;
-            heroBadgePrimary.innerHTML = '<i class="bi bi-compass"></i> ' + escapeHtml(meta.heroBadgePrimary);
-            heroBadgeSecondary.innerHTML = '<i class="bi bi-lightning-charge"></i> ' + escapeHtml(meta.heroBadgeSecondary);
-            heroTitle.textContent = meta.heroTitle;
-            heroText.textContent = meta.heroText;
+            if (inputHelp) inputHelp.textContent = meta.inputHelp;
+            if (heroBadgePrimary) heroBadgePrimary.innerHTML = '<i class="bi bi-compass"></i> ' + escapeHtml(meta.heroBadgePrimary);
+            if (heroBadgeSecondary) heroBadgeSecondary.innerHTML = '<i class="bi bi-lightning-charge"></i> ' + escapeHtml(meta.heroBadgeSecondary);
+            if (heroTitle) heroTitle.textContent = meta.heroTitle;
+            if (heroText) heroText.textContent = meta.heroText;
             dateColumn.classList.toggle('d-none', !meta.showDate);
             periodColumn.classList.toggle('d-none', !meta.showPeriod);
             if (!meta.showDate) {
@@ -513,11 +511,10 @@
                 + '<span class="general-search-meta-pill"><i class="bi bi-briefcase"></i> ' + escapeHtml(employee.role || 'N/D') + '</span>'
                 + '<span class="general-search-meta-pill"><i class="bi bi-diagram-3"></i> ' + escapeHtml(employee.sector || 'N/D') + '</span>'
                 + '</div>'
-                + '<p class="mt-3 general-search-inline-note">A consulta combina histórico de retiradas, devoluções identificadas, checklist do dia e pendências de ferramentas em uma única leitura operacional.</p>'
                 + '</div>'
                 + '<aside class="general-search-surface general-search-quick-pane">'
                 + '<div class="general-search-surface-title">'
-                + '<div><h4>Ação rápida</h4><p>Baixe o relatório histórico completo ou siga a linha do tempo abaixo.</p></div>'
+                + '<div><h4>Ação rápida</h4></div>'
                 + (payload.download_url ? '<a class="btn btn-outline-info general-search-download-link" href="' + escapeHtml(payload.download_url) + '" target="_blank" rel="noopener"><i class="bi bi-filetype-pdf"></i> Baixar PDF</a>' : '')
                 + '</div>'
                 + '<div class="general-search-chip-row">'
@@ -596,7 +593,6 @@
                 + '<span class="general-search-chip"><i class="bi bi-award"></i> ' + escapeHtml(item.marca || 'Sem marca') + '</span>'
                 + '<span class="general-search-chip"><i class="bi bi-box"></i> Saldo físico: ' + escapeHtml(formatNumber(item.saldo_atual, 3)) + '</span>'
                 + '</div>'
-                + '<p class="mt-3 general-search-inline-note">A leitura do item concentra retirada por colaborador, período operacional e resumo diário do giro encontrado.</p>'
                 + (payload.download_url ? '<a class="btn btn-outline-info general-search-download-link mt-3" href="' + escapeHtml(payload.download_url) + '" target="_blank" rel="noopener"><i class="bi bi-filetype-pdf"></i> Baixar PDF do item</a>' : '')
                 + '</div>'
                 + (photoPanel ? '<aside class="general-search-surface general-search-photo-aside">' + photoPanel + '</aside>' : '')
