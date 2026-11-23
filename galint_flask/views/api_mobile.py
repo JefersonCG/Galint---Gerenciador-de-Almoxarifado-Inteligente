@@ -8,6 +8,7 @@ import unicodedata
 import uuid
 from datetime import date, datetime, timedelta
 from functools import wraps
+from io import BytesIO
 from typing import Any
 
 import jwt
@@ -47,7 +48,7 @@ from ..services.operation_visual_payload import operation_visual_payload_service
 from ..services import stock_count_service
 from ..services.unit_conversion_engine import UnitConversionError, unit_conversion_engine
 from ..services.item_foto_service import ItemFotoService
-from ..services.telegram_reports import TelegramReportService
+from ..services import report_export_service
 from ..services.telegram_service import TelegramService
 from ..services.tool_custody_service import ToolCustodyService
 from ..utils.time_service import TimeService
@@ -2424,60 +2425,102 @@ def devolver_material_mobile(current_user: Usuario):
         }), 500
 
 
+def _mobile_report_file(report: report_export_service.Report, fmt: str):
+    content = report.render(fmt)
+    return send_file(
+        BytesIO(content),
+        mimetype=report_export_service.FORMATS[fmt],
+        as_attachment=True,
+        download_name=report.filename(fmt),
+    )
+
+
+def _mobile_report_from_args(tipo: str, args) -> tuple[report_export_service.Report, dict[str, Any]]:
+    """Monta o relatório pedido pelo app. ValueError vira 400 com a mensagem."""
+    scope = (args.get("escopo") or args.get("scope") or "all").strip().lower()
+    if scope not in report_export_service.SCOPES:
+        raise ValueError("Escopo inválido")
+    if tipo in {"dia", "daily"}:
+        raw_day = (args.get("data") or "").strip()
+        try:
+            day = date.fromisoformat(raw_day) if raw_day else None
+        except ValueError as exc:
+            raise ValueError("Data inválida") from exc
+        return report_export_service.daily_report(day, scope), {}
+    if tipo in {"mes", "monthly"}:
+        today = TimeService.now_local()
+        try:
+            year = int(args.get("ano") or args.get("year") or today.year)
+            month = int(args.get("mes") or args.get("month") or today.month)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Ano/mês inválido") from exc
+        if not 1 <= month <= 12 or not 2000 <= year <= 2100:
+            raise ValueError("Ano/mês inválido")
+        return report_export_service.monthly_report(year, month, scope), {}
+    if tipo in {"consumo", "consumption"}:
+        panel = finance_service.get_consumption_panel_report(
+            (args.get("exercicio") or "").strip() or None,
+            local_name=(args.get("local") or "").strip() or None,
+            category_name=(args.get("categoria") or "").strip() or None,
+            employee_id=(args.get("matricula") or "").strip() or None,
+        )
+        return (
+            report_export_service.consumption_report(panel=panel),
+            {"opcoes": report_export_service.consumption_options(panel)},
+        )
+    raise ValueError("Relatório inválido")
+
+
+@blueprint.get("/relatorios/<tipo>")
+@mobile_login_required
+def mobile_relatorio(tipo: str):
+    """Relatórios do app (23/11/2026): o resumo para a tela e o arquivo em PDF ou Excel.
+
+    formato=resumo (padrão) devolve o JSON da tela; formato=pdf|xlsx devolve o arquivo que o app
+    compartilha no WhatsApp. Os dois saem do mesmo relatório (report_export_service).
+    """
+    if not _mobile_admin_only(g.mobile_user):
+        return jsonify({"success": False, "message": "Acesso negado"}), 403
+    fmt = (request.args.get("formato") or "resumo").strip().lower()
+    if fmt != "resumo" and fmt not in report_export_service.FORMATS:
+        return jsonify({"success": False, "message": "Formato inválido"}), 400
+    try:
+        report, extra = _mobile_report_from_args(tipo.strip().lower(), request.args)
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+    if fmt == "resumo":
+        return jsonify({"success": True, "data": {**report.as_summary_json(), **extra}}), 200
+    return _mobile_report_file(report, fmt)
+
+
 @blueprint.get("/reports/daily")
 @mobile_login_required
 def mobile_report_daily():
-    current_user = g.mobile_user
-    if not _mobile_admin_only(current_user):
+    """Rota do app até a 2.2.4. Agora sai do mesmo relatório legível (PDF ou xlsx)."""
+    if not _mobile_admin_only(g.mobile_user):
         return jsonify({"success": False, "message": "Acesso negado"}), 403
-
-    scope = (request.args.get("scope") or "all").strip().lower()
     fmt = (request.args.get("format") or "pdf").strip().lower()
-
-    if scope not in {"all", "materials", "tools"}:
-        return jsonify({"success": False, "message": "Escopo inválido"}), 400
-    if fmt not in {"pdf", "xlsx", "jpeg", "jpg"}:
-        return jsonify({"success": False, "message": "Formato inválido. Use PDF."}), 400
-
-    # Usar caminho absoluto relativo à raiz do projeto
-    from flask import current_app
-    instance_path = Path(current_app.instance_path)
-    reports_dir = instance_path / "reports"
-    reports_dir.mkdir(parents=True, exist_ok=True)
-    timestamp = TimeService.now_local().strftime('%Y%m%d_%H%M%S')
-
-    target = reports_dir / f"saidas_dia_{scope}_{timestamp}.pdf"
-    TelegramService.generate_saidas_dia_pdf(str(target), scope=scope)
-    return send_file(target, mimetype="application/pdf", as_attachment=True, download_name=target.name)
+    try:
+        report, _ = _mobile_report_from_args("dia", request.args)
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+    return _mobile_report_file(report, "xlsx" if fmt == "xlsx" else "pdf")
 
 
 @blueprint.get("/reports/monthly")
 @mobile_login_required
 def mobile_report_monthly():
-    current_user = g.mobile_user
-    if not _mobile_admin_only(current_user):
+    """Rota do app até a 2.2.4. Agora sai do mesmo relatório legível (PDF ou xlsx)."""
+    if not _mobile_admin_only(g.mobile_user):
         return jsonify({"success": False, "message": "Acesso negado"}), 403
-
-    scope = (request.args.get("scope") or "all").strip().lower()
-    fmt = (request.args.get("format") or "pdf").strip().lower()
-    year = request.args.get("year")
-    month = request.args.get("month")
-
-    try:
-        year_int = int(year)
-        month_int = int(month)
-        if month_int < 1 or month_int > 12:
-            raise ValueError()
-    except Exception:
+    if not request.args.get("year") or not request.args.get("month"):
         return jsonify({"success": False, "message": "Ano/mês inválido"}), 400
-
-    if scope not in {"all", "materials", "tools"}:
-        return jsonify({"success": False, "message": "Escopo inválido"}), 400
-    if fmt not in {"pdf", "xlsx", "jpeg", "jpg"}:
-        return jsonify({"success": False, "message": "Formato inválido. Use PDF."}), 400
-
-    path = TelegramReportService.generate_monthly_pdf_report(year_int, month_int, scope=scope)
-    return send_file(path, mimetype="application/pdf", as_attachment=True, download_name=Path(path).name)
+    fmt = (request.args.get("format") or "pdf").strip().lower()
+    try:
+        report, _ = _mobile_report_from_args("mes", request.args)
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+    return _mobile_report_file(report, "xlsx" if fmt == "xlsx" else "pdf")
 
 
 @blueprint.get("/erp/overview")
@@ -2598,51 +2641,13 @@ def mobile_consumption_report():
 @blueprint.get("/reports/consumption/pdf")
 @mobile_login_required
 def mobile_consumption_report_pdf():
-    current_user = g.mobile_user
-    if not _mobile_admin_only(current_user):
+    """Rota do app até a 2.2.4. Agora sai do mesmo relatório legível."""
+    if not _mobile_admin_only(g.mobile_user):
         return jsonify({"success": False, "message": "Acesso negado"}), 403
-
-    exercise_label = (request.args.get("exercicio") or "").strip() or None
-    local_name = (request.args.get("local") or "").strip() or None
-    category_name = (request.args.get("categoria") or "").strip() or None
-    employee_id = (request.args.get("matricula") or "").strip() or None
-    panel = finance_service.get_consumption_panel_report(
-        exercise_label,
-        local_name=local_name,
-        category_name=category_name,
-        employee_id=employee_id,
-    )
-    if not panel.get("entries"):
+    report, _ = _mobile_report_from_args("consumo", request.args)
+    if report.is_empty:
         return jsonify({"success": False, "message": "Não há dados de consumo para gerar este relatório."}), 404
-
-    pdf_buffer = finance_service.build_consumption_panel_pdf(
-        exercise_label,
-        local_name=local_name,
-        category_name=category_name,
-        employee_id=employee_id,
-    )
-    scope_type = panel.get("scope_type") or "geral"
-    filters = panel.get("filters") or {}
-    if scope_type == "local":
-        scope_value = filters.get("local") or "local"
-    elif scope_type == "categoria":
-        scope_value = filters.get("categoria") or "categoria"
-    elif scope_type == "funcionario":
-        scope_value = filters.get("matricula") or "funcionario"
-    else:
-        scope_value = "geral"
-    safe_scope_value = re.sub(r"[^a-zA-Z0-9_-]+", "_", str(scope_value or "geral")).strip("_") or "geral"
-    filename = (
-        f"relatorio_consumo_{scope_type}_"
-        f"{safe_scope_value}_"
-        f"{TimeService.now_local().strftime('%Y%m%d_%H%M%S')}.pdf"
-    )
-    return send_file(
-        pdf_buffer,
-        mimetype="application/pdf",
-        as_attachment=True,
-        download_name=filename,
-    )
+    return _mobile_report_file(report, "pdf")
 
 
 @blueprint.get("/produtos/buscar/<codigo>")

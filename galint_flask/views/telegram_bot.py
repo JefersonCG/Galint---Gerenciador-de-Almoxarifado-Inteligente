@@ -158,121 +158,22 @@ def _safe_text(value: object) -> str:
         return ""
 
 
-def _generate_saidas_dia_pdf(saidas: list[Saida]) -> bytes:
-    try:
-        from reportlab.lib import colors
-        from reportlab.lib.pagesizes import A4, landscape
-        from reportlab.lib.styles import getSampleStyleSheet
-        from reportlab.lib.units import cm
-        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
-    except Exception as exc:
-        raise ValueError(
-            "Biblioteca de PDF não instalada. Instale 'reportlab' (pip install reportlab)."
-        ) from exc
-
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=landscape(A4),
-        leftMargin=0.5 * cm,
-        rightMargin=0.5 * cm,
-        topMargin=0.5 * cm,
-        bottomMargin=0.5 * cm,
-        title="Saídas do dia",
-        author="GALINT",
-    )
-    styles = getSampleStyleSheet()
-    body_style = styles["BodyText"]
-    body_style.fontSize = 8
-    body_style.leading = 9
-    story: list[object] = []
-
-    from ..utils.time_service import TimeService
-    gerado_em = TimeService.now_local().strftime("%d/%m/%Y %H:%M")
-
-    title_style = styles["Title"]
-    title_style.alignment = 1
-    title_style.fontSize = 16
-    subtitle_style = styles["Normal"]
-    subtitle_style.alignment = 1
-    
-    story.append(Paragraph("RELATÓRIO DIÁRIO DE RETIRADAS DE MATERIAIS", title_style))
-    from ..utils.report_branding import get_company_header_html
-
-    story.append(Paragraph(get_company_header_html(), subtitle_style))
-    story.append(Paragraph(f"Gerado em: {gerado_em}", styles["Normal"]))
-    story.append(Spacer(1, 0.4 * cm))
-
-    header = ["Código", "Descrição | Obs", "Quantidade", "Usuário", "Data"]
-    data: list[list[object]] = [header]
-
-    for saida in saidas:
-        dt = getattr(saida, "data_saida", None)
-        dt_str = dt.strftime("%d/%m/%Y %H:%M") if hasattr(dt, "strftime") else _safe_text(dt)
-        usuario = getattr(getattr(saida, "usuario", None), "nome", None)
-        descricao = getattr(getattr(saida, "item", None), "descricao", None)
-        observacao = _safe_text(getattr(saida, "observacao", None) or "")
-        
-        texto_item = _safe_text(descricao or "Item removido")
-        if observacao and observacao != "-":
-            texto_item += f" | {observacao}"
-
-        data.append(
-            [
-                _safe_text(getattr(saida, "codigo_item", None) or "-"),
-                Paragraph(texto_item, body_style),
-                _safe_text(getattr(saida, "quantidade", None) or ""),
-                Paragraph(_safe_text(usuario or "-"), body_style),
-                dt_str,
-            ]
-        )
-
-    if len(data) == 1:
-        story.append(Paragraph("Nenhuma saída registrada hoje.", styles["Italic"]))
-        doc.build(story)
-        return buffer.getvalue()
-
-    table = Table(data, colWidths=[1.6 * cm, 18.0 * cm, 2.0 * cm, 3.5 * cm, 3.2 * cm], repeatRows=1)
-    table.setStyle(
-        TableStyle(
-            [
-                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1f2937")),
-                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                ("FONTSIZE", (0, 0), (-1, -1), 8),
-                ("ALIGN", (0, 0), (-1, 0), "LEFT"),
-                ("ALIGN", (2, 1), (2, -1), "RIGHT"),
-                ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#d1d5db")),
-                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f3f4f6")]),
-                ("LEFTPADDING", (0, 0), (-1, -1), 3),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 3),
-                ("TOPPADDING", (0, 0), (-1, -1), 2),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-            ]
-        )
-    )
-    story.append(table)
-    doc.build(story)
-    return buffer.getvalue()
-
-
 def enviar_saidas_dia_pdf(bot, chat_id: str) -> dict:
     from ..utils.time_service import TimeService
 
-    now_local = TimeService.now_local()
-    start_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
-    end_local = start_local + timedelta(days=1)
-    start_utc = start_local.astimezone(timezone.utc).replace(tzinfo=None)
-    end_utc = end_local.astimezone(timezone.utc).replace(tzinfo=None)
-    saidas = Saida.query.filter(Saida.data_saida >= start_utc, Saida.data_saida < end_utc).order_by(Saida.data_saida).all()
+    today = TimeService.now_local().date()
 
     try:
-        pdf_bytes = _generate_saidas_dia_pdf(saidas)
-        file_obj = BytesIO(pdf_bytes)
-        file_obj.name = f"saidas_dia_{start_local.strftime('%Y%m%d')}.pdf"
+        # Relatório comum (report_export_service): o mesmo PDF legível do app e do site. Antes este
+        # PDF era montado aqui e buscava das 3h de hoje às 3h de amanhã (convertia para UTC uma data
+        # que o banco grava na hora de São Paulo).
+        from ..services.report_export_service import daily_report
+
+        report = daily_report(today)
+        file_obj = BytesIO(report.render("pdf"))
+        file_obj.name = f"saidas_dia_{today.strftime('%Y%m%d')}.pdf"
         bot.send_document(chat_id, file_obj, caption="Relatório: Saídas do Dia")
-        return {"sent": True, "count": len(saidas)}
+        return {"sent": True, "count": len(report.sections[0].rows)}
     except Exception as e:
         logger.exception("Erro ao gerar/enviar PDF de saídas do dia")
         try:

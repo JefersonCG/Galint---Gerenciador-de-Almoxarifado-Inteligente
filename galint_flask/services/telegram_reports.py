@@ -617,106 +617,20 @@ class TelegramReportService:
 
     @staticmethod
     def generate_monthly_pdf_report(year: int, month: int, scope: str = "all") -> Path:
-        try:
-            from reportlab.lib.pagesizes import A4, landscape
-            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-            from reportlab.lib.units import inch
-            from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-            from reportlab.lib import colors
-            from reportlab.lib.enums import TA_CENTER
-        except ImportError:
-            logger.error("ReportLab não instalado. Impossível gerar PDF.")
-            raise RuntimeError("ReportLab não disponível. Instale com: pip install reportlab")
+        """PDF das saídas do mês, pelo relatório comum (report_export_service).
 
-        data = TelegramReportService.get_withdrawals_by_month_year(year, month, scope=scope)
+        Até 23/11/2026 saía com o título "RELATÓRIO DIÁRIO", cortava a descrição em 24 letras (e o
+        texto ainda invadia a coluna vizinha) e parava em 500 linhas sem avisar.
+        """
+        from .report_export_service import monthly_report
 
+        report = monthly_report(year, month, scope)
         temp_dir = Path(tempfile.gettempdir()) / "galint_reports"
         temp_dir.mkdir(parents=True, exist_ok=True)
-
-        timestamp = TimeService.now_local().strftime('%Y%m%d_%H%M%S')
-        filename = f"retiradas_{year}_{month:02d}_{scope}_{timestamp}.pdf"
-        filepath = temp_dir / filename
-
-        doc = SimpleDocTemplate(
-            str(filepath),
-            pagesize=landscape(A4),
-            rightMargin=0.5 * inch,
-            leftMargin=0.5 * inch,
-            topMargin=0.5 * inch,
-            bottomMargin=0.5 * inch,
-        )
-
-        styles = getSampleStyleSheet()
-        title_style = ParagraphStyle(
-            "TitleGalint",
-            parent=styles["Heading1"],
-            fontSize=16,
-            textColor=colors.HexColor("#111827"),
-            alignment=TA_CENTER,
-            spaceAfter=6,
-        )
-        subtitle_style = ParagraphStyle(
-            "SubtitleGalint",
-            parent=styles["Normal"],
-            fontSize=9,
-            textColor=colors.HexColor("#374151"),
-            alignment=TA_CENTER,
-            leading=12,
-            spaceAfter=10,
-        )
-
-        elements = []
-        elements.append(Paragraph("RELATÓRIO DIÁRIO DE RETIRADAS DE MATERIAIS", title_style))
-        from ..utils.report_branding import get_company_header_html
-
-        elements.append(Paragraph(get_company_header_html(), subtitle_style))
-
-        scope_label = {
-            "tools": "Ferramentas",
-            "materials": "Materiais",
-            "all": "Geral",
-        }.get(scope, "Geral")
-        elements.append(Paragraph(f"Período: {month:02d}/{year} — Escopo: {scope_label}", styles["Normal"]))
-        elements.append(Spacer(1, 0.15 * inch))
-
-        if data:
-            table_data = [["Data", "Código", "Descrição", "Categoria", "Marca", "Qtd", "Usuário", "Local"]]
-            for row in data[:500]:
-                table_data.append([
-                    TimeService.format_local(row["data"])[:10],
-                    row["codigo"][:15],
-                    row["descricao"][:24],
-                    row["categoria"][:16],
-                    row["marca"][:12],
-                    str(row["quantidade"]),
-                    row["usuario"][:18],
-                    (row.get("local_info") or "N/D")[:28],
-                ])
-
-            table = Table(table_data, colWidths=[1.0*inch, 1.2*inch, 1.9*inch, 1.3*inch, 1.1*inch, 0.7*inch, 1.2*inch, 2.0*inch], repeatRows=1)
-            table.setStyle(TableStyle([
-                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("0066CC")),
-                ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
-                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                ("FONTSIZE", (0, 0), (-1, 0), 9),
-                ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
-                ("BACKGROUND", (0, 1), (-1, -1), colors.beige),
-                ("GRID", (0, 0), (-1, -1), 1, colors.black),
-                ("FONTSIZE", (0, 1), (-1, -1), 8),
-                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
-            ]))
-            elements.append(table)
-        else:
-            elements.append(Paragraph("Nenhum registro encontrado no período solicitado.", styles["Normal"]))
-
-        try:
-            doc.build(elements)
-            logger.info(f"Relatório PDF gerado: {filepath}")
-            return filepath
-        except Exception as e:
-            logger.error(f"Erro ao gerar PDF: {e}")
-            raise
+        filepath = temp_dir / report.filename("pdf")
+        filepath.write_bytes(report.render("pdf"))
+        logger.info(f"Relatório PDF gerado: {filepath}")
+        return filepath
 
     @staticmethod
     def generate_pdf_report(
@@ -724,140 +638,17 @@ class TelegramReportService:
         category: Optional[str] = None,
         scope: str = "all",
     ) -> Path:
-        """Gera relatório PDF com dados de retiradas.
-        
-        Args:
-            months: Número de meses
-            category: Categoria (None = todas)
-            
-        Returns:
-            Caminho do arquivo gerado
+        """PDF das saídas dos últimos N meses, pelo relatório comum (report_export_service).
+
+        Até 23/11/2026 cortava descrição, categoria e nome e o texto ainda invadia a coluna vizinha.
         """
-        try:
-            from reportlab.lib.pagesizes import A4, landscape
-            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-            from reportlab.lib.units import inch
-            from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
-            from reportlab.lib import colors
-            from reportlab.lib.enums import TA_CENTER, TA_LEFT
-        except ImportError:
-            logger.error("ReportLab não instalado. Impossível gerar PDF.")
-            raise RuntimeError("ReportLab não disponível. Instale com: pip install reportlab")
-        
-        data = TelegramReportService.get_withdrawals_by_period_and_category(months, category, scope=scope)
-        
-        # Preparar diretório
+        from .report_export_service import period_report
+
+        report = period_report(months, category, scope)
         temp_dir = Path(tempfile.gettempdir()) / "galint_reports"
         temp_dir.mkdir(parents=True, exist_ok=True)
-        
         timestamp = TimeService.now_local().strftime('%Y%m%d_%H%M%S')
-        category_suffix = f"_{category.replace('/', '_')}" if category else ""
-        scope_suffix = ""
-        if scope == "tools":
-            scope_suffix = "_ferramentas"
-        elif scope == "materials":
-            scope_suffix = "_materiais"
-        filename = f"retiradas{scope_suffix}_{months}m{category_suffix}_{timestamp}.pdf"
-        filepath = temp_dir / filename
-        
-        # Criar documento
-        doc = SimpleDocTemplate(
-            str(filepath),
-            pagesize=landscape(A4),
-            rightMargin=0.5 * inch,
-            leftMargin=0.5 * inch,
-            topMargin=0.5 * inch,
-            bottomMargin=0.5 * inch,
-        )
-        
-        elements = []
-        styles = getSampleStyleSheet()
-        
-        # Cabeçalho padrão
-        title_style = ParagraphStyle(
-            "TitleGalint",
-            parent=styles["Heading1"],
-            fontSize=16,
-            textColor=colors.HexColor("#111827"),
-            alignment=TA_CENTER,
-            spaceAfter=6,
-        )
-        subtitle_style = ParagraphStyle(
-            "SubtitleGalint",
-            parent=styles["Normal"],
-            fontSize=9,
-            textColor=colors.HexColor("#374151"),
-            alignment=TA_CENTER,
-            leading=12,
-            spaceAfter=10,
-        )
-
-        header_title = Paragraph("RELATÓRIO DIÁRIO DE RETIRADAS DE MATERIAIS", title_style)
-        from ..utils.report_branding import get_company_header_html
-
-        header_subtitle = Paragraph(get_company_header_html(), subtitle_style)
-
-        elements.append(header_title)
-        elements.append(header_subtitle)
-
-        period_text = TelegramReportService.MONTHS.get(months, f"{months} meses")
-        category_text = f"Categoria: {category}" if category else "Todas as categorias"
-        scope_label = {
-            "tools": "Ferramentas",
-            "materials": "Materiais",
-            "all": "Geral",
-        }.get(scope, "Geral")
-        elements.append(Paragraph(f"Período: {period_text} — Escopo: {scope_label} — {category_text}", styles["Normal"]))
-        elements.append(Spacer(1, 0.15 * inch))
-
-        footer_dt = TimeService.now_local()
-        footer_text = f"{footer_dt.day}/{footer_dt.month}/{footer_dt.strftime('%y')} - {footer_dt.hour}h{footer_dt.strftime('%M')}m"
-
-        def _draw_footer(canvas, _doc):
-            canvas.saveState()
-            canvas.setFont("Helvetica", 8)
-            canvas.setFillColor(colors.HexColor("#374151"))
-            canvas.drawCentredString(landscape(A4)[0] / 2, 0.4 * inch, footer_text)
-            canvas.restoreState()
-        
-        # Tabela de dados
-        if data:
-            table_data = [["Data", "Código", "Descrição", "Categoria", "Marca", "Qtd", "Usuário"]]
-            
-            for row in data[:500]:  # Limitar a 500 linhas por página
-                table_data.append([
-                    TimeService.format_local(row["data"])[:10],
-                    row["codigo"][:15],
-                    (row["descricao"][:20] + "...") if len(row["descricao"]) > 20 else row["descricao"],
-                    row["categoria"][:15],
-                    row["marca"][:10],
-                    str(row["quantidade"]),
-                    row["usuario"][:15],
-                ])
-            
-            table = Table(table_data, colWidths=[1.0*inch, 1.2*inch, 1.5*inch, 1.2*inch, 1.0*inch, 0.8*inch, 1.2*inch], repeatRows=1)
-            table.setStyle(TableStyle([
-                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("0066CC")),
-                ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
-                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                ("FONTSIZE", (0, 0), (-1, 0), 9),
-                ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
-                ("BACKGROUND", (0, 1), (-1, -1), colors.beige),
-                ("GRID", (0, 0), (-1, -1), 1, colors.black),
-                ("FONTSIZE", (0, 1), (-1, -1), 8),
-                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
-            ]))
-            
-            elements.append(table)
-        else:
-            elements.append(Paragraph("Nenhum registro encontrado no período solicitado.", styles["Normal"]))
-        
-        # Gerar PDF
-        try:
-            doc.build(elements, onFirstPage=_draw_footer, onLaterPages=_draw_footer)
-            logger.info(f"Relatório PDF gerado: {filepath}")
-            return filepath
-        except Exception as e:
-            logger.error(f"Erro ao gerar PDF: {e}")
-            raise
+        filepath = temp_dir / f"{report.file_stem}-{timestamp}.pdf"
+        filepath.write_bytes(report.render("pdf"))
+        logger.info(f"Relatório PDF gerado: {filepath}")
+        return filepath
