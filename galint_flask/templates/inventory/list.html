@@ -30,11 +30,7 @@
 
 <div class="section-panel mb-5" data-inventory-search>
     <div class="d-flex justify-content-between flex-wrap gap-2 align-items-end mb-2">
-        <div>
-            <h3 class="h5 mb-1">Busca rápida</h3>
-            <p class="text-muted small mb-0">Digite o nome, a marca ou escaneie o código de barras e pressione Enter para abrir o
-                item.</p>
-        </div>
+        <h3 class="h5 mb-0">Busca rápida</h3>
         <button class="btn btn-outline-light btn-sm" type="button" id="inventory-search-clear"
             aria-label="Limpar busca">Limpar</button>
     </div>
@@ -2447,6 +2443,35 @@
         background: transparent;
         color: inherit;
         text-align: left;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    /* Foto do item na busca rápida (24/11/2026, pedido do usuário). */
+    .inventory-search-result-photo {
+        flex: 0 0 56px;
+        width: 56px;
+        height: 56px;
+        border-radius: 10px;
+        background: #fff;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        color: var(--galint-neutro-400, #94a3b8);
+        font-size: 1.35rem;
+    }
+
+    .inventory-search-result-photo img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+
+    .inventory-search-result-text {
+        min-width: 0;
     }
 
     .inventory-search-result-main:hover .fw-semibold,
@@ -8409,12 +8434,18 @@
                     : `${item.saldo || 0} ${item.unidade || 'unidades'}`);
             const finance = resolveInventorySearchFinance(item);
             const applyValueUrl = canEditItems && item.edit_url ? String(item.edit_url).trim() : '';
+            const photoUrl = buildStableStaticPhotoUrl(item.foto_path, item.ultima_edicao_em || '');
             const row = document.createElement('div');
             row.className = 'list-group-item inventory-search-result-row';
             row.innerHTML = `
                     <button type="button" class="inventory-search-result-main" data-open-item="1">
-                        <div class="fw-semibold">${escapeHtml(item.descricao)}</div>
-                        <div class="small text-muted">Código ${escapeHtml(item.codigo)} • Categoria ${escapeHtml(item.categoria || '—')}${item.marca ? ` • ${escapeHtml(item.marca)}` : ''}</div>
+                        <span class="inventory-search-result-photo">${photoUrl
+                            ? `<img src="${escapeHtml(photoUrl)}" alt="" loading="lazy">`
+                            : '<i class="bi bi-image" aria-hidden="true"></i>'}</span>
+                        <span class="inventory-search-result-text">
+                            <div class="fw-semibold">${escapeHtml(item.descricao)}</div>
+                            <div class="small text-muted">Código ${escapeHtml(item.codigo)} • Categoria ${escapeHtml(item.categoria || '—')}${item.marca ? ` • ${escapeHtml(item.marca)}` : ''}</div>
+                        </span>
                     </button>
                     <div class="inventory-search-result-aside">
                         <span class="badge bg-primary rounded-pill">Saldo ${escapeHtml(saldoDisplay)}</span>
@@ -8428,6 +8459,10 @@
                     </div>
                 `;
             row.querySelector('[data-open-item="1"]')?.addEventListener('click', () => openItemModal(item));
+            // Foto que não carrega (arquivo apagado) vira o ícone, em vez de imagem quebrada.
+            row.querySelector('.inventory-search-result-photo img')?.addEventListener('error', (event) => {
+                event.currentTarget.replaceWith(Object.assign(document.createElement('i'), { className: 'bi bi-image' }));
+            });
             resultsContainer.appendChild(row);
         });
     };
