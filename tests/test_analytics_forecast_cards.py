@@ -1,5 +1,7 @@
 from datetime import datetime
 
+import pytest
+
 from galint_flask import create_app
 from galint_flask.services.analytics_service import AnalyticsService
 from galint_flask.services.finance_service import FinanceService
@@ -112,6 +114,7 @@ def test_build_projection_cards_accepts_photo_url_and_document_metadata():
     assert consumo["document_number"] == "NF-123/2026"
 
 
+@pytest.mark.real_db  # create_app() usa o banco do .env (produção): ver tests/conftest.py
 def test_dashboard_context_exposes_projection_cards(monkeypatch):
     app = create_app()
     with app.app_context():
