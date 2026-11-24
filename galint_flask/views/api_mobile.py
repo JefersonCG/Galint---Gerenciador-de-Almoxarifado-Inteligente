@@ -1062,6 +1062,45 @@ def mobile_stock_count_adjust():
     }), 200
 
 
+@blueprint.get("/itens/<codigo>/ultima_entrada")
+@token_required
+def buscar_ultima_entrada(current_user: Usuario, codigo: str):
+    """Última NF (ou documento) em que o item entrou: número e data, para o cartão do "Lançar entrada".
+
+    Pedido do usuário em 24/11/2026 ("aplique o número da NF e a data que o item anterior foi inserido no
+    sistema"). A data é a do recebimento (entrada no estoque); sem ela, a da emissão; sem as duas, a do
+    lançamento. Mostrar a última NF também denuncia o lançamento repetido da mesma NF (caso da fita da NF
+    617377 no mesmo dia).
+    """
+    from ..models import DocumentoEntradaEstoque, DocumentoEntradaEstoqueItem
+
+    codigo = (codigo or "").strip()
+    if not codigo:
+        return jsonify({"success": False, "message": "Código não fornecido"}), 400
+    data_documento = sa_func.coalesce(DocumentoEntradaEstoque.data_recebimento, DocumentoEntradaEstoque.data_emissao)
+    row = (
+        db.session.query(DocumentoEntradaEstoque, DocumentoEntradaEstoqueItem)
+        .join(DocumentoEntradaEstoqueItem, DocumentoEntradaEstoqueItem.documento_id == DocumentoEntradaEstoque.id_documento)
+        .filter(DocumentoEntradaEstoqueItem.codigo_item == codigo)
+        .order_by(data_documento.desc().nullslast(), DocumentoEntradaEstoqueItem.id_documento_item.desc())
+        .first()
+    )
+    if row is None:
+        return jsonify({"success": True, "data": None}), 200
+    documento, linha = row
+    data_ref = documento.data_recebimento or documento.data_emissao or (linha.criado_em.date() if linha.criado_em else None)
+    return jsonify({
+        "success": True,
+        "data": {
+            "numero": documento.numero_documento,
+            "tipo_documento": documento.tipo_documento,
+            "data": data_ref.isoformat() if data_ref else None,
+            "quantidade": float(linha.quantidade) if linha.quantidade is not None else None,
+            "unidade": linha.unidade_quantidade,
+        },
+    }), 200
+
+
 @blueprint.get("/itens/<codigo>/ultima_retirada")
 @token_required
 def buscar_ultima_retirada(current_user: Usuario, codigo: str):
