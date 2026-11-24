@@ -227,6 +227,7 @@
     </div>
     % endif
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="${url_for('static', filename='js/uppercase-text-inputs.js')}?v=20261113"></script>
     % if current_user.is_authenticated and (endpoint_exists('reports.general_search_suggestions_api') or endpoint_exists('inventory.stock_count_item_lookup')):
     <script src="${url_for('static', filename='js/consumption-search.js')}?v=20261119-stock-count"></script>
     % endif
