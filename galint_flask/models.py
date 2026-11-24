@@ -1053,6 +1053,50 @@ class NFeDistributionDocument(db.Model):
     recebido_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
 
 
+class NFLeitura(db.Model):
+    """NF lida do PDF ou da foto (OCR com Tesseract), aguardando conferência para o pré-cadastro (24/11/2026).
+
+    status: lendo, lida, erro, lancada ou descartada. resultado_json guarda o que o leitor achou
+    (cabeçalho, itens com sugestões de item do GALINT, avisos) e, no lançamento, as linhas já lançadas,
+    para um lançamento interrompido continuar de onde parou sem duplicar.
+    """
+    __tablename__ = "nf_leituras"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    arquivo_nome: Mapped[str] = mapped_column(String(255), nullable=False)
+    arquivo_path: Mapped[str] = mapped_column(String(500), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="lendo", index=True)
+    fonte: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    mensagem: Mapped[str | None] = mapped_column(Text, nullable=True)
+    resultado_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    numero_documento: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    fornecedor_nome: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    valor_total: Mapped[float | None] = mapped_column(Float, nullable=True)
+    documento_id: Mapped[int | None] = mapped_column(ForeignKey("entrada_documentos.id_documento", ondelete="SET NULL"), nullable=True)
+    criado_por: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    criado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, onupdate=TimeService.now_db)
+
+
+class NFItemVinculo(db.Model):
+    """Produto do fornecedor (CNPJ + código na NF) ligado a um item do GALINT na conferência (24/11/2026).
+
+    Na próxima NF do mesmo fornecedor, a linha com esse código já vem ligada ao item. codigo_item fica
+    sem chave estrangeira de propósito: apagar um item não pode travar por causa desta memória (o
+    vínculo de item apagado é ignorado), e a troca de código de item atualiza esta coluna junto.
+    """
+    __tablename__ = "nf_item_vinculos"
+    __table_args__ = (UniqueConstraint("cnpj_fornecedor", "codigo_fornecedor", name="uq_nf_item_vinculos_fornecedor_codigo"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    cnpj_fornecedor: Mapped[str] = mapped_column(String(14), nullable=False, index=True)
+    codigo_fornecedor: Mapped[str] = mapped_column(String(60), nullable=False)
+    descricao_fornecedor: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    codigo_item: Mapped[str] = mapped_column(String(100), nullable=False)
+    atualizado_por: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, onupdate=TimeService.now_db)
+
+
 class EntradaFiscalHistorico(db.Model):
     """Registro append-only de cada linha fiscal recebida ou removida."""
     __tablename__ = "entradas_fiscais_historico"

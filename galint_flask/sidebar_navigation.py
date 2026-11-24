@@ -288,6 +288,8 @@ def build_sidebar_navigation() -> dict[str, Any]:
     fornecedores_url = _optional_url("config.fornecedores")
     lojas_lab_url = _optional_url("inventory.lojas_lab")
     nf_url = _optional_url("nf.nf_index", enabled=current_app.config.get("FEATURE_NOTAS_ENABLED", True))
+    # Ler NF (PDF/foto por OCR, 24/11/2026): só administrador, como o lançamento de NF do site.
+    nf_leitura_url = _optional_url("nf_leitura.index", enabled=bool(nf_url) and is_admin)
     projection_url = _optional_url("inventory.purchase_projection_page")
 
     central_kits_url = _optional_url("central_kits.index")
@@ -387,7 +389,9 @@ def build_sidebar_navigation() -> dict[str, Any]:
     if lojas_lab_url:
         suprimentos_children.append(_link_item("Laboratório de Lojas", lojas_lab_url, "bi-shop", _path_matches(path, lojas_lab_url)))
     if nf_url:
-        suprimentos_children.append(_link_item("Documentos Fiscais", nf_url, "bi-receipt", _path_matches(path, nf_url)))
+        suprimentos_children.append(_link_item("Documentos Fiscais", nf_url, "bi-receipt", _path_matches(path, nf_url) and not _path_matches(path, nf_leitura_url)))
+    if nf_leitura_url:
+        suprimentos_children.append(_link_item("Ler NF", nf_leitura_url, "bi-file-earmark-text", _path_matches(path, nf_leitura_url)))
     if suprimentos_children:
         entries.append(_group_item("Gestão de Suprimentos", "bi-briefcase-fill", "suprimentosMenu", suprimentos_active, suprimentos_children))
 

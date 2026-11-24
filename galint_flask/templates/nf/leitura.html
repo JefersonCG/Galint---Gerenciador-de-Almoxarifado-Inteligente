@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{# Ler NF (24/11/2026): envio de PDF/foto de NF e lista das leituras. Regras em services/nf_leitura_service.py. #}
+{% block title %}Ler NF{% endblock %}
+{% block content %}
+<div class="container-fluid py-3">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <h1 class="h4 mb-0"><i class="bi bi-file-earmark-text me-1"></i> Ler NF</h1>
+        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('nf_leitura.index') }}"><i class="bi bi-arrow-clockwise"></i> Atualizar</a>
+    </div>
+
+    {% if not ocr.ok or not ocr.pdf %}
+    <div class="alert alert-danger py-2">{{ ocr.message or 'Leitor de PDF indisponível neste servidor.' }}</div>
+    {% elif ocr.message %}
+    <div class="alert alert-warning py-2">{{ ocr.message }}</div>
+    {% endif %}
+
+    <form class="card mb-3" method="post" action="{{ url_for('nf_leitura.enviar') }}" enctype="multipart/form-data">
+        <div class="card-body d-flex flex-wrap align-items-center gap-2 py-2">
+            <input class="form-control" style="max-width: 32rem" type="file" name="arquivos" accept="{{ accept }}" multiple required>
+            <button class="btn btn-primary" type="submit"><i class="bi bi-upc-scan me-1"></i> Ler</button>
+            <span class="small text-muted">PDF ou foto da NF</span>
+        </div>
+    </form>
+
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead>
+                    <tr><th>NF</th><th>Fornecedor</th><th class="text-end">Total</th><th>Itens</th><th>Situação</th><th class="text-end"></th></tr>
+                </thead>
+                <tbody>
+                    {% for reading in readings %}
+                    {% set result = results[reading.id] %}
+                    <tr data-reading-id="{{ reading.id }}" data-status="{{ reading.status }}">
+                        <td>
+                            <strong>{{ reading.numero_documento or '—' }}</strong>
+                            <div class="small text-muted text-truncate" style="max-width: 16rem">{{ reading.arquivo_nome }}</div>
+                        </td>
+                        <td>{{ reading.fornecedor_nome or '—' }}</td>
+                        <td class="text-end">{{ reading.valor_total|currency_br if reading.valor_total else '—' }}</td>
+                        <td>{{ (result.get('itens') or [])|length if reading.status in ('lida', 'lancada') else '' }}</td>
+                        <td>
+                            {% if reading.status == 'lendo' %}
+                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>{{ status_labels['lendo'] }}
+                            {% elif reading.status == 'lida' %}
+                            <span class="badge bg-primary">{{ status_labels['lida'] }}</span>
+                            {% if result.get('ja_lancada') %}<span class="badge bg-danger">já no GALINT</span>{% endif %}
+                            {% elif reading.status == 'erro' %}
+                            <span class="badge bg-danger">{{ status_labels['erro'] }}</span>
+                            <div class="small text-muted">{{ reading.mensagem }}</div>
+                            {% else %}
+                            <span class="badge bg-success">{{ status_labels.get(reading.status, reading.status) }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end text-nowrap">
+                            {% if reading.status == 'lida' %}
+                            <a class="btn btn-primary btn-sm" href="{{ url_for('nf_leitura.conferir', reading_id=reading.id) }}">Conferir</a>
+                            {% elif reading.status == 'erro' %}
+                            <form class="d-inline" method="post" action="{{ url_for('nf_leitura.reler', reading_id=reading.id) }}">
+                                <button class="btn btn-outline-primary btn-sm" type="submit">Ler de novo</button>
+                            </form>
+                            {% elif reading.status == 'lancada' and reading.numero_documento and endpoint_exists('nf.nf_index') %}
+                            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('nf.nf_index', nota=reading.numero_documento) }}">Ver NF</a>
+                            {% endif %}
+                            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('nf_leitura.arquivo', reading_id=reading.id) }}" target="_blank" title="Ver o arquivo"><i class="bi bi-file-earmark-pdf"></i></a>
+                            {% if reading.status not in ('lancada', 'lendo') %}
+                            <form class="d-inline" method="post" action="{{ url_for('nf_leitura.descartar', reading_id=reading.id) }}">
+                                <button class="btn btn-outline-danger btn-sm" type="submit" title="Descartar"><i class="bi bi-trash"></i></button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="6" class="text-center text-muted py-4">Nenhuma NF lida.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Enquanto houver NF sendo lida, pergunta a situação a cada 4 s e recarrega quando alguma terminar.
+(function () {
+    const reading = Array.from(document.querySelectorAll('tr[data-status="lendo"]')).map((row) => row.dataset.readingId);
+    if (!reading.length) return;
+    const url = {{ url_for('nf_leitura.situacao')|tojson }} + '?ids=' + reading.join(',');
+    const timer = setInterval(async () => {
+        try {
+            const response = await fetch(url, { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
+            if (!response.ok) return;
+            const statuses = await response.json();
+            if (Object.values(statuses).some((status) => status !== 'lendo')) {
+                clearInterval(timer);
+                window.location.reload();
+            }
+        } catch (error) { /* tenta de novo no próximo ciclo */ }
+    }, 4000);
+})();
+</script>
+{% endblock %}

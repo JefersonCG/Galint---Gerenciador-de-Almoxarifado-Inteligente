@@ -17,6 +17,7 @@ from . import (
     mobile_panel,
     movements,
     nf,
+    nf_leitura,
     operations,
     pages,
     condominium,
@@ -39,6 +40,7 @@ BLUEPRINTS = (
     inventory.blueprint,
     operations.blueprint,
     nf.blueprint,
+    nf_leitura.blueprint,
     movements.blueprint,
     users.blueprint,
 

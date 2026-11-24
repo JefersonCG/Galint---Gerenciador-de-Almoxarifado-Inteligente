@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{# Conferência da NF lida (24/11/2026): cabeçalho e itens, cada um ligado a um item do GALINT ou "Item novo"
+   (pré-cadastro). Regras em services/nf_leitura_service.py. #}
+{% block title %}Conferir NF{% endblock %}
+{% macro qty(value) -%}
+{%- if value is not none -%}{{ ('%.4f' % value).rstrip('0').rstrip('.')|replace('.', ',') }}{%- endif -%}
+{%- endmacro %}
+{% macro money(value) -%}
+{%- if value is not none -%}{{ ('%.2f' % value)|replace('.', ',') if ((value * 100)|round(6)) % 1 == 0 else ('%.4f' % value).rstrip('0')|replace('.', ',') }}{%- endif -%}
+{%- endmacro %}
+{% block content %}
+<div class="container-fluid py-3 nf-leitura">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+        <h1 class="h4 mb-0">NF {{ header.numero or '—' }} <span class="fs-6 text-muted">{{ header.emitente or '' }}</span></h1>
+        <div class="d-flex gap-2">
+            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('nf_leitura.arquivo', reading_id=reading.id) }}" target="_blank"><i class="bi bi-file-earmark-pdf"></i> Ver a nota</a>
+            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('nf_leitura.index') }}">Voltar</a>
+        </div>
+    </div>
+
+    {% if result.ja_lancada and not launched %}
+    <div class="alert alert-danger py-2 mb-2">Esta NF já está no GALINT (documento nº {{ result.ja_lancada.numero }}).</div>
+    {% endif %}
+    {% for aviso in result.get('avisos', []) %}
+    <div class="alert alert-warning py-2 mb-2">{{ aviso }}</div>
+    {% endfor %}
+
+    <form method="post" action="{{ url_for('nf_leitura.lancar', reading_id=reading.id) }}" id="nfLeituraForm">
+        <input type="hidden" name="chave" value="{{ header.chave or '' }}">
+        <div class="card mb-2">
+            <div class="card-body py-2">
+                <div class="row g-2 align-items-end">
+                    <div class="col-6 col-md-1">
+                        <label class="form-label small mb-0" for="nfNumero">NF</label>
+                        <input class="form-control form-control-sm" id="nfNumero" name="numero" value="{{ header.numero or '' }}" required>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label small mb-0" for="nfFornecedor">Fornecedor</label>
+                        <input class="form-control form-control-sm" id="nfFornecedor" name="fornecedor" value="{{ header.emitente or '' }}">
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label small mb-0" for="nfCnpj">CNPJ</label>
+                        <input class="form-control form-control-sm" id="nfCnpj" name="cnpj" inputmode="numeric" value="{{ header.cnpj_emitente or '' }}">
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label small mb-0" for="nfEmissao">Emissão</label>
+                        <input class="form-control form-control-sm" id="nfEmissao" name="data_emissao" type="date" value="{{ header.data_emissao or '' }}" required>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label small mb-0" for="nfRecebimento">Recebimento</label>
+                        <input class="form-control form-control-sm" id="nfRecebimento" name="data_recebimento" type="date" value="{{ today }}" required>
+                    </div>
+                    <div class="col-6 col-md-1 text-md-end">
+                        <div class="form-label small mb-0">Total NF</div>
+                        <strong id="nfTotalNota" data-value="{{ header.valor_produtos or header.valor_total or '' }}">{{ (header.valor_total or header.valor_produtos)|currency_br if (header.valor_total or header.valor_produtos) else '—' }}</strong>
+                    </div>
+                </div>
+                {% if header.chave %}<div class="small text-muted mt-1 font-monospace">{{ header.chave }}</div>{% endif %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th style="width: 2rem"></th>
+                            <th>Descrição na NF</th>
+                            <th style="width: 5rem">Un</th>
+                            <th style="width: 7rem">Qtd</th>
+                            <th style="width: 8rem">V. unit.</th>
+                            <th class="text-end" style="width: 8rem">Total</th>
+                            <th style="min-width: 18rem">Item no GALINT</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        {% set n = item.n %}
+                        {% set done = n in launched %}
+                        <tr data-line="{{ n }}" data-nf-total="{{ item.valor_total if item.valor_total is not none else '' }}">
+                            <td><input class="form-check-input" type="checkbox" name="incluir_{{ n }}" value="1" {% if not done %}checked{% else %}disabled{% endif %} aria-label="Lançar item {{ n }}"></td>
+                            <td>
+                                <input class="form-control form-control-sm" name="descricao_{{ n }}" value="{{ item.descricao|upper }}" {% if done %}disabled{% endif %}>
+                                <div class="small text-muted">{% if item.codigo %}cód. {{ item.codigo }}{% endif %}{% if item.ncm %} · NCM {{ item.ncm }}{% endif %}{% if done %} · <span class="text-success">lançado</span>{% endif %}</div>
+                            </td>
+                            <td><input class="form-control form-control-sm" name="unidade_{{ n }}" value="{{ item.unidade or '' }}" {% if done %}disabled{% endif %}></td>
+                            <td><input class="form-control form-control-sm text-end" name="quantidade_{{ n }}" inputmode="decimal" value="{{ qty(item.quantidade) }}" data-role="qty" {% if done %}disabled{% endif %}></td>
+                            <td><input class="form-control form-control-sm text-end" name="valor_unitario_{{ n }}" inputmode="decimal" value="{{ money(item.valor_unitario) }}" data-role="price" {% if done %}disabled{% endif %}></td>
+                            <td class="text-end" data-role="total"></td>
+                            <td>
+                                <select class="form-select form-select-sm" name="acao_{{ n }}" data-role="acao" {% if done %}disabled{% endif %}>
+                                    {% for s in item.get('sugestoes', []) %}
+                                    <option value="{{ s.codigo }}" {% if item.acao == s.codigo %}selected{% endif %}>{{ s.descricao }}{% if s.marca %} · {{ s.marca }}{% endif %}{% if s.unidade %} · {{ s.unidade }}{% endif %} ({{ (s.score * 100)|round|int }}%)</option>
+                                    {% endfor %}
+                                    <option value="novo" {% if item.acao == 'novo' %}selected{% endif %}>Item novo (pré-cadastro)</option>
+                                    <option value="outro">Outro item…</option>
+                                </select>
+                                <input class="form-control form-control-sm mt-1 d-none" name="outro_{{ n }}" list="nfItemSearchList" placeholder="Código ou nome" data-role="outro" autocomplete="off">
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="5" class="text-end small text-muted">Soma dos itens marcados</td>
+                            <td class="text-end"><strong id="nfSoma"></strong></td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+        <datalist id="nfItemSearchList"></datalist>
+
+        <div class="d-flex justify-content-between align-items-center mt-3">
+            <button class="btn btn-outline-danger btn-sm" type="submit" form="nfDescartarForm">Descartar</button>
+            <button class="btn btn-primary" type="submit"><i class="bi bi-check2 me-1"></i> Lançar</button>
+        </div>
+    </form>
+    <form id="nfDescartarForm" method="post" action="{{ url_for('nf_leitura.descartar', reading_id=reading.id) }}"></form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Conferência: total de cada linha (qtd x unitário), em vermelho quando não bate com o total lido na NF;
+// soma dos itens marcados comparada ao total da nota; "Outro item…" abre a busca por código ou nome.
+(function () {
+    const form = document.getElementById('nfLeituraForm');
+    if (!form) return;
+    const searchUrl = {{ url_for('nf_leitura.buscar_itens')|tojson }};
+    const datalist = document.getElementById('nfItemSearchList');
+    const soma = document.getElementById('nfSoma');
+    const totalNota = parseFloat(document.getElementById('nfTotalNota')?.dataset.value || '');
+    const brl = (value) => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const parse = (text) => {
+        let value = String(text || '').trim();
+        if (!value) return NaN;
+        if (value.includes(',')) value = value.replace(/\./g, '').replace(',', '.');
+        return parseFloat(value);
+    };
+
+    function recalc() {
+        let sum = 0;
+        form.querySelectorAll('tr[data-line]').forEach((row) => {
+            const qty = parse(row.querySelector('[data-role="qty"]').value);
+            const price = parse(row.querySelector('[data-role="price"]').value);
+            const cell = row.querySelector('[data-role="total"]');
+            const nfTotal = parseFloat(row.dataset.nfTotal);
+            const total = qty * price;
+            const included = row.querySelector('input[type="checkbox"]').checked;
+            cell.textContent = Number.isFinite(total) ? brl(total) : '—';
+            const differs = Number.isFinite(total) && Number.isFinite(nfTotal) && Math.abs(total - nfTotal) > 0.02;
+            cell.classList.toggle('text-danger', differs || !Number.isFinite(total));
+            cell.title = differs ? `Na NF: ${brl(nfTotal)}` : '';
+            row.classList.toggle('opacity-50', !included);
+            if (included && Number.isFinite(total)) sum += total;
+        });
+        soma.textContent = brl(sum);
+        const differs = Number.isFinite(totalNota) && Math.abs(sum - totalNota) > 0.05;
+        soma.classList.toggle('text-danger', differs);
+        soma.title = differs ? `Total da NF: ${brl(totalNota)}` : '';
+    }
+
+    let searchTimer = null;
+    async function search(term) {
+        if (term.length < 2) return;
+        try {
+            const response = await fetch(`${searchUrl}?q=${encodeURIComponent(term)}`, { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
+            if (!response.ok) return;
+            const rows = await response.json();
+            datalist.innerHTML = '';
+            rows.forEach((row) => {
+                const option = document.createElement('option');
+                option.value = row.codigo;
+                option.label = [row.descricao, row.marca, row.unidade].filter(Boolean).join(' · ');
+                option.textContent = option.label;
+                datalist.appendChild(option);
+            });
+        } catch (error) { /* busca opcional */ }
+    }
+
+    form.addEventListener('input', (event) => {
+        if (event.target.matches('[data-role="outro"]')) {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => search(event.target.value.trim()), 250);
+        }
+        recalc();
+    });
+    form.addEventListener('change', (event) => {
+        if (event.target.matches('[data-role="acao"]')) {
+            const other = event.target.closest('td').querySelector('[data-role="outro"]');
+            const isOther = event.target.value === 'outro';
+            other.classList.toggle('d-none', !isOther);
+            other.required = isOther;
+            if (isOther) other.focus();
+        }
+        recalc();
+    });
+    recalc();
+})();
+</script>
+{% endblock %}
