@@ -2623,7 +2623,7 @@
                                 </p>
                             </div>
                             <div class="inventory-ops-chip-row">
-                                <span class="inventory-ops-chip">{% if item %}Código fixado{% else %}Novo cadastro{% endif %}</span>
+                                <span class="inventory-ops-chip">{% if item %}Código cadastrado{% else %}Novo cadastro{% endif %}</span>
                                 <span class="inventory-ops-chip">{% if form_item and form_item.descricao %}Produto preenchido{% else %}Produto pendente{% endif %}</span>
                                 <span class="inventory-ops-chip">{% if possui_foto_item %}Foto vinculada{% else %}Foto pendente{% endif %}</span>
                             </div>
@@ -2634,12 +2634,26 @@
                                 <div class="form-row">
                                     <div class="form-group">
                                         <label class="form-label" for="codigo">Código de barras</label>
+                                        {# Troca do código na edição (24/11/2026), só administrador: Editar libera o campo, Gerar
+                                           pede um código interno novo, Aplicar salva o item já com o código novo. #}
+                                        {% if item and current_user.is_admin %}
+                                        <div class="input-group">
+                                            <input class="form-control" id="codigo" name="codigo"
+                                                value="{{ form_item.codigo if form_item else '' }}"
+                                                data-codigo-original="{{ item.codigo }}"
+                                                readonly required>
+                                            <button type="button" class="btn btn-outline-secondary" id="codigo-editar">Editar</button>
+                                            {% if endpoint_exists('nf.novo_codigo_barras') %}
+                                            <button type="button" class="btn btn-outline-secondary" id="codigo-gerar" data-url="{{ url_for('nf.novo_codigo_barras') }}">Gerar</button>
+                                            {% endif %}
+                                            <button type="submit" class="btn btn-primary d-none" id="codigo-aplicar">Aplicar</button>
+                                        </div>
+                                        <small class="form-text d-none" id="codigo-troca-status"></small>
+                                        {% else %}
                                         <input class="form-control" id="codigo" name="codigo"
                                             value="{{ form_item.codigo if form_item else '' }}"
                                             {% if item %}readonly{% endif %}
                                             required>
-                                        {% if item %}
-                                        <small class="form-text">Para alterar o código, crie um novo item.</small>
                                         {% endif %}
                                     </div>
                                     <div class="form-group">
@@ -7276,6 +7290,57 @@ Conversão: 1 saco = 20 quilos</div>
         event.preventDefault();
         event.stopPropagation();
     });
+
+    // Troca do código na edição (24/11/2026, só administrador). Editar libera o campo; Gerar pede um
+    // código interno novo (mesma rota do cadastro rápido de NF); quando o código muda, aparece Aplicar,
+    // que envia o formulário inteiro: o servidor troca o código (auditado) e salva o resto no código novo.
+    (function setupCodigoTroca() {
+        const editarBtn = document.getElementById('codigo-editar');
+        const gerarBtn = document.getElementById('codigo-gerar');
+        const aplicarBtn = document.getElementById('codigo-aplicar');
+        const trocaStatus = document.getElementById('codigo-troca-status');
+        if (!codigoInput || !editarBtn || !aplicarBtn || !trocaStatus) return;
+        const original = String(codigoInput.dataset.codigoOriginal || '').trim();
+
+        const mostrarStatus = (texto) => {
+            trocaStatus.textContent = texto;
+            trocaStatus.classList.toggle('d-none', !texto);
+        };
+        const sincronizar = () => {
+            const atual = String(codigoInput.value || '').trim();
+            const mudou = Boolean(atual) && atual !== original;
+            aplicarBtn.classList.toggle('d-none', !mudou);
+            mostrarStatus(mudou ? `Era ${original}.` : '');
+        };
+        const liberar = () => {
+            codigoInput.readOnly = false;
+            codigoInput.focus();
+            codigoInput.select();
+        };
+
+        editarBtn.addEventListener('click', liberar);
+        codigoInput.addEventListener('input', sincronizar);
+        gerarBtn?.addEventListener('click', async () => {
+            gerarBtn.disabled = true;
+            try {
+                const resposta = await fetch(gerarBtn.dataset.url, {
+                    headers: { Accept: 'application/json' },
+                    credentials: 'same-origin',
+                });
+                const dados = await resposta.json().catch(() => ({}));
+                if (!resposta.ok || !dados.success || !dados.codigo) {
+                    throw new Error(dados.message || 'Não foi possível gerar o código.');
+                }
+                codigoInput.value = String(dados.codigo);
+                liberar();
+                codigoInput.dispatchEvent(new Event('input', { bubbles: true }));
+            } catch (erro) {
+                mostrarStatus(erro.message || 'Não foi possível gerar o código.');
+            } finally {
+                gerarBtn.disabled = false;
+            }
+        });
+    })();
 
     codigoInput?.addEventListener('keydown', (event) => {
         if (event.key !== 'Enter') {

@@ -2551,7 +2551,12 @@ class InventoryService:
         matricula: str,
         motivo: str,
         audit_context: dict[str, Any] | None = None,
+        allow_pre_cadastro: bool = False,
     ) -> dict[str, Any]:
+        # allow_pre_cadastro (24/11/2026): a edição do item troca o código também de item em pré-cadastro
+        # (ex.: código lido errado pelo app, que cria o item em pré-cadastro). A linha do documento que o
+        # pré-cadastro aponta é atualizada junto, como as demais tabelas com codigo_item. O ajuste de
+        # saldo continua barrado para pré-cadastro (padrão False).
         audit_context_norm = dict(audit_context or {})
         codigo_atual_norm = _sanitize_codigo(codigo_atual)
         novo_codigo_norm = _sanitize_codigo(novo_codigo)
@@ -2622,7 +2627,7 @@ class InventoryService:
             )
             raise ValueError(message)
 
-        if bool(getattr(item, "pre_cadastro_pendente", False)):
+        if bool(getattr(item, "pre_cadastro_pendente", False)) and not allow_pre_cadastro:
             self._log_admin_code_change_audit(
                 action_result="pre_cadastro_blocked",
                 details=self._build_admin_code_change_audit_details(

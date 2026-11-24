@@ -3772,6 +3772,43 @@ def update_item(codigo: str):
         form.get("pre_registered_document_number") or request.args.get("pre_registered_document_number") or ""
     ).strip()
 
+    # Troca do código de barras na própria edição (24/11/2026). Pedido do usuário: "quero poder reeditar o
+    # código de barras, foi errado"; o campo ganhou Editar / Gerar / Aplicar (só para administrador, como
+    # na página de ajuste administrativo extinta, que era a única tela que trocava código). A troca usa o
+    # mesmo serviço auditado daquela página: muda o código no item e em todas as tabelas que apontam para
+    # ele numa transação só. Depois, o resto da edição é salvo já no código novo.
+    codigo_anterior = None
+    codigo_informado = str(form.get("codigo") or "").strip()
+    if codigo_informado and codigo_informado != codigo:
+        redirect_back: dict[str, object] = {"codigo": codigo}
+        if return_to:
+            redirect_back["return_to"] = return_to
+            if pre_registered_document_number:
+                redirect_back["pre_registered_document_number"] = pre_registered_document_number
+        if not _is_admin(current_user):
+            flash("Só administrador troca o código do item.", "danger")
+            return redirect(url_for("inventory.edit_item_form", **redirect_back))
+        try:
+            inventory_service.change_item_code_admin(
+                codigo_atual=codigo,
+                novo_codigo=codigo_informado,
+                matricula=current_user.id,
+                motivo="Código corrigido na edição do item",
+                audit_context={
+                    "source": "inventory.update_item",
+                    "route": request.path,
+                    "ip_address": request.remote_addr,
+                    "user_agent": request.user_agent.string if request.user_agent else None,
+                    "user_name": getattr(current_user, "nome", None),
+                },
+                allow_pre_cadastro=True,
+            )
+        except ValueError as exc:
+            flash(str(exc), "danger")
+            return redirect(url_for("inventory.edit_item_form", **redirect_back))
+        codigo_anterior, codigo = codigo, codigo_informado
+        prev_item = inventory_service.get_item(codigo)
+
     saldo_desejado = 0.0
     saldo_unidades_soltas_raw = ""
     finalize_pre_registration = (
@@ -4068,8 +4105,13 @@ def update_item(codigo: str):
                 flash("O pré-cadastro foi finalizado, mas não havia lançamentos documentais pendentes para incorporar ao estoque.", "info")
             if process_pending_result.get("errors"):
                 flash("O pré-cadastro foi finalizado, mas houve falhas ao incorporar parte dos lançamentos documentais ao estoque.", "warning")
-        flash("Item atualizado com sucesso.", "success")
+        if codigo_anterior:
+            flash(f"Item atualizado. Código trocado de {codigo_anterior} para {codigo}.", "success")
+        else:
+            flash("Item atualizado com sucesso.", "success")
     except ValueError as exc:
+        if codigo_anterior:
+            flash(f"O código já foi trocado de {codigo_anterior} para {codigo}.", "info")
         flash(str(exc), "danger")
         redirect_kwargs: dict[str, object] = {"codigo": codigo}
         if return_to == "pre_registered":
