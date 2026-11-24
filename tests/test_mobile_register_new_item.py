@@ -112,6 +112,46 @@ def test_scanned_code_becomes_a_new_item_through_the_entry_route(client):
     assert [codigo for codigo, _ in client.created] == ["7891234567895"]
 
 
+def test_new_item_with_packaging_counts_the_can_not_the_liters(client):
+    """App 2.3.1 (24/11/2026): 1 lata de 18 L por R$ 429,90 na NF 617377. Com só a unidade base (Litro),
+    o app pedia "Quantidade (litros)" e a conta dava 18 × 429,90 = R$ 7.738,20. Agora a tela manda a
+    embalagem e o conteúdo (como o site): a NF conta latas e o estoque recebe os litros."""
+    response = client.post(
+        "/api/mobile/documentos-fiscais",
+        json=_payload(
+            nova_descricao="TINTA ACRÍLICA BRANCA 18L",
+            nova_categoria="Pintura",
+            nova_unidade="Litro",
+            nova_unidade_documental="lata",
+            novo_conteudo_embalagem=18,
+            quantidade=1,
+            preco_unitario=429.9,
+        ),
+        headers=AUTH,
+    )
+
+    assert response.status_code == 200, response.get_json()
+    item = db.session.get(Item, "7891234567895")
+    assert (item.unidade, item.tipo_embalagem_novo, float(item.unidades_por_embalagem)) == ("Litro", "lata", 18.0)
+    assert float(item.litros_por_embalagem) == 18.0
+    linha = DocumentoEntradaEstoqueItem.query.one()
+    assert float(linha.quantidade) == 1.0
+    assert float(linha.quantidade_base) == 18.0
+    assert float(linha.valor_total) == pytest.approx(429.9)
+
+
+def test_new_item_packaging_needs_the_content(client):
+    response = client.post(
+        "/api/mobile/documentos-fiscais",
+        json=_payload(nova_unidade="Litro", nova_unidade_documental="lata", quantidade=1),
+        headers=AUTH,
+    )
+
+    assert response.status_code == 400
+    assert "conteudo por embalagem" in response.get_json()["message"]
+    assert db.session.get(Item, "7891234567895") is None
+
+
 def test_new_item_needs_a_description(client):
     response = client.post("/api/mobile/documentos-fiscais", json=_payload(nova_descricao=""), headers=AUTH)
 
