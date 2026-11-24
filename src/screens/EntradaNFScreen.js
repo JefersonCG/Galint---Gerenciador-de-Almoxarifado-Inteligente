@@ -12,9 +12,16 @@
 //
 // Marca (2.2.7). O usuário achou em 24/11/2026: "no cadastro não tem a opção marca". Entra entre
 // Categoria e Unidade, opcional como no "Lançar entrada com NF" do site (nova_marca na mesma rota).
+//
+// Prova real (2.2.8, 24/11/2026). Na NF 617377, 4 rolos de fita viraram 40 rolos: para item com
+// embalagem, o servidor lê a quantidade em embalagens, e esta tela mostrava "Quantidade (metro)". Agora
+// o rótulo diz a unidade que o servidor usa ("Quantidade (rolos)"), a conta aparece enquanto se digita
+// ("4 rolos × 10 = 40 metros no estoque · 4 × R$ 59,90 = R$ 239,60") e, ao lançar, o app pergunta se o
+// cálculo é este mesmo (pedido do usuário). Conta em utils/provaReal.js, igual à do site.
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
+    Alert,
     FlatList,
     Image,
     Keyboard,
@@ -38,6 +45,7 @@ import DoneModal from '../components/DoneModal';
 import ItemPhotoLinkModal from '../components/ItemPhotoLinkModal';
 import { resolvePhotoUri } from '../components/StockCountPanel';
 import { heroPalette, heroSoftShadow } from '../theme/heroTheme';
+import { computeProof, factorFromItem, unitLabel } from '../utils/provaReal';
 
 function isoDate(date) {
     const pad = (value) => String(value).padStart(2, '0');
@@ -175,6 +183,13 @@ export default function EntradaNFScreen({ navigation, route }) {
     }, []);
 
     const quantidadeNum = Number(normalizeDecimal(quantidade));
+    // Item novo não tem embalagem (entra na unidade escolhida); item existente segue o cadastro.
+    const embalagem = useMemo(
+        () => (novo ? { factor: 0, docUnit: unidade, baseUnit: unidade, packaged: false } : factorFromItem(item)),
+        [item, novo, unidade],
+    );
+    const prova = computeProof({ quantity: quantidade, unitPrice: valor, ...embalagem });
+    const unidadeQuantidade = unitLabel(embalagem.packaged ? embalagem.docUnit : embalagem.baseUnit, 2);
     const faltando = useMemo(() => {
         if (novo && !descricao.trim()) return 'Falta a descrição';
         if (novo && !categoria) return 'Falta a categoria';
@@ -184,6 +199,17 @@ export default function EntradaNFScreen({ navigation, route }) {
         if (!recebimento) return 'Falta a data de recebimento';
         return '';
     }, [categoria, descricao, emissao, nota, novo, quantidadeNum, recebimento]);
+
+    // Prova real: antes de gravar, pergunta se o cálculo é este mesmo.
+    const confirmarLancamento = useCallback(() => {
+        if (faltando || salvando || !prova) return;
+        Keyboard.dismiss();
+        const texto = [prova.stockText, prova.moneyText, prova.hint ? `⚠ ${prova.hint}` : ''].filter(Boolean).join('\n');
+        Alert.alert('Prova real', `${texto}\n\nO cálculo é este mesmo?`, [
+            { text: 'Corrigir', style: 'cancel' },
+            { text: 'Confirmar', onPress: () => lancar() },
+        ]);
+    }, [faltando, salvando, prova]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const lancar = useCallback(async () => {
         if (faltando || salvando) return;
@@ -348,7 +374,7 @@ export default function EntradaNFScreen({ navigation, route }) {
                     </TouchableOpacity>
                 )}
 
-                <Text style={styles.label}>Quantidade{(novo ? unidade : item.unidade) ? ` (${String(novo ? unidade : item.unidade).toLowerCase()})` : ''}</Text>
+                <Text style={styles.label}>Quantidade ({unidadeQuantidade})</Text>
                 <TextInput
                     style={styles.input}
                     value={quantidade}
@@ -383,9 +409,17 @@ export default function EntradaNFScreen({ navigation, route }) {
                     placeholderTextColor={heroPalette.textMuted}
                 />
 
+                {prova ? (
+                    <View style={[styles.prova, prova.suspicious && styles.provaAlerta]}>
+                        <Text style={styles.provaTexto}>{prova.stockText}</Text>
+                        {prova.moneyText ? <Text style={styles.provaTexto}>{prova.moneyText}</Text> : null}
+                        {prova.hint ? <Text style={styles.provaDica}>⚠ {prova.hint}</Text> : null}
+                    </View>
+                ) : null}
+
                 {erro ? <Text style={styles.error}>⚠ {erro}</Text> : null}
 
-                <TouchableOpacity style={[styles.button, (faltando || salvando) && styles.buttonOff]} onPress={lancar} disabled={Boolean(faltando) || salvando} activeOpacity={0.85}>
+                <TouchableOpacity style={[styles.button, (faltando || salvando) && styles.buttonOff]} onPress={confirmarLancamento} disabled={Boolean(faltando) || salvando} activeOpacity={0.85}>
                     {salvando ? <ActivityIndicator color={heroPalette.bg} /> : <Text style={styles.buttonText}>{faltando || 'Lançar entrada'}</Text>}
                 </TouchableOpacity>
             </ScrollView>
@@ -481,6 +515,10 @@ const styles = StyleSheet.create({
     dateField: { height: 54, borderRadius: 14, backgroundColor: '#fff', justifyContent: 'center', paddingHorizontal: 16 },
     dateText: { color: '#0f172a', fontSize: 17, fontWeight: '800' },
     datePlaceholder: { color: '#94a3b8', fontSize: 17, fontWeight: '700' },
+    prova: { marginTop: 14, padding: 12, borderRadius: 14, backgroundColor: heroPalette.panel, borderWidth: 1, borderColor: heroPalette.border, gap: 2 },
+    provaAlerta: { borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.12)' },
+    provaTexto: { color: heroPalette.text, fontSize: 15, fontWeight: '700' },
+    provaDica: { color: '#fbbf24', fontSize: 14, fontWeight: '800', marginTop: 4 },
     error: { color: heroPalette.danger, fontSize: 14, fontWeight: '700', marginTop: 14, textAlign: 'center' },
     button: { marginTop: 22, height: 56, borderRadius: 16, backgroundColor: heroPalette.primaryStrong, alignItems: 'center', justifyContent: 'center' },
     buttonOff: { opacity: 0.5 },
