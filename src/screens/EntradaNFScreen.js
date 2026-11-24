@@ -17,6 +17,12 @@
 // primeiro os de grupo (produto genérico), depois os já cadastrados; tocar põe o nome (e a unidade do
 // grupo). Pedido do usuário: "quero que o grupo seja o nome padrão para cadastro".
 //
+// Embalagem no cadastro (2.3.1, 24/11/2026). Na NF 617377, 1 lata de 18 L por R$ 429,90: com só a unidade
+// (Litro), a tela pedia "Quantidade (litros)" e a prova real dava 18 × 429,90 = R$ 7.738,20. O usuário
+// pediu as unidades dinâmicas do site: unidade base + tipo de embalagem + quanto vem em cada uma. A rota
+// já aceitava (nova_unidade_documental, novo_conteudo_embalagem); a NF passa a contar latas e o estoque
+// recebe os litros ("1 lata × 18 = 18 litros no estoque · 1 × R$ 429,90 = R$ 429,90").
+//
 // Última NF no cartão (2.2.9, 24/11/2026): número em vermelho e data à direita do saldo, pedido do
 // usuário com desenho; "já lançado nesta NF" quando a última NF do item é a mesma lida na tela.
 //
@@ -94,6 +100,11 @@ function normalizeDecimal(text) {
 
 // As mesmas unidades internas do site (inventory.BASE_ITEM_UNIT_OPTIONS), se a configuração não vier.
 const UNIDADES = ['Unidade', 'Par', 'Metro', 'Quilo', 'Litro'];
+// Tipos de embalagem do cadastro do site (inventory/form.html), na mesma ordem; '' = Nenhum.
+const EMBALAGENS = [
+    ['lata', 'Lata'], ['rolo', 'Rolo'], ['pacote', 'Pacote'], ['caixa', 'Caixa'], ['fardo', 'Fardo'],
+    ['balde', 'Balde'], ['bombona', 'Bombona'], ['saco', 'Saco'], ['', 'Nenhum'],
+];
 
 export default function EntradaNFScreen({ navigation, route }) {
     const [fotoNova, setFotoNova] = useState(null);
@@ -111,6 +122,8 @@ export default function EntradaNFScreen({ navigation, route }) {
     const [categoria, setCategoria] = useState('');
     const [marca, setMarca] = useState('');
     const [unidade, setUnidade] = useState('Unidade');
+    const [embalagemNova, setEmbalagemNova] = useState(''); // '' = Nenhum
+    const [conteudo, setConteudo] = useState(''); // quanto da unidade base vem em cada embalagem
     const [opcoes, setOpcoes] = useState({ categorias: [], unidades: UNIDADES });
     const [escolhendoCategoria, setEscolhendoCategoria] = useState(false);
     const [permission, requestPermission] = useCameraPermissions();
@@ -239,22 +252,31 @@ export default function EntradaNFScreen({ navigation, route }) {
     }, []);
 
     const quantidadeNum = Number(normalizeDecimal(quantidade));
-    // Item novo não tem embalagem (entra na unidade escolhida); item existente segue o cadastro.
-    const embalagem = useMemo(
-        () => (novo ? { factor: 0, docUnit: unidade, baseUnit: unidade, packaged: false } : factorFromItem(item)),
-        [item, novo, unidade],
-    );
-    const prova = computeProof({ quantity: quantidade, unitPrice: valor, ...embalagem });
-    const unidadeQuantidade = unitLabel(embalagem.packaged ? embalagem.docUnit : embalagem.baseUnit, 2);
+    const conteudoNum = Number(normalizeDecimal(conteudo));
+    // Item novo: a embalagem escolhida aqui (a NF conta embalagens, o estoque recebe a unidade base);
+    // item existente segue o cadastro.
+    const embalagem = useMemo(() => {
+        if (!novo) return factorFromItem(item);
+        if (embalagemNova && conteudoNum > 0) {
+            return { factor: conteudoNum, docUnit: embalagemNova, baseUnit: unidade, packaged: conteudoNum !== 1 };
+        }
+        return { factor: 0, docUnit: unidade, baseUnit: unidade, packaged: false };
+    }, [conteudoNum, embalagemNova, item, novo, unidade]);
+    const semConteudo = novo && Boolean(embalagemNova) && !(conteudoNum > 0);
+    const prova = semConteudo ? null : computeProof({ quantity: quantidade, unitPrice: valor, ...embalagem });
+    const unidadeQuantidade = novo && embalagemNova
+        ? unitLabel(embalagemNova, 2)
+        : unitLabel(embalagem.packaged ? embalagem.docUnit : embalagem.baseUnit, 2);
     const faltando = useMemo(() => {
         if (novo && !descricao.trim()) return 'Falta a descrição';
         if (novo && !categoria) return 'Falta a categoria';
+        if (semConteudo) return `Falta quanto tem cada ${embalagemNova}`;
         if (!(quantidadeNum > 0)) return 'Falta a quantidade';
         if (!nota) return 'Falta ler a chave';
         if (!emissao) return 'Falta a data de emissão';
         if (!recebimento) return 'Falta a data de recebimento';
         return '';
-    }, [categoria, descricao, emissao, nota, novo, quantidadeNum, recebimento]);
+    }, [categoria, descricao, embalagemNova, emissao, nota, novo, quantidadeNum, recebimento, semConteudo]);
 
     // Prova real: antes de gravar, pergunta se o cálculo é este mesmo.
     const confirmarLancamento = useCallback(() => {
@@ -287,6 +309,8 @@ export default function EntradaNFScreen({ navigation, route }) {
                     nova_categoria: categoria,
                     nova_marca: marca.trim().toUpperCase() || undefined,
                     nova_unidade: unidade,
+                    nova_unidade_documental: embalagemNova || undefined,
+                    novo_conteudo_embalagem: embalagemNova ? conteudoNum : undefined,
                 }
                 : {}),
             quantidade: quantidadeNum,
@@ -340,7 +364,7 @@ export default function EntradaNFScreen({ navigation, route }) {
                 navigation.goBack();
             },
         });
-    }, [categoria, codigo, descricao, emissao, faltando, item, marca, navigation, nota, novo, quantidade, quantidadeNum, recebimento, salvando, unidade, valor]);
+    }, [categoria, codigo, conteudoNum, descricao, embalagemNova, emissao, faltando, item, marca, navigation, nota, novo, quantidade, quantidadeNum, recebimento, salvando, unidade, valor]);
 
     const photoUri = photoFailed ? null : resolvePhotoUri(item);
 
@@ -406,7 +430,7 @@ export default function EntradaNFScreen({ navigation, route }) {
                             placeholderTextColor="#94a3b8"
                         />
 
-                        <Text style={styles.label}>Unidade</Text>
+                        <Text style={styles.label}>Unidade base</Text>
                         <View style={styles.chips}>
                             {opcoes.unidades.map((opcao) => (
                                 <TouchableOpacity
@@ -419,6 +443,34 @@ export default function EntradaNFScreen({ navigation, route }) {
                                 </TouchableOpacity>
                             ))}
                         </View>
+
+                        <Text style={styles.label}>Embalagem</Text>
+                        <View style={styles.chips}>
+                            {EMBALAGENS.map(([valorEmbalagem, rotulo]) => (
+                                <TouchableOpacity
+                                    key={rotulo}
+                                    style={[styles.chip, embalagemNova === valorEmbalagem && styles.chipOn]}
+                                    onPress={() => setEmbalagemNova(valorEmbalagem)}
+                                    activeOpacity={0.85}
+                                >
+                                    <Text style={[styles.chipText, embalagemNova === valorEmbalagem && styles.chipTextOn]}>{rotulo}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+
+                        {embalagemNova ? (
+                            <>
+                                <Text style={styles.label}>Cada {embalagemNova} tem ({unitLabel(unidade, 2)})</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    value={conteudo}
+                                    onChangeText={(text) => setConteudo(text.replace(/[^0-9.,]/g, ''))}
+                                    keyboardType="decimal-pad"
+                                    placeholder="0"
+                                    placeholderTextColor={heroPalette.textMuted}
+                                />
+                            </>
+                        ) : null}
                     </>
                 ) : (
                 <View style={styles.itemRow}>
