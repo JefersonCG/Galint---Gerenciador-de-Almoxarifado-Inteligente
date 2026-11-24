@@ -14,6 +14,7 @@ from . import (
     ferramentas,
 
     inventory,
+    item_grupos,
     mobile_panel,
     movements,
     nf,
@@ -37,6 +38,7 @@ BLUEPRINTS = (
     dashboard.blueprint,
     analytics.blueprint,
     auth.blueprint,
+    item_grupos.blueprint,
     inventory.blueprint,
     operations.blueprint,
     nf.blueprint,

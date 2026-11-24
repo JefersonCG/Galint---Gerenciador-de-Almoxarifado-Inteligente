@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{# Grupos de itens (produto genérico), 24/11/2026. Regras em services/item_grupo_service.py. #}
+{% block title %}Grupos de itens{% endblock %}
+{% block extra_css %}
+<style>
+    .grupo-foto { width: 40px; height: 40px; border-radius: 8px; background: #fff; border: 1px solid rgba(148,163,184,.35); display: inline-flex; align-items: center; justify-content: center; overflow: hidden; color: #94a3b8; flex: 0 0 40px; }
+    .grupo-foto img { width: 100%; height: 100%; object-fit: contain; }
+    .grupo-linha { display: flex; align-items: center; gap: .6rem; }
+    .grupo-chip { display: inline-flex; align-items: center; gap: .35rem; padding: .2rem .55rem; border-radius: 999px; border: 1px solid rgba(148,163,184,.4); font-size: .85rem; margin: .15rem .25rem .15rem 0; }
+    .grupo-ordem { font-weight: 800; color: #f59e0b; min-width: 2.2rem; }
+</style>
+{% endblock %}
+{% macro foto(item) -%}
+<span class="grupo-foto">{% if item.foto_path %}<img src="{{ url_for('static', filename=item.foto_path) }}" alt="" loading="lazy">{% else %}<i class="bi bi-image"></i>{% endif %}</span>
+{%- endmacro %}
+{% macro unidade_plural(unidade, total) -%}
+{%- set u = (unidade or 'unidade')|lower -%}
+{{ u if total == 1 else {'unidade': 'unidades', 'metro': 'metros', 'litro': 'litros', 'quilo': 'quilos', 'par': 'pares'}.get(u, u) }}
+{%- endmacro %}
+{% macro data_br(iso) -%}{% if iso %}{{ iso[8:10] }}/{{ iso[5:7] }}/{{ iso[0:4] }}{% else %}—{% endif %}{%- endmacro %}
+{% block content %}
+<div class="container-fluid py-3">
+    <h1 class="h4 mb-3">Grupos de itens</h1>
+
+    <form class="card mb-3" method="post" action="{{ url_for('item_grupos.criar') }}" id="grupoForm" data-search-url="{{ url_for('item_grupos.buscar') }}">
+        <div class="card-body py-2">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label small mb-0" for="grupoBusca">Buscar itens</label>
+                    <input class="form-control" id="grupoBusca" placeholder="joelho 25 -45" autocomplete="off">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small mb-0" for="grupoDestino">Destino</label>
+                    <select class="form-select" id="grupoDestino">
+                        <option value="">Novo grupo</option>
+                        {% for grupo in grupos %}<option value="{{ grupo.id }}" data-url="{{ url_for('item_grupos.adicionar', grupo_id=grupo.id) }}">{{ grupo.nome }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3" id="grupoNomeBox">
+                    <label class="form-label small mb-0" for="grupoNome">Nome do grupo</label>
+                    <input class="form-control" id="grupoNome" name="nome">
+                </div>
+                <div class="col-md-2 d-grid">
+                    <button class="btn btn-primary" type="submit" id="grupoSalvar" disabled>Criar grupo</button>
+                </div>
+            </div>
+            <div id="grupoSelecionados" class="mt-2"></div>
+            <div id="grupoResultados" class="list-group mt-2"></div>
+        </div>
+    </form>
+
+    {% if grupos %}
+    <h2 class="h6 mt-3 mb-2">Grupos ({{ grupos|length }})</h2>
+    {% for grupo in grupos %}
+    <section class="card mb-2" id="grupo-{{ grupo.id }}">
+        <div class="card-body py-2">
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                <form class="d-flex gap-1 flex-grow-1" method="post" action="{{ url_for('item_grupos.renomear', grupo_id=grupo.id) }}" style="max-width: 28rem">
+                    <input class="form-control form-control-sm fw-semibold" name="nome" value="{{ grupo.nome }}" aria-label="Nome do grupo">
+                    <button class="btn btn-sm btn-outline-secondary" type="submit" title="Renomear"><i class="bi bi-check2"></i></button>
+                </form>
+                <span class="badge bg-primary">{{ '%g'|format(grupo.saldo_total) }} {{ unidade_plural(grupo.unidade, grupo.saldo_total) }}</span>
+                <form class="ms-auto" method="post" action="{{ url_for('item_grupos.excluir', grupo_id=grupo.id) }}">
+                    <button class="btn btn-sm btn-outline-danger" type="submit" title="Desfazer o grupo"><i class="bi bi-trash"></i></button>
+                </form>
+            </div>
+            {% for item in grupo.itens %}
+            <div class="grupo-linha py-1 border-top">
+                <span class="grupo-ordem">{% if item.ordem %}{{ item.ordem }}º{% else %}—{% endif %}</span>
+                {{ foto(item) }}
+                <div class="flex-grow-1">
+                    <div class="fw-semibold">{{ item.descricao }}</div>
+                    <div class="small text-muted">{{ item.marca or '—' }} • {{ item.codigo }} • última entrada {{ data_br(item.ultima_entrada) }}</div>
+                </div>
+                <span class="text-nowrap">{{ item.saldo_display or ('%g'|format(item.saldo)) }}</span>
+                <form method="post" action="{{ url_for('item_grupos.remover', grupo_id=grupo.id) }}">
+                    <input type="hidden" name="codigo" value="{{ item.codigo }}">
+                    <button class="btn btn-sm btn-outline-secondary" type="submit" title="Tirar do grupo"><i class="bi bi-x-lg"></i></button>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endfor %}
+    {% endif %}
+
+    {% if sugestoes %}
+    <h2 class="h6 mt-3 mb-2">Nome igual ({{ sugestoes|length }})</h2>
+    {% for sugestao in sugestoes %}
+    <form class="card mb-2" method="post" action="{{ url_for('item_grupos.criar') }}">
+        <input type="hidden" name="nome" value="{{ sugestao.nome }}">
+        <div class="card-body py-2 d-flex flex-wrap align-items-center gap-2">
+            <div class="fw-semibold me-2">{{ sugestao.nome }} <span class="small text-muted">({{ sugestao.unidade|lower }})</span></div>
+            <div class="flex-grow-1">
+                {% for item in sugestao.itens %}
+                <label class="grupo-chip"><input class="form-check-input mt-0" type="checkbox" name="codigos" value="{{ item.codigo }}" checked>
+                    {{ item.marca or 'sem marca' }} · {{ item.saldo_display or ('%g'|format(item.saldo)) }} · {{ data_br(item.ultima_entrada) }}</label>
+                {% endfor %}
+            </div>
+            <button class="btn btn-sm btn-primary" type="submit">Criar</button>
+        </div>
+    </form>
+    {% endfor %}
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Montar grupo: busca (todas as palavras; "-palavra" exclui), itens marcados guardados entre buscas,
+// destino novo grupo ou grupo existente.
+(function () {
+    const form = document.getElementById('grupoForm');
+    if (!form) return;
+    const search = document.getElementById('grupoBusca');
+    const results = document.getElementById('grupoResultados');
+    const chosen = document.getElementById('grupoSelecionados');
+    const destino = document.getElementById('grupoDestino');
+    const nome = document.getElementById('grupoNome');
+    const nomeBox = document.getElementById('grupoNomeBox');
+    const salvar = document.getElementById('grupoSalvar');
+    const criarUrl = form.getAttribute('action');
+    const selected = new Map();
+    const escapeHtml = (text) => String(text ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const dataBr = (iso) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : '—');
+
+    function refresh() {
+        const novo = !destino.value;
+        nomeBox.classList.toggle('d-none', !novo);
+        nome.required = novo;
+        salvar.textContent = novo ? 'Criar grupo' : 'Adicionar ao grupo';
+        salvar.disabled = novo ? selected.size < 2 : selected.size < 1;
+        form.setAttribute('action', novo ? criarUrl : destino.selectedOptions[0].dataset.url);
+        chosen.innerHTML = Array.from(selected.values()).map((item) => `
+            <span class="grupo-chip">${escapeHtml(item.descricao)} · ${escapeHtml(item.marca || 'sem marca')}
+                <input type="hidden" name="codigos" value="${escapeHtml(item.codigo)}">
+                <button type="button" class="btn btn-sm p-0 border-0" data-tirar="${escapeHtml(item.codigo)}" aria-label="Tirar"><i class="bi bi-x"></i></button></span>`).join('');
+    }
+
+    function render(rows) {
+        results.innerHTML = rows.map((item) => {
+            const blocked = Boolean(item.grupo_id) && String(item.grupo_id) !== destino.value;
+            const photo = item.foto_path ? `<img src="/static/${escapeHtml(item.foto_path)}" alt="" loading="lazy">` : '<i class="bi bi-image"></i>';
+            return `<label class="list-group-item grupo-linha ${blocked ? 'opacity-50' : ''}">
+                <input class="form-check-input mt-0" type="checkbox" data-codigo="${escapeHtml(item.codigo)}" ${selected.has(item.codigo) ? 'checked' : ''} ${blocked ? 'disabled' : ''}>
+                <span class="grupo-foto">${photo}</span>
+                <span class="flex-grow-1"><span class="fw-semibold">${escapeHtml(item.descricao)}</span>
+                    <span class="d-block small text-muted">${escapeHtml(item.marca || '—')} • ${escapeHtml(item.codigo)} • ${escapeHtml(item.unidade)} • última entrada ${dataBr(item.ultima_entrada)}${item.grupo_nome ? ` • grupo ${escapeHtml(item.grupo_nome)}` : ''}</span></span>
+                <span class="text-nowrap">${escapeHtml(item.saldo_display || item.saldo)}</span></label>`;
+        }).join('') || '<div class="list-group-item text-muted">Nenhum item.</div>';
+        results.querySelectorAll('input[data-codigo]').forEach((box) => {
+            box.addEventListener('change', () => {
+                const item = rows.find((row) => row.codigo === box.dataset.codigo);
+                if (box.checked) {
+                    selected.set(item.codigo, item);
+                    if (!nome.value.trim()) nome.value = item.descricao;
+                } else {
+                    selected.delete(item.codigo);
+                }
+                refresh();
+            });
+        });
+    }
+
+    let timer = null;
+    search.addEventListener('input', () => {
+        clearTimeout(timer);
+        const q = search.value.trim();
+        if (q.length < 2) { results.innerHTML = ''; return; }
+        timer = setTimeout(async () => {
+            try {
+                const response = await fetch(`${form.dataset.searchUrl}?q=${encodeURIComponent(q)}`, { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
+                if (response.ok) render(await response.json());
+            } catch (error) { /* tenta de novo ao digitar */ }
+        }, 250);
+    });
+    search.addEventListener('keydown', (event) => { if (event.key === 'Enter') event.preventDefault(); });
+    chosen.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-tirar]');
+        if (!button) return;
+        selected.delete(button.dataset.tirar);
+        results.querySelectorAll(`input[data-codigo="${CSS.escape(button.dataset.tirar)}"]`).forEach((box) => { box.checked = false; });
+        refresh();
+    });
+    destino.addEventListener('change', () => { refresh(); if (search.value.trim().length >= 2) search.dispatchEvent(new Event('input')); });
+    refresh();
+})();
+</script>
+{% endblock %}

@@ -291,6 +291,8 @@ def build_sidebar_navigation() -> dict[str, Any]:
     # Ler NF (PDF/foto por OCR, 24/11/2026): só administrador, como o lançamento de NF do site.
     nf_leitura_url = _optional_url("nf_leitura.index", enabled=bool(nf_url) and is_admin)
     projection_url = _optional_url("inventory.purchase_projection_page")
+    # Grupos de itens (produto genérico, 24/11/2026): só administrador.
+    item_grupos_url = _optional_url("item_grupos.index", enabled=is_admin)
 
     central_kits_url = _optional_url("central_kits.index")
     tool_custody_url = _optional_url("tool_custody.index")
@@ -315,7 +317,7 @@ def build_sidebar_navigation() -> dict[str, Any]:
     conversionengine_url = _optional_url("pages.config_conversionengine")
     sobre_url = _optional_url("pages.sobre")
 
-    inventory_list_active = _path_matches(path, inventory_list_url) and not _path_matches(path, barcode_studio_url)
+    inventory_list_active = _path_matches(path, inventory_list_url) and not _path_matches(path, barcode_studio_url) and not _path_matches(path, item_grupos_url)
     can_manage_intentions = is_admin or _is_supervisor(current_user)
     withdrawal_intentions_badge = _get_pending_withdrawal_intentions_count(enabled=can_manage_intentions)
 
@@ -380,6 +382,8 @@ def build_sidebar_navigation() -> dict[str, Any]:
         estoque_children.append(_link_item("Central de Operações", central_operacoes_url, "bi-activity", _path_matches(path, central_operacoes_url)))
     if projection_url:
         estoque_children.append(_link_item("Projeção", projection_url, "bi-graph-up-arrow", _path_matches(path, projection_url)))
+    if item_grupos_url:
+        estoque_children.append(_link_item("Grupos de itens", item_grupos_url, "bi-collection", _path_matches(path, item_grupos_url)))
     if estoque_children:
         entries.append(_group_item("Estoque", "bi-boxes", "estoqueMenu", estoque_active, estoque_children))
 

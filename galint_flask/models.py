@@ -1097,6 +1097,41 @@ class NFItemVinculo(db.Model):
     atualizado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, onupdate=TimeService.now_db)
 
 
+class ItemGrupo(db.Model):
+    """Produto genérico: itens iguais de marcas, códigos, embalagens ou NFs diferentes (24/11/2026).
+
+    Pedido do usuário: "juntar produtos iguais como se fosse 1 para as retiradas" (ex.: JOELHO 25MM da
+    Amanco e da Krona). Cada item continua com seu código, marca, NF e custo; o grupo soma o saldo e, na
+    retirada, sai primeiro o mais antigo. Todos os membros têm a mesma unidade base.
+    """
+    __tablename__ = "item_grupos"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    nome: Mapped[str] = mapped_column(String(200), nullable=False, unique=True)
+    unidade: Mapped[str] = mapped_column(String(50), nullable=False)
+    criado_por: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    criado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, onupdate=TimeService.now_db)
+
+    membros: Mapped[list["ItemGrupoMembro"]] = relationship("ItemGrupoMembro", back_populates="grupo", cascade="all, delete-orphan")
+
+
+class ItemGrupoMembro(db.Model):
+    """Item dentro de um grupo. Um item fica em no máximo um grupo.
+
+    codigo_item sem chave estrangeira de propósito (como em nf_item_vinculos): apagar o item não trava,
+    e a troca de código de item atualiza esta coluna junto.
+    """
+    __tablename__ = "item_grupo_membros"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    grupo_id: Mapped[int] = mapped_column(ForeignKey("item_grupos.id", ondelete="CASCADE"), nullable=False, index=True)
+    codigo_item: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
+    criado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
+
+    grupo: Mapped["ItemGrupo"] = relationship("ItemGrupo", back_populates="membros")
+
+
 class EntradaFiscalHistorico(db.Model):
     """Registro append-only de cada linha fiscal recebida ou removida."""
     __tablename__ = "entradas_fiscais_historico"
