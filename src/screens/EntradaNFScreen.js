@@ -13,6 +13,10 @@
 // Marca (2.2.7). O usuário achou em 24/11/2026: "no cadastro não tem a opção marca". Entra entre
 // Categoria e Unidade, opcional como no "Lançar entrada com NF" do site (nova_marca na mesma rota).
 //
+// Nome padrão (2.3.0, 24/11/2026): na descrição do item novo, enquanto se digita, aparecem até 6 nomes —
+// primeiro os de grupo (produto genérico), depois os já cadastrados; tocar põe o nome (e a unidade do
+// grupo). Pedido do usuário: "quero que o grupo seja o nome padrão para cadastro".
+//
 // Última NF no cartão (2.2.9, 24/11/2026): número em vermelho e data à direita do saldo, pedido do
 // usuário com desenho; "já lançado nesta NF" quando a última NF do item é a mesma lida na tela.
 //
@@ -101,6 +105,9 @@ export default function EntradaNFScreen({ navigation, route }) {
     const item = fotoNova ? { ...baseItem, foto_url: fotoNova } : baseItem;
     const codigo = String(item.codigo || item.codigo_barras || item.id || '').trim();
     const [descricao, setDescricao] = useState('');
+    // Nome padrão (2.3.0): sugestões enquanto se digita a descrição; grupos primeiro.
+    const [sugestoesNome, setSugestoesNome] = useState([]);
+    const nomeEscolhido = useRef('');
     const [categoria, setCategoria] = useState('');
     const [marca, setMarca] = useState('');
     const [unidade, setUnidade] = useState('Unidade');
@@ -136,6 +143,26 @@ export default function EntradaNFScreen({ navigation, route }) {
             ativo = false;
         };
     }, [codigo, codigoNovo]);
+
+    // Nome padrão: busca as sugestões 250 ms depois de parar de digitar (não depois de escolher uma).
+    useEffect(() => {
+        if (!codigoNovo) return undefined;
+        const termo = descricao.trim();
+        if (termo.length < 2 || termo === nomeEscolhido.current) {
+            setSugestoesNome([]);
+            return undefined;
+        }
+        let ativo = true;
+        const timer = setTimeout(() => {
+            ApiService.getSugestoesNome(termo).then((lista) => {
+                if (ativo) setSugestoesNome(lista.slice(0, 6));
+            });
+        }, 250);
+        return () => {
+            ativo = false;
+            clearTimeout(timer);
+        };
+    }, [codigoNovo, descricao]);
 
     // Item novo: categorias e unidades do cadastro do site.
     useEffect(() => {
@@ -342,6 +369,27 @@ export default function EntradaNFScreen({ navigation, route }) {
                             placeholder="Nome do item"
                             placeholderTextColor="#94a3b8"
                         />
+                        {sugestoesNome.length ? (
+                            <View style={styles.nomes}>
+                                {sugestoesNome.map((sugestao) => (
+                                    <TouchableOpacity
+                                        key={`${sugestao.tipo}-${sugestao.nome}`}
+                                        style={styles.nomeLinha}
+                                        onPress={() => {
+                                            const nome = String(sugestao.nome || '').toUpperCase();
+                                            nomeEscolhido.current = nome;
+                                            setDescricao(nome);
+                                            setSugestoesNome([]);
+                                            if (sugestao.unidade && opcoes.unidades.includes(sugestao.unidade)) setUnidade(sugestao.unidade);
+                                        }}
+                                        activeOpacity={0.8}
+                                    >
+                                        <Text style={styles.nomeTexto} numberOfLines={1}>{sugestao.nome}</Text>
+                                        {sugestao.tipo === 'grupo' ? <Text style={styles.nomeGrupo}>grupo</Text> : null}
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        ) : null}
 
                         <Text style={styles.label}>Categoria</Text>
                         <TouchableOpacity style={styles.dateField} onPress={() => { Keyboard.dismiss(); setEscolhendoCategoria(true); }} activeOpacity={0.85}>
@@ -557,6 +605,10 @@ const styles = StyleSheet.create({
     pickerRow: { paddingHorizontal: 20, paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: heroPalette.border },
     pickerRowOn: { backgroundColor: heroPalette.panelAlt },
     pickerRowText: { color: heroPalette.text, fontSize: 16, fontWeight: '700' },
+    nomes: { marginTop: 6, borderRadius: 12, backgroundColor: heroPalette.panel, borderWidth: 1, borderColor: heroPalette.border, overflow: 'hidden' },
+    nomeLinha: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: heroPalette.border },
+    nomeTexto: { flex: 1, color: heroPalette.text, fontSize: 15, fontWeight: '700' },
+    nomeGrupo: { color: '#0f172a', backgroundColor: '#fbbf24', fontSize: 11, fontWeight: '900', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, overflow: 'hidden' },
     dateRow: { flexDirection: 'row', gap: 12 },
     dateField: { height: 54, borderRadius: 14, backgroundColor: '#fff', justifyContent: 'center', paddingHorizontal: 16 },
     dateText: { color: '#0f172a', fontSize: 17, fontWeight: '800' },

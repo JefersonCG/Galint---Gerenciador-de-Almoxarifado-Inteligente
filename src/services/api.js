@@ -862,6 +862,20 @@ class ApiService {
         }
     }
 
+    // Nome padrão no cadastro (2.3.0, 24/11/2026): nomes de grupo primeiro, depois nomes já cadastrados.
+    async getSugestoesNome(q) {
+        try {
+            const token = await AsyncStorage.getItem('token');
+            if (!token) return [];
+            const response = await this.client.get(`/api/mobile/itens/nomes?q=${encodeURIComponent(String(q || ''))}`, {
+                headers: { 'Authorization': `Bearer ${token}` },
+            });
+            return Array.isArray(response.data?.data) ? response.data.data : [];
+        } catch (error) {
+            return [];
+        }
+    }
+
     async getUltimaRetirada(codigo) {
         try {
             const token = await AsyncStorage.getItem('token');
