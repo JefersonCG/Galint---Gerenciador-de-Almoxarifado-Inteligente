@@ -13,6 +13,9 @@
 // Marca (2.2.7). O usuário achou em 24/11/2026: "no cadastro não tem a opção marca". Entra entre
 // Categoria e Unidade, opcional como no "Lançar entrada com NF" do site (nova_marca na mesma rota).
 //
+// Última NF no cartão (2.2.9, 24/11/2026): número em vermelho e data à direita do saldo, pedido do
+// usuário com desenho; "já lançado nesta NF" quando a última NF do item é a mesma lida na tela.
+//
 // Prova real (2.2.8, 24/11/2026). Na NF 617377, 4 rolos de fita viraram 40 rolos: para item com
 // embalagem, o servidor lê a quantidade em embalagens, e esta tela mostrava "Quantidade (metro)". Agora
 // o rótulo diz a unidade que o servidor usa ("Quantidade (rolos)"), a conta aparece enquanto se digita
@@ -64,6 +67,19 @@ function parseIso(iso) {
     return new Date(year, month - 1, day);
 }
 
+function documentLabel(entry) {
+    const numero = String(entry?.numero || '').trim();
+    const tipo = String(entry?.tipo_documento || '').toLowerCase();
+    if (tipo === 'nf') return `NF ${numero}`;
+    if (tipo === 'cupom') return `Cupom ${numero}`;
+    return numero;
+}
+
+function sameDocumentNumber(a, b) {
+    const clean = (value) => String(value || '').replace(/\D/g, '').replace(/^0+/, '');
+    return Boolean(clean(a)) && clean(a) === clean(b);
+}
+
 function groupKey(key) {
     return String(key || '').replace(/(\d{4})(?=\d)/g, '$1 ');
 }
@@ -102,11 +118,24 @@ export default function EntradaNFScreen({ navigation, route }) {
     const [salvando, setSalvando] = useState(false);
     const [done, setDone] = useState(null);
     const [photoFailed, setPhotoFailed] = useState(false);
+    // Última NF do item (2.2.9): número e data no cartão; "já lançado nesta NF" quando é a mesma da tela.
+    const [ultimaEntrada, setUltimaEntrada] = useState(null);
     const lido = useRef(false);
 
     useLayoutEffect(() => {
         navigation.setOptions({ title: novo ? 'Cadastrar item' : 'Lançar entrada' });
     }, [navigation, novo]);
+
+    useEffect(() => {
+        if (codigoNovo || !codigo) return undefined;
+        let ativo = true;
+        ApiService.getUltimaEntrada(codigo).then((ultima) => {
+            if (ativo) setUltimaEntrada(ultima);
+        });
+        return () => {
+            ativo = false;
+        };
+    }, [codigo, codigoNovo]);
 
     // Item novo: categorias e unidades do cadastro do site.
     useEffect(() => {
@@ -264,6 +293,7 @@ export default function EntradaNFScreen({ navigation, route }) {
             });
             return;
         }
+        setUltimaEntrada({ numero: nota.numero, tipo_documento: 'nf', data: recebimento });
         const saldo = result.data?.item?.saldo_display || result.data?.item?.saldo;
         setDone({
             title: 'Entrada lançada',
@@ -354,8 +384,19 @@ export default function EntradaNFScreen({ navigation, route }) {
                     )}
                     <View style={{ flex: 1 }}>
                         <Text style={styles.itemName} numberOfLines={2}>{item.descricao || 'Item'}</Text>
-                        <Text style={styles.itemMeta}>{codigo}</Text>
-                        {item.saldo_display ? <Text style={styles.itemMeta}>Saldo: {item.saldo_display}</Text> : null}
+                        <View style={styles.metaRow}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.itemMeta}>{codigo}</Text>
+                                {item.saldo_display ? <Text style={styles.itemMeta}>Saldo: {item.saldo_display}</Text> : null}
+                            </View>
+                            {ultimaEntrada?.numero ? (
+                                <View style={styles.lastEntry}>
+                                    <Text style={styles.lastEntryNumber}>{documentLabel(ultimaEntrada)}</Text>
+                                    {ultimaEntrada.data ? <Text style={styles.lastEntryDate}>{brDate(String(ultimaEntrada.data).slice(0, 10))}</Text> : null}
+                                    {nota && sameDocumentNumber(nota.numero, ultimaEntrada.numero) ? <Text style={styles.lastEntrySame}>já lançado nesta NF</Text> : null}
+                                </View>
+                            ) : null}
+                        </View>
                     </View>
                 </View>
                 )}
@@ -490,6 +531,11 @@ const styles = StyleSheet.create({
     photoAdd: { color: heroPalette.primary, fontSize: 11, fontWeight: '800', marginTop: 2 },
     itemName: { color: heroPalette.text, fontSize: 16, fontWeight: '800' },
     itemMeta: { color: heroPalette.textMuted, fontSize: 13, marginTop: 2 },
+    metaRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
+    lastEntry: { alignItems: 'flex-end' },
+    lastEntryNumber: { color: '#ef4444', fontSize: 15, fontWeight: '900' },
+    lastEntryDate: { color: heroPalette.text, fontSize: 15, fontWeight: '800' },
+    lastEntrySame: { color: '#ef4444', fontSize: 12, fontWeight: '800', marginTop: 2 },
     label: { color: heroPalette.textSoft, fontSize: 14, fontWeight: '800', marginTop: 18, marginBottom: 8 },
     scanButton: { height: 56, borderRadius: 16, backgroundColor: heroPalette.primaryStrong, alignItems: 'center', justifyContent: 'center' },
     scanText: { color: heroPalette.bg, fontSize: 16, fontWeight: '900' },

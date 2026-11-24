@@ -846,6 +846,22 @@ class ApiService {
      * @param {string} codigo - Código do item
      * @returns {Promise<Object|null>} Dados do último responsável ou null se não houver retirada
      */
+    // Última NF em que o item entrou (número e data) para o cartão do "Lançar entrada" (2.2.9,
+    // 24/11/2026). Sem conexão ou servidor sem a rota (antes de religar): null, e o cartão não mostra nada.
+    async getUltimaEntrada(codigo) {
+        try {
+            const token = await AsyncStorage.getItem('token');
+            if (!token) return null;
+            const response = await this.client.get(
+                `/api/mobile/itens/${encodeURIComponent(String(codigo || ''))}/ultima_entrada`,
+                { headers: { 'Authorization': `Bearer ${token}` } }
+            );
+            return response.data?.data || null;
+        } catch (error) {
+            return null;
+        }
+    }
+
     async getUltimaRetirada(codigo) {
         try {
             const token = await AsyncStorage.getItem('token');
