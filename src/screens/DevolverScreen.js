@@ -2,7 +2,6 @@ import React, { useMemo, useState, useEffect, useLayoutEffect } from 'react';
 import {
     View,
     Text,
-    TextInput,
     TouchableOpacity,
     StyleSheet,
     Alert,
@@ -13,6 +12,7 @@ import {
     FlatList,
     Image,
 } from 'react-native';
+import TextInput from '../components/UpperTextInput';
 import ApiService from '../services/api';
 import { formatQuantityWithPackaging } from '../utils/formatQuantity';
 import { resolvePhotoUri } from '../components/StockCountPanel';

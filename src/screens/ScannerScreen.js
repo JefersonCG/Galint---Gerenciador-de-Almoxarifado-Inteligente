@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
-    TextInput,
     StyleSheet,
     TouchableOpacity,
     Alert,
@@ -12,6 +11,7 @@ import {
     KeyboardAvoidingView,
     Platform,
 } from 'react-native';
+import TextInput from '../components/UpperTextInput';
 import { useIsFocused } from '@react-navigation/native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import ApiService from '../services/api';

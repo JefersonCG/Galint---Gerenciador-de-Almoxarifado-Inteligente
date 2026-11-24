@@ -4,10 +4,10 @@ import {
     Alert,
     StyleSheet,
     Text,
-    TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
+import TextInput from '../components/UpperTextInput';
 
 import HeroScreen from '../components/HeroScreen';
 import ApiService from '../services/api';

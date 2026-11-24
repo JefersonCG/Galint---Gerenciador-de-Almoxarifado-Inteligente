@@ -9,6 +9,9 @@
 // e a mesma gravação; só entram descrição, categoria e unidade do item novo. A rota cria o item em
 // pré-cadastro, como faz o site com item novo vindo de NF: o saldo entra quando o pré-cadastro é
 // concluído no site.
+//
+// Marca (2.2.7). O usuário achou em 24/11/2026: "no cadastro não tem a opção marca". Entra entre
+// Categoria e Unidade, opcional como no "Lançar entrada com NF" do site (nova_marca na mesma rota).
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
@@ -21,11 +24,11 @@ import {
     ScrollView,
     StyleSheet,
     Text,
-    TextInput,
     TouchableOpacity,
     Vibration,
     View,
 } from 'react-native';
+import TextInput from '../components/UpperTextInput';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 
@@ -75,6 +78,7 @@ export default function EntradaNFScreen({ navigation, route }) {
     const codigo = String(item.codigo || item.codigo_barras || item.id || '').trim();
     const [descricao, setDescricao] = useState('');
     const [categoria, setCategoria] = useState('');
+    const [marca, setMarca] = useState('');
     const [unidade, setUnidade] = useState('Unidade');
     const [opcoes, setOpcoes] = useState({ categorias: [], unidades: UNIDADES });
     const [escolhendoCategoria, setEscolhendoCategoria] = useState(false);
@@ -194,7 +198,15 @@ export default function EntradaNFScreen({ navigation, route }) {
             finance_origem_valor: 'compra_nf',
             finance_comprovacao_status: 'comprovado',
             codigo,
-            ...(novo ? { novo_codigo: codigo, nova_descricao: descricaoNova, nova_categoria: categoria, nova_unidade: unidade } : {}),
+            ...(novo
+                ? {
+                    novo_codigo: codigo,
+                    nova_descricao: descricaoNova,
+                    nova_categoria: categoria,
+                    nova_marca: marca.trim().toUpperCase() || undefined,
+                    nova_unidade: unidade,
+                }
+                : {}),
             quantidade: quantidadeNum,
             nota_fiscal: nota.numero,
             chave_acesso: nota.chave,
@@ -245,7 +257,7 @@ export default function EntradaNFScreen({ navigation, route }) {
                 navigation.goBack();
             },
         });
-    }, [categoria, codigo, descricao, emissao, faltando, item, navigation, nota, novo, quantidade, quantidadeNum, recebimento, salvando, unidade, valor]);
+    }, [categoria, codigo, descricao, emissao, faltando, item, marca, navigation, nota, novo, quantidade, quantidadeNum, recebimento, salvando, unidade, valor]);
 
     const photoUri = photoFailed ? null : resolvePhotoUri(item);
 
@@ -279,6 +291,16 @@ export default function EntradaNFScreen({ navigation, route }) {
                         <TouchableOpacity style={styles.dateField} onPress={() => { Keyboard.dismiss(); setEscolhendoCategoria(true); }} activeOpacity={0.85}>
                             <Text style={categoria ? styles.dateText : styles.datePlaceholder} numberOfLines={1}>{categoria || 'Escolher'}</Text>
                         </TouchableOpacity>
+
+                        <Text style={styles.label}>Marca</Text>
+                        <TextInput
+                            style={[styles.input, styles.inputText]}
+                            value={marca}
+                            onChangeText={setMarca}
+                            autoCorrect={false}
+                            placeholder="Opcional"
+                            placeholderTextColor="#94a3b8"
+                        />
 
                         <Text style={styles.label}>Unidade</Text>
                         <View style={styles.chips}>

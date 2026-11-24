@@ -2,7 +2,6 @@ import React, { useMemo, useState, useEffect } from 'react';
 import {
     View,
     Text,
-    TextInput,
     TouchableOpacity,
     StyleSheet,
     Alert,
@@ -12,6 +11,7 @@ import {
     ActivityIndicator,
     FlatList,
 } from 'react-native';
+import TextInput from '../components/UpperTextInput';
 import ApiService from '../services/api';
 
 function sanitizeIntText(text) {

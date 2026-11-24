@@ -3,7 +3,8 @@
 // item, a pessoa copia o link da imagem, volta e cola; o servidor baixa, reduz e grava a foto.
 // O teclado só abre quando a pessoa toca no campo (regra do usuário).
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Keyboard, Linking, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Keyboard, Linking, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import TextInput from './UpperTextInput';
 
 import ApiService from '../services/api';
 import { heroPalette, heroShadow } from '../theme/heroTheme';

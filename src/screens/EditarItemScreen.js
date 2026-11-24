@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react';
 import {
     View,
     Text,
-    TextInput,
     TouchableOpacity,
     StyleSheet,
     ScrollView,
@@ -12,6 +11,7 @@ import {
     Platform,
     Image,
 } from 'react-native';
+import TextInput from '../components/UpperTextInput';
 import * as ImagePicker from 'expo-image-picker';
 import ApiService from '../services/api';
 

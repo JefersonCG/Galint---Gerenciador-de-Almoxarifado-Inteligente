@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
     View,
     Text,
-    TextInput,
     TouchableOpacity,
     StyleSheet,
     Alert,
@@ -12,6 +11,7 @@ import {
     KeyboardAvoidingView,
     Platform,
 } from 'react-native';
+import TextInput from '../components/UpperTextInput';
 import ApiService from '../services/api';
 
 export default function CadastroMultiploScreen({ navigation, route }) {

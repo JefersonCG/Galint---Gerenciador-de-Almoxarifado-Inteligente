@@ -12,11 +12,11 @@ import {
     Keyboard,
     StyleSheet,
     Text,
-    TextInput,
     TouchableOpacity,
     Vibration,
     View,
 } from 'react-native';
+import TextInput from './UpperTextInput';
 
 import ApiService from '../services/api';
 import InactivityService from '../services/inactivityService';

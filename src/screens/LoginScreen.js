@@ -11,10 +11,10 @@ import {
     ScrollView,
     StyleSheet,
     Text,
-    TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
+import TextInput from '../components/UpperTextInput';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Application from 'expo-application';
 
@@ -249,6 +249,7 @@ export default function LoginScreen({ navigation, route }) {
                         onChangeText={setUsername}
                         placeholder="Usuário ou matrícula"
                         placeholderTextColor={heroPalette.textMuted}
+                        keepCase
                         autoCapitalize="none"
                         autoCorrect={false}
                         returnKeyType="next"
@@ -263,6 +264,7 @@ export default function LoginScreen({ navigation, route }) {
                             placeholder="Senha"
                             placeholderTextColor={heroPalette.textMuted}
                             secureTextEntry={!showPassword}
+                            keepCase
                             autoCapitalize="none"
                             returnKeyType="go"
                             onSubmitEditing={() => doLogin(username, password, { ip: serverIP, port: serverPort })}

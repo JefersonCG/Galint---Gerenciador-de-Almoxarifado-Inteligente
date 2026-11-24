@@ -2,7 +2,6 @@ import React, { useMemo, useState, useEffect, useLayoutEffect } from 'react';
 import {
     View,
     Text,
-    TextInput,
     TouchableOpacity,
     StyleSheet,
     Alert,
@@ -16,6 +15,7 @@ import {
     Image,
     Keyboard,
 } from 'react-native';
+import TextInput from '../components/UpperTextInput';
 import ApiService from '../services/api';
 import { heroPalette, heroShadow, heroSoftShadow } from '../theme/heroTheme';
 import { unitLabel, withdrawalMessage } from '../utils/shareWhatsApp';
