@@ -2561,25 +2561,62 @@
             flex-direction: column;
         }
     }
+
+    /* Compacto (24/11/2026). Regra do usuário: sem textos explicativos, formulários mais juntos e nenhuma
+       barra de rolagem interna; só a página rola, e só quando o conteúdo passa da tela.
+       - abas quebram linha em vez de rolar (o overflow-x da .tabs-nav punha barra ao lado das abas);
+       - autocompletar e lista de fornecedores crescem com o conteúdo (o autocompletar mostra até 8);
+       - janelas sem modal-dialog-scrollable (tirado no HTML): rola a página da janela, não o miolo. */
+    .soft-depth-form { margin: 0.75rem auto; }
+    .form-title { font-size: 1.45rem; margin-bottom: 0.6rem; }
+    .tabs-nav { flex-wrap: wrap; overflow: visible; padding: 0 0.75rem; gap: 0.25rem; }
+    .tab-button { padding: 0.55rem 0.9rem; font-size: 0.9rem; }
+    .tab-studio, .classification-studio, .packaging-studio { gap: 0.6rem; }
+    .tab-studio-grid, .classification-studio-grid, .finance-studio-grid, .packaging-studio-grid, .inventory-ops-overview { gap: 0.6rem; }
+    .tab-studio-panel, .classification-studio-panel, .packaging-studio-panel, .inventory-ops-card { padding: 0.75rem; }
+    .tab-studio-panel--stack { gap: 0.6rem; }
+    .form-row { gap: 0.75rem; }
+    .form-group { margin-bottom: 0.6rem; }
+    .form-label { margin-bottom: 0.25rem; }
+    .section { margin-bottom: 0.75rem; }
+    .section-title { font-size: 0.95rem; margin-bottom: 0.5rem; }
+    .identification-media-panel { grid-template-rows: auto auto; min-height: 0; }
+    .identification-media-stage, .identification-media-placeholder { min-height: 200px; }
+    .input-group.flex-nowrap > .form-control { min-width: 0; }
+    .input-group.flex-nowrap > .btn { flex: 0 0 auto; min-width: 0; padding-left: 0.7rem; padding-right: 0.7rem; }
+    #tab-identificacao .form-row:first-child { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
+    /* Classificação: localização numa linha no topo, categorias em várias colunas na largura toda. */
+    .classification-studio-grid { grid-template-columns: 1fr; }
+    .classification-studio-panel--location { order: -1; }
+    .classification-studio-panel--categories .category-visual-select-grid { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+    .classification-location-card { padding: 0; border: 0; background: none; }
+    /* Linhas de 3 campos (preço | unidade | fonte/UF) ficam lado a lado quando cabe. */
+    .form-row { grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); }
+    /* O botão "Seção liberada/Editar seção" já mostra a situação do Financeiro. */
+    #finance-section-edit-status { display: none !important; }
+    /* Unidades dinâmicas: escolha da embalagem na largura toda; o quadro do conteúdo só aparece com embalagem. */
+    .packaging-studio-grid { grid-template-columns: 1fr; }
+    .packaging-studio-summary:not(:has(#unidades-embalagem-field[style*="block"])):not(:has(#unidade-embalagem-field[style*="block"])) { display: none; }
+    .packaging-studio-summary { gap: 0.6rem; }
+    .item-barcode-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 1rem; padding: 0.75rem 0.9rem 0; }
+    .item-barcode-row img { max-height: 70px; background: #fff; padding: 0.35rem; border-radius: 8px; }
+    .item-edit-stamp { margin: 0.5rem 0 0; text-align: center; color: #22c55e; font-style: italic; font-size: 0.8rem; }
+    /* Janela inicial de fornecedor (item novo): uma coluna; o botão de cadastrar fica logo abaixo. */
+    .supplier-gate-grid { grid-template-columns: 1fr; }
+    .supplier-gate-tip { padding: 0; border: 0; background: none; }
+    .supplier-gate-summary { padding: 0.5rem 0.75rem; margin-bottom: 0.6rem; }
+    .button-group { margin-top: 0.75rem; padding: 0.75rem 0.9rem; }
+    .autocomplete-panel, .supplier-gate-list { max-height: none; overflow: visible; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="soft-depth-form">
-    <h1 class="form-title">{% if item %}Editar{% else %}Novo{% endif %} Item</h1>
-    <p class="form-subtitle">Preencha os campos abaixo com as informações do produto</p>
-    {% if form_item and form_item.pre_cadastro_pendente %}
-    <div class="alert alert-info border-0 shadow-sm mb-4">
-        <strong>Pré-cadastro vindo da NF.</strong> Os dados base do item já foram reaproveitados do documento fiscal.
-        Revise e complete principalmente rastreabilidade e unidades dinâmicas. Ao salvar, este item sai da fila de PRÉ CADASTRADOS.
-    </div>
-    {% endif %}
+    {# Compacto (24/11/2026), regra do usuário: sem textos explicativos, campos juntos, sem rolagem interna. #}
+    <h1 class="form-title">{% if item %}Editar{% else %}Novo{% endif %} Item{% if form_item and form_item.pre_cadastro_pendente %} <span class="badge bg-info align-middle fs-6">Pré-cadastro da NF</span>{% endif %}</h1>
     {% if not item %}
     <div class="supplier-gate-summary" id="supplierGateSummary">
-        <div>
-            <div class="summary-title">Fornecedor antes do item</div>
-            <div class="summary-text">Confirme primeiro se a loja ou empresa já está cadastrada. Se existir, o item já nasce vinculado ao fornecedor correto.</div>
-        </div>
+        <div class="summary-title">Fornecedor</div>
         <button class="btn btn-secondary" type="button" id="supplierGateReopenButton">
             <i class="bi bi-building-check me-1"></i> Verificar fornecedor
         </button>
@@ -2614,21 +2651,6 @@
                 <div class="tab-pane active" id="tab-identificacao">
                     {% set possui_foto_item = form_item and (form_item.foto_path or form_item.foto_url) %}
                     <div class="tab-studio">
-                        <section class="tab-studio-hero">
-                            <div class="tab-studio-hero-copy">
-                                <div class="inventory-ops-eyebrow">Identificação base</div>
-                                <h3 class="section-title" style="margin-bottom: 0.35rem;">🔖 Código, descrição e mídia</h3>
-                                <p class="form-text" style="margin: 0;">
-                                    Defina a identidade principal do item. Essa aba concentra código, descrição, marca e a imagem operacional usada no restante do sistema.
-                                </p>
-                            </div>
-                            <div class="inventory-ops-chip-row">
-                                <span class="inventory-ops-chip">{% if item %}Código cadastrado{% else %}Novo cadastro{% endif %}</span>
-                                <span class="inventory-ops-chip">{% if form_item and form_item.descricao %}Produto preenchido{% else %}Produto pendente{% endif %}</span>
-                                <span class="inventory-ops-chip">{% if possui_foto_item %}Foto vinculada{% else %}Foto pendente{% endif %}</span>
-                            </div>
-                        </section>
-
                         <div class="tab-studio-grid">
                             <section class="tab-studio-panel tab-studio-panel--stack">
                                 <div class="form-row">
@@ -2637,14 +2659,14 @@
                                         {# Troca do código na edição (24/11/2026), só administrador: Editar libera o campo, Gerar
                                            pede um código interno novo, Aplicar salva o item já com o código novo. #}
                                         {% if item and current_user.is_admin %}
-                                        <div class="input-group">
+                                        <div class="input-group flex-nowrap">
                                             <input class="form-control" id="codigo" name="codigo"
                                                 value="{{ form_item.codigo if form_item else '' }}"
                                                 data-codigo-original="{{ item.codigo }}"
                                                 readonly required>
-                                            <button type="button" class="btn btn-outline-secondary" id="codigo-editar">Editar</button>
+                                            <button type="button" class="btn btn-secondary" id="codigo-editar" title="Editar código" aria-label="Editar código"><i class="bi bi-pencil"></i></button>
                                             {% if endpoint_exists('nf.novo_codigo_barras') %}
-                                            <button type="button" class="btn btn-outline-secondary" id="codigo-gerar" data-url="{{ url_for('nf.novo_codigo_barras') }}">Gerar</button>
+                                            <button type="button" class="btn btn-secondary" id="codigo-gerar" data-url="{{ url_for('nf.novo_codigo_barras') }}" title="Gerar código" aria-label="Gerar código"><i class="bi bi-upc"></i></button>
                                             {% endif %}
                                             <button type="submit" class="btn btn-primary d-none" id="codigo-aplicar">Aplicar</button>
                                         </div>
@@ -2673,7 +2695,6 @@
                                             <i class="bi bi-search"></i>
                                         </button>
                                     </div>
-                                    <small class="form-text">Use o atalho para abrir o buscador de imagens, copiar o termo pronto e aplicar a foto por link sem sair do cadastro.</small>
                                     <div class="alert alert-warning d-none mt-3 mb-0" id="equivalent-item-banner" role="alert">
                                         <div class="fw-semibold mb-1">Material possivelmente equivalente detectado</div>
                                         <div class="small mb-0" id="equivalent-item-banner-text"></div>
@@ -2688,25 +2709,15 @@
                             </section>
 
                             <section class="tab-studio-panel tab-studio-panel--stack identification-media-panel">
-                                <div>
-                                    <div class="inventory-ops-eyebrow">Imagem operacional</div>
-                                    <h4 class="tab-studio-panel-title">Foto do item</h4>
-                                    <p class="tab-studio-panel-copy">Anexe uma foto por arquivo ou prepare um link direto no buscador. A imagem ajuda leitura rápida no modal, no mobile e nos painéis.</p>
-                                </div>
 
                                 <div class="identification-media-stage">
                                     {% if form_item and form_item.foto_path %}
                                     <img src="{{ url_for('static', filename=form_item.foto_path) }}" alt="Foto atual">
-                                    <div class="identification-media-overlay">
-                                        <span class="identification-media-badge"><i class="bi bi-image"></i>Foto operacional ativa</span>
-                                        <div class="identification-media-meta">A imagem aparece no modal do item, no mobile e nos painéis operacionais.</div>
-                                    </div>
                                     {% else %}
                                     <div class="identification-media-placeholder">
                                         <div>
                                             <i class="bi bi-image-alt"></i>
-                                            <div class="tab-studio-panel-title mb-2">Sem foto principal ainda</div>
-                                            <div class="identification-media-meta">Use o buscador ou envie um arquivo para preencher toda esta área com a foto operacional do item.</div>
+                                            <div class="small mt-1">Sem foto</div>
                                         </div>
                                     </div>
                                     {% endif %}
@@ -2726,14 +2737,9 @@
                                     {% endif %}
                                     <input class="form-control" type="file" id="foto" name="foto"
                                            accept="image/png,image/jpeg,image/jpg,image/webp,image/gif">
-                                    <small class="form-text">Formatos: PNG, JPG, WEBP, GIF. Max: 5MB. Voce pode anexar por arquivo ou por link; se informar os dois, o arquivo enviado prevalece.</small>
                                     <small class="form-text" id="foto-url-pending-status" {% if not form_item or not form_item.foto_url %}style="display: none;"{% endif %}>Foto por link preparada para este cadastro.</small>
                                     </div>
 
-                                    <div class="tab-studio-support">
-                                        <strong>Boa prática</strong>
-                                        Priorize uma foto limpa do produto em fundo simples. Isso melhora reconhecimento visual na busca e reduz retrabalho no estoque.
-                                    </div>
                                 </div>
                             </section>
                         </div>
@@ -2750,9 +2756,7 @@
                                     <div class="photo-assistant-shell">
                                         <div class="photo-assistant-hero">
                                             <div class="photo-assistant-copy">
-                                                <div class="photo-assistant-kicker">Buscador rapido</div>
                                                 <h6 class="photo-assistant-title mb-1" id="foto-assistente-item-nome">{{ form_item.descricao if form_item else 'Item' }}</h6>
-                                                <p class="photo-assistant-subtitle mb-0">Pesquise fora, copie o link direto e volte. Quando o navegador permitir, ele entra sozinho no campo.</p>
                                             </div>
                                             <div class="photo-assistant-preview" id="foto-assistente-preview-box">
                                                 <img id="foto-assistente-preview" alt="Previa da foto atual do item">
@@ -2762,7 +2766,6 @@
                                         <div class="photo-assistant-section">
                                             <div class="photo-assistant-section-head">
                                                 <div class="photo-assistant-section-title">Busca externa</div>
-                                                <span class="photo-assistant-inline-hint">Ajuste o termo e abra o buscador</span>
                                             </div>
                                             <div class="photo-assistant-query-row">
                                                 <div class="photo-assistant-field">
@@ -2786,7 +2789,6 @@
                                         <div class="photo-assistant-section">
                                             <div class="photo-assistant-section-head">
                                                 <div class="photo-assistant-section-title">Link direto</div>
-                                                <span class="photo-assistant-inline-hint">Copiou a URL? ela cai aqui sozinha.</span>
                                             </div>
                                             <label class="form-label visually-hidden" for="input-foto-url">Cole o link direto da imagem</label>
                                             <input class="form-control" id="input-foto-url" placeholder="https://site.com/imagem.jpg">
@@ -2821,29 +2823,12 @@
                     {% endif %}
                     {% set localizacao_atual = form_item.localizacao if form_item and form_item.localizacao else '' %}
                     <div class="classification-studio">
-                        <section class="classification-studio-hero">
-                            <div class="classification-studio-hero-copy">
-                                <div class="inventory-ops-eyebrow">Classificação operacional</div>
-                                <h3 class="section-title" style="margin-bottom: 0.35rem;">🏷️ Categoria e localização</h3>
-                                <p class="form-text" style="margin: 0;">
-                                    Organize o item pela categoria oficial do sistema e defina onde ele deve ser encontrado no estoque. Essa leitura governa filtros, cards e indicadores do GALINT.
-                                </p>
-                            </div>
-                            <div class="inventory-ops-chip-row">
-                                <span class="inventory-ops-chip" id="classification-category-chip">Categoria: {{ categoria }}</span>
-                                <span class="inventory-ops-chip" id="classification-location-chip">{% if localizacao_atual %}Local: {{ localizacao_atual }}{% else %}Local pendente{% endif %}</span>
-                            </div>
-                        </section>
-
                         <div class="classification-studio-grid">
                             <section class="classification-studio-panel classification-studio-panel--categories">
                                 <span class="inventory-help-row">
                                     <label class="form-label" for="categoria">Categoria</label>
                                     <button type="button" class="inventory-help-icon" data-galint-help-tooltip data-bs-toggle="tooltip" title="Escolha a categoria oficial que vai refletir em dashboard, filtros, KPIs e automações do estoque." aria-label="Ajuda sobre categoria">?</button>
                                 </span>
-                                <p class="classification-field-note">
-                                    Selecione a categoria oficial do item. Ela reaparece em toda a leitura operacional e financeira do sistema.
-                                </p>
                                 <div class="inventory-category-select">
                                     <select class="form-select inventory-hidden-native-select" id="categoria" name="categoria" required>
                                         {% for choice in category_options %}
@@ -2869,45 +2854,17 @@
                             </section>
 
                             <section class="classification-studio-panel classification-studio-panel--location">
-                                <div>
-                                    <div class="inventory-ops-eyebrow">Resumo vivo</div>
-                                    <div class="classification-live-title" id="classification-live-title">{{ categoria }} governa este item</div>
-                                    <div class="classification-live-line" id="classification-live-line">
-                                        {% if localizacao_atual %}
-                                        Este item será encontrado em {{ localizacao_atual }}. A categoria selecionada reaparece nos filtros, cards e indicadores do estoque.
-                                        {% else %}
-                                        Defina uma localização curta para agilizar conferência, separação e reposição operacional.
-                                        {% endif %}
-                                    </div>
-                                </div>
-
                                 <div class="classification-location-card">
                                     <span class="inventory-help-row">
                                         <label class="form-label" for="localizacao">Localização</label>
                                         <button type="button" class="inventory-help-icon" data-galint-help-tooltip data-bs-toggle="tooltip" title="Use uma referência curta e operacional, como corredor, estante, box ou área de guarda do item." aria-label="Ajuda sobre localização">?</button>
                                     </span>
                                     <input class="form-control" id="localizacao" name="localizacao" placeholder="Ex: Almoxarifado A · Prateleira 03" value="{{ localizacao_atual }}">
-                                    <div class="form-text">Prefira um nome curto e estável. Isso melhora busca, conferência física e reposição.</div>
                                 </div>
 
-                                <div class="inventory-category-summary classification-category-summary" id="category-visual-note"></div>
-
-                                <div class="classification-location-note">
-                                    <strong>Leitura rápida</strong>
-                                    A categoria organiza o item no sistema. A localização orienta onde o time encontra esse material no estoque sem abrir telas extras.
-                                </div>
                             </section>
                         </div>
 
-                        <div class="inventory-category-legend classification-category-legend">
-                        {% set legend_items = category_visual_catalog %}
-                        {% set legend_kicker = 'Paleta oficial' %}
-                        {% set legend_title = 'Categorias que governam o estoque' %}
-                        {% set legend_note = 'A cor escolhida aqui reaparece nos cards, filtros e KPIs financeiros do sistema.' %}
-                        {% set legend_badge = 'Padrao unico' %}
-                        {% set legend_compact = true %}
-                        {% include 'partials/category_visual_legend.html' %}
-                        </div>
                     </div>
 
                     <!-- Campos condicionais: Ferramentas -->
@@ -2924,14 +2881,12 @@
                                 <input class="form-control serie-modelo-field" id="numero_serie_ferramenta" name="numero_serie" 
                                     value="{{ form_item.numero_serie if form_item and form_item.numero_serie else '' }}"
                                     placeholder="Ex: SN123456">
-                                <small class="form-text">Número de série do fabricante</small>
                             </div>
                             <div class="form-group">
                                 <label class="form-label" for="modelo_ferramenta">Modelo</label>
                                 <input class="form-control serie-modelo-field" id="modelo_ferramenta" name="modelo"
                                     value="{{ form_item.modelo if form_item and form_item.modelo else '' }}"
                                     placeholder="Ex: Pro-2024, X-500">
-                                <small class="form-text">Modelo ou versão do equipamento</small>
                             </div>
                         </div>
                     </div>
@@ -2966,7 +2921,6 @@
                         <section class="inventory-ops-card is-highlight">
                             <div class="inventory-ops-card-header">
                                 <div>
-                                    <div class="inventory-ops-eyebrow">Leitura operacional</div>
                                     <h3 class="section-title" style="margin-bottom: 0;">📦 Saldo do item</h3>
                                 </div>
                                 {% if tem_embalagem %}
@@ -3018,19 +2972,11 @@
                                 {% endif %}
                             </div>
                             {% endif %}
-                            <div class="inventory-ops-caption">
-                                {% if stock_projection %}
-                                O saldo acima separa o que já existe hoje, a entrada do documento <strong>{{ stock_projection.document_reference }}</strong> e quanto o item passará a ter após o lançamento. A edição manual continua bloqueada e a incorporação do estoque segue pela página <strong>Documentos Fiscais</strong>.
-                                {% else %}
-                                Saldo bloqueado para edição manual. As entradas devem ser registradas em <strong>Documentos Fiscais</strong>{% if tem_embalagem %}, onde a compra entra em <strong>{{ nome_embalagem }}</strong> e a conversão para a unidade interna é aplicada automaticamente{% endif %}.
-                                {% endif %}
-                            </div>
                         </section>
 
                         <section class="inventory-ops-card">
                             <div class="inventory-ops-card-header">
                                 <div>
-                                    <div class="inventory-ops-eyebrow">Ledger e saldo</div>
                                     <h3 class="section-title" style="margin-bottom: 0;">🧭 Unidade base</h3>
                                 </div>
                             </div>
@@ -3052,75 +2998,24 @@
                                     </label>
                                     {% endfor %}
                                 </div>
-                                <small class="form-text field-help-hidden">Unidade canônica do ledger e do saldo físico. Use Par para itens como luvas e botas.</small>
                                 {% if form_item and form_item.unidade and form_item.unidade != unidade_atual %}
-                                <small class="form-text text-warning">Valor legado detectado: {{ form_item.unidade }}. O formulário agora opera com a unidade base {{ unidade_atual }}.</small>
+                                <small class="form-text text-warning">Unidade antiga: {{ form_item.unidade }}</small>
                                 {% endif %}
-                            </div>
-                            <div class="inventory-ops-chip-row">
-                                <span class="inventory-ops-chip">Ledger em {{ unidade_atual }}</span>
-                                {% if tem_embalagem %}
-                                <span class="inventory-ops-chip">Compra em {{ nome_embalagem }}</span>
-                                {% endif %}
-                                <span class="inventory-ops-chip">Fracionamento controlado</span>
                             </div>
                         </section>
                     </div>
 
-                    {% if tem_embalagem %}
-                    <div class="inventory-ops-flow">
-                        <div class="inventory-ops-step">
-                            <strong>Compra documental</strong>
-                            {% if stock_projection %}
-                            {{ stock_projection.incoming_document_display }} chegam por {{ stock_projection.document_reference }} e entram primeiro na leitura documental do item.
-                            {% else %}
-                            A quantidade do documento entra em {{ nome_embalagem }} e não altera manualmente este formulário.
-                            {% endif %}
-                        </div>
-                        <div class="inventory-ops-step">
-                            <strong>Conversão automática</strong>
-                            {% if stock_projection and stock_projection.incoming_conversion_display %}
-                            {{ stock_projection.incoming_conversion_display }}.
-                            {% else %}
-                            Cada {{ nome_embalagem }} equivale a <strong>{{ conteudo_embalagem }}</strong> {{ unidade_total_ean }}.
-                            {% endif %}
-                        </div>
-                        <div class="inventory-ops-step">
-                            <strong>{% if stock_projection %}Saldo projetado{% else %}Leitura do saldo{% endif %}</strong>
-                            {% if stock_projection %}
-                            Após a entrada, o item ficará em <strong>{{ stock_projection.projected_operational_display }}</strong> e o código completo irá para <strong>{{ stock_projection.projected_total_ean_display }}</strong>.
-                            {% else %}
-                            O sistema separa o estoque fechado da parte aberta exibida como <strong>{{ label_solta|lower }}</strong>.
-                            {% endif %}
-                        </div>
-                    </div>
-                    {% endif %}
-
-                    <div class="inventory-ops-note">
-                        <strong>Reposição mínima.</strong> O estoque mínimo continua automático em 5% do saldo atual e segue alimentando os alertas do dashboard.
-                    </div>
-
                     {% if (saldo_total_ean is not none and saldo_total_ean > 0) or stock_projection %}
                     <!-- Card de Saldo Total por EAN -->
-                    <div class="conversion-preview" style="display: block; background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border-left-color: var(--success-green);">
-                        <strong style="color: var(--success-green); font-size: 1rem;">📦 {% if stock_projection %}Saldo Total Interno Projetado{% else %}Saldo Total Interno{% endif %} (mesmo EAN)</strong>
-                        <div style="font-size: 1.5rem; font-weight: 700; color: var(--gray-900); margin-top: 0.5rem;">
+                    <div class="conversion-preview" style="display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.75rem; padding: 0.5rem 0.85rem; margin-top: 0.6rem; background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border-left-color: var(--success-green);">
+                        <strong style="color: var(--success-green); font-size: 0.9rem;">{% if stock_projection %}Saldo total interno projetado{% else %}Saldo total interno{% endif %} (mesmo EAN)</strong>
+                        <span style="font-size: 1.1rem; font-weight: 700; color: var(--gray-900);">
                             {% if stock_projection %}
                             {{ stock_projection.projected_total_ean_display }}
                             {% else %}
                             {{ saldo_total_ean }} {{ unidade_total_ean }}
                             {% endif %}
-                        </div>
-                        <small style="color: var(--gray-700); font-size: 0.85rem; display: block; margin-top: 0.25rem;">
-                            {% if stock_projection %}
-                            Atual do código: <strong>{{ stock_projection.current_total_ean_display }}</strong>. Entrada documental: <strong>{{ stock_projection.incoming_base_display }}</strong>. Após salvar/processar, o código <strong>{{ form_item.codigo }}</strong> ficará com esse total interno projetado.
-                            {% elif item %}
-                            Total convertido para a unidade interna do item. Soma de todos os lotes com o código <strong>{{ form_item.codigo }}</strong>.
-                            {% else %}
-                            ⚠️ Já existem lotes deste produto no sistema. Este valor representa o total interno somado entre eles.
-                            {% endif %}
-                            {% if tem_embalagem %} Não representa quantidade de {{ nome_embalagem }}s.{% endif %}
-                        </small>
+                        </span>
                     </div>
                     {% endif %}
                 </div>
@@ -3136,56 +3031,26 @@
                     {% set tipo_documento_tab = form_item.finance_tipo_documento if form_item and form_item.finance_tipo_documento else 'Sem documento' %}
                     {% set comprovacao_status_tab = form_item.finance_comprovacao_status if form_item and form_item.finance_comprovacao_status else 'sem_comprovacao' %}
                     <div class="tab-studio">
-                        <section class="tab-studio-hero finance-studio-hero">
-                            <div class="finance-studio-hero-main">
-                                <div class="inventory-ops-eyebrow">Leitura financeira</div>
-                                <h3 class="section-title" style="margin-bottom: 0.35rem;">💰 Origem, documento e preços</h3>
-                                <p class="form-text" style="margin: 0;">
-                                    Consolide a origem do valor, o documento de compra e os preços que alimentam o financeiro e o histórico do item. A trava operacional continua preservada.
-                                </p>
-                                <div class="finance-studio-kpis">
-                                    <div class="finance-studio-kpi">
-                                        <div class="finance-studio-kpi-label">Seção</div>
-                                        <div class="finance-studio-kpi-value">{% if finance_locked %}Protegida{% else %}Liberada{% endif %}</div>
-                                    </div>
-                                    <div class="finance-studio-kpi">
-                                        <div class="finance-studio-kpi-label">Fornecedor</div>
-                                        <div class="finance-studio-kpi-value">{% if preferred_supplier %}{{ preferred_supplier.nome_exibicao }}{% else %}Pendente{% endif %}</div>
-                                    </div>
-                                    <div class="finance-studio-kpi">
-                                        <div class="finance-studio-kpi-label">Origem</div>
-                                        <div class="finance-studio-kpi-value">{% if origem_documental %}Documental{% else %}Manual ou estimada{% endif %}</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="tab-studio-hero-actions finance-studio-hero-side">
-                                <div class="tab-studio-action-row">
-                                    {% if item %}
-                                    <button class="btn btn-secondary btn-sm" type="button" id="btn-finance-section-edit">
-                                        <i class="bi bi-pencil-square me-1"></i>
-                                        {% if finance_section_can_edit %}Seção liberada{% else %}Editar seção{% endif %}
-                                    </button>
-                                    <input type="hidden" id="finance_section_edit_enabled" name="finance_section_edit_enabled" value="{{ '1' if finance_section_can_edit else '0' }}">
-                                    {% endif %}
-                                    {% if item and item.codigo and not finance_locked %}
-                                    <button class="btn btn-sm btn-outline-primary" type="button" id="btn-buscar-preco-form"
-                                        data-preco-codigo="{{ item.codigo|e }}"
-                                        data-preco-descricao="{{ form_item.descricao|e if form_item and form_item.descricao else '' }}"
-                                        data-preco-marca="{{ form_item.marca|e if form_item and form_item.marca else '' }}"
-                                        data-preco-tipo="{{ form_item.tipo_embalagem_novo|e if form_item and form_item.tipo_embalagem_novo else '' }}"
-                                        data-preco-unidades="{{ form_item.unidades_por_embalagem if form_item and form_item.unidades_por_embalagem is not none else '' }}"
-                                        onclick="window.openPriceModalFromForm(event)">
-                                        <i class="bi bi-search me-1"></i> Buscar preco...
-                                    </button>
-                                    {% endif %}
-                                </div>
-                                <div class="inventory-ops-chip-row">
-                                    <span class="inventory-ops-chip">{% if finance_locked %}Seção protegida{% else %}Seção liberada{% endif %}</span>
-                                    <span class="inventory-ops-chip">{% if supplier_defined %}Fornecedor vinculado{% else %}Fornecedor pendente{% endif %}</span>
-                                    <span class="inventory-ops-chip">{% if origem_documental %}Origem documental{% else %}Origem manual ou estimada{% endif %}</span>
-                                </div>
-                            </div>
-                        </section>
+                        {% if item %}
+                        <div class="d-flex flex-wrap gap-2 justify-content-end">
+                            <button class="btn btn-secondary btn-sm" type="button" id="btn-finance-section-edit">
+                                <i class="bi bi-pencil-square me-1"></i>
+                                {% if finance_section_can_edit %}Seção liberada{% else %}Editar seção{% endif %}
+                            </button>
+                            <input type="hidden" id="finance_section_edit_enabled" name="finance_section_edit_enabled" value="{{ '1' if finance_section_can_edit else '0' }}">
+                            {% if item.codigo and not finance_locked %}
+                            <button class="btn btn-sm btn-outline-primary" type="button" id="btn-buscar-preco-form"
+                                data-preco-codigo="{{ item.codigo|e }}"
+                                data-preco-descricao="{{ form_item.descricao|e if form_item and form_item.descricao else '' }}"
+                                data-preco-marca="{{ form_item.marca|e if form_item and form_item.marca else '' }}"
+                                data-preco-tipo="{{ form_item.tipo_embalagem_novo|e if form_item and form_item.tipo_embalagem_novo else '' }}"
+                                data-preco-unidades="{{ form_item.unidades_por_embalagem if form_item and form_item.unidades_por_embalagem is not none else '' }}"
+                                onclick="window.openPriceModalFromForm(event)">
+                                <i class="bi bi-search me-1"></i> Buscar preço
+                            </button>
+                            {% endif %}
+                        </div>
+                        {% endif %}
 
                         <div class="finance-studio-grid">
                             <section class="tab-studio-panel tab-studio-panel--stack">
@@ -3202,7 +3067,6 @@
                                                     value="{{ preferred_supplier.id if preferred_supplier else (form_item.finance_supplier_id if form_item and form_item.finance_supplier_id else '') }}">
                                                 <div class="autocomplete-panel" id="finance_supplier_results"></div>
                                             </div>
-                                            <small class="form-text">O sistema reutiliza essa loja nas próximas entradas do item.</small>
                                         </div>
                                         <div class="form-group">
                                             <label class="form-label" for="finance_origem_valor">Origem do valor</label>
@@ -3255,14 +3119,12 @@
                                                 <label class="form-label" for="preco_compra_unitario">Preço de compra (R$)</label>
                                                 <input class="form-control" id="preco_compra_unitario" name="preco_compra_unitario" type="number" step="0.01" min="0"
                                                     value="{{ form_item.preco_compra_unitario if form_item and form_item.preco_compra_unitario is not none else '' }}" {% if finance_locked %}readonly{% endif %}>
-                                                <small class="form-text">Informe o preço unitário na unidade selecionada ao lado. O sistema converte automaticamente para a unidade base.</small>
                                             </div>
                                             <div class="form-group">
                                                 <label class="form-label" for="preco_compra_unidade_preco">Unidade do preço</label>
                                                 <select class="form-select" id="preco_compra_unidade_preco" name="preco_compra_unidade_preco"
                                                     data-initial-value="{{ form_item.preco_compra_unidade_preco if form_item and form_item.preco_compra_unidade_preco else '' }}" {% if finance_locked %}disabled{% endif %}>
                                                 </select>
-                                                <small class="form-text">Use a unidade em que o valor foi cotado ou lançado no documento.</small>
                                             </div>
                                             <div class="form-group">
                                                 <label class="form-label" for="preco_compra_fonte">Fonte (compra)</label>
@@ -3274,7 +3136,6 @@
                                                     <option value="Manual" {% if compra_fonte=='Manual' %}selected{% endif %}>Manual</option>
                                                     <option value="Estimado" {% if compra_fonte=='Estimado' %}selected{% endif %}>Estimado</option>
                                                 </select>
-                                                <small class="form-text">Opcional, para auditoria.</small>
                                             </div>
                                         </div>
 
@@ -3283,9 +3144,6 @@
                                             <input class="form-control" id="preco_compra_documento" name="preco_compra_documento"
                                                 value="{{ form_item.preco_compra_documento if form_item and form_item.preco_compra_documento else '' }}"
                                                 placeholder="Ex.: NF 12345 / Cupom 000123" {% if finance_locked %}readonly{% endif %}>
-                                            {% if not finance_locked %}
-                                            <small class="form-text">Ao salvar um novo item com esse documento, o sistema cria ou atualiza o vínculo em Documentos Fiscais. Para NF nova, informe fornecedor, chave de acesso e data de emissão. Para cupom, a chave de acesso não é obrigatória.</small>
-                                            {% endif %}
                                         </div>
 
                                         <div class="form-row">
@@ -3294,7 +3152,6 @@
                                                 <input class="form-control" id="preco_compra_chave_acesso" name="preco_compra_chave_acesso"
                                                     value="{{ form_item.preco_compra_chave_acesso if form_item and form_item.preco_compra_chave_acesso else '' }}"
                                                     placeholder="44 dígitos da NF-e / NFC-e" {% if finance_locked %}readonly{% endif %}>
-                                                <small class="form-text">Obrigatória para NF-e/NFC-e. Para cupom, pode ficar em branco.</small>
                                             </div>
                                             <div class="form-group">
                                                 <label class="form-label" for="preco_compra_data_emissao">Data de emissão</label>
@@ -3308,70 +3165,29 @@
                                                 <label class="form-label" for="preco_compra_data_recebimento">Data de recebimento</label>
                                                 <input class="form-control" id="preco_compra_data_recebimento" name="preco_compra_data_recebimento" type="date"
                                                     value="{{ form_item.preco_compra_data_recebimento if form_item and form_item.preco_compra_data_recebimento else '' }}" {% if finance_locked %}readonly{% endif %}>
-                                                <small class="form-text">Use quando a entrega não aconteceu no mesmo dia da emissão.</small>
                                             </div>
                                             <div class="form-group">
                                                 <label class="form-label" for="nota_fiscal_finance_hint">Atalho do documento</label>
                                                 <input class="form-control" id="nota_fiscal_finance_hint" value="{{ form_item.nota_fiscal if form_item else '' }}" readonly>
-                                                <small class="form-text">O número informado acima também será refletido no campo de identificação do item.</small>
                                             </div>
                                         </div>
                                     </div>
 
                                 </div>
-
-                                <div class="form-group" style="margin-top: 1rem;">
-                                    <label class="form-label" for="finance_observacao">Observação financeira</label>
-                                    <textarea class="form-control" id="finance_observacao" name="finance_observacao" rows="2"
-                                        placeholder="Ex.: compra emergencial, saldo anterior sem comprovante, valor estimado pela diretoria" {% if finance_locked %}readonly{% endif %}>{{ form_item.finance_observacao if form_item and form_item.finance_observacao else '' }}</textarea>
-                                    <small class="form-text">Obrigatória para cadastros sem comprovação fiscal ou parcialmente comprovados.</small>
-                                </div>
                             </section>
 
                             <section class="tab-studio-panel tab-studio-panel--stack">
-                                <div>
-                                    <div class="inventory-ops-eyebrow">Síntese operacional</div>
-                                    <h4 class="tab-studio-panel-title">Situação da seção</h4>
-                                    <p class="tab-studio-panel-copy">Aqui fica a leitura rápida de travas, fornecedor e documento, aproveitando a coluna lateral em vez de deixar área vazia.</p>
-                                </div>
 
                                 <div class="finance-studio-alerts">
                                     {% if item %}
-                                    <div class="alert alert-info">
-                                        Novas compras e entradas de estoque deste item agora são incorporadas somente pela página <strong>Documentos Fiscais</strong>.
-                                    </div>
-                                    {% endif %}
-                                    {% if item %}
                                     <div class="alert {% if finance_locked %}alert-secondary{% else %}alert-info{% endif %}" id="finance-section-edit-status">
-                                        {% if finance_locked %}
-                                        Os campos financeiros ficam bloqueados por padrão na edição. Use <strong>Editar seção</strong> para liberar a área. Administradores podem editar direto; demais usuários precisam informar matrícula e senha de um administrador.
-                                        {% else %}
-                                        A seção financeira está liberada para edição e abre com a última configuração salva do item.
-                                        {% endif %}
+                                        {% if finance_locked %}Seção bloqueada.{% else %}Seção liberada.{% endif %}
                                     </div>
                                     {% endif %}
-                                </div>
-
-                                <div class="finance-studio-summary-list">
-                                    <div class="finance-studio-summary-item">
-                                        <strong>Fornecedor atual</strong>
-                                        <span>{% if preferred_supplier %}{{ preferred_supplier.nome_exibicao }}{% else %}Nenhum fornecedor principal vinculado ainda.{% endif %}</span>
-                                    </div>
-                                    <div class="finance-studio-summary-item">
-                                        <strong>Documento</strong>
-                                        <span>{{ tipo_documento_tab|replace('_', ' ')|capitalize }}</span>
-                                    </div>
-                                    <div class="finance-studio-summary-item">
-                                        <strong>Comprovação</strong>
-                                        <span>{{ comprovacao_status_tab|replace('_', ' ')|capitalize }}</span>
-                                    </div>
                                 </div>
 
                                 <div class="section" style="margin-top: 0;">
                                     <h3 class="section-title">🧾 Preço de reposição</h3>
-                                    <p class="form-text" style="margin-top: -0.5rem;">
-                                        Use quando não houver comprovante ou para comparar “quanto custaria recomprar hoje”.
-                                    </p>
                                 </div>
 
                                 <div class="form-row">
@@ -3379,21 +3195,18 @@
                                         <label class="form-label" for="preco_reposicao_unitario">Preço de reposição (R$)</label>
                                         <input class="form-control" id="preco_reposicao_unitario" name="preco_reposicao_unitario" type="number" step="0.01" min="0"
                                             value="{{ form_item.preco_reposicao_unitario if form_item and form_item.preco_reposicao_unitario is not none else '' }}" {% if finance_locked %}readonly{% endif %}>
-                                        <small class="form-text">Informe o preço unitário na unidade selecionada ao lado. Pode ser preenchido manualmente ou via “Buscar preço…” no modal do item.</small>
                                     </div>
                                     <div class="form-group">
                                         <label class="form-label" for="preco_reposicao_unidade_preco">Unidade do preço</label>
                                         <select class="form-select" id="preco_reposicao_unidade_preco" name="preco_reposicao_unidade_preco"
                                             data-initial-value="{{ form_item.preco_reposicao_unidade_preco if form_item and form_item.preco_reposicao_unidade_preco else '' }}" {% if finance_locked %}disabled{% endif %}>
                                         </select>
-                                        <small class="form-text">Escolha a unidade da cotação de mercado ou do valor manual informado.</small>
                                     </div>
                                     <div class="form-group">
                                         <label class="form-label" for="preco_reposicao_uf">UF</label>
                                         <input class="form-control" id="preco_reposicao_uf" name="preco_reposicao_uf" maxlength="2"
                                             value="{{ form_item.preco_reposicao_uf if form_item and form_item.preco_reposicao_uf else '' }}"
                                             placeholder="Ex.: SP" {% if finance_locked %}readonly{% endif %}>
-                                        <small class="form-text">Ajuda a manter o preço mais próximo do mercado local.</small>
                                     </div>
                                 </div>
 
@@ -3414,6 +3227,13 @@
 
                                 <input type="hidden" id="preco_reposicao_query" name="preco_reposicao_query"
                                     value="{{ form_item.preco_reposicao_query if form_item and form_item.preco_reposicao_query else '' }}">
+
+                                {# Observação financeira na coluna da direita (24/11/2026): equilibra as duas colunas. #}
+                                <div class="form-group mb-0">
+                                    <label class="form-label" for="finance_observacao">Observação financeira</label>
+                                    <textarea class="form-control" id="finance_observacao" name="finance_observacao" rows="2"
+                                        placeholder="Ex.: compra emergencial, saldo anterior sem comprovante, valor estimado pela diretoria" {% if finance_locked %}readonly{% endif %}>{{ form_item.finance_observacao if form_item and form_item.finance_observacao else '' }}</textarea>
+                                </div>
                             </section>
                         </div>
                     </div>
@@ -3422,40 +3242,18 @@
             <!-- Tab 3: Rastreabilidade -->
                 <div class="tab-pane" id="tab-rastreabilidade">
                     <div class="tab-studio">
-                        <section class="tab-studio-hero">
-                            <div class="tab-studio-hero-copy">
-                                <div class="inventory-ops-eyebrow">Rastreabilidade do lote</div>
-                                <h3 class="section-title" style="margin-bottom: 0.35rem;">🧭 Entrada, lote e validade</h3>
-                                <p class="form-text" style="margin: 0;">
-                                    Registre os marcos do lote para auditoria, vencimento e leitura operacional. Os campos podem ficar vazios quando o item realmente não exigir rastreio formal.
-                                </p>
-                            </div>
-                            <div class="inventory-ops-chip-row">
-                                <span class="inventory-ops-chip">{% if form_item and form_item.lote %}Lote definido{% else %}Lote pendente{% endif %}</span>
-                                <span class="inventory-ops-chip">{% if form_item and form_item.data_validade %}Validade definida{% else %}Validade aberta{% endif %}</span>
-                                <span class="inventory-ops-chip">{% if form_item and form_item.data_entrada %}Entrada registrada{% else %}Entrada pendente{% endif %}</span>
-                            </div>
-                        </section>
-
                         <div class="tab-studio-grid tab-studio-grid--compact">
                             <section class="tab-studio-panel tab-studio-panel--stack">
-                                <div>
-                                    <div class="inventory-ops-eyebrow">Controle de origem</div>
-                                    <h4 class="tab-studio-panel-title">Entrada e lote</h4>
-                                    <p class="tab-studio-panel-copy">Use este bloco para registrar quando o lote entrou e qual identificador acompanha o produto no documento ou na embalagem.</p>
-                                </div>
                                 <div class="form-row">
                                     <div class="form-group">
                                         <label class="form-label" for="data_entrada">Data de Entrada</label>
                                         <input class="form-control rastreabilidade-field" id="data_entrada" name="data_entrada" type="date"
                                             value="{{ form_item.data_entrada if form_item and form_item.data_entrada else '' }}">
-                                        <small class="form-text">Data de entrada do lote</small>
                                     </div>
                                     <div class="form-group">
                                         <label class="form-label" for="lote">Lote</label>
                                         <input class="form-control" id="lote" name="lote"
                                             value="{{ form_item.lote if form_item and form_item.lote else '' }}">
-                                        <small class="form-text">Informe o lote quando existir. Se não houver, use o botão de lote automático.</small>
                                         {% if not form_item or not form_item.lote %}
                                         <div class="form-check" style="margin-top: 0.5rem;">
                                             <input class="form-check-input" type="checkbox" id="gerar-lote-automatico" name="gerar_lote_automatico">
@@ -3469,17 +3267,11 @@
                             </section>
 
                             <section class="tab-studio-panel tab-studio-panel--stack">
-                                <div>
-                                    <div class="inventory-ops-eyebrow">Ciclo do produto</div>
-                                    <h4 class="tab-studio-panel-title">Fabricação e validade</h4>
-                                    <p class="tab-studio-panel-copy">Preencha quando o fabricante informar datas formais. Para materiais sem vencimento definido, use a opção de validade indeterminada.</p>
-                                </div>
                                 <div class="form-row">
                                     <div class="form-group">
                                         <label class="form-label" for="data_fabricacao">Data de Fabricação</label>
                                         <input class="form-control rastreabilidade-field" id="data_fabricacao" name="data_fabricacao" type="date"
                                             value="{{ form_item.data_fabricacao if form_item and form_item.data_fabricacao else '' }}">
-                                        <small class="form-text">Informe a data de fabricação quando aplicável</small>
                                     </div>
                                     <div class="form-group">
                                         <label class="form-label" for="data_validade">Data de Validade</label>
@@ -3502,73 +3294,43 @@
             <!-- Tab 4: Equipamentos/Máquinas -->
                 <div class="tab-pane" id="tab-equipamento">
                     <div class="tab-studio">
-                        <section class="tab-studio-hero">
-                            <div class="tab-studio-hero-copy">
-                                <div class="inventory-ops-eyebrow">Dados técnicos</div>
-                                <h3 class="section-title" style="margin-bottom: 0.35rem;">⚙️ Equipamento e instalação</h3>
-                                <p class="form-text" style="margin: 0;">
-                                    Quando o item for equipamento, registre os dados técnicos e o ponto de instalação para facilitar manutenção, retirada e conferência patrimonial.
-                                </p>
-                            </div>
-                            <div class="inventory-ops-chip-row">
-                                <span class="inventory-ops-chip">{% if form_item and form_item.modelo %}Modelo informado{% else %}Modelo pendente{% endif %}</span>
-                                <span class="inventory-ops-chip">{% if form_item and form_item.numero_serie %}Serial informado{% else %}Serial pendente{% endif %}</span>
-                                <span class="inventory-ops-chip">{% if form_item and form_item.local_instalacao %}Local mapeado{% else %}Local pendente{% endif %}</span>
-                            </div>
-                        </section>
-
                         <div class="tab-studio-grid tab-studio-grid--compact">
                             <section class="tab-studio-panel tab-studio-panel--stack">
-                                <div>
-                                    <div class="inventory-ops-eyebrow">Identificação técnica</div>
-                                    <h4 class="tab-studio-panel-title">Modelo e número de série</h4>
-                                    <p class="tab-studio-panel-copy">Use os dados do fabricante ou da placa do equipamento para manter o cadastro rastreável.</p>
-                                </div>
                                 <div class="form-row">
                                     <div class="form-group">
                                         <label class="form-label" for="modelo">Modelo</label>
                                         <input class="form-control equipamento-field" id="modelo" name="modelo"
                                             value="{{ form_item.modelo if form_item and form_item.modelo else '' }}"
                                             placeholder="Ex: XYZ-2000, Modelo A, V3.2">
-                                        <small class="form-text">Modelo ou versão do equipamento</small>
                                     </div>
                                     <div class="form-group">
                                         <label class="form-label" for="numero_serie">Serial Number</label>
                                         <input class="form-control equipamento-field" id="numero_serie" name="numero_serie"
                                             value="{{ form_item.numero_serie if form_item and form_item.numero_serie else '' }}"
                                             placeholder="Ex: ABC123456, SN-2024-001">
-                                        <small class="form-text">Número de série único do equipamento</small>
                                     </div>
                                 </div>
                             </section>
 
                             <section class="tab-studio-panel tab-studio-panel--stack">
-                                <div>
-                                    <div class="inventory-ops-eyebrow">Operação elétrica</div>
-                                    <h4 class="tab-studio-panel-title">Rede e instalação</h4>
-                                    <p class="tab-studio-panel-copy">Detalhe alimentação elétrica e o local de uso para apoiar instalação, retirada e assistência.</p>
-                                </div>
                                 <div class="form-row">
                                     <div class="form-group">
                                         <label class="form-label" for="voltagem">Voltagem</label>
                                         <input class="form-control equipamento-field" id="voltagem" name="voltagem"
                                             value="{{ form_item.voltagem if form_item and form_item.voltagem else '' }}"
                                             placeholder="Ex: 220V, 380V, 12V">
-                                        <small class="form-text">Voltagem de operação do equipamento</small>
                                     </div>
                                     <div class="form-group">
                                         <label class="form-label" for="amperagem">Amperagem</label>
                                         <input class="form-control equipamento-field" id="amperagem" name="amperagem"
                                             value="{{ form_item.amperagem if form_item and form_item.amperagem else '' }}"
                                             placeholder="Ex: 10A, 5.5A, 220mA">
-                                        <small class="form-text">Corrente elétrica consumida</small>
                                     </div>
                                 </div>
                                 <div class="form-group mb-0">
                                     <label class="form-label" for="local_instalacao">Local da Instalação/Retirada</label>
                                     <textarea class="form-control equipamento-field" id="local_instalacao" name="local_instalacao" rows="3"
                                         placeholder="Descreva onde o equipamento foi/será instalado ou retirado">{{ form_item.local_instalacao if form_item and form_item.local_instalacao else '' }}</textarea>
-                                    <small class="form-text">Local específico de instalação, setor, sala, coordenadas, etc.</small>
                                 </div>
                             </section>
                         </div>
@@ -3596,30 +3358,12 @@
                     {% endif %}
 
                     <div class="packaging-studio">
-                        <section class="packaging-studio-hero">
-                            <div class="packaging-studio-hero-copy">
-                                <div class="inventory-ops-eyebrow">Modo operacional</div>
-                                <h3 class="section-title" style="margin-bottom: 0.35rem;">📦 Embalagem e conversões</h3>
-                                <p class="form-text" style="margin: 0;">
-                                    Defina como o item entra no documento e como essa leitura é convertida para o estoque. O ledger e o saldo interno continuam em <strong>{{ unidade_base_exibicao }}</strong>.
-                                </p>
-                            </div>
-                            <div class="inventory-ops-chip-row">
-                                <span class="inventory-ops-chip" id="packaging-base-chip">Base: {{ unidade_base_exibicao }}</span>
-                                <span class="inventory-ops-chip" id="packaging-mode-chip">{% if tipo_emb_novo %}Compra em {{ tipo_emb_novo|capitalize }}{% else %}Sem embalagem{% endif %}</span>
-                                <span class="inventory-ops-chip" id="packaging-content-chip">{% if val_inicial %}Conteúdo definido{% else %}Conteúdo pendente{% endif %}</span>
-                            </div>
-                        </section>
-
                         <div class="packaging-studio-grid">
                             <section class="packaging-studio-panel">
                                 <span class="inventory-help-row">
                                     <label class="form-label">Tipo de Embalagem</label>
                                     <button type="button" class="inventory-help-icon" data-galint-help-tooltip data-bs-toggle="tooltip" title="Escolha só a embalagem operacional da compra. Use Nenhum quando a NF já vier na mesma unidade interna do item." aria-label="Ajuda sobre tipo de embalagem">?</button>
                                 </span>
-                                <p class="form-text field-help-hidden" style="margin-bottom: 0.9rem;">
-                                    Escolha só a embalagem operacional da compra. Use <strong>Nenhum</strong> quando a NF já vier na mesma unidade interna do item.
-                                </p>
                                 <div class="packaging-radio-grid">
                                     <div class="form-check packaging-radio-card">
                                         <input class="form-check-input" type="radio" name="tipo_embalagem_novo" id="tipo_novo_lata" value="lata" {% if tipo_emb_novo=='lata' %}checked{% endif %}>
@@ -3666,26 +3410,12 @@
                                 </div>
                                 {% if tipo_emb_novo == 'litro' %}
                                 <div class="inventory-ops-note is-warning" style="margin-top: 0.9rem;">
-                                    Cadastro legado em litro mantido por compatibilidade. Para novos recipientes, prefira Lata, Balde ou Bombona; deixe Litro só para frascos antigos de 500ml, 900ml e 1L.
+                                    Litro legado.
                                 </div>
                                 {% endif %}
                             </section>
 
                             <section class="packaging-studio-panel packaging-studio-summary">
-                                <div>
-                                    <div class="inventory-ops-eyebrow">Resumo vivo</div>
-                                    <div class="packaging-live-title" id="packaging-live-title">
-                                        {% if tipo_emb_novo %}{{ tipo_emb_novo|capitalize }} convertida para {{ unidade_base_exibicao }}{% else %}Sem embalagem operacional{% endif %}
-                                    </div>
-                                    <div class="packaging-live-line" id="packaging-live-line">
-                                        {% if tipo_emb_novo and val_inicial %}
-                                        Cada {{ tipo_emb_novo }} registrada no documento será convertida para a unidade base do item.
-                                        {% else %}
-                                        Escolha a embalagem documental e informe o conteúdo para completar a regra de conversão automática.
-                                        {% endif %}
-                                    </div>
-                                </div>
-
                                 <div id="unidade-embalagem-field" style="display: none; margin-top: 0;">
                                     <span class="inventory-help-row">
                                         <label class="form-label">Unidade do conteúdo da embalagem</label>
@@ -3735,14 +3465,8 @@
                                         <label class="form-label" style="margin-bottom: 0.2rem;">Grandezas e conversões avançadas</label>
                                         <button type="button" class="inventory-help-icon" data-galint-help-tooltip data-bs-toggle="tooltip" title="Cadastre unidades extras como Par, Caixa ou Lata e relacione cada uma com a base do item sem mexer no ledger principal." aria-label="Ajuda sobre grandezas e conversões avançadas">?</button>
                                     </span>
-                                    <small class="form-text field-help-hidden">Cadastre unidades extras como Par, Caixa ou Lata e relacione cada uma com a base do item.</small>
                                 </div>
                                 <button type="button" class="btn btn-secondary" id="advanced-units-open-button">Abrir configurações</button>
-                            </div>
-                            <div class="advanced-link-row">
-                                <button type="button" class="dynamic-units-help-link" id="advanced-units-help-open-inline">
-                                    <i class="bi bi-question-circle"></i> Como usar o configurador de unidades dinâmicas
-                                </button>
                             </div>
                             <div id="advanced-unit-summary" class="alert alert-info" style="margin-top: 0.75rem; display: block;">
                                 Nenhuma configuração avançada definida.
@@ -3753,7 +3477,7 @@
             </div>
 
             <div class="modal fade advanced-units-config-modal" id="advancedUnitsModal" tabindex="-1" aria-labelledby="advancedUnitsModalLabel" aria-hidden="true">
-                <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
+                <div class="modal-dialog modal-xl modal-dialog-centered">
                     <div class="modal-content">
                         <div class="modal-header">
                             <h5 class="modal-title" id="advancedUnitsModalLabel">Configurações avançadas de grandezas</h5>
@@ -3763,7 +3487,6 @@
                             <div class="advanced-units-config-layout">
                                 <section class="advanced-units-sidebar">
                                     <label class="form-label">Grandezas habilitadas</label>
-                                    <small class="form-text" style="margin-bottom: 0.85rem;">Escolha as famílias de medida que o item realmente precisa usar.</small>
                                     <div id="advanced-dimensions-list" style="display: grid; gap: 0.5rem;"></div>
                                 </section>
 
@@ -3796,7 +3519,7 @@
             </div>
 
             <div class="modal fade dynamic-units-help-modal" id="dynamicUnitsHelpModal" tabindex="-1" aria-labelledby="dynamicUnitsHelpModalLabel" aria-hidden="true">
-                <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
+                <div class="modal-dialog modal-xl modal-dialog-centered">
                     <div class="modal-content">
                         <div class="modal-header">
                             <h5 class="modal-title" id="dynamicUnitsHelpModalLabel">Guia do configurador de unidades dinâmicas</h5>
@@ -3931,37 +3654,17 @@ Conversão: 1 saco = 20 quilos</div>
             </div>
 
             {% if item and item.codigo %}
-            <div class="section" style="margin-top: 1.5rem; padding: 0 1.5rem;">
-                <h2 class="section-title">Código de barras</h2>
-                <div class="row g-3 align-items-start">
-                    <div class="col-md-7">
-                        <div class="p-3 border rounded bg-white">
-                            <img class="img-fluid" style="max-height: 180px;"
-                                src="{{ url_for('inventory.item_barcode_png', codigo=item.codigo) }}"
-                                alt="Código de barras do item {{ item.codigo }}">
-                        </div>
-                    </div>
-                    <div class="col-md-5">
-                        <div class="d-grid gap-2">
-                            <a class="btn btn-outline-primary btn-sm"
-                                href="{{ url_for('inventory.item_barcode_png', codigo=item.codigo) }}" target="_blank">
-                                Baixar PNG
-                            </a>
-                            <a class="btn btn-outline-secondary btn-sm"
-                                href="{{ url_for('inventory.item_barcode_svg', codigo=item.codigo) }}" target="_blank">
-                                Baixar SVG
-                            </a>
-                        </div>
-                        <small class="form-text">Imprima e fixe no item.</small>
-                    </div>
-                </div>
+            <div class="item-barcode-row">
+                <img src="{{ url_for('inventory.item_barcode_png', codigo=item.codigo) }}" alt="Código de barras do item {{ item.codigo }}">
+                <a class="btn btn-outline-primary btn-sm" href="{{ url_for('inventory.item_barcode_png', codigo=item.codigo) }}" target="_blank">PNG</a>
+                <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('inventory.item_barcode_svg', codigo=item.codigo) }}" target="_blank">SVG</a>
             </div>
             {% endif %}
 
             <!-- Histórico de Edição -->
             {% if form_item and form_item.ultima_edicao_em %}
-            <div style="margin-top: 1.5rem; text-align: center; margin-bottom: 1rem;">
-                <small style="color: green; font-style: italic;">
+            <div class="item-edit-stamp">
+                <small>
                     Item editado <span id="hist-data-edit">{{ form_item.ultima_edicao_em }}</span>
                     {% if form_item.ultima_edicao_por %} por {{ form_item.ultima_edicao_por }}{% endif %}
                 </small>
@@ -4000,7 +3703,6 @@ Conversão: 1 saco = 20 quilos</div>
         <div class="modal-content supplier-gate-modal galint-bs-modal galint-bs-modal--sky">
             <div class="modal-header">
                 <div>
-                    <div class="text-uppercase small fw-semibold text-primary" style="letter-spacing: 0.1em;">Etapa inicial</div>
                     <h5 class="modal-title" id="supplierGateModalLabel">Este item já tem fornecedor cadastrado?</h5>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
@@ -4014,7 +3716,7 @@ Conversão: 1 saco = 20 quilos</div>
                         <div class="supplier-gate-results">
                             <div class="supplier-gate-list" id="supplierGateResults"></div>
                         </div>
-                        <div class="supplier-gate-status" id="supplierGateStatus">Selecione um fornecedor da lista completa ou use a barra de pesquisa para filtrar.</div>
+                        <div class="supplier-gate-status" id="supplierGateStatus"></div>
                         <div class="supplier-gate-actions">
                             <button class="btn btn-primary" type="button" id="supplierGateConfirmButton" disabled>
                                 <i class="bi bi-check2-circle me-1"></i> Usar fornecedor selecionado
@@ -4025,12 +3727,6 @@ Conversão: 1 saco = 20 quilos</div>
                         </div>
                     </div>
                     <div class="supplier-gate-tip">
-                        <div class="tip-title">Por que começar por aqui</div>
-                        <ul>
-                            <li>A NF e o cupom podem preencher dados da empresa mais rápido.</li>
-                            <li>O Financeiro e o Laboratório de Lojas passam a cruzar melhor os preços.</li>
-                            <li>Agora o item pode guardar número do documento, chave de acesso e datas para consulta futura.</li>
-                        </ul>
                         {% if endpoint_exists('config.fornecedores') %}
                         <div class="mt-3">
                             <a class="btn btn-light" href="{{ url_for('config.fornecedores') }}" target="_blank" rel="noopener">
@@ -4057,12 +3753,10 @@ Conversão: 1 saco = 20 quilos</div>
             <div class="modal-body">
                 <div class="galint-modal-note galint-modal-note--amber mb-3">Para cadastros de itens sem comprovação fiscal, o campo <strong>Observação financeira</strong> precisa ser preenchido antes de salvar.</div>
                 <div class="galint-modal-panel">
-                    <p class="text-muted small mb-3">Informe a justificativa da origem do valor, por exemplo: compra emergencial, saldo anterior sem comprovante ou valor estimado.</p>
                     <div class="form-group mb-0">
                         <label class="form-label" for="finance_observacao_modal">Observação financeira</label>
                         <textarea class="form-control" id="finance_observacao_modal" rows="3"
                             placeholder="Ex.: compra emergencial, saldo anterior sem comprovante, valor estimado pela diretoria"></textarea>
-                        <small class="form-text">Esse texto será salvo automaticamente no cadastro do item.</small>
                     </div>
                 </div>
             </div>
@@ -4106,7 +3800,7 @@ Conversão: 1 saco = 20 quilos</div>
 
 <div class="modal fade" id="priceSuggestionsModal" tabindex="-1" aria-labelledby="priceSuggestionsModalLabel"
     aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content price-suggest-modal galint-bs-modal galint-bs-modal--sky">
             <div class="modal-header">
                 <h5 class="modal-title" id="priceSuggestionsModalLabel">Buscar preco de reposicao</h5>
@@ -4163,12 +3857,11 @@ Conversão: 1 saco = 20 quilos</div>
 </div>
 
 <div class="modal fade" id="equivalentItemModal" tabindex="-1" aria-labelledby="equivalentItemModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content equivalent-item-modal galint-bs-modal galint-bs-modal--amber">
             <div class="modal-header">
                 <div>
                     <h5 class="modal-title" id="equivalentItemModalLabel">Possível item equivalente</h5>
-                    <div class="small text-muted">O cadastro parece muito próximo de um item já existente. Revise antes de salvar para evitar duplicidade com nome, código ou embalagem diferentes.</div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
@@ -6984,12 +6677,10 @@ Conversão: 1 saco = 20 quilos</div>
         if (financeSectionEditStatus && isExistingItem) {
             if (financeSectionCanEdit) {
                 financeSectionEditStatus.className = 'alert alert-info mt-3 mb-0';
-                financeSectionEditStatus.innerHTML = currentUserIsAdmin
-                    ? 'A seção financeira está liberada para edição administrativa e abre com a última configuração salva do item.'
-                    : 'A seção financeira foi liberada por um administrador e abre com a última configuração salva do item.';
+                financeSectionEditStatus.innerHTML = currentUserIsAdmin ? 'Seção liberada.' : 'Seção liberada por um administrador.';
             } else {
                 financeSectionEditStatus.className = 'alert alert-secondary mt-3 mb-0';
-                financeSectionEditStatus.innerHTML = 'Os campos financeiros ficam bloqueados por padrão na edição. Use <strong>Editar seção</strong> para liberar a área. Administradores podem editar direto; demais usuários precisam informar matrícula e senha de um administrador.';
+                financeSectionEditStatus.innerHTML = 'Seção bloqueada.';
             }
         }
     };
@@ -7227,7 +6918,8 @@ Conversão: 1 saco = 20 quilos</div>
             targetEl.classList.add('show');
             return;
         }
-        targetEl.innerHTML = items.map((item) => `
+        // Até 8 (24/11/2026): a lista não tem mais rolagem própria; digitar mais refina a busca.
+        targetEl.innerHTML = items.slice(0, 8).map((item) => `
             <div class="autocomplete-option" data-id="${item.id}" data-name="${(item.nome_exibicao || '').replace(/"/g, '&quot;')}" data-cnpj="${(item.cnpj || '').replace(/"/g, '&quot;')}">
                 <div class="fw-semibold">${item.nome_exibicao || item.razao_social || 'Fornecedor'}</div>
                 <div class="small text-muted">${item.cnpj || 'Sem CNPJ'}${item.endereco_cidade ? ` • ${item.endereco_cidade}` : ''}${item.endereco_estado ? `/${item.endereco_estado}` : ''}</div>
@@ -7571,12 +7263,9 @@ Conversão: 1 saco = 20 quilos</div>
         if (!supplierGateSummary) return;
         if (mode === 'selected' && supplierGateSelection) {
             supplierGateSummary.innerHTML = `
-                <div>
-                    <div class="summary-title">Fornecedor vinculado ao item</div>
-                    <div class="summary-text">${supplierGateSelection.nome_exibicao}${supplierGateSelection.cnpj ? ` • CNPJ ${supplierGateSelection.cnpj}` : ''}</div>
-                </div>
-                <button class="btn btn-secondary" type="button" id="supplierGateReopenButtonInline">
-                    <i class="bi bi-arrow-repeat me-1"></i> Alterar fornecedor
+                <div class="summary-title">Fornecedor: ${supplierGateSelection.nome_exibicao}${supplierGateSelection.cnpj ? ` • ${supplierGateSelection.cnpj}` : ''}</div>
+                <button class="btn btn-secondary btn-sm" type="button" id="supplierGateReopenButtonInline">
+                    <i class="bi bi-arrow-repeat me-1"></i> Alterar
                 </button>
             `;
             document.getElementById('supplierGateReopenButtonInline')?.addEventListener('click', () => {
@@ -7587,11 +7276,8 @@ Conversão: 1 saco = 20 quilos</div>
         }
         if (mode === 'skipped') {
             supplierGateSummary.innerHTML = `
-                <div>
-                    <div class="summary-title">Cadastro sem fornecedor inicial</div>
-                    <div class="summary-text">Você pode continuar agora e vincular um fornecedor depois na aba Financeiro ou via Documentos Fiscais.</div>
-                </div>
-                <button class="btn btn-secondary" type="button" id="supplierGateReopenButtonInline">
+                <div class="summary-title">Sem fornecedor</div>
+                <button class="btn btn-secondary btn-sm" type="button" id="supplierGateReopenButtonInline">
                     <i class="bi bi-building-check me-1"></i> Procurar fornecedor
                 </button>
             `;
@@ -7697,8 +7383,8 @@ Conversão: 1 saco = 20 quilos</div>
         renderSupplierGateList(filtered);
         if (supplierGateStatus) {
             supplierGateStatus.textContent = filtered.length
-                ? `${filtered.length} fornecedor(es) exibido(s). Selecione um para preencher a aba Financeiro.`
-                : 'Nenhum fornecedor encontrado para esse filtro. Você pode cadastrar um novo fornecedor.';
+                ? `${filtered.length} fornecedor(es)`
+                : 'Nenhum fornecedor encontrado.';
         }
     };
 
