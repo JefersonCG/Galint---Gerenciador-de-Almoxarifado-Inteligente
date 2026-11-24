@@ -30,6 +30,33 @@ def _codigos(resultados: Iterable[dict[str, Any]]) -> list[str]:
     return codigos
 
 
+def packaging_proof_fields(modelo: Item | None) -> dict[str, Any]:
+    """Unidade em que a quantidade da NF é lida e quanto vale 1 dela na unidade do item (24/11/2026).
+
+    Para a "prova real" das telas de NF (pedido do usuário depois da NF 617377, em que 2.000 parafusos
+    entraram como 2.000 caixas de 1.000): para item com embalagem, o servidor sempre lê a quantidade da
+    NF em embalagens (infer_document_quantity_unit_for_item), com o fator de resolve_packaging_factor.
+    As telas mostram a mesma conta que o servidor fará, em vez de recalcular por conta própria.
+    """
+    if modelo is None:
+        return {}
+    from .legacy_stock_normalizer import resolve_packaging_factor
+    from .price_normalization import _infer_packaging_document_unit, infer_document_quantity_unit_for_item
+
+    try:
+        fator = float(resolve_packaging_factor(modelo) or 0.0)
+        unidade_documental = infer_document_quantity_unit_for_item(modelo)
+        converte = bool(_infer_packaging_document_unit(modelo))
+    except Exception:
+        return {}
+    return {
+        "fator_embalagem": fator if fator > 0 else None,
+        "unidade_documental": unidade_documental or None,
+        # True quando o servidor lê a quantidade da NF em embalagens e multiplica pelo fator.
+        "converte_embalagem": converte,
+    }
+
+
 def carregar_modelos(codigos: list[str]) -> dict[str, Item]:
     """Carrega os itens em uma consulta só, evitando uma ida ao banco por linha."""
     if not codigos:
@@ -67,6 +94,7 @@ def search_items(
         item = {
             **payload,
             "valor_referencia": operation_visual_payload_service.resolve_item_financial_reference(modelo),
+            **packaging_proof_fields(modelo),
         }
         if enrich is not None:
             item.update(enrich(payload, modelo))

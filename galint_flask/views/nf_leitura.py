@@ -99,6 +99,13 @@ def conferir(reading_id: int):
         flash(STATUS_LABELS.get(reading.status, reading.status) + (f": {reading.mensagem}" if reading.mensagem else "."), "warning")
         return redirect(url_for("nf_leitura.index"))
     result = service.load_result(reading)
+    # Prova real (24/11/2026): embalagem atual de cada item sugerido (vale também para leituras antigas).
+    from ..services.item_lookup_service import carregar_modelos, packaging_proof_fields
+
+    sugestoes = [s for item in result.get("itens", []) for s in item.get("sugestoes", [])]
+    modelos = carregar_modelos(sorted({str(s.get("codigo") or "") for s in sugestoes if s.get("codigo")}))
+    for sugestao in sugestoes:
+        sugestao.update(packaging_proof_fields(modelos.get(str(sugestao.get("codigo") or ""))))
     return render_template(
         "nf/leitura_conferir.html",
         reading=reading,
@@ -211,7 +218,9 @@ def buscar_itens():
     exact = db.session.get(Item, query)
     found = []
     if exact is not None:
-        found.append({"codigo": exact.codigo_item, "descricao": exact.descricao, "marca": exact.marca or "", "unidade": exact.unidade or ""})
+        from ..services.item_lookup_service import packaging_proof_fields
+
+        found.append({"codigo": exact.codigo_item, "descricao": exact.descricao, "marca": exact.marca or "", "unidade": exact.unidade or "", **packaging_proof_fields(exact)})
     catalog = service.load_catalog()
     for suggestion in service.suggest_items({"codigo": "", "descricao": query}, catalog, limit=10):
         if not any(row["codigo"] == suggestion["codigo"] for row in found):
@@ -222,5 +231,6 @@ def buscar_itens():
             if len(found) >= 10:
                 break
             if (needle in item.norm or item.codigo.startswith(query)) and not any(row["codigo"] == item.codigo for row in found):
-                found.append({"codigo": item.codigo, "descricao": item.descricao, "marca": item.marca, "unidade": item.unidade})
+                found.append({"codigo": item.codigo, "descricao": item.descricao, "marca": item.marca, "unidade": item.unidade,
+                              "fator_embalagem": item.fator_embalagem, "unidade_documental": item.unidade_documental})
     return jsonify(found[:10])

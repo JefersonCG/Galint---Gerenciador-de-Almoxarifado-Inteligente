@@ -88,14 +88,25 @@ class CatalogItem:
     unidade: str
     tokens: set[str]
     norm: str
+    fator_embalagem: float | None = None
+    unidade_documental: str | None = None
 
 
 def load_catalog() -> list[CatalogItem]:
-    rows = db.session.query(Item.codigo_item, Item.descricao, Item.marca, Item.unidade).all()
+    """Itens do GALINT para as sugestões, com a embalagem (para a prova real da conferência)."""
+    from .item_lookup_service import packaging_proof_fields
+
     catalog = []
-    for codigo, descricao, marca, unidade in rows:
-        text = f"{descricao or ''} {marca or ''}"
-        catalog.append(CatalogItem(str(codigo), descricao or "", marca or "", unidade or "", _tokens(text), _normalize(descricao)))
+    for item in Item.query.all():
+        text = f"{item.descricao or ''} {item.marca or ''}"
+        packaging = packaging_proof_fields(item)
+        catalog.append(
+            CatalogItem(
+                str(item.codigo_item), item.descricao or "", item.marca or "", item.unidade or "",
+                _tokens(text), _normalize(item.descricao),
+                packaging.get("fator_embalagem"), packaging.get("unidade_documental"),
+            )
+        )
     return catalog
 
 
@@ -126,7 +137,11 @@ def suggest_items(
         if item.codigo in seen:
             return
         seen.add(item.codigo)
-        suggestions.append({"codigo": item.codigo, "descricao": item.descricao, "marca": item.marca, "unidade": item.unidade, "score": score, "motivo": reason})
+        suggestions.append({
+            "codigo": item.codigo, "descricao": item.descricao, "marca": item.marca, "unidade": item.unidade,
+            "fator_embalagem": item.fator_embalagem, "unidade_documental": item.unidade_documental,
+            "score": score, "motivo": reason,
+        })
 
     supplier_code = str(line.get("codigo") or "").strip()
     if linked_code and linked_code in by_code:

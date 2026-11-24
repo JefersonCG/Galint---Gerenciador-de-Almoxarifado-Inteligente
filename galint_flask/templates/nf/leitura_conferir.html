@@ -90,12 +90,13 @@
                             <td>
                                 <select class="form-select form-select-sm" name="acao_{{ n }}" data-role="acao" {% if done %}disabled{% endif %}>
                                     {% for s in item.get('sugestoes', []) %}
-                                    <option value="{{ s.codigo }}" {% if item.acao == s.codigo %}selected{% endif %}>{{ s.descricao }}{% if s.marca %} · {{ s.marca }}{% endif %}{% if s.unidade %} · {{ s.unidade }}{% endif %} ({{ (s.score * 100)|round|int }}%)</option>
+                                    <option value="{{ s.codigo }}" data-fator="{{ s.fator_embalagem if s.fator_embalagem is not none else '' }}" data-unidade-doc="{{ s.unidade_documental or '' }}" data-unidade-base="{{ s.unidade or '' }}" data-converte="{{ 'true' if s.converte_embalagem else 'false' }}" {% if item.acao == s.codigo %}selected{% endif %}>{{ s.descricao }}{% if s.marca %} · {{ s.marca }}{% endif %}{% if s.unidade %} · {{ s.unidade }}{% endif %} ({{ (s.score * 100)|round|int }}%)</option>
                                     {% endfor %}
                                     <option value="novo" {% if item.acao == 'novo' %}selected{% endif %}>Item novo (pré-cadastro)</option>
                                     <option value="outro">Outro item…</option>
                                 </select>
                                 <input class="form-control form-control-sm mt-1 d-none" name="outro_{{ n }}" list="nfItemSearchList" placeholder="Código ou nome" data-role="outro" autocomplete="off">
+                                <div class="small mt-1" data-role="prova"></div>
                             </td>
                         </tr>
                         {% endfor %}
@@ -122,6 +123,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/nf-prova-real.js', v='20261124') }}"></script>
 <script>
 // Conferência: total de cada linha (qtd x unitário), em vermelho quando não bate com o total lido na NF;
 // soma dos itens marcados comparada ao total da nota; "Outro item…" abre a busca por código ou nome.
@@ -140,6 +142,27 @@
         return parseFloat(value);
     };
 
+    // Prova real (24/11/2026): item do GALINT com embalagem mostra quanto entra no estoque, e o "Lançar"
+    // pergunta se o cálculo é este mesmo. Itens vindos da busca "Outro item…" ficam guardados aqui.
+    const knownItems = {};
+    function rowProof(row) {
+        const P = window.GalintProvaReal;
+        const select = row.querySelector('[data-role="acao"]');
+        if (!P || !select || select.value === 'novo') return null;
+        let packaging = null;
+        if (select.value === 'outro') {
+            const found = knownItems[(row.querySelector('[data-role="outro"]')?.value || '').trim()];
+            if (found) packaging = P.factorFromItem(found);
+        } else {
+            const option = select.selectedOptions[0];
+            if (option && option.dataset.fator !== '') {
+                packaging = P.factorFromItem({ fator_embalagem: option.dataset.fator, unidade_documental: option.dataset.unidadeDoc, unidade: option.dataset.unidadeBase, converte_embalagem: option.dataset.converte === 'true' });
+            }
+        }
+        if (!packaging) return null;
+        return P.compute({ quantity: row.querySelector('[data-role="qty"]').value, unitPrice: row.querySelector('[data-role="price"]').value, ...packaging });
+    }
+
     function recalc() {
         let sum = 0;
         form.querySelectorAll('tr[data-line]').forEach((row) => {
@@ -155,6 +178,13 @@
             cell.title = differs ? `Na NF: ${brl(nfTotal)}` : '';
             row.classList.toggle('opacity-50', !included);
             if (included && Number.isFinite(total)) sum += total;
+            const proofCell = row.querySelector('[data-role="prova"]');
+            const proof = rowProof(row);
+            if (proofCell) {
+                proofCell.textContent = proof && proof.hasPackaging ? [proof.stockText, proof.hint].filter(Boolean).join(' • ') : '';
+                proofCell.classList.toggle('text-warning', Boolean(proof && proof.suspicious));
+                proofCell.classList.toggle('text-muted', !(proof && proof.suspicious));
+            }
         });
         soma.textContent = brl(sum);
         const differs = Number.isFinite(totalNota) && Math.abs(sum - totalNota) > 0.05;
@@ -171,6 +201,7 @@
             const rows = await response.json();
             datalist.innerHTML = '';
             rows.forEach((row) => {
+                knownItems[row.codigo] = row;
                 const option = document.createElement('option');
                 option.value = row.codigo;
                 option.label = [row.descricao, row.marca, row.unidade].filter(Boolean).join(' · ');
@@ -198,6 +229,24 @@
         recalc();
     });
     recalc();
+
+    window.GalintProvaReal?.guardSubmit(form, () => {
+        const lines = [];
+        let sum = 0;
+        form.querySelectorAll('tr[data-line]').forEach((row) => {
+            if (!row.querySelector('input[type="checkbox"]').checked) return;
+            const qty = parse(row.querySelector('[data-role="qty"]').value);
+            const price = parse(row.querySelector('[data-role="price"]').value);
+            if (Number.isFinite(qty * price)) sum += qty * price;
+            const proof = rowProof(row);
+            if (proof && (proof.hasPackaging || proof.suspicious)) {
+                lines.push({ ...proof, label: row.querySelector('input[name^="descricao_"]').value });
+            }
+        });
+        const nota = Number.isFinite(totalNota) ? ` (NF: ${brl(totalNota)})` : '';
+        lines.push({ label: 'Total dos itens marcados', stockText: `${brl(sum)}${nota}`, moneyText: '' });
+        return lines;
+    });
 })();
 </script>
 {% endblock %}

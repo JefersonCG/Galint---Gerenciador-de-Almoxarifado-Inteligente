@@ -3269,6 +3269,7 @@
 
 {% block scripts %}
 {{ super() }}
+<script src="{{ url_for('static', filename='js/nf-prova-real.js', v='20261124') }}"></script>
 <script>
     const itemSearchInput = document.getElementById('item_search');
     const itemCodigoInput = document.getElementById('codigo');
@@ -4860,34 +4861,49 @@
         if (!quantityField || !unitField) return;
 
         const updatePreview = () => {
-            const quantity = parseDecimalInput(quantityField.value);
-            const unitValue = parseDecimalInput(unitField.value);
-            if (quantity === null || unitValue === null) {
+            const proof = mainRegistrationProof();
+            if (!proof) {
                 setCalculationPreviewState(previewEl, {
                     badgeText: 'Aguardando',
                     badgeTone: 'is-muted',
-                    formulaText: 'Preencha quantidade e valor unitário para ver a conta em tempo real.',
-                    metaText: 'O total calculado aparece aqui para você bater rapidamente com a nota antes de salvar.',
+                    formulaText: 'Preencha quantidade e valor unitário.',
+                    metaText: '',
                 });
                 return;
             }
-
-            const calculatedTotal = Number((quantity * unitValue).toFixed(2));
+            // Prova real (24/11/2026): além do valor, quanto entra no estoque (com a embalagem).
             setCalculationPreviewState(previewEl, {
-                badgeText: 'Ao vivo',
-                badgeTone: 'is-live',
-                formulaText: `${formatQuantityPreview(quantity)} × ${formatCurrencyPreview(unitValue)} = ${formatCurrencyPreview(calculatedTotal)}`,
-                metaText: `Total calculado deste lançamento: ${formatCurrencyPreview(calculatedTotal)}.`,
+                badgeText: proof.suspicious ? 'Confira' : 'Ao vivo',
+                badgeTone: proof.suspicious ? 'is-warn' : 'is-live',
+                formulaText: proof.moneyText || proof.stockText,
+                metaText: [proof.moneyText ? proof.stockText : '', proof.hint].filter(Boolean).join(' • '),
             });
         };
 
         previewEl.dataset.calcBound = 'true';
-        quantityField.addEventListener('input', updatePreview);
-        quantityField.addEventListener('change', updatePreview);
-        unitField.addEventListener('input', updatePreview);
-        unitField.addEventListener('change', updatePreview);
+        // Embalagem, conteúdo e unidade também mudam a conta: ouve o formulário inteiro.
+        nfForm.addEventListener('input', updatePreview);
+        nfForm.addEventListener('change', updatePreview);
+        nfForm.addEventListener('click', () => setTimeout(updatePreview, 0));
         updatePreview();
     };
+
+    // Prova real do lançamento principal (24/11/2026): item existente usa a embalagem do cadastro
+    // (fator do servidor); item novo usa a unidade da compra e o conteúdo informados no formulário.
+    function mainRegistrationProof() {
+        if (!window.GalintProvaReal || !nfForm) return null;
+        const quantityField = nfForm.querySelector('#quantidade');
+        const unitField = nfForm.querySelector('#preco_unitario');
+        let packaging;
+        if (activeExistingItemPayload) {
+            packaging = window.GalintProvaReal.factorFromItem(activeExistingItemPayload);
+        } else {
+            const docUnit = (novaUnidadeDocumentalInput?.value || '').trim();
+            const baseUnit = (novaUnidadeInput?.value || '').trim() || 'Unidade';
+            packaging = { docUnit: docUnit || baseUnit, factor: docUnit ? window.GalintProvaReal.toNumber(novoConteudoEmbalagemInput?.value) : 0, baseUnit };
+        }
+        return window.GalintProvaReal.compute({ quantity: quantityField?.value, unitPrice: unitField?.value, ...packaging });
+    }
 
     const syncItemRowTotals = (form) => {
         if (!form) return;
@@ -4947,7 +4963,19 @@
 
         const refreshPreview = () => {
             renderLineCalculationPreview(previewEl, quantityField, unitField, totalField);
+            // Prova real (24/11/2026): com o item escolhido, mostra quanto entra no estoque.
+            const proof = addItemFormProof(form);
+            if (proof && previewEl) {
+                const meta = previewEl.querySelector('[data-calc-meta]');
+                const badge = previewEl.querySelector('[data-calc-badge]');
+                if (meta) meta.textContent = [proof.stockText, proof.hint].filter(Boolean).join(' • ');
+                if (badge && proof.suspicious) {
+                    badge.textContent = 'Confira';
+                    badge.className = 'docf-live-calc-badge is-warn';
+                }
+            }
         };
+        form.__refreshProvaReal = refreshPreview;
 
         const updateTotal = () => {
             const quantity = parseDecimalInput(quantityField.value);
@@ -4987,8 +5015,21 @@
         if (codeField) {
             codeField.value = item.codigo || '';
         }
+        form.__addItemSelected = item;
         hideAddItemResults(form);
+        form.__refreshProvaReal?.();
     };
+
+    function addItemFormProof(form) {
+        const item = form?.__addItemSelected;
+        const codeField = form?.querySelector('[data-add-item-code]');
+        if (!window.GalintProvaReal || !item || !codeField || codeField.value !== String(item.codigo || '')) return null;
+        return window.GalintProvaReal.compute({
+            quantity: form.querySelector('input[name="quantidade"]')?.value,
+            unitPrice: form.querySelector('input[name="valor_unitario"]')?.value,
+            ...window.GalintProvaReal.factorFromItem(item),
+        });
+    }
 
     const renderAddItemResults = (form, items) => {
         const resultsContainer = form?.querySelector('[data-add-item-results]');
@@ -5869,6 +5910,21 @@
             alert('Para item novo, informe também a descrição do produto.');
             novaDescricaoInput?.focus();
         }
+    });
+
+    // Prova real ao lançar (24/11/2026): depois das validações acima, pergunta se o cálculo é este mesmo.
+    window.GalintProvaReal?.guardSubmit(nfForm, () => {
+        const proof = mainRegistrationProof();
+        if (!proof) return [];
+        const label = (novaDescricaoInput?.value || itemSearchInput?.value || '').trim();
+        return [{ ...proof, label }];
+    });
+    document.querySelectorAll('[data-add-item-form]').forEach((form) => {
+        window.GalintProvaReal?.guardSubmit(form, () => {
+            const proof = addItemFormProof(form);
+            if (!proof) return [];
+            return [{ ...proof, label: `${form.__addItemSelected.codigo} — ${form.__addItemSelected.descricao || ''}` }];
+        });
     });
 
 </script>

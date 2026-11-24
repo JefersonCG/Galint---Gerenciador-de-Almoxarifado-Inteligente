@@ -33,7 +33,8 @@ def env():
 def result():
     parsed = nf_ocr.read_and_parse(build_danfe_pdf(), "nf.pdf")
     for item in parsed["itens"]:
-        item["sugestoes"] = [{"codigo": "FITA001", "descricao": "FITA ISOLANTE 19MM 20M", "marca": "3M", "unidade": "Unidade", "score": 0.81, "motivo": "nome parecido"}] if item["n"] == 4 else []
+        item["sugestoes"] = [{"codigo": "FITA001", "descricao": "FITA ISOLANTE 19MM 20M", "marca": "3M", "unidade": "Metro", "score": 0.81, "motivo": "nome parecido",
+                              "fator_embalagem": 20.0, "unidade_documental": "rolo", "converte_embalagem": True}] if item["n"] == 4 else []
         item["acao"] = "FITA001" if item["n"] == 4 else "novo"
     return parsed
 
@@ -49,7 +50,8 @@ def test_review_page_renders_compact_form(env, result):
     assert 'name="quantidade_1" inputmode="decimal" value="2"' in html
     assert 'name="valor_unitario_1" inputmode="decimal" value="289,90"' in html
     assert 'name="valor_unitario_6" inputmode="decimal" value="0,35"' in html
-    assert '<option value="FITA001" selected>FITA ISOLANTE 19MM 20M · 3M · Unidade (81%)</option>' in html
+    assert '<option value="FITA001" data-fator="20.0" data-unidade-doc="rolo" data-unidade-base="Metro" data-converte="true" selected>FITA ISOLANTE 19MM 20M · 3M · Metro (81%)</option>' in html
+    assert 'js/nf-prova-real.js' in html and 'data-role="prova"' in html  # prova real (24/11/2026)
     assert html.count("Item novo (pré-cadastro)") == 6
 
 

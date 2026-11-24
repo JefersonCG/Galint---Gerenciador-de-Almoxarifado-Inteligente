@@ -2722,6 +2722,12 @@ def _mobile_admin_only(current_user: Usuario) -> bool:
     return _is_admin_flag(current_user)
 
 
+def _packaging_proof_fields(item: Item) -> dict[str, Any]:
+    from ..services.item_lookup_service import packaging_proof_fields
+
+    return packaging_proof_fields(item)
+
+
 def _serialize_mobile_stock_item(item: Item) -> dict[str, Any]:
     try:
         from ..services.embalagem_service import EmbalagemService
@@ -2745,6 +2751,8 @@ def _serialize_mobile_stock_item(item: Item) -> dict[str, Any]:
         "estoque_minimo": item.estoque_minimo,
         "tipo_embalagem_novo": item.tipo_embalagem_novo,
         "unidades_por_embalagem": item.unidades_por_embalagem,
+        # Prova real do lançamento de NF no app (24/11/2026): a mesma conta de embalagem do servidor.
+        **_packaging_proof_fields(item),
         "estoque_embalagens": item.estoque_embalagens,
         "estoque_unidades_soltas": item.estoque_unidades_soltas,
         "estoque_formatado": estoque_formatado,
@@ -2960,6 +2968,7 @@ def _serialize_mobile_document_item(item: Item) -> dict[str, Any]:
         "saldo_display": item.get_saldo_fisico_display(),
         "tipo_embalagem_novo": item.tipo_embalagem_novo,
         "unidades_por_embalagem": item.unidades_por_embalagem,
+        **_packaging_proof_fields(item),
     }
 
 
