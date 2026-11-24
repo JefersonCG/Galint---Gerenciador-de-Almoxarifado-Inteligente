@@ -2552,7 +2552,7 @@
                                     <label class="form-label" for="nova_descricao">Descrição do novo item</label>
                                     <div class="position-relative">
                                         <div class="input-group docf-photo-trigger-group">
-                                            <input class="form-control" id="nova_descricao" name="nova_descricao" autocomplete="off" placeholder="Descrição completa do produto">
+                                            <input class="form-control" id="nova_descricao" name="nova_descricao" autocomplete="off" placeholder="Descrição completa do produto"{% if endpoint_exists('item_grupos.nomes') %} data-nome-padrao="{{ url_for('item_grupos.nomes') }}"{% endif %}>
                                             <button class="docf-btn-secondary docf-btn-compact docf-photo-trigger-button d-none" type="button" id="novo_item_photo_assistant_button" title="Buscar imagem do novo item" aria-label="Buscar imagem do novo item">Buscar</button>
                                         </div>
                                         <div class="list-group shadow d-none docf-inline-results" id="new_item_description_results"></div>
@@ -3270,6 +3270,7 @@
 {% block scripts %}
 {{ super() }}
 <script src="{{ url_for('static', filename='js/nf-prova-real.js', v='20261124') }}"></script>
+<script src="{{ url_for('static', filename='js/nome-padrao.js', v='20261124') }}"></script>
 <script>
     const itemSearchInput = document.getElementById('item_search');
     const itemCodigoInput = document.getElementById('codigo');
@@ -4539,7 +4540,11 @@
         loadExistingItemAutofill(itemCodigoInput.value.trim());
     }
 
+    // Com o nome padrão (nome-padrao.js) ligado no campo, a lista dele substitui esta (senão abriam duas).
+    const novaDescricaoUsaNomePadrao = Boolean(novaDescricaoInput?.dataset.nomePadrao);
+
     novaDescricaoInput?.addEventListener('input', () => {
+        if (novaDescricaoUsaNomePadrao) return;
         const q = novaDescricaoInput.value.trim();
         if (newItemDescriptionTimer) clearTimeout(newItemDescriptionTimer);
         if (q.length < 2) {
@@ -4562,6 +4567,7 @@
     });
 
     novaDescricaoInput?.addEventListener('focus', () => {
+        if (novaDescricaoUsaNomePadrao) return;
         if (newItemDescriptionSuggestions.length > 0 && (novaDescricaoInput.value || '').trim().length >= 2) {
             renderNewItemDescriptionResults(newItemDescriptionSuggestions);
         }

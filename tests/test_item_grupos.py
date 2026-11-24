@@ -117,3 +117,32 @@ def test_routes_create_add_remove(app):
     adapter = app.url_map.bind("localhost")
     assert adapter.match("/itens/grupos/buscar")[0] == "item_grupos.buscar"
     assert adapter.match("/itens/grupos/criar", method="POST")[0] == "item_grupos.criar"
+
+
+def test_name_suggestions_put_group_names_first(app):
+    service.create_group("JOELHO 25MM", ["7899874560001", "261596002186"])
+    nomes = service.name_suggestions("joel 25")
+    assert nomes[0] == {"nome": "JOELHO 25MM", "tipo": "grupo", "grupo_id": nomes[0]["grupo_id"], "unidade": "Unidade", "itens": 2}
+    assert "JOELHO 45GRAUS 25MM" in [n["nome"] for n in nomes if n["tipo"] == "item"]
+    assert [n["nome"].upper() for n in nomes].count("JOELHO 25MM") == 1  # o nome do grupo não se repete como item
+    assert service.name_suggestions("bater") == []  # ferramenta fica fora
+
+
+def test_new_item_with_group_name_is_suggested_to_join(app):
+    grupo = service.create_group("JOELHO 25MM", ["7899874560001", "261596002186"])
+    db.session.add(Item(codigo_item="NOVO1", descricao="JOELHO 25MM", marca="TIGRE", unidade="Unidade", categoria="Material Hidráulico", setor="ALMOXARIFADO"))
+    db.session.commit()
+    entrada = next(s for s in service.suggestions() if s.get("grupo_id") == grupo.id)
+    assert sorted(i["codigo"] for i in entrada["itens"]) == ["7899874560099", "NOVO1"]
+
+
+def test_name_routes_site_and_app(app, monkeypatch):
+    from galint_flask.views import api_mobile
+
+    app.register_blueprint(api_mobile.blueprint)
+    monkeypatch.setattr(api_mobile, "get_mobile_user", lambda token: db.session.get(Usuario, "9001") if token == "ok" else None)
+    client = app.test_client()
+    assert client.get("/itens/grupos/nomes?q=joelho 45").get_json()[0]["nome"] == "JOELHO 45GRAUS 25MM"
+    response = client.get("/api/mobile/itens/nomes?q=joelho 45", headers={"Authorization": "Bearer ok"})
+    assert response.status_code == 200 and response.get_json()["data"][0]["nome"] == "JOELHO 45GRAUS 25MM"
+    assert app.url_map.bind("localhost").match("/api/mobile/itens/nomes")[0] == "api_mobile.sugerir_nomes_item"

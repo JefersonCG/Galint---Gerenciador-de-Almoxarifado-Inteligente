@@ -1062,6 +1062,15 @@ def mobile_stock_count_adjust():
     }), 200
 
 
+@blueprint.get("/itens/nomes")
+@token_required
+def sugerir_nomes_item(current_user: Usuario):
+    """Nome padrão no cadastro do app (24/11/2026): nomes de grupo primeiro, depois nomes já cadastrados."""
+    from ..services.item_grupo_service import name_suggestions
+
+    return jsonify({"success": True, "data": name_suggestions(str(request.args.get("q") or ""))}), 200
+
+
 @blueprint.get("/itens/<codigo>/ultima_entrada")
 @token_required
 def buscar_ultima_entrada(current_user: Usuario, codigo: str):

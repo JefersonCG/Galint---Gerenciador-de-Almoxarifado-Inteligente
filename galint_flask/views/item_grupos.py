@@ -45,6 +45,13 @@ def buscar():
     return jsonify(service.search_items(str(request.args.get("q") or "")))
 
 
+@blueprint.get("/nomes")
+@login_required
+def nomes():
+    """Nome padrão no cadastro: nomes de grupo primeiro, depois nomes já cadastrados (autocompletar)."""
+    return jsonify(service.name_suggestions(str(request.args.get("q") or "")))
+
+
 @blueprint.post("/criar")
 @login_required
 def criar():

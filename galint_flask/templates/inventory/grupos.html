@@ -87,7 +87,7 @@
     {% if sugestoes %}
     <h2 class="h6 mt-3 mb-2">Nome igual ({{ sugestoes|length }})</h2>
     {% for sugestao in sugestoes %}
-    <form class="card mb-2" method="post" action="{{ url_for('item_grupos.criar') }}">
+    <form class="card mb-2" method="post" action="{{ url_for('item_grupos.adicionar', grupo_id=sugestao.grupo_id) if sugestao.grupo_id else url_for('item_grupos.criar') }}">
         <input type="hidden" name="nome" value="{{ sugestao.nome }}">
         <div class="card-body py-2 d-flex flex-wrap align-items-center gap-2">
             <div class="fw-semibold me-2">{{ sugestao.nome }} <span class="small text-muted">({{ sugestao.unidade|lower }})</span></div>
@@ -97,7 +97,7 @@
                     {{ item.marca or 'sem marca' }} · {{ item.saldo_display or ('%g'|format(item.saldo)) }} · {{ data_br(item.ultima_entrada) }}</label>
                 {% endfor %}
             </div>
-            <button class="btn btn-sm btn-primary" type="submit">Criar</button>
+            <button class="btn btn-sm btn-primary" type="submit">{{ 'Adicionar ao grupo' if sugestao.grupo_id else 'Criar' }}</button>
         </div>
     </form>
     {% endfor %}

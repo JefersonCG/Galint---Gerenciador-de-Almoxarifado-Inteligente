@@ -98,25 +98,35 @@ def _membership() -> dict[str, ItemGrupo]:
 
 
 def suggestions(limit: int = SUGGESTION_LIMIT) -> list[dict[str, Any]]:
-    """Materiais fora de grupo com o mesmo nome (sem acento/caixa) e a mesma unidade base."""
+    """Materiais fora de grupo com o mesmo nome (sem acento/caixa) e a mesma unidade base.
+
+    Material com o nome de um grupo que já existe (ex.: item novo cadastrado pelo nome padrão) vem como
+    sugestão de entrar nesse grupo (grupo_id), mesmo sozinho.
+    """
     grouped_codes = set(_membership())
+    groups_by_name = {(normalize_name(grupo.nome), unit_key(grupo.unidade)): grupo for grupo in ItemGrupo.query.all()}
     buckets: dict[tuple[str, str], list[Item]] = defaultdict(list)
     for item in Item.query.all():
         if item.codigo_item in grouped_codes or is_individual_control(item):
             continue
         buckets[(normalize_name(item.descricao), unit_key(item.unidade))].append(item)
-    candidates = [(name, items) for (name, _unit), items in buckets.items() if name and len(items) >= 2]
-    candidates.sort(key=lambda pair: pair[0])
-    candidates = candidates[:limit]
-    dates = _last_entry_dates(item.codigo_item for _name, items in candidates for item in items)
-    return [
-        {
-            "nome": items[0].descricao,
-            "unidade": items[0].unidade or "",
-            "itens": [item_card(item, last_entry=dates.get(item.codigo_item)) for item in items],
-        }
-        for _name, items in candidates
+    candidates = [
+        (key, items) for key, items in buckets.items()
+        if key[0] and (len(items) >= 2 or key in groups_by_name)
     ]
+    candidates.sort(key=lambda pair: (pair[0] not in groups_by_name, pair[0][0]))
+    candidates = candidates[:limit]
+    dates = _last_entry_dates(item.codigo_item for _key, items in candidates for item in items)
+    result = []
+    for key, items in candidates:
+        grupo = groups_by_name.get(key)
+        result.append({
+            "nome": grupo.nome if grupo else items[0].descricao,
+            "unidade": items[0].unidade or "",
+            "grupo_id": grupo.id if grupo else None,
+            "itens": [item_card(item, last_entry=dates.get(item.codigo_item)) for item in items],
+        })
+    return result
 
 
 def search_items(query: str, *, limit: int = SEARCH_LIMIT) -> list[dict[str, Any]]:
@@ -145,6 +155,38 @@ def search_items(query: str, *, limit: int = SEARCH_LIMIT) -> list[dict[str, Any
                 break
     dates = _last_entry_dates(item.codigo_item for item in found)
     return [item_card(item, last_entry=dates.get(item.codigo_item), grupo=membership.get(item.codigo_item)) for item in found]
+
+
+def _word_prefix_match(text: str, tokens: list[str]) -> bool:
+    words = normalize_name(text).split()
+    return all(any(word.startswith(token) for word in words) for token in tokens)
+
+
+def name_suggestions(query: str, *, limit: int = 8) -> list[dict[str, Any]]:
+    """Nome padrão no cadastro (24/11/2026): enquanto se digita a descrição, sugere primeiro os nomes de
+    grupo e depois os nomes de materiais já cadastrados (um por nome). Pedido do usuário: "quero que o
+    grupo seja o nome padrão para cadastro; sempre que eu for digitando ele vai me sugerindo o nome".
+    """
+    tokens = [normalize_name(token) for token in str(query or "").split() if normalize_name(token)]
+    if not tokens:
+        return []
+    result: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for grupo in ItemGrupo.query.order_by(ItemGrupo.nome).all():
+        if _word_prefix_match(grupo.nome, tokens):
+            seen.add(normalize_name(grupo.nome))
+            result.append({"nome": grupo.nome, "tipo": "grupo", "grupo_id": grupo.id, "unidade": grupo.unidade, "itens": len(grupo.membros)})
+            if len(result) >= limit:
+                return result
+    for item in Item.query.order_by(Item.descricao).all():
+        key = normalize_name(item.descricao)
+        if not key or key in seen or is_individual_control(item) or not _word_prefix_match(item.descricao, tokens):
+            continue
+        seen.add(key)
+        result.append({"nome": item.descricao, "tipo": "item", "unidade": item.unidade or ""})
+        if len(result) >= limit:
+            break
+    return result
 
 
 def withdrawal_order(grupo: ItemGrupo) -> list[dict[str, Any]]:

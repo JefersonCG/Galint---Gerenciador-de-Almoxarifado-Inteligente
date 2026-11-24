@@ -80,7 +80,7 @@
                         <tr data-line="{{ n }}" data-nf-total="{{ item.valor_total if item.valor_total is not none else '' }}">
                             <td><input class="form-check-input" type="checkbox" name="incluir_{{ n }}" value="1" {% if not done %}checked{% else %}disabled{% endif %} aria-label="Lançar item {{ n }}"></td>
                             <td>
-                                <input class="form-control form-control-sm" name="descricao_{{ n }}" value="{{ item.descricao|upper }}" {% if done %}disabled{% endif %}>
+                                <input class="form-control form-control-sm" name="descricao_{{ n }}" value="{{ item.descricao|upper }}" {% if done %}disabled{% endif %}{% if endpoint_exists('item_grupos.nomes') %} data-nome-padrao="{{ url_for('item_grupos.nomes') }}"{% endif %}>
                                 <div class="small text-muted">{% if item.codigo %}cód. {{ item.codigo }}{% endif %}{% if item.ncm %} · NCM {{ item.ncm }}{% endif %}{% if done %} · <span class="text-success">lançado</span>{% endif %}</div>
                             </td>
                             <td><input class="form-control form-control-sm" name="unidade_{{ n }}" value="{{ item.unidade or '' }}" {% if done %}disabled{% endif %}></td>
@@ -124,6 +124,7 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/nf-prova-real.js', v='20261124') }}"></script>
+<script src="{{ url_for('static', filename='js/nome-padrao.js', v='20261124') }}"></script>
 <script>
 // Conferência: total de cada linha (qtd x unitário), em vermelho quando não bate com o total lido na NF;
 // soma dos itens marcados comparada ao total da nota; "Outro item…" abre a busca por código ou nome.

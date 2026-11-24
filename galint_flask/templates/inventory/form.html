@@ -2690,7 +2690,8 @@
                                     <label class="form-label" for="descricao">Produto</label>
                                     <div class="input-group">
                                         <input class="form-control" id="descricao" name="descricao"
-                                            value="{{ form_item.descricao if form_item else '' }}" required>
+                                            value="{{ form_item.descricao if form_item else '' }}" required
+                                            {% if endpoint_exists('item_grupos.nomes') %}data-nome-padrao="{{ url_for('item_grupos.nomes') }}"{% endif %}>
                                         <button type="button" class="btn btn-secondary" id="btn-foto-url" data-foto-url="{{ (request.script_root or '') ~ '/itens/' ~ item.codigo ~ '/foto/url' }}" title="Buscar imagem do item" aria-label="Buscar imagem do item">
                                             <i class="bi bi-search"></i>
                                         </button>
@@ -3901,6 +3902,7 @@ Conversão: 1 saco = 20 quilos</div>
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/nome-padrao.js', v='20261124') }}"></script>
 <style>
     .price-suggest-modal {
         border: none;
