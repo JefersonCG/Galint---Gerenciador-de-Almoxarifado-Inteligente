@@ -267,6 +267,24 @@ def nf_fisica(documento_id) -> list[NFLeitura]:
     return cache.get(documento_id, [])
 
 
+@blueprint.app_template_global("nf_rastro")
+def nf_rastro(documento_id) -> list[dict]:
+    """Para onde foram os itens da NF: cada retirada que gastou o que ela trouxe (services/nf_rastro.py).
+    Usada no detalhe do documento em Documentos Fiscais (25/11/2026)."""
+    from ..services.nf_rastro import rastro_do_documento
+
+    try:
+        return rastro_do_documento(int(documento_id))
+    except (TypeError, ValueError):
+        return []
+    except Exception:  # a página de Documentos Fiscais não pode cair por causa disto
+        db.session.rollback()
+        import logging
+
+        logging.getLogger(__name__).exception("Rastro da NF %s", documento_id)
+        return []
+
+
 @blueprint.get("/itens")
 @login_required
 def buscar_itens():

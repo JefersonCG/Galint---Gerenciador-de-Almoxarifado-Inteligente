@@ -556,6 +556,15 @@
     border-top: 1px dashed #e3e7ec;
 }
 
+.docf-rastro .docf-rastro-item td {
+    background: var(--gf-soft);
+    font-size: 0.82rem;
+}
+
+.docf-rastro tbody + tbody {
+    border-top: 2px solid var(--gf-panel-line);
+}
+
 .docf-form > button[type="submit"] {
     justify-self: end;
 }

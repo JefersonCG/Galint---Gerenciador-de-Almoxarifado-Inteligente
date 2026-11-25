@@ -86,6 +86,9 @@
     </div>
 </article>
 {%- endmacro %}
+{% macro rastro_qtd(r, q) -%}
+{{ q|abs|number_br(2, True) }} {{ r.unidade }}{% if r.fator %}{% set emb = (q|abs) / r.fator %} · {{ emb|number_br(2, True) }} {{ r.unidade_doc }}{{ ('es' if r.unidade_doc.endswith('r') else 's') if emb >= 2 else '' }}{% endif %}
+{%- endmacro %}
 <div class="docf-shell-wrap gf">
     {% from 'nf/_abas.html' import nf_abas with context %}
     {% set nf_acoes %}{% if can_manage %}<a class="docf-btn-secondary" href="{{ url_for('nf.nf_sefaz') }}"><i class="bi bi-cloud-download"></i> SEFAZ</a>{% endif %}{% endset %}
@@ -684,6 +687,45 @@
                         </tbody>
                     </table>
                 </div>
+
+                {# Para onde foi (25/11/2026): cada retirada que gastou o que esta NF trouxe (services/nf_rastro.py). #}
+                {% set rastro = nf_rastro(nota_detalhes.id_documento) if nf_rastro is defined and nota_detalhes.id_documento is defined and nota_detalhes.id_documento is not none else [] %}
+                {% if rastro %}
+                <div class="docf-kicker mt-3">Para onde foi</div>
+                <div class="docf-table-wrap">
+                    <table class="table docf-table docf-rastro mb-0">
+                        <thead>
+                            <tr><th>Data</th><th>Há</th><th>Quem</th><th>Local</th><th>Movimento</th><th class="text-end">Quantidade</th></tr>
+                        </thead>
+                        {% for r in rastro %}
+                        <tbody>
+                            <tr class="docf-rastro-item">
+                                <td colspan="6">
+                                    <strong>{{ r.descricao }}</strong>
+                                    {% if r.sem_entrada %}
+                                    · <span class="docf-chip warning">Sem entrada no estoque</span>
+                                    {% else %}
+                                    · entrou {{ rastro_qtd(r, r.entrou) }} em {{ r.entrou_em|format_local('%d/%m/%Y') }}
+                                    {% if r.saiu_tudo %}· <span class="docf-chip">Saiu tudo</span>{% if r.ultima_dias is not none %} · última há {{ r.ultima_dias }} dia{{ 's' if r.ultima_dias != 1 }}{% endif %}
+                                    {% else %}· <span class="docf-chip success">Restam {{ rastro_qtd(r, r.restante) }}</span>{% endif %}
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% for linha in r.linhas %}
+                            <tr>
+                                <td>{{ linha.data|format_local('%d/%m/%Y') }}</td>
+                                <td>{{ 'hoje' if linha.dias == 0 else linha.dias ~ ' dia' ~ ('s' if linha.dias != 1 else '') }}</td>
+                                <td>{{ linha.quem or '—' }}</td>
+                                <td>{{ linha.local or '—' }}</td>
+                                <td>{{ linha.tipo }}</td>
+                                <td class="text-end">{{ '+' if linha.quantidade < 0 else '' }}{{ rastro_qtd(r, linha.quantidade) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        {% endfor %}
+                    </table>
+                </div>
+                {% endif %}
             </section>
             {% endif %}
 
