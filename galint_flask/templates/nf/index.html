@@ -333,7 +333,7 @@
                         <div class="row g-2 docf-tight-grid docf-finance-grid mb-1">
                             <div class="col-md-6">
                                 <label class="form-label" for="preco_unitario">Valor unitário (R$)</label>
-                                <input class="form-control form-control-sm" id="preco_unitario" name="preco_unitario" type="number" min="0" step="0.01">
+                                <input class="form-control form-control-sm" id="preco_unitario" name="preco_unitario" type="number" min="0" step="any">
                                 <div class="docf-field-hint" id="manual_price_lookup_status"></div>
                             </div>
                             <div class="col-12">
@@ -493,7 +493,7 @@
                             </div>
                             <div class="col-md-2">
                                 <label class="form-label" for="nota-detalhe-add-unitario-{{ nota_detalhes.id_documento }}">Valor unitário</label>
-                                <input class="form-control" id="nota-detalhe-add-unitario-{{ nota_detalhes.id_documento }}" name="valor_unitario" type="number" min="0" step="0.01">
+                                <input class="form-control" id="nota-detalhe-add-unitario-{{ nota_detalhes.id_documento }}" name="valor_unitario" type="number" min="0" step="any">
                             </div>
                             <div class="col-md-2">
                                 <label class="form-label" for="nota-detalhe-add-total-{{ nota_detalhes.id_documento }}">Valor total</label>
@@ -592,7 +592,7 @@
                                     </div>
                                     <div class="col-md-2">
                                         <label class="form-label" for="nota-detalhe-unitario-{{ item.id }}">Valor unitário</label>
-                                        <input class="form-control" id="nota-detalhe-unitario-{{ item.id }}" name="item_valor_unitario_{{ item.id }}" type="number" min="0" step="0.01" value="{{ item.valor_unitario if item.valor_unitario is not none else '' }}">
+                                        <input class="form-control" id="nota-detalhe-unitario-{{ item.id }}" name="item_valor_unitario_{{ item.id }}" type="number" min="0" step="any" value="{{ item.valor_unitario if item.valor_unitario is not none else '' }}">
                                     </div>
                                     <div class="col-md-2">
                                         <label class="form-label" for="nota-detalhe-total-{{ item.id }}">Valor total</label>
