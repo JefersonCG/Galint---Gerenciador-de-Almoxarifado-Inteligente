@@ -3498,6 +3498,18 @@ def mobile_registrar_documento_fiscal():
             logger.exception("Erro ao processar estoque do documento mobile")
             warnings.append(f"Documento salvo, mas houve erro ao integrar o estoque: {str(exc)}")
 
+        # Última compra no item (NF, chave, datas e preço), como faz Documentos Fiscais do site. Até
+        # 25/11/2026 a entrada pelo app não gravava e o cartão Financeiro ficava na NF anterior.
+        try:
+            from ..services.item_ultima_compra import record_item_last_purchase
+
+            if document_item is not None and documento is not None:
+                if record_item_last_purchase(db.session.get(Item, document_item.codigo_item), documento, document_item, actor=actor_id):
+                    db.session.commit()
+        except Exception:
+            db.session.rollback()
+            logger.exception("Falha ao gravar a última compra do item %s (documento mobile)", codigo)
+
         try:
             inventory_service.clear_runtime_cache("list_items")
             inventory_service.clear_runtime_cache("list_notas_fiscais:")

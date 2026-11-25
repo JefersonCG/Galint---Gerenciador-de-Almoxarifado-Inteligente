@@ -137,6 +137,11 @@ def test_launch_sends_new_items_to_pre_registration(client):
     assert all(item.pre_cadastro_origem == "nf" and item.pre_cadastro_documento_item_id for item in new_items)
     assert all(item.codigo_item.startswith("2") for item in new_items)  # código interno (o da NF não é EAN)
     assert db.session.get(Item, "FITA001").pre_cadastro_pendente in (False, None)
+    # Última compra no item (25/11/2026: o cloro ficou na NF 3740 depois de a 3891 ser lançada pelo Ler NF).
+    disjuntor = db.session.get(Item, "7891234567895")
+    assert (disjuntor.preco_compra_documento, disjuntor.preco_compra_chave_acesso) == ("12345", ACCESS_KEY)
+    assert (disjuntor.preco_compra_data_emissao.isoformat(), disjuntor.preco_compra_data_recebimento.isoformat()) == ("2026-11-18", "2026-11-19")
+    assert disjuntor.preco_compra_fonte == "compra_nf" and disjuntor.preco_compra_unitario > 0
     links = {row.codigo_fornecedor: row.codigo_item for row in NFItemVinculo.query.all()}
     assert links["000555"] == "FITA001" and links["7891234567895"] == "7891234567895"
     assert db.session.get(NFLeitura, reading.id).status == "lancada"

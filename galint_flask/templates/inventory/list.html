@@ -1637,6 +1637,7 @@
                                             <span class="fw-semibold" id="item-valor-reposicao-total">—</span>
                                         </div>
                                     </div>
+                                    <div class="galint-compras-resumo d-none" id="item-compras-resumo"></div>
                                     <div class="text-muted mt-2" id="item-preco-meta" style="font-size: 0.8rem;"></div>
                                 </div>
 
@@ -2927,6 +2928,76 @@
 
     .galint-finance-row span:last-child {
         color: var(--galint-branco, #ffffff);
+    }
+
+    /* Última compra e a anterior (25/11/2026), das linhas de NF do item */
+    .galint-compras-resumo {
+        margin-top: 0.6rem;
+        padding-top: 0.5rem;
+        border-top: 1px solid rgba(148, 163, 184, 0.16);
+        font-size: 0.8rem;
+    }
+
+    .galint-compra {
+        padding: 0.25rem 0;
+    }
+
+    .galint-compra + .galint-compra {
+        border-top: 1px dashed rgba(148, 163, 184, 0.14);
+    }
+
+    .galint-compra-topo {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.5rem;
+    }
+
+    .galint-compra-rotulo {
+        color: #9fb6d1;
+        font-size: 0.7rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-right: 0.35rem;
+    }
+
+    .galint-compra-doc {
+        color: #ffffff;
+        font-weight: 800;
+    }
+
+    .galint-compra-preco {
+        color: #ffffff;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .galint-compra-detalhe {
+        color: #d1ddee;
+    }
+
+    .galint-compra-var {
+        display: inline-block;
+        margin-left: 0.3rem;
+        padding: 0 0.35rem;
+        border-radius: 999px;
+        font-size: 0.7rem;
+        font-weight: 800;
+    }
+
+    .galint-compra-var.is-up { background: rgba(239, 68, 68, 0.22); color: #fecaca; }
+    .galint-compra-var.is-down { background: rgba(34, 197, 94, 0.22); color: #bbf7d0; }
+    .galint-compra-var.is-same { background: rgba(148, 163, 184, 0.2); color: #e2e8f0; }
+
+    .galint-compras-todas {
+        background: none;
+        border: none;
+        padding: 0;
+        color: #93c5fd;
+        font-weight: 700;
+        font-size: 0.78rem;
+        text-decoration: underline;
     }
 
     #inventoryItemModal .text-muted,
@@ -7163,6 +7234,103 @@
             || (document && !manualDocs.has(document));
     };
 
+    // Cartão Financeiro (25/11/2026). O usuário achou o cloro granulado em "Compra: compra_nf (3740)" e
+    // "atualizado em 16/04/2026" depois de lançar a NF 3891: a NF vinha de campos do item que o Ler NF não
+    // atualizava, e a data era a da REPOSIÇÃO. Agora a última compra e a anterior saem das linhas de NF do
+    // item (o mesmo histórico da aba Histórico), com data de entrada, emissão, fornecedor, quantidade,
+    // preço e a variação; a linha "Compra: ..." do item só aparece se o item não tiver NF no histórico, e a
+    // de reposição só quando há preço ou fonte de reposição.
+    let financeItemShown = null;
+    let purchaseSummaryCode = null;
+
+    const renderFinanceMeta = (item) => {
+        const metaEl = document.getElementById('item-preco-meta');
+        if (!metaEl) return;
+        const compraFonte = (item?.preco_compra_fonte || '').trim();
+        const compraDoc = (item?.preco_compra_documento || '').trim();
+        const reposFonte = (item?.preco_reposicao_fonte || '').trim();
+        const reposUf = (item?.preco_reposicao_uf || '').trim();
+        const reposUpdated = (item?.preco_reposicao_atualizado_em || '').trim();
+        const reposPreco = Number(item?.preco_reposicao_unitario);
+
+        const parts = [];
+        if ((compraFonte || compraDoc) && purchaseSummaryCode !== String(item?.codigo || '')) {
+            parts.push(`Compra: ${escapeHtml(compraFonte || '—')}${compraDoc ? ` (${escapeHtml(compraDoc)})` : ''}`);
+        }
+        if (reposFonte || reposUf || (Number.isFinite(reposPreco) && reposPreco > 0)) {
+            const ufTxt = reposUf ? ` • UF ${escapeHtml(reposUf)}` : '';
+            const dtTxt = reposUpdated ? ` • atualizado em ${escapeHtml(new Date(reposUpdated).toLocaleDateString('pt-BR'))}` : '';
+            parts.push(`Reposição: ${escapeHtml(reposFonte || '—')}${ufTxt}${dtTxt}`);
+        }
+        metaEl.innerHTML = parts.join('<br>');
+    };
+
+    const purchaseSortDate = (registro) => String(registro?.data_recebimento || registro?.data_emissao || registro?.criado_em || '').slice(0, 10);
+
+    const renderPurchaseSummary = (codigo, history) => {
+        const box = document.getElementById('item-compras-resumo');
+        if (!box) return;
+        const compras = (Array.isArray(history) ? history : [])
+            .filter((registro) => String(registro?.tipo_documento || '').trim().toLowerCase() !== 'manual')
+            .sort((a, b) => purchaseSortDate(b).localeCompare(purchaseSortDate(a)) || (Number(b?.id) || 0) - (Number(a?.id) || 0));
+        if (!compras.length) {
+            purchaseSummaryCode = null;
+            box.classList.add('d-none');
+            box.innerHTML = '';
+            if (financeItemShown) renderFinanceMeta(financeItemShown);
+            return;
+        }
+        const docLabel = (registro) => {
+            const tipo = String(registro?.tipo_documento || '').trim().toLowerCase();
+            const prefixo = tipo === 'nf' ? 'NF' : (tipo === 'cupom' ? 'Cupom' : (tipo ? tipo.toUpperCase() : 'Doc.'));
+            return `${prefixo} ${registro?.numero_documento || '—'}`;
+        };
+        const priceText = (registro) => {
+            const valor = Number(registro?.valor_unitario);
+            if (!(valor > 0)) return '';
+            const unidade = String(registro?.unidade_preco_efetiva || registro?.unidade_quantidade_efetiva || '').trim().toLowerCase();
+            return `${formatBrl(valor)}${unidade ? ` / ${escapeHtml(unidade)}` : ''}`;
+        };
+        const variation = (atual, anterior) => {
+            const a = Number(atual?.valor_unitario);
+            const b = Number(anterior?.valor_unitario);
+            const unA = String(atual?.unidade_preco_efetiva || '').toLowerCase();
+            const unB = String(anterior?.unidade_preco_efetiva || '').toLowerCase();
+            if (!(a > 0) || !(b > 0) || unA !== unB) return '';
+            const pct = ((a - b) / b) * 100;
+            if (Math.abs(pct) < 0.05) return '<span class="galint-compra-var is-same">=</span>';
+            const txt = `${pct > 0 ? '▲' : '▼'} ${Math.abs(pct).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`;
+            return `<span class="galint-compra-var ${pct > 0 ? 'is-up' : 'is-down'}" title="Comparado à compra anterior">${txt}</span>`;
+        };
+        const block = (rotulo, registro, anterior) => {
+            const entrada = formatDocumentHistoryDate(registro?.data_recebimento, registro?.data_emissao || registro?.criado_em);
+            const emissao = registro?.data_emissao ? formatDocumentHistoryDate(registro.data_emissao, null) : '';
+            const detalhes = [
+                escapeHtml(registro?.fornecedor_nome || registro?.cnpj_emitente || ''),
+                escapeHtml(registro?.quantidade_documento_display || ''),
+                emissao && emissao !== entrada ? `emissão ${emissao}` : '',
+            ].filter(Boolean).join(' · ');
+            return `
+                <div class="galint-compra">
+                    <div class="galint-compra-topo">
+                        <span><span class="galint-compra-rotulo">${rotulo}</span><span class="galint-compra-doc">${escapeHtml(docLabel(registro))}</span> · ${entrada}</span>
+                        <span class="galint-compra-preco">${priceText(registro)}${anterior ? variation(registro, anterior) : ''}</span>
+                    </div>
+                    ${detalhes ? `<div class="galint-compra-detalhe">${detalhes}</div>` : ''}
+                </div>`;
+        };
+        const [ultima, anterior] = compras;
+        box.innerHTML = block('Última compra', ultima, anterior)
+            + (anterior ? block('Anterior', anterior, compras[2]) : '')
+            + (compras.length > 2 ? `<button type="button" class="galint-compras-todas" data-ver-compras>Todas as compras (${compras.length})</button>` : '');
+        box.classList.remove('d-none');
+        box.querySelector('[data-ver-compras]')?.addEventListener('click', () => {
+            document.querySelector('#inventoryItemModal .galint-tab-btn[data-tab="history"]')?.click();
+        });
+        purchaseSummaryCode = String(codigo || '');
+        if (financeItemShown && String(financeItemShown.codigo || '') === purchaseSummaryCode) renderFinanceMeta(financeItemShown);
+    };
+
     const updateFinanceUI = (item) => {
         const compraEl = document.getElementById('item-preco-compra-unit');
         const reposEl = document.getElementById('item-preco-reposicao-unit');
@@ -7186,22 +7354,8 @@
         totalCompraEl.textContent = formatBrl(totalCompra);
         totalReposEl.textContent = formatBrl(totalRepos);
 
-        const compraFonte = (item?.preco_compra_fonte || '').trim();
-        const compraDoc = (item?.preco_compra_documento || '').trim();
-        const reposFonte = (item?.preco_reposicao_fonte || '').trim();
-        const reposUf = (item?.preco_reposicao_uf || '').trim();
-        const reposUpdated = (item?.preco_reposicao_atualizado_em || '').trim();
-
-        const parts = [];
-        if (compraFonte || compraDoc) {
-            parts.push(`Compra: ${escapeHtml(compraFonte || '—')}${compraDoc ? ` (${escapeHtml(compraDoc)})` : ''}`);
-        }
-        if (reposFonte || reposUf || reposUpdated) {
-            const ufTxt = reposUf ? ` • UF ${escapeHtml(reposUf)}` : '';
-            const dtTxt = reposUpdated ? ` • atualizado em ${escapeHtml(new Date(reposUpdated).toLocaleDateString('pt-BR'))}` : '';
-            parts.push(`Reposição: ${escapeHtml(reposFonte || '—')}${ufTxt}${dtTxt}`);
-        }
-        metaEl.innerHTML = parts.length ? parts.join('<br>') : '—';
+        financeItemShown = item;
+        renderFinanceMeta(item);
 
         if (btnBuscar) {
             btnBuscar.style.display = canManage ? '' : 'none';
@@ -7408,6 +7562,8 @@
                 </tr>
             `;
         }
+        purchaseSummaryCode = null;
+        document.getElementById('item-compras-resumo')?.classList.add('d-none');
 
         historyTbody.innerHTML = `
             <tr>
@@ -7425,6 +7581,7 @@
             }
             renderDocumentHistory(data.document_history || []);
             renderItemInvoices(data.document_history || []);
+            renderPurchaseSummary(codigo, data.document_history || []);
             renderItemHistory(data.history || []);
         } catch (err) {
             if (documentHistoryTbody) {

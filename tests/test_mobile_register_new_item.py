@@ -138,6 +138,10 @@ def test_new_item_with_packaging_counts_the_can_not_the_liters(client):
     assert float(linha.quantidade) == 1.0
     assert float(linha.quantidade_base) == 18.0
     assert float(linha.valor_total) == pytest.approx(429.9)
+    # Última compra no item (25/11/2026): NF, chave, datas e preço da lata, como no site.
+    assert (item.preco_compra_documento, item.preco_compra_chave_acesso, item.preco_compra_fonte) == ("1234", CHAVE, "compra_nf")
+    assert item.preco_compra_data_recebimento.isoformat() == "2026-11-23"
+    assert float(item.preco_compra_unitario) == pytest.approx(429.9)
 
 
 def test_new_item_packaging_needs_the_content(client):

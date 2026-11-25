@@ -544,6 +544,12 @@ def lancar_leitura(reading: NFLeitura, header: dict[str, Any], lines: list[dict[
                 except Exception as exc:
                     logger.exception("Estoque da NF lida %s, linha %s", reading.id, line["n"])
                     warnings.append(f"Item {line['n']}: lançado, mas a entrada no estoque falhou ({exc}).")
+        # Última compra no item (NF, chave, datas e preço), como faz Documentos Fiscais. Até 25/11/2026 o
+        # Ler NF não gravava: o cloro ficou em "compra_nf (3740)" depois de a NF 3891 ser lançada aqui.
+        if document_item is not None and documento is not None:
+            from .item_ultima_compra import record_item_last_purchase
+
+            record_item_last_purchase(db.session.get(Item, codigo), documento, document_item, actor=usuario)
         _remember_link(cnpj, line.get("codigo_fornecedor") or "", line.get("descricao") or "", codigo, usuario)
         (novos if novo else existentes).append(codigo)
         launched.append(line["n"])
