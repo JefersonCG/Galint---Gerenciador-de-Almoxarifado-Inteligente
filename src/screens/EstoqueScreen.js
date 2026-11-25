@@ -11,6 +11,8 @@
 // - menu ☰ enxuto: Conferência, Movimento de material, Avisos, Painel e Sair.
 // Em 23/11/2026 (2.2.6): código que não existe no GALINT pergunta "Deseja cadastrar?" (só para quem
 // lança entrada) e abre o mesmo "Lançar entrada" com os campos do item novo; na volta, o item abre aqui.
+// Em 25/11/2026 (2.4.0): com itens guardados na Fila de saída, o menu ☰ mostra "Fila de saída" com o número
+// (pedido do usuário: se o app fechar, o que estava sendo retirado volta).
 //
 // A tela também cuida da sessão (sinal de vida, inatividade) e da sincronização da base.
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -43,6 +45,7 @@ import HeartbeatService from '../services/heartbeatService';
 import InactivityService from '../services/inactivityService';
 import SyncService from '../services/dbSync';
 import { getItemByCodigo, searchItems } from '../services/localDb';
+import { contarFila } from '../services/filaSaida';
 import { subscribeNotifyInboxChanged } from '../services/notifyEvents';
 import StockCountPanel from '../components/StockCountPanel';
 import ItemPhotoLinkModal from '../components/ItemPhotoLinkModal';
@@ -351,6 +354,19 @@ export default function EstoqueScreen({ navigation, route }) {
         navigation.navigate(screen, { user, ...params });
     }, [navigation, user]);
 
+    // Fila de saída guardada no celular: aparece no menu com o número de itens.
+    const [naFila, setNaFila] = useState(0);
+    useEffect(() => {
+        if (!menuOpen) return undefined;
+        let ativo = true;
+        contarFila(user).then((total) => {
+            if (ativo) setNaFila(total);
+        });
+        return () => {
+            ativo = false;
+        };
+    }, [menuOpen, user]);
+
     const logout = useCallback(() => {
         setMenuOpen(false);
         Alert.alert('Sair', 'Sair do GALINT neste celular?', [
@@ -428,6 +444,7 @@ export default function EstoqueScreen({ navigation, route }) {
                     <ScrollView contentContainerStyle={[styles.menuList, { paddingBottom: insets.bottom + 24 }]}>
                         {menuEntry('📷', 'Conferência', () => setMenuOpen(false), 'Ler código, consultar e contar')}
                         {role !== 'gerencia' ? menuEntry('🔄', 'Movimento de material', () => go('Movimento'), 'Materiais, ferramentas, fracionados e devoluções') : null}
+                        {role !== 'gerencia' && naFila > 0 ? menuEntry('🧺', 'Fila de saída', () => go('FilaSaida'), `${naFila} ${naFila === 1 ? 'item esperando' : 'itens esperando'}`, naFila) : null}
                         {menuEntry('🔔', 'Avisos', openNotifications, 'Saídas, devoluções e alertas do estoque', inbox.unread)}
                         {ENTRADAS_FISCAIS_NO_APP ? menuEntry('🧾', 'Entradas fiscais', () => go('DocumentosFiscais'), 'NF, cupom, recibo') : null}
                         {canLaunchEntry ? menuEntry('📊', 'Relatórios', () => go('Reports'), 'Dia, mês e consumo em PDF ou Excel') : null}

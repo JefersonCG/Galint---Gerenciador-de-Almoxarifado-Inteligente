@@ -140,9 +140,9 @@ export default function ScannerScreen({ navigation, route }) {
                     showNotFound(data);
                     return;
                 }
-                // Retornar item escaneado para RetiradaScreen
+                // Retornar item escaneado para a tela que abriu o leitor (Fila de saída desde a 2.4.0)
                 if (route?.params?.multiCallback) {
-                    navigation.navigate('Retirada', { 
+                    navigation.navigate(route?.params?.returnTo || 'Retirada', {
                         user, 
                         multi: true, 
                         scannedItem: item 

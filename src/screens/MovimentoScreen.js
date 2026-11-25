@@ -4,6 +4,8 @@
 // ferramenta pela categoria e pede a custódia), e Devolução. Fracionados saíram do app e ficam só
 // no site. A custódia do dia, que ficava em "Consultar estoque" (removido), mora na aba Devolução
 // e só é carregada quando ela está aberta (o servidor leva alguns segundos).
+// 2.4.0 (25/11/2026): "Vários itens" virou "Fila de saída" (FilaSaidaScreen), a fila do site por
+// colaborador, guardada no celular; o cartão mostra quantos itens esperam a saída.
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -12,6 +14,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import ApiService from '../services/api';
 import InactivityService from '../services/inactivityService';
 import DailyCustodyPanel from '../components/DailyCustodyPanel';
+import { contarFila } from '../services/filaSaida';
 import { heroPalette, heroSoftShadow } from '../theme/heroTheme';
 
 const TAB_KEY = 'galint_movimento_aba';
@@ -75,6 +78,20 @@ export default function MovimentoScreen({ navigation, route }) {
             if (tab === 'devolucao') loadCustody(true);
             return undefined;
         }, [loadCustody, tab])
+    );
+
+    // Fila de saída guardada no celular (2.4.0): quantos itens esperam a saída.
+    const [naFila, setNaFila] = useState(0);
+    useFocusEffect(
+        useCallback(() => {
+            let ativo = true;
+            contarFila(user).then((total) => {
+                if (ativo) setNaFila(total);
+            });
+            return () => {
+                ativo = false;
+            };
+        }, [user])
     );
 
     useEffect(() => {
@@ -156,7 +173,12 @@ export default function MovimentoScreen({ navigation, route }) {
             {tab === 'retirada' ? (
                 <>
                     {action('📷', 'Ler código', 'Material ou ferramenta', () => open('Scanner', { mode: 'withdraw' }), true)}
-                    {action('🧰', 'Vários itens', 'Uma saída com vários itens', () => open('Retirada', { multi: true, items: [] }))}
+                    {action(
+                        '🧺',
+                        'Fila de saída',
+                        naFila ? `${naFila} ${naFila === 1 ? 'item esperando' : 'itens esperando'}` : 'Vários itens e colaboradores',
+                        () => open('FilaSaida'),
+                    )}
                 </>
             ) : null}
 

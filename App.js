@@ -36,6 +36,7 @@ function loadScreens() {
             ScannerScreen: require('./src/screens/ScannerScreen').default,
             EditarItemScreen: require('./src/screens/EditarItemScreen').default,
             RetiradaScreen: require('./src/screens/RetiradaScreen').default,
+            FilaSaidaScreen: require('./src/screens/FilaSaidaScreen').default,
             DevolverScreen: require('./src/screens/DevolverScreen').default,
             DocumentosFiscaisScreen: require('./src/screens/DocumentosFiscaisScreen').default,
             ConfigScreen: require('./src/screens/ConfigScreen').default,
@@ -277,6 +278,7 @@ function AppNavigator() {
                     <Stack.Screen name="Scanner" component={S.ScannerScreen} options={{ title: 'Escanear Código', headerTransparent: true }} />
                     <Stack.Screen name="EditarItem" component={S.EditarItemScreen} options={{ title: 'Editar Item' }} />
                     <Stack.Screen name="Retirada" component={S.RetiradaScreen} options={{ title: 'Retirar Material' }} />
+                    <Stack.Screen name="FilaSaida" component={S.FilaSaidaScreen} options={{ title: 'Fila de saída' }} />
                     <Stack.Screen name="Devolver" component={S.DevolverScreen} options={{ title: 'Devolução' }} />
                     <Stack.Screen name="Config" component={S.ConfigScreen} options={{ title: 'Configurações' }} />
                     <Stack.Screen name="Menu" component={S.MenuScreen} options={{ title: 'Painel' }} />
