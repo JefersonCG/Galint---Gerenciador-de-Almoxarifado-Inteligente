@@ -392,10 +392,9 @@ def build_sidebar_navigation() -> dict[str, Any]:
         suprimentos_children.append(_link_item("Cadastrar fornecedor", fornecedores_url, "bi-building-add", _path_matches(path, fornecedores_url)))
     if lojas_lab_url:
         suprimentos_children.append(_link_item("Laboratório de Lojas", lojas_lab_url, "bi-shop", _path_matches(path, lojas_lab_url)))
+    # Ler NF e Documentos Fiscais viraram uma página com duas abas (25/11/2026): uma entrada no menu.
     if nf_url:
-        suprimentos_children.append(_link_item("Documentos Fiscais", nf_url, "bi-receipt", _path_matches(path, nf_url) and not _path_matches(path, nf_leitura_url)))
-    if nf_leitura_url:
-        suprimentos_children.append(_link_item("Ler NF", nf_leitura_url, "bi-file-earmark-text", _path_matches(path, nf_leitura_url)))
+        suprimentos_children.append(_link_item("Documentos Fiscais", nf_url, "bi-receipt", _path_matches(path, nf_url) or _path_matches(path, nf_leitura_url)))
     if suprimentos_children:
         entries.append(_group_item("Gestão de Suprimentos", "bi-briefcase-fill", "suprimentosMenu", suprimentos_active, suprimentos_children))
 

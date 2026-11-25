@@ -1,13 +1,15 @@
 {% extends "base.html" %}
 {# Ler NF (24/11/2026): envio de PDF/foto de NF e lista das leituras. Regras em services/nf_leitura_service.py. #}
 {% block title %}Ler NF{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/galint-form.css', v='20261125') }}">
+{% endblock %}
 {% block content %}
 {% set fila_pos = fila_pos|default({}) %}
-<div class="container-fluid py-3">
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-        <h1 class="h4 mb-0"><i class="bi bi-file-earmark-text me-1"></i> Ler NF</h1>
-        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('nf_leitura.index') }}"><i class="bi bi-arrow-clockwise"></i> Atualizar</a>
-    </div>
+{% from 'nf/_abas.html' import nf_abas with context %}
+<div class="gf-page gf">
+    {% set nf_acoes %}<a class="btn btn-outline-secondary btn-sm" href="{{ url_for('nf_leitura.index') }}" title="Atualizar"><i class="bi bi-arrow-clockwise"></i></a>{% endset %}
+    {{ nf_abas('leitura', nf_acoes) }}
 
     {% if not ocr.ok or not ocr.pdf %}
     <div class="alert alert-danger py-2">{{ ocr.message or 'Leitor de PDF indisponível neste servidor.' }}</div>
@@ -15,17 +17,14 @@
     <div class="alert alert-warning py-2">{{ ocr.message }}</div>
     {% endif %}
 
-    <form class="card mb-3" method="post" action="{{ url_for('nf_leitura.enviar') }}" enctype="multipart/form-data">
-        <div class="card-body d-flex flex-wrap align-items-center gap-2 py-2">
-            <input class="form-control" style="max-width: 32rem" type="file" name="arquivos" accept="{{ accept }}" multiple required>
-            <button class="btn btn-primary" type="submit"><i class="bi bi-upc-scan me-1"></i> Ler</button>
-            <span class="small text-muted">Uma ou várias NFs (PDF ou foto)</span>
-        </div>
+    <form class="gf-panel d-flex flex-wrap align-items-center gap-2 mb-2" method="post" action="{{ url_for('nf_leitura.enviar') }}" enctype="multipart/form-data">
+        <input class="form-control" style="max-width: 32rem" type="file" name="arquivos" accept="{{ accept }}" multiple required aria-label="PDF ou foto da NF">
+        <button class="btn btn-primary" type="submit"><i class="bi bi-upc-scan me-1"></i> Ler</button>
     </form>
 
-    <div class="card">
+    <div class="gf-panel p-0">
         <div>
-            <table class="table table-sm table-hover align-middle mb-0">
+            <table class="gf-table table table-hover align-middle mb-0">
                 <thead>
                     <tr><th>NF</th><th>Fornecedor</th><th class="text-end">Total</th><th>Itens</th><th>Situação</th><th class="text-end"></th></tr>
                 </thead>

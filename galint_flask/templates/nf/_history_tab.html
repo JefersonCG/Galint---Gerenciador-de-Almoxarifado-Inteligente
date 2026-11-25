@@ -1,13 +1,10 @@
 <section class="docf-card" id="controle-periodo">
     <div class="docf-card-header">
-        <div>
-            <div class="docf-kicker">Controle por período</div>
-            <h2 class="docf-card-title">Fechamento operacional de compras</h2>
-        </div>
+        <h2 class="docf-card-title">Período</h2>
         {% if period_dashboard.active_closure %}
-        <span class="docf-badge">Período fechado</span>
+        <span class="docf-badge">Fechado</span>
         {% else %}
-        <span class="docf-badge">Janela em análise</span>
+        <span class="docf-badge">Aberto</span>
         {% endif %}
     </div>
 
@@ -43,15 +40,13 @@
                     </select>
                 </div>
                 <div class="col-12 d-flex gap-2 flex-wrap pt-1">
-                    <button class="docf-btn-secondary" type="submit" data-help-label="Aplicar período" data-help-text="Atualiza os indicadores e a lista de documentos conforme os filtros escolhidos.">Aplicar período</button>
-                    <a class="docf-btn-secondary" href="{{ url_for('nf.nf_index', aba='historico') }}#controle-periodo" data-help-label="Limpar filtros" data-help-text="Remove os filtros do período e retorna para a visão padrão da página.">Limpar</a>
+                    <button class="docf-btn-secondary" type="submit">Aplicar</button>
+                    <a class="docf-btn-secondary" href="{{ url_for('nf.nf_index', aba='historico') }}#controle-periodo">Limpar</a>
                 </div>
             </form>
         </div>
 
         <div class="docf-panel info">
-            <div class="docf-kicker">Resumo da janela</div>
-            <p class="mb-2">Controle atual de <strong>{{ period_dashboard.filters.data_inicio.strftime('%d/%m/%Y') }}</strong> até <strong>{{ period_dashboard.filters.data_fim.strftime('%d/%m/%Y') }}</strong>{% if period_dashboard.filters.fornecedor_id %} com fornecedor filtrado{% endif %}.</p>
             <div class="docf-closure-meta">
                 <span class="docf-chip">{{ period_dashboard.kpis.documentos }} documentos</span>
                 <span class="docf-chip">{{ period_dashboard.kpis.cupom }} cupons</span>
@@ -70,9 +65,9 @@
                 <input type="hidden" name="periodo_fim" value="{{ period_dashboard.filters.data_fim.isoformat() }}">
                 <input type="hidden" name="periodo_fornecedor" value="{{ period_dashboard.filters.fornecedor_id or '' }}">
                 <input type="hidden" name="periodo_tipo" value="{{ period_dashboard.filters.tipo_documento }}">
-                <label class="form-label" for="observacao_fechamento">Observação do fechamento</label>
-                <input class="form-control mb-2" id="observacao_fechamento" name="observacao_fechamento" placeholder="Ex.: ciclo balcão até dia 26, conferido com compras do período.">
-                <button class="docf-btn-primary w-100" type="submit" data-help-label="Fechar período atual" data-help-text="Consolida a janela atual de compras para conferência e rastreabilidade documental.">Fechar período atual</button>
+                <label class="form-label" for="observacao_fechamento">Observação</label>
+                <input class="form-control mb-2" id="observacao_fechamento" name="observacao_fechamento">
+                <button class="docf-btn-primary w-100" type="submit">Fechar período</button>
             </form>
             {% endif %}
         </div>
@@ -108,7 +103,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="7" class="text-center docf-muted">Nenhuma compra documental encontrada no período selecionado.</td>
+                        <td colspan="7" class="text-center docf-muted">Nenhuma compra no período.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -137,12 +132,12 @@
                 {% if can_manage and closure.status == 'fechado' %}
                 <form method="post" action="{{ url_for('nf.reabrir_periodo_compras', fechamento_id=closure.id) }}" class="mt-3">
                     <input type="hidden" name="active_tab" value="historico">
-                    <button class="docf-btn-secondary w-100" type="submit" data-help-label="Reabrir período" data-help-text="Reabre um fechamento salvo para permitir nova revisão ou ajuste.">Reabrir período</button>
+                    <button class="docf-btn-secondary w-100" type="submit">Reabrir período</button>
                 </form>
                 {% endif %}
             </div>
             {% else %}
-            <div class="docf-empty">Nenhum fechamento registrado ainda.</div>
+            <div class="docf-empty">Nenhum fechamento.</div>
             {% endfor %}
         </div>
     </div>
@@ -150,10 +145,7 @@
 
 <section class="docf-card">
     <div class="docf-card-header">
-        <div>
-            <div class="docf-kicker">Histórico</div>
-            <h2 class="docf-card-title">Documentos fiscais registrados recentemente</h2>
-        </div>
+        <h2 class="docf-card-title">Documentos</h2>
         <span class="docf-badge">{{ notas|length }} registros</span>
     </div>
     {% if notas %}
@@ -176,15 +168,7 @@
             <div id="collapse-{{ collapse_id }}" class="accordion-collapse collapse"
                 aria-labelledby="heading-{{ collapse_id }}" data-bs-parent="#nf-accordion">
                 <div class="accordion-body">
-                    {% if nota.status_integracao == 'aguardando_certificado' %}
-                    <div class="docf-panel warning mb-3">
-                        <strong>Pendência fiscal visível:</strong> consulta automática bloqueada até o certificado digital ficar disponível.
-                    </div>
-                    {% endif %}
-                    <p class="mb-3 small docf-muted">
-                        Registrada em {{ nota.data|format_local('%d/%m/%Y %H:%M') if nota.data else 'data não informada' }}
-                        {% if nota.usuarios %} por {{ nota.usuarios|join(', ') }}{% endif %}.
-                    </p>
+                    <div class="mb-2 small docf-muted">{{ nota.data|format_local('%d/%m/%Y %H:%M') if nota.data else '' }}{% if nota.usuarios %} · {{ nota.usuarios|join(', ') }}{% endif %}</div>
                     <div class="docf-detail-grid">
                         <div class="docf-detail-box"><span class="docf-detail-label">Fornecedor</span><span class="docf-detail-value">{{ nota.fornecedor_nome|default('Não informado', true) }}</span></div>
                         <div class="docf-detail-box"><span class="docf-detail-label">CNPJ</span><span class="docf-detail-value">{{ nota.cnpj_emitente|default('Não informado', true) }}</span></div>
@@ -197,7 +181,7 @@
                     </div>
                     {% if can_manage and nota.id_documento is defined and nota.id_documento is not none %}
                     <div class="mt-3">
-                        <a class="docf-btn-secondary" href="{{ url_for('nf.nf_index', nota=nota.numero_documento|default(nota.nota_fiscal, true), aba='historico') }}#documento-editar-{{ nota.id_documento }}">Editar este documento</a>
+                        <a class="docf-btn-secondary" href="{{ url_for('nf.nf_index', nota=nota.numero_documento|default(nota.nota_fiscal, true), aba='historico') }}#documento-editar-{{ nota.id_documento }}">Editar</a>
                     </div>
                     {% elif can_manage and nota.nota_fiscal|default('', true) %}
                     <div class="mt-3">
@@ -210,7 +194,7 @@
                     {% endif %}
                     {% if nota.mensagem_integracao %}
                     <div class="docf-panel warning mt-3">
-                        <strong>Consulta bloqueada:</strong> {{ nota.mensagem_integracao }}
+                        {{ nota.mensagem_integracao }}
                     </div>
                     {% endif %}
                     <div class="docf-table-wrap mt-3">
@@ -244,6 +228,6 @@
         {% endfor %}
     </div>
     {% else %}
-    <div class="docf-empty">Nenhum documento fiscal registrado.</div>
+    <div class="docf-empty">Nenhum documento.</div>
     {% endif %}
 </section>

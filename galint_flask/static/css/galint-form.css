@@ -1,0 +1,293 @@
+/*
+ * Formulário padrão do GALINT (pedido do usuário em 25/11/2026, com o print de um cadastro de produto
+ * como molde): rótulo pequeno em cima, campo baixo, vários campos por linha, opções juntas
+ * (SIM | NÃO), campo só de leitura em cinza, página centralizada e nenhum texto explicativo.
+ *
+ * Uso:
+ *   .gf-page   centraliza o conteúdo da página (largura máxima).
+ *   .gf        aplica o padrão aos campos (.form-label, .form-control, .form-select, .btn) de dentro.
+ *   .gf-panel  quadro branco do formulário.
+ *   .gf-tabs   abas da página (links): <nav class="gf-tabs"><a class="active">…</a></nav>.
+ *   .gf-seg    opções juntas: <div class="gf-seg"><button class="active">SIM</button><button>NÃO</button></div>.
+ * As cores seguem a Aparência do site (--skin-*), com reserva para o padrão.
+ */
+:root {
+    --gf-accent: var(--skin-accent, var(--galint-azul-500, #2563eb));
+    --gf-on-accent: var(--skin-on-accent, #ffffff);
+    --gf-accent-hover: var(--skin-accent-hover, #1d4ed8);
+    --gf-text: #1f2937;
+    --gf-label: #4b5563;
+    --gf-line: #cfd6de;
+    --gf-panel: #ffffff;
+    --gf-panel-line: #dfe4ea;
+    --gf-readonly: #eceff3;
+    --gf-soft: #f5f7f9;
+    --gf-danger: #c62828;
+    --gf-ok: #2e7d32;
+    --gf-warn: #b26a00;
+    --gf-radius: 3px;
+    --gf-h: 32px;
+}
+
+.gf-page {
+    max-width: 1240px;
+    margin: 0 auto;
+    color: var(--gf-text);
+}
+
+.gf-panel {
+    background: var(--gf-panel);
+    border: 1px solid var(--gf-panel-line);
+    border-radius: 4px;
+    padding: 14px 18px;
+}
+
+.gf-panel + .gf-panel,
+.gf-panel + .gf-block,
+.gf-block + .gf-panel {
+    margin-top: 12px;
+}
+
+.gf-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--gf-text);
+    margin: 0 0 10px;
+}
+
+/* ---------- campos ---------- */
+.gf .form-label,
+.gf-label {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 400;
+    color: var(--gf-label);
+    margin-bottom: 3px;
+    line-height: 1.25;
+}
+
+.gf .form-label.gf-req::after,
+.gf-label.gf-req::after {
+    content: "*";
+}
+
+.gf .form-control,
+.gf .form-select {
+    min-height: var(--gf-h);
+    padding: 4px 8px;
+    font-size: 0.875rem;
+    color: var(--gf-text);
+    background-color: #ffffff;
+    border: 1px solid var(--gf-line);
+    border-radius: var(--gf-radius);
+    box-shadow: none;
+}
+
+.gf .form-select {
+    padding-right: 28px;
+    background-position: right 8px center;
+}
+
+.gf .form-control-sm,
+.gf .form-select-sm {
+    min-height: var(--gf-h);
+    font-size: 0.875rem;
+}
+
+.gf textarea.form-control {
+    min-height: 56px;
+}
+
+.gf .form-control::placeholder {
+    color: #9aa3ad;
+}
+
+.gf .form-control:focus,
+.gf .form-select:focus {
+    border-color: var(--gf-accent);
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.14);
+    outline: 0;
+}
+
+.gf .form-control[readonly],
+.gf .form-control:disabled,
+.gf .form-select:disabled {
+    background-color: var(--gf-readonly);
+    color: #59616b;
+}
+
+.gf .input-group > .form-control,
+.gf .input-group > .form-select {
+    min-width: 0;
+}
+
+.gf .input-group-text {
+    font-size: 0.8rem;
+    color: var(--gf-label);
+    background: var(--gf-readonly);
+    border: 1px solid var(--gf-line);
+    border-radius: var(--gf-radius);
+    padding: 4px 10px;
+}
+
+.gf .form-check-input {
+    border-color: var(--gf-line);
+}
+
+.gf .form-check-input:checked {
+    background-color: var(--gf-accent);
+    border-color: var(--gf-accent);
+}
+
+.gf .row {
+    --bs-gutter-x: 1rem;
+    --bs-gutter-y: 0.7rem;
+}
+
+/* valor só de leitura com rótulo (como "Data Cadastro" no molde) */
+.gf-field-ro {
+    min-height: var(--gf-h);
+    padding: 5px 8px;
+    font-size: 0.875rem;
+    background: var(--gf-readonly);
+    border: 1px solid var(--gf-line);
+    border-radius: var(--gf-radius);
+    color: var(--gf-text);
+    overflow-wrap: anywhere;
+}
+
+/* ---------- botões ---------- */
+.gf .btn {
+    min-height: var(--gf-h);
+    padding: 4px 14px;
+    font-size: 0.85rem;
+    border-radius: var(--gf-radius);
+}
+
+.gf .btn-sm {
+    min-height: 28px;
+    padding: 2px 10px;
+    font-size: 0.8rem;
+}
+
+/* ---------- opções juntas (SIM | NÃO) ---------- */
+.gf-seg {
+    display: inline-flex;
+    flex-wrap: wrap;
+    border: 1px solid var(--gf-line);
+    border-radius: var(--gf-radius);
+    overflow: hidden;
+    background: var(--gf-soft);
+}
+
+.gf-seg > button,
+.gf-seg > label,
+.gf-seg > a {
+    margin: 0;
+    padding: 5px 12px;
+    min-height: 30px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: #374151;
+    background: transparent;
+    border: 0;
+    border-right: 1px solid var(--gf-line);
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    user-select: none;
+}
+
+.gf-seg > :last-child {
+    border-right: 0;
+}
+
+.gf-seg > .active,
+.gf-seg > .is-active,
+.gf-seg > .is-selected {
+    background: var(--gf-accent);
+    color: var(--gf-on-accent);
+}
+
+.gf-seg > .active.gf-no,
+.gf-seg > .is-selected.gf-no {
+    background: var(--gf-danger);
+}
+
+/* ---------- abas da página ---------- */
+.gf-tabs {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    border-bottom: 1px solid var(--gf-panel-line);
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.gf-tabs > a {
+    padding: 8px 16px;
+    margin-bottom: -1px;
+    font-size: 0.92rem;
+    color: var(--gf-label);
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+}
+
+.gf-tabs > a:hover {
+    color: var(--gf-text);
+}
+
+.gf-tabs > a.active {
+    color: var(--gf-text);
+    font-weight: 600;
+    border-bottom-color: var(--gf-accent);
+}
+
+.gf-tabs .gf-tabs-end {
+    margin-left: auto;
+    display: flex;
+    gap: 6px;
+    padding-bottom: 6px;
+}
+
+/* ---------- tabela compacta ---------- */
+.gf-table {
+    width: 100%;
+    margin: 0;
+    font-size: 0.86rem;
+    --bs-table-bg: transparent;
+}
+
+.gf-table > thead > tr > th {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--gf-label);
+    background: var(--gf-soft);
+    border-bottom: 1px solid var(--gf-panel-line);
+    padding: 6px 8px;
+    white-space: nowrap;
+}
+
+.gf-table > tbody > tr > td {
+    padding: 6px 8px;
+    border-bottom: 1px solid #edf0f3;
+    vertical-align: middle;
+}
+
+.gf-table > tbody > tr:hover > td {
+    background: #f8fafc;
+}
+
+@media (max-width: 768px) {
+    .gf-panel {
+        padding: 12px;
+    }
+
+    .gf-tabs > a {
+        padding: 8px 12px;
+    }
+}

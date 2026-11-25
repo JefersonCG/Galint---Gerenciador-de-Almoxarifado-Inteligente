@@ -79,6 +79,8 @@ def test_list_page_renders_statuses(env, result):
     assert "Já no GALINT · arquivo guardado" in html
     assert "/nf.nf_index/3891" in html and "/nf_leitura.imprimir/5" in html
     assert "/nf_leitura.conferir/5" not in html
+    # Ler NF e Documentos Fiscais numa página só, em abas (25/11/2026).
+    assert '<a class="active" href="/nf_leitura.index/">' in html and 'href="/nf.nf_index/">' in html
 
 
 def test_list_page_works_before_the_server_restart(env):

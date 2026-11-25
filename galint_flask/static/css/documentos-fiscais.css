@@ -1,0 +1,663 @@
+/*
+ * Documentos Fiscais no padrão compacto do GALINT (25/11/2026): troca o tema escuro antigo da página
+ * (degradês, cantos de 30 px, 2.240 linhas dentro do template) pelo formulário claro de galint-form.css.
+ * As classes docf-* continuam as mesmas porque o JavaScript da página usa várias delas.
+ */
+.documents-fiscais-shell .page-header {
+    display: none;
+}
+
+.docf-shell-wrap {
+    max-width: 1240px;
+    margin: 0 auto;
+    color: var(--gf-text);
+}
+
+.docf-muted,
+.docf-shell-wrap .text-muted {
+    color: #6b7280 !important;
+}
+
+/* ---------- quadros ---------- */
+.docf-card {
+    background: var(--gf-panel);
+    border: 1px solid var(--gf-panel-line);
+    border-radius: 4px;
+    padding: 14px 18px;
+}
+
+.docf-state-pane {
+    display: grid;
+    gap: 12px;
+}
+
+.docf-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.docf-card-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--gf-text);
+}
+
+.docf-kicker {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--gf-label);
+    margin-bottom: 6px;
+}
+
+.docf-panel {
+    border: 1px solid var(--gf-panel-line);
+    border-radius: var(--gf-radius);
+    background: var(--gf-soft);
+    padding: 10px 12px;
+    font-size: 0.86rem;
+}
+
+.docf-panel.info {
+    background: #f4f8fd;
+    border-color: #d6e2f2;
+}
+
+.docf-panel.warning {
+    background: #fff8e6;
+    border-color: #f1dca4;
+    color: #6b4a00;
+}
+
+.docf-panel.danger {
+    background: #fdeeee;
+    border-color: #f2c4c4;
+    color: #8a1c1c;
+}
+
+.docf-problem-list {
+    padding-left: 18px;
+    margin: 0;
+}
+
+.docf-empty {
+    padding: 18px;
+    text-align: center;
+    color: #6b7280;
+    font-size: 0.88rem;
+}
+
+.docf-badge,
+.docf-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    border-radius: 999px;
+    background: #eef1f5;
+    color: #374151;
+    border: 1px solid #dde2e8;
+    white-space: nowrap;
+}
+
+.docf-chip.success {
+    background: #e8f5e9;
+    border-color: #c8e6c9;
+    color: var(--gf-ok);
+}
+
+.docf-chip.warning {
+    background: #fff4e0;
+    border-color: #f5dcae;
+    color: var(--gf-warn);
+}
+
+/* ---------- botões ---------- */
+.docf-btn-primary,
+.docf-btn-secondary,
+.docf-btn-danger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: var(--gf-h);
+    padding: 4px 14px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    border-radius: var(--gf-radius);
+    border: 1px solid transparent;
+    text-decoration: none;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.docf-btn-primary {
+    background: var(--gf-accent);
+    border-color: var(--gf-accent);
+    color: var(--gf-on-accent);
+}
+
+.docf-btn-primary:hover {
+    background: var(--gf-accent-hover);
+    color: var(--gf-on-accent);
+}
+
+.docf-btn-secondary {
+    background: #ffffff;
+    border-color: var(--gf-line);
+    color: #374151;
+}
+
+.docf-btn-secondary:hover {
+    background: var(--gf-soft);
+    color: var(--gf-text);
+}
+
+.docf-btn-danger {
+    background: #ffffff;
+    border-color: #e3b4b4;
+    color: var(--gf-danger);
+}
+
+.docf-btn-danger:hover {
+    background: #fdeeee;
+}
+
+.docf-btn-compact {
+    padding: 4px 10px;
+}
+
+.docf-btn-primary:disabled,
+.docf-btn-secondary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ---------- abas de situação ---------- */
+.docf-state-tabs {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin: 0 0 12px;
+}
+
+.docf-state-tabs .nav-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    font-size: 0.82rem;
+    color: #374151;
+    background: #ffffff;
+    border: 1px solid var(--gf-line);
+    border-radius: var(--gf-radius);
+}
+
+.docf-state-tabs .nav-link.active {
+    background: var(--gf-accent);
+    border-color: var(--gf-accent);
+    color: var(--gf-on-accent);
+}
+
+.docf-state-tabs .badge {
+    background: rgba(0, 0, 0, 0.08);
+    color: inherit;
+    font-weight: 600;
+}
+
+.docf-state-tabs .nav-link.active .badge {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+/* ---------- registro: modo e campos ---------- */
+.docf-mode-actions {
+    display: inline-flex;
+    border: 1px solid var(--gf-line);
+    border-radius: var(--gf-radius);
+    overflow: hidden;
+    background: var(--gf-soft);
+    margin-bottom: 12px;
+}
+
+.docf-mode-btn {
+    position: relative;
+    margin: 0;
+    padding: 5px 14px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: #374151;
+    border-right: 1px solid var(--gf-line);
+    cursor: pointer;
+    user-select: none;
+}
+
+.docf-mode-btn:last-child {
+    border-right: 0;
+}
+
+.docf-mode-btn strong {
+    font-weight: 700;
+}
+
+.docf-mode-btn input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.docf-mode-btn.is-active {
+    background: var(--gf-accent);
+    color: var(--gf-on-accent);
+}
+
+.docf-form {
+    display: grid;
+    gap: 10px;
+}
+
+.docf-form-section + .docf-form-section {
+    border-top: 1px solid #edf0f3;
+    padding-top: 10px;
+}
+
+.docf-form-section-header,
+.docf-form-section-text,
+.docf-field-hint:empty,
+.docf-field-hint {
+    display: none;
+}
+
+.docf-field-card {
+    height: 100%;
+}
+
+.docf-item-search-wrap {
+    max-width: 640px;
+}
+
+.docf-hidden-native-select {
+    display: none !important;
+}
+
+/* opções juntas (unidade, embalagem, tipo) no lugar do select */
+.docf-choice-grid {
+    display: inline-flex;
+    flex-wrap: wrap;
+    border: 1px solid var(--gf-line);
+    border-radius: var(--gf-radius);
+    overflow: hidden;
+    background: var(--gf-soft);
+}
+
+.docf-switch-option {
+    margin: 0;
+    padding: 5px 10px;
+    min-height: 30px;
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: #374151;
+    border-right: 1px solid var(--gf-line);
+    border-bottom: 1px solid var(--gf-line);
+    margin-bottom: -1px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.docf-switch-option:focus-visible {
+    outline: 2px solid var(--gf-accent);
+    outline-offset: -2px;
+}
+
+.docf-switch-option.is-selected {
+    background: var(--gf-accent);
+    color: var(--gf-on-accent);
+}
+
+.docf-switch-toggle {
+    display: none;
+}
+
+.docf-field-lock-shell.is-locked .form-control,
+.docf-field-lock-shell.is-locked .form-select {
+    background-color: var(--gf-readonly);
+    color: #6b7280;
+}
+
+.docf-field-lock-shell.is-locked .docf-choice-grid {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.docf-field-lock-note {
+    font-size: 0.72rem;
+    color: #6b7280;
+    margin-top: 2px;
+}
+
+.docf-field-lock-note:empty {
+    display: none;
+}
+
+.docf-codegen-status,
+.docf-photo-status {
+    font-size: 0.74rem;
+    color: #6b7280;
+    margin-top: 3px;
+}
+
+.docf-codegen-status:empty {
+    display: none;
+}
+
+.docf-codegen-status.is-error {
+    color: var(--gf-danger);
+}
+
+.docf-codegen-status.is-success {
+    color: var(--gf-ok);
+}
+
+.docf-inline-results {
+    position: absolute;
+    top: calc(100% + 2px);
+    left: 0;
+    right: 0;
+    z-index: 65;
+}
+
+.docf-shell-wrap .list-group-item {
+    font-size: 0.85rem;
+    padding: 6px 10px;
+}
+
+/* conta ao vivo (quantidade × valor) */
+.docf-live-calc {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+    padding: 6px 10px;
+    border: 1px solid var(--gf-panel-line);
+    border-radius: var(--gf-radius);
+    background: var(--gf-soft);
+    font-size: 0.84rem;
+}
+
+.docf-live-calc[hidden] {
+    display: none;
+}
+
+.docf-live-calc-head {
+    display: contents;
+}
+
+.docf-live-calc-label {
+    display: none;
+}
+
+.docf-live-calc-badge {
+    order: 2;
+    padding: 1px 8px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    border-radius: 999px;
+    background: #eef1f5;
+    color: #374151;
+}
+
+.docf-live-calc-badge.is-ok {
+    background: #e8f5e9;
+    color: var(--gf-ok);
+}
+
+.docf-live-calc-badge.is-warn {
+    background: #fff4e0;
+    color: var(--gf-warn);
+}
+
+.docf-live-calc-badge.is-live {
+    background: #e8f0fe;
+    color: var(--gf-accent);
+}
+
+.docf-live-calc-formula {
+    order: 1;
+    font-weight: 600;
+}
+
+.docf-live-calc-meta {
+    order: 3;
+    flex-basis: 100%;
+    font-size: 0.76rem;
+    color: #6b7280;
+}
+
+.docf-live-calc-meta:empty {
+    display: none;
+}
+
+.compact-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* ---------- documentos na fila ---------- */
+.docf-status-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 10px;
+}
+
+.docf-status-card {
+    border: 1px solid var(--gf-panel-line);
+    border-radius: 4px;
+    background: #ffffff;
+    padding: 10px 12px;
+    display: grid;
+    gap: 8px;
+}
+
+.docf-status-card.is-highlighted {
+    border-color: var(--gf-accent);
+    box-shadow: 0 0 0 1px var(--gf-accent);
+}
+
+.docf-status-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.docf-status-title {
+    font-size: 0.92rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.docf-status-subtitle {
+    font-size: 0.8rem;
+    color: #6b7280;
+    margin: 0;
+}
+
+.docf-status-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.docf-status-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.docf-status-cell strong {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 400;
+    color: var(--gf-label);
+}
+
+.docf-status-cell span {
+    font-size: 0.84rem;
+}
+
+/* ---------- detalhe do documento ---------- */
+.docf-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 10px 14px;
+}
+
+.docf-detail-box {
+    display: grid;
+    gap: 3px;
+    align-content: start;
+}
+
+.docf-detail-label {
+    font-size: 0.78rem;
+    color: var(--gf-label);
+}
+
+.docf-detail-value {
+    min-height: var(--gf-h);
+    padding: 5px 8px;
+    font-size: 0.86rem;
+    background: var(--gf-readonly);
+    border: 1px solid var(--gf-line);
+    border-radius: var(--gf-radius);
+    overflow-wrap: anywhere;
+}
+
+.docf-detail-image-box img {
+    max-width: 100%;
+    max-height: 160px;
+    border: 1px solid var(--gf-line);
+    border-radius: var(--gf-radius);
+}
+
+.docf-item-line + .docf-item-line {
+    padding-top: 8px;
+    border-top: 1px dashed #e3e7ec;
+}
+
+.docf-form > button[type="submit"] {
+    justify-self: end;
+}
+
+/* ---------- tabelas ---------- */
+.docf-table-wrap {
+    border: 1px solid var(--gf-panel-line);
+    border-radius: 4px;
+    overflow-x: auto;
+}
+
+.docf-table {
+    width: 100%;
+    margin: 0;
+    font-size: 0.85rem;
+    --bs-table-bg: transparent;
+}
+
+.docf-table thead th {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--gf-label);
+    background: var(--gf-soft);
+    border-bottom: 1px solid var(--gf-panel-line);
+    padding: 6px 8px;
+    white-space: nowrap;
+}
+
+.docf-table tbody td {
+    padding: 6px 8px;
+    border-bottom: 1px solid #edf0f3;
+    vertical-align: middle;
+}
+
+.docf-table tbody tr:hover td {
+    background: #f8fafc;
+}
+
+/* ---------- histórico: período e fechamentos ---------- */
+.docf-period-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.docf-period-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    gap: 12px;
+}
+
+.docf-closure-list {
+    display: grid;
+    gap: 8px;
+    align-content: start;
+}
+
+.docf-closure-item {
+    border: 1px solid var(--gf-panel-line);
+    border-radius: 4px;
+    padding: 8px 10px;
+    background: #ffffff;
+    font-size: 0.85rem;
+}
+
+.docf-closure-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+}
+
+.docf-accordion .accordion-button {
+    padding: 8px 12px;
+    font-size: 0.88rem;
+    gap: 6px;
+}
+
+.docf-accordion .accordion-body {
+    padding: 12px;
+}
+
+/* ---------- janelas ---------- */
+.modal-content.docf-card {
+    padding: 0;
+    border-radius: 4px !important;
+}
+
+.docf-photo-action-row {
+    display: flex;
+    gap: 6px;
+    margin: 10px 0;
+}
+
+@media (max-width: 992px) {
+    .docf-period-grid,
+    .docf-period-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .docf-status-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}

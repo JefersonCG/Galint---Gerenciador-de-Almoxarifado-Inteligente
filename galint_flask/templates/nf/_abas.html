@@ -1,0 +1,15 @@
+{# Ler NF e Documentos Fiscais numa página só, em duas abas (pedido do usuário em 25/11/2026).
+   Uso: {% from 'nf/_abas.html' import nf_abas with context %} … {{ nf_abas('leitura') }} ou {{ nf_abas('documentos', acoes) }}.
+   Ler NF é só para administrador; a aba aparece para ele (e sempre na própria página do Ler NF). #}
+{% macro nf_abas(ativa, acoes='') -%}
+{%- set admin = current_user is defined and current_user.is_authenticated and current_user.is_admin -%}
+<nav class="gf-tabs" aria-label="Notas fiscais">
+    {% if endpoint_exists('nf_leitura.index') and (ativa == 'leitura' or admin) %}
+    <a class="{{ 'active' if ativa == 'leitura' else '' }}" href="{{ url_for('nf_leitura.index') }}"><i class="bi bi-upc-scan me-1"></i>Ler NF</a>
+    {% endif %}
+    {% if endpoint_exists('nf.nf_index') %}
+    <a class="{{ 'active' if ativa == 'documentos' else '' }}" href="{{ url_for('nf.nf_index') }}"><i class="bi bi-receipt me-1"></i>Documentos Fiscais</a>
+    {% endif %}
+    {% if acoes %}<div class="gf-tabs-end">{{ acoes }}</div>{% endif %}
+</nav>
+{%- endmacro %}
