@@ -564,7 +564,6 @@
 .docf-table-wrap {
     border: 1px solid var(--gf-panel-line);
     border-radius: 4px;
-    overflow-x: auto;
 }
 
 .docf-table {
