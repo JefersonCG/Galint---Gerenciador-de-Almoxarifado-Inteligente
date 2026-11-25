@@ -7,9 +7,16 @@ certificado A1 não estão disponíveis, então a leitura é por OCR (Tesseract)
 (services/nf_ocr.py).
 
 Fluxo:
-1. enviar_arquivos: guarda cada arquivo em instance/nf_leituras/AAAAMM e cria a NFLeitura "lendo".
-2. processar_leitura (em segundo plano, uma de cada vez, porque o OCR pesa): lê, acha o fornecedor pelo
-   CNPJ, avisa se a NF já está no GALINT e sugere o item do GALINT para cada linha:
+1. enviar_arquivos: guarda cada arquivo em instance/nf_leituras/AAAAMM e cria a NFLeitura "lendo". Várias
+   NFs de uma vez entram numa FILA e são lidas uma de cada vez, porque o OCR pesa e o servidor é o mesmo
+   do GALINT. A fila sobrevive a religar o servidor: a leitura que ficou "lendo" sem estar na fila volta
+   para ela uma vez (listar_leituras); se cair de novo, vira erro.
+2. processar_leitura: lê, acha o fornecedor pelo CNPJ e vê se a NF já está no GALINT (pela chave, ou pelo
+   número com o mesmo fornecedor).
+   - JÁ ESTÁ (pedido do usuário em 25/11/2026): a leitura vira "arquivada" e fica ligada ao documento como
+     a NF física, a prova de que a nota existe em papel, para ver e imprimir em Documentos Fiscais. Não há
+     conferência nem lançamento, para não duplicar a entrada.
+   - NÃO ESTÁ: fica "lida", pronta para conferir, com o item do GALINT sugerido para cada linha:
    - código da linha igual ao código de um item;
    - vínculo aprendido antes (mesmo fornecedor + mesmo código de produto);
    - nome parecido (palavras em comum, marca incluída, e semelhança do texto).
@@ -48,7 +55,11 @@ from . import nf_ocr
 logger = logging.getLogger(__name__)
 
 MAX_FILE_BYTES = 25 * 1024 * 1024
-STALE_READING = timedelta(minutes=20)
+# Leitura "lendo" que não está na fila deste servidor (religado no meio) volta para a fila depois deste
+# tempo. Até 25/11/2026 era "20 minutos sem mudar = interrompida", o que derrubava NF parada numa fila longa.
+RESUME_AFTER = timedelta(minutes=1)
+RESUMED_MESSAGE = "Retomada depois de o servidor ser religado."
+PROOF_STATUSES = ("lancada", "arquivada")
 SUGGESTION_MIN_SCORE = 0.45
 AUTO_LINK_SCORE = 0.75
 
@@ -220,6 +231,7 @@ def enrich_reading(result: dict[str, Any]) -> dict[str, Any]:
 
 _EXECUTOR: ThreadPoolExecutor | None = None
 _EXECUTOR_LOCK = threading.Lock()
+_QUEUED: set[int] = set()  # leituras na fila deste servidor (esperando ou sendo lidas)
 
 
 def _executor() -> ThreadPoolExecutor:
@@ -228,6 +240,11 @@ def _executor() -> ThreadPoolExecutor:
         if _EXECUTOR is None:
             _EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="galint-nf-ocr")
         return _EXECUTOR
+
+
+def queued_ids() -> set[int]:
+    with _EXECUTOR_LOCK:
+        return set(_QUEUED)
 
 
 def _storage_root() -> Path:
@@ -289,6 +306,10 @@ def agendar_leitura(reading_id: int) -> None:
     if app.config.get("TESTING") or app.config.get("GALINT_NF_OCR_SYNC"):
         processar_leitura(reading_id)
         return
+    with _EXECUTOR_LOCK:
+        if reading_id in _QUEUED:
+            return
+        _QUEUED.add(reading_id)
     _executor().submit(_process_in_app, app, reading_id)
 
 
@@ -300,15 +321,29 @@ def _process_in_app(app, reading_id: int) -> None:
             logger.exception("Falha ao ler a NF %s", reading_id)
         finally:
             db.session.remove()
+            with _EXECUTOR_LOCK:
+                _QUEUED.discard(reading_id)
+
+
+def _archive_as_proof(reading: NFLeitura, documento_id: int, numero: str | None) -> None:
+    """NF que já está no GALINT: o arquivo fica ligado ao documento como a NF física (ver e imprimir)."""
+    reading.status = "arquivada"
+    reading.documento_id = documento_id
+    reading.numero_documento = (str(numero or reading.numero_documento or "")[:20]) or None
+    reading.mensagem = None
 
 
 def processar_leitura(reading_id: int) -> None:
     reading = db.session.get(NFLeitura, reading_id)
     if reading is None:
         return
+    # Lançamento interrompido no meio: a NF já existe por causa desta própria leitura; continua "lida".
+    previous_launch = load_result(reading).get("lancamento") or {}
     try:
         data = reading_file_path(reading).read_bytes()
         result = enrich_reading(nf_ocr.read_and_parse(data, reading.arquivo_nome))
+        if previous_launch:
+            result["lancamento"] = previous_launch
         header = result["cabecalho"]
         reading.status = "lida"
         reading.fonte = result.get("fonte")
@@ -316,6 +351,9 @@ def processar_leitura(reading_id: int) -> None:
         reading.numero_documento = (header.get("numero") or None) and str(header["numero"])[:20]
         reading.fornecedor_nome = (header.get("emitente") or None) and str(header["emitente"])[:200]
         reading.valor_total = header.get("valor_total") or header.get("valor_produtos")
+        existing = result.get("ja_lancada")
+        if existing and not previous_launch.get("linhas"):
+            _archive_as_proof(reading, existing["id"], existing.get("numero"))
         _save_result(reading, result)
     except nf_ocr.OcrUnavailableError as exc:
         reading.status = "erro"
@@ -327,15 +365,52 @@ def processar_leitura(reading_id: int) -> None:
     db.session.commit()
 
 
-def listar_leituras(limit: int = 60) -> list[NFLeitura]:
-    """Leituras ainda não descartadas, mais novas primeiro. Leitura parada (servidor religado) vira erro."""
-    stale_before = TimeService.now_db() - STALE_READING
-    stale = NFLeitura.query.filter(NFLeitura.status == "lendo", NFLeitura.atualizado_em < stale_before).all()
-    for reading in stale:
-        reading.status = "erro"
-        reading.mensagem = "Leitura interrompida (o servidor foi religado). Clique em Ler de novo."
-    if stale:
+def verificar_nf_existente(reading: NFLeitura) -> dict[str, Any] | None:
+    """Leitura pronta para conferir cuja NF entrou no GALINT depois (outra leitura, Documentos Fiscais,
+    app): vira NF física daquele documento. Devolve o documento achado, ou None."""
+    if reading.status != "lida":
+        return None
+    result = load_result(reading)
+    if (result.get("lancamento") or {}).get("linhas"):
+        return None
+    header = result.get("cabecalho") or {}
+    existing = _existing_document(header, _supplier_by_cnpj(header.get("cnpj_emitente")))
+    if existing is None:
+        return None
+    found = {"id": existing.id_documento, "numero": existing.numero_documento}
+    result["ja_lancada"] = found
+    _archive_as_proof(reading, existing.id_documento, existing.numero_documento)
+    _save_result(reading, result)
+    db.session.commit()
+    return found
+
+
+def _resume_interrupted_readings() -> None:
+    """Leitura "lendo" fora da fila deste servidor (religado no meio): volta para a fila uma vez."""
+    queued = queued_ids()
+    resume_before = TimeService.now_db() - RESUME_AFTER
+    interrupted = [
+        reading
+        for reading in NFLeitura.query.filter(NFLeitura.status == "lendo").order_by(NFLeitura.id).all()
+        if reading.id not in queued and reading.atualizado_em is not None and reading.atualizado_em < resume_before
+    ]
+    to_queue = []
+    for reading in interrupted:
+        if reading.mensagem == RESUMED_MESSAGE:
+            reading.status = "erro"
+            reading.mensagem = "Leitura interrompida duas vezes. Clique em Ler de novo."
+        else:
+            reading.mensagem = RESUMED_MESSAGE
+            to_queue.append(reading.id)
+    if interrupted:
         db.session.commit()
+    for reading_id in to_queue:
+        agendar_leitura(reading_id)
+
+
+def listar_leituras(limit: int = 60) -> list[NFLeitura]:
+    """Leituras ainda não descartadas, mais novas primeiro."""
+    _resume_interrupted_readings()
     return (
         NFLeitura.query.filter(NFLeitura.status != "descartada")
         .order_by(NFLeitura.criado_em.desc(), NFLeitura.id.desc())
@@ -345,8 +420,8 @@ def listar_leituras(limit: int = 60) -> list[NFLeitura]:
 
 
 def reler(reading: NFLeitura) -> None:
-    if reading.status == "lancada":
-        raise ValueError("Esta NF já foi lançada.")
+    if reading.status in PROOF_STATUSES:
+        raise ValueError("Esta NF já está no GALINT.")
     reading.status = "lendo"
     reading.mensagem = None
     db.session.commit()
@@ -404,6 +479,8 @@ def lancar_leitura(reading: NFLeitura, header: dict[str, Any], lines: list[dict[
 
     if reading.status == "lancada":
         raise ValueError("Esta NF já foi lançada.")
+    if reading.status == "arquivada":
+        raise ValueError(f"Esta NF já está no GALINT (documento nº {reading.numero_documento}); o arquivo ficou guardado como NF física.")
     if reading.status != "lida":
         raise ValueError("A leitura desta NF ainda não terminou ou deu erro.")
     numero = str(header.get("numero") or "").strip()

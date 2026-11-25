@@ -6,13 +6,16 @@ Página "Ler NF" do menu Suprimentos, só para administrador (como o lançamento
   com quantidade, valor e o item do GALINT sugerido (ou "Item novo", que vai para o pré-cadastro);
 - "Lançar" grava a NF; itens novos abrem na lista de pré-cadastro, onde cada um é concluído na
   página do item (categoria, unidade básica, quantidade, valores).
+- NF que já está no GALINT não é lançada de novo (25/11/2026): o arquivo fica guardado como a NF física do
+  documento, com "Ver" e "Imprimir" aqui e em Documentos Fiscais (função nf_fisica dos templates).
 Regras e motor: services/nf_leitura_service.py e services/nf_ocr.py.
 """
 from __future__ import annotations
 
 from datetime import date
+from pathlib import Path
 
-from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, send_file, url_for
+from flask import Blueprint, abort, flash, g, jsonify, redirect, render_template, request, send_file, url_for
 from flask_login import current_user, login_required
 
 from ..extensions import db
@@ -27,6 +30,7 @@ STATUS_LABELS = {
     "lida": "Pronta para conferir",
     "erro": "Erro",
     "lancada": "Lançada",
+    "arquivada": "Já no GALINT · arquivo guardado",
 }
 
 
@@ -58,10 +62,13 @@ def _parse_iso(value: str | None) -> date | None:
 def index():
     _require_admin()
     readings = service.listar_leituras()
+    # Fila: a mais antiga é a que está sendo lida; as outras esperam a vez (1 = lendo agora).
+    reading_ids = sorted(reading.id for reading in readings if reading.status == "lendo")
     return render_template(
         "nf/leitura.html",
         readings=readings,
         results={reading.id: service.load_result(reading) for reading in readings},
+        fila_pos={reading_id: position for position, reading_id in enumerate(reading_ids, start=1)},
         status_labels=STATUS_LABELS,
         ocr=nf_ocr.ocr_status(),
         accept=",".join(sorted(nf_ocr.ACCEPTED_SUFFIXES)),
@@ -95,6 +102,10 @@ def situacao():
 def conferir(reading_id: int):
     _require_admin()
     reading = _get_reading(reading_id)
+    found = service.verificar_nf_existente(reading)  # a NF pode ter entrado por outro caminho depois da leitura
+    if found:
+        flash(f"NF {found['numero']} já está no GALINT: o arquivo ficou guardado como NF física.", "info")
+        return redirect(url_for("nf_leitura.index"))
     if reading.status != "lida":
         flash(STATUS_LABELS.get(reading.status, reading.status) + (f": {reading.mensagem}" if reading.mensagem else "."), "warning")
         return redirect(url_for("nf_leitura.index"))
@@ -196,15 +207,64 @@ def descartar(reading_id: int):
     return redirect(url_for("nf_leitura.index"))
 
 
+def _reading_with_file(reading_id: int) -> NFLeitura:
+    """Arquivo da leitura: o administrador vê todos; os outros, só a NF física de um documento, que já
+    aparece para eles em Documentos Fiscais."""
+    reading = _get_reading(reading_id)
+    is_proof = reading.status in service.PROOF_STATUSES and reading.documento_id
+    if not (bool(getattr(current_user, "is_admin", False)) or is_proof):
+        abort(403)
+    if not service.reading_file_path(reading).is_file():
+        abort(404)
+    return reading
+
+
 @blueprint.get("/<int:reading_id>/arquivo")
 @login_required
 def arquivo(reading_id: int):
-    _require_admin()
-    reading = _get_reading(reading_id)
-    path = service.reading_file_path(reading)
-    if not path.is_file():
-        abort(404)
-    return send_file(path, download_name=reading.arquivo_nome, as_attachment=False)
+    reading = _reading_with_file(reading_id)
+    return send_file(service.reading_file_path(reading), download_name=reading.arquivo_nome, as_attachment=False)
+
+
+@blueprint.get("/<int:reading_id>/imprimir")
+@login_required
+def imprimir(reading_id: int):
+    """Abre o arquivo da NF (PDF ou foto) e chama a impressão do navegador."""
+    reading = _reading_with_file(reading_id)
+    return render_template(
+        "nf/leitura_imprimir.html",
+        reading=reading,
+        is_pdf=Path(reading.arquivo_nome or reading.arquivo_path).suffix.lower() in nf_ocr.PDF_SUFFIXES,
+        file_url=url_for("nf_leitura.arquivo", reading_id=reading.id),
+    )
+
+
+@blueprint.app_template_global("nf_fisica")
+def nf_fisica(documento_id) -> list[NFLeitura]:
+    """Arquivos de NF física (lida no Ler NF) ligados ao documento; usada em Documentos Fiscais.
+
+    Uma consulta por página: a lista de NFs chama esta função para cada documento.
+    """
+    try:
+        documento_id = int(documento_id)
+    except (TypeError, ValueError):
+        return []
+    cache = g.get("_nf_fisica")
+    if cache is None:
+        cache = {}
+        try:
+            rows = (
+                NFLeitura.query.filter(NFLeitura.documento_id.isnot(None), NFLeitura.status.in_(service.PROOF_STATUSES))
+                .order_by(NFLeitura.id)
+                .all()
+            )
+        except Exception:  # a página de Documentos Fiscais não pode cair por causa disto
+            db.session.rollback()
+            rows = []
+        for row in rows:
+            cache.setdefault(row.documento_id, []).append(row)
+        g._nf_fisica = cache
+    return cache.get(documento_id, [])
 
 
 @blueprint.get("/itens")

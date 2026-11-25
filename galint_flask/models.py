@@ -1056,7 +1056,9 @@ class NFeDistributionDocument(db.Model):
 class NFLeitura(db.Model):
     """NF lida do PDF ou da foto (OCR com Tesseract), aguardando conferência para o pré-cadastro (24/11/2026).
 
-    status: lendo, lida, erro, lancada ou descartada. resultado_json guarda o que o leitor achou
+    status: lendo, lida, erro, lancada, arquivada ou descartada. "arquivada" (25/11/2026) = a NF já estava
+    no GALINT; o arquivo fica ligado a documento_id como a NF física (ver e imprimir em Documentos
+    Fiscais), assim como o de uma leitura "lancada". resultado_json guarda o que o leitor achou
     (cabeçalho, itens com sugestões de item do GALINT, avisos) e, no lançamento, as linhas já lançadas,
     para um lançamento interrompido continuar de onde parou sem duplicar.
     """

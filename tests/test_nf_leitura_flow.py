@@ -6,6 +6,8 @@ código de uma linha da NF (DISJUNTOR) e outro de nome parecido (FITA ISOLANTE).
 - linha "Item novo": item criado em PRÉ-CADASTRO (origem nf) e ligado à linha da NF;
 - vínculo fornecedor + código do produto guardado para a próxima NF.
 """
+from pathlib import Path
+
 import pytest
 from flask import Flask
 from flask_login import LoginManager
@@ -31,7 +33,10 @@ def _inet_as_text_on_sqlite(element, compiler, **kwargs):
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
-    app = Flask(__name__, instance_path=str(tmp_path))
+    import galint_flask
+
+    templates = str(Path(galint_flask.__file__).parent / "templates")
+    app = Flask(__name__, instance_path=str(tmp_path), template_folder=templates)  # página de impressão
     app.config.update(
         SECRET_KEY="nf-leitura-flow",
         TESTING=True,
@@ -163,3 +168,77 @@ def test_same_nf_cannot_be_launched_twice(client):
     assert blocked.headers["Location"].endswith(f"/nf/leitura/{second.id}")
     assert any("já está no GALINT" in message for message in messages), messages
     assert DocumentoEntradaEstoque.query.count() == 1
+
+
+def test_nf_already_in_galint_is_kept_as_the_physical_nf(client):
+    """Pedido do usuário (25/11/2026): NF que já existe vira a prova da NF física, para ver e imprimir;
+    não abre conferência nem lança de novo."""
+    from galint_flask.views.nf_leitura import nf_fisica
+
+    reading = _send_sample(client)
+    client.post(f"/nf/leitura/{reading.id}/lancar", data=_launch_form(reading))
+    document = DocumentoEntradaEstoque.query.one()
+    lines_before = DocumentoEntradaEstoqueItem.query.count()
+
+    copy = _send_sample(client)
+    assert (copy.status, copy.documento_id, copy.numero_documento) == ("arquivada", document.id_documento, "12345")
+    review = client.get(f"/nf/leitura/{copy.id}")
+    assert review.status_code == 302 and review.headers["Location"].endswith("/nf/leitura/")
+    assert DocumentoEntradaEstoqueItem.query.count() == lines_before
+    with client.application.test_request_context():
+        assert [row.id for row in nf_fisica(document.id_documento)] == [reading.id, copy.id]
+        assert nf_fisica(None) == [] and nf_fisica(document.id_documento + 1) == []
+
+    printed = client.get(f"/nf/leitura/{copy.id}/imprimir")
+    assert printed.status_code == 200
+    assert f'<iframe id="nf" src="/nf/leitura/{copy.id}/arquivo"' in printed.get_data(as_text=True)
+    assert client.get(f"/nf/leitura/{copy.id}/arquivo").data[:4] == b"%PDF"
+
+
+def test_reading_waiting_for_review_becomes_proof_when_the_nf_enters_first(client):
+    """Duas cópias da mesma NF na fila: a primeira é lançada; ao abrir a segunda, ela vira a NF física."""
+    first = _send_sample(client)
+    second = _send_sample(client)
+    assert (first.status, second.status) == ("lida", "lida")
+    client.post(f"/nf/leitura/{first.id}/lancar", data=_launch_form(first))
+
+    response = client.get(f"/nf/leitura/{second.id}")
+    with client.session_transaction() as session:
+        messages = [message for _, message in session.get("_flashes", [])]
+    assert response.status_code == 302 and response.headers["Location"].endswith("/nf/leitura/")
+    assert "NF 12345 já está no GALINT: o arquivo ficou guardado como NF física." in messages, messages
+    assert db.session.get(NFLeitura, second.id).status == "arquivada"
+    assert DocumentoEntradaEstoque.query.count() == 1
+
+
+def test_queue_resumes_a_reading_interrupted_by_a_restart(client):
+    """Fila (25/11/2026): leitura que ficou "lendo" fora da fila (servidor religado) volta uma vez; se cair
+    de novo, vira erro. Antes, 20 minutos esperando na fila já marcava "interrompida"."""
+    from datetime import timedelta
+
+    from galint_flask.services import nf_leitura_service as service
+    from galint_flask.utils.time_service import TimeService
+
+    reading = _send_sample(client)
+    old = TimeService.now_db() - timedelta(minutes=30)
+    NFLeitura.query.filter_by(id=reading.id).update({"status": "lendo", "mensagem": None, "atualizado_em": old})
+    db.session.commit()
+    service.listar_leituras()  # nos testes a leitura roda na hora
+    resumed = db.session.get(NFLeitura, reading.id)
+    assert (resumed.status, resumed.mensagem) == ("lida", None)
+
+    NFLeitura.query.filter_by(id=reading.id).update({"status": "lendo", "mensagem": service.RESUMED_MESSAGE, "atualizado_em": old})
+    db.session.commit()
+    service.listar_leituras()
+    failed = db.session.get(NFLeitura, reading.id)
+    assert failed.status == "erro" and "duas vezes" in failed.mensagem
+
+    queued = _send_sample(client)
+    NFLeitura.query.filter_by(id=queued.id).update({"status": "lendo", "atualizado_em": old})
+    db.session.commit()
+    service._QUEUED.add(queued.id)  # esperando a vez na fila deste servidor: não mexe
+    try:
+        service.listar_leituras()
+    finally:
+        service._QUEUED.discard(queued.id)
+    assert db.session.get(NFLeitura, queued.id).status == "lendo"

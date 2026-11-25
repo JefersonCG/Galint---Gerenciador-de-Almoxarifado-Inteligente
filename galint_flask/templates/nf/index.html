@@ -2849,6 +2849,11 @@
                         <div class="docf-detail-box"><span class="docf-detail-label">Recebimento</span><span class="docf-detail-value">{{ nota_detalhes.data_recebimento.strftime('%d/%m/%Y') if nota_detalhes.data_recebimento|default(None, true) else 'Não informado' }}</span></div>
                         {% if nota_detalhes.tipo_documento == 'nf' %}
                         <div class="docf-detail-box"><span class="docf-detail-label">Chave</span><span class="docf-detail-value">{{ nota_detalhes.chave_acesso|default('Não informada', true) }}</span></div>
+                        {# NF física (25/11/2026): arquivo da NF lido no Ler NF, ligado a este documento. #}
+                        {% set nf_fisicas = nf_fisica(nota_detalhes.id_documento) if nf_fisica is defined and nota_detalhes.id_documento is defined else [] %}
+                        {% if nf_fisicas %}
+                        <div class="docf-detail-box"><span class="docf-detail-label">NF física</span><span class="docf-detail-value">{% for leitura in nf_fisicas %}<a href="{{ url_for('nf_leitura.arquivo', reading_id=leitura.id) }}" target="_blank" rel="noopener">Ver</a> · <a href="{{ url_for('nf_leitura.imprimir', reading_id=leitura.id) }}" target="_blank" rel="noopener"><i class="bi bi-printer"></i> Imprimir</a>{% if not loop.last %}<br>{% endif %}{% endfor %}</span></div>
+                        {% endif %}
                         {% if nota_detalhes.imagem_secundaria_path|default('', true) %}
                         <div class="docf-detail-box docf-detail-image-box"><span class="docf-detail-label">Espelho de conferência</span><img src="{{ url_for('static', filename=nota_detalhes.imagem_secundaria_path) }}" alt="Imagem secundária do documento fiscal" loading="lazy"></div>
                         {% endif %}

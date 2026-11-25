@@ -60,14 +60,37 @@ def test_list_page_renders_statuses(env, result):
         SimpleNamespace(id=1, status="lida", numero_documento="12345", fornecedor_nome="FERRAGENS SAO JOSE LTDA", valor_total=1501.9, arquivo_nome="a.pdf", mensagem=None),
         SimpleNamespace(id=2, status="lendo", numero_documento=None, fornecedor_nome=None, valor_total=None, arquivo_nome="b.jpg", mensagem=None),
         SimpleNamespace(id=3, status="erro", numero_documento=None, fornecedor_nome=None, valor_total=None, arquivo_nome="c.png", mensagem="Tesseract não encontrado neste servidor."),
+        SimpleNamespace(id=4, status="lendo", numero_documento=None, fornecedor_nome=None, valor_total=None, arquivo_nome="d.pdf", mensagem=None),
+        SimpleNamespace(id=5, status="arquivada", numero_documento="3891", fornecedor_nome="ACQUA ILHA", valor_total=11925.0, arquivo_nome="e.pdf", mensagem=None),
     ]
     html = env.get_template("nf/leitura.html").render(
         readings=readings,
-        results={1: json.loads(json.dumps(result)), 2: {}, 3: {}},
-        status_labels={"lendo": "Lendo…", "lida": "Pronta para conferir", "erro": "Erro", "lancada": "Lançada"},
+        results={1: json.loads(json.dumps(result)), 2: {}, 3: {}, 4: {}, 5: {}},
+        fila_pos={2: 1, 4: 2},
+        status_labels={"lendo": "Lendo…", "lida": "Pronta para conferir", "erro": "Erro", "lancada": "Lançada", "arquivada": "Já no GALINT · arquivo guardado"},
         ocr={"ok": True, "pdf": True, "message": ""},
         accept=".jpg,.pdf",
     )
     assert "Pronta para conferir" in html and "R$ 1.501,90" in html
     assert 'data-status="lendo"' in html and "Tesseract não encontrado" in html
     assert "/nf_leitura.conferir/1" in html
+    # Fila (25/11/2026): a 2ª espera a vez; NF já no GALINT fica guardada, com Ver NF e Imprimir.
+    assert html.count("Lendo…") == 1 and "Na fila · 2º" in html
+    assert "Já no GALINT · arquivo guardado" in html
+    assert "/nf.nf_index/3891" in html and "/nf_leitura.imprimir/5" in html
+    assert "/nf_leitura.conferir/5" not in html
+
+
+def test_list_page_works_before_the_server_restart(env):
+    """O template vale na hora; a view nova só depois de religar. Sem fila_pos, nada quebra."""
+    readings = [SimpleNamespace(id=2, status="lendo", numero_documento=None, fornecedor_nome=None, valor_total=None, arquivo_nome="b.jpg", mensagem=None)]
+    html = env.get_template("nf/leitura.html").render(
+        readings=readings, results={2: {}}, status_labels={"lendo": "Lendo…"}, ocr={"ok": True, "pdf": True, "message": ""}, accept=".pdf"
+    )
+    assert "Lendo…" in html and "Na fila" not in html
+
+
+@pytest.mark.parametrize(("is_pdf", "expected"), [(True, '<iframe id="nf" src="/arquivo"'), (False, '<img id="nf" src="/arquivo"')])
+def test_print_page(env, is_pdf, expected):
+    html = env.get_template("nf/leitura_imprimir.html").render(reading=SimpleNamespace(numero_documento="3891"), is_pdf=is_pdf, file_url="/arquivo")
+    assert expected in html and "print()" in html and "<title>NF 3891</title>" in html

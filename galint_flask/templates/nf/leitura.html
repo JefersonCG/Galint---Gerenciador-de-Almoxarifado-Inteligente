@@ -2,6 +2,7 @@
 {# Ler NF (24/11/2026): envio de PDF/foto de NF e lista das leituras. Regras em services/nf_leitura_service.py. #}
 {% block title %}Ler NF{% endblock %}
 {% block content %}
+{% set fila_pos = fila_pos|default({}) %}
 <div class="container-fluid py-3">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <h1 class="h4 mb-0"><i class="bi bi-file-earmark-text me-1"></i> Ler NF</h1>
@@ -18,7 +19,7 @@
         <div class="card-body d-flex flex-wrap align-items-center gap-2 py-2">
             <input class="form-control" style="max-width: 32rem" type="file" name="arquivos" accept="{{ accept }}" multiple required>
             <button class="btn btn-primary" type="submit"><i class="bi bi-upc-scan me-1"></i> Ler</button>
-            <span class="small text-muted">PDF ou foto da NF</span>
+            <span class="small text-muted">Uma ou várias NFs (PDF ou foto)</span>
         </div>
     </form>
 
@@ -38,9 +39,11 @@
                         </td>
                         <td>{{ reading.fornecedor_nome or '—' }}</td>
                         <td class="text-end">{{ reading.valor_total|currency_br if reading.valor_total else '—' }}</td>
-                        <td>{{ (result.get('itens') or [])|length if reading.status in ('lida', 'lancada') else '' }}</td>
+                        <td>{{ (result.get('itens') or [])|length if reading.status in ('lida', 'lancada', 'arquivada') else '' }}</td>
                         <td>
-                            {% if reading.status == 'lendo' %}
+                            {% if reading.status == 'lendo' and fila_pos.get(reading.id, 1) > 1 %}
+                            <span class="badge bg-secondary">Na fila · {{ fila_pos.get(reading.id) }}º</span>
+                            {% elif reading.status == 'lendo' %}
                             <span class="spinner-border spinner-border-sm me-1" role="status"></span>{{ status_labels['lendo'] }}
                             {% elif reading.status == 'lida' %}
                             <span class="badge bg-primary">{{ status_labels['lida'] }}</span>
@@ -48,6 +51,8 @@
                             {% elif reading.status == 'erro' %}
                             <span class="badge bg-danger">{{ status_labels['erro'] }}</span>
                             <div class="small text-muted">{{ reading.mensagem }}</div>
+                            {% elif reading.status == 'arquivada' %}
+                            <span class="badge bg-info text-dark">{{ status_labels.get('arquivada', 'Já no GALINT · arquivo guardado') }}</span>
                             {% else %}
                             <span class="badge bg-success">{{ status_labels.get(reading.status, reading.status) }}</span>
                             {% endif %}
@@ -59,12 +64,15 @@
                             <form class="d-inline" method="post" action="{{ url_for('nf_leitura.reler', reading_id=reading.id) }}">
                                 <button class="btn btn-outline-primary btn-sm" type="submit">Ler de novo</button>
                             </form>
-                            {% elif reading.status == 'lancada' and reading.numero_documento and endpoint_exists('nf.nf_index') %}
+                            {% elif reading.status in ('lancada', 'arquivada') and reading.numero_documento and endpoint_exists('nf.nf_index') %}
                             <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('nf.nf_index', nota=reading.numero_documento) }}">Ver NF</a>
                             {% endif %}
                             <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('nf_leitura.arquivo', reading_id=reading.id) }}" target="_blank" title="Ver o arquivo"><i class="bi bi-file-earmark-pdf"></i></a>
+                            {% if reading.status in ('lancada', 'arquivada') and endpoint_exists('nf_leitura.imprimir') %}
+                            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('nf_leitura.imprimir', reading_id=reading.id) }}" target="_blank" title="Imprimir"><i class="bi bi-printer"></i></a>
+                            {% endif %}
                             {% if reading.status not in ('lancada', 'lendo') %}
-                            <form class="d-inline" method="post" action="{{ url_for('nf_leitura.descartar', reading_id=reading.id) }}">
+                            <form class="d-inline" method="post" action="{{ url_for('nf_leitura.descartar', reading_id=reading.id) }}"{% if reading.status == 'arquivada' %} onsubmit="return confirm('TIRAR ESTE ARQUIVO DA NF {{ reading.numero_documento }}?')"{% endif %}>
                                 <button class="btn btn-outline-danger btn-sm" type="submit" title="Descartar"><i class="bi bi-trash"></i></button>
                             </form>
                             {% endif %}
