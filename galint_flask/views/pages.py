@@ -522,16 +522,11 @@ def _system_setting_section(label: str, icon: str, items: list[dict[str, str] | 
 
 
 def _build_system_settings_hub(*, is_admin: bool) -> dict[str, object]:
-    mobile_panel_enabled = is_admin and bool(current_app.config.get("FEATURE_MOBILE_PANEL_ENABLED", False))
     sections = [
         _system_setting_section(
             "Sistema",
             "bi-sliders",
             [
-                _system_setting_item("Empresa", "config.empresa", "bi-building", "Core"),
-                _system_setting_item("Imagens do Sistema", "config.imagens", "bi-images", "Visual"),
-                _system_setting_item("Relatórios", "config.relatorios", "bi-file-earmark-text", "Core"),
-                _system_setting_item("Atualizações", "updates.index", "bi-arrow-clockwise", "Core"),
                 _system_setting_item("Rede", "pages.config_rede", "bi-wifi", "Core"),
                 _system_setting_item("Checklist Final", "pages.backup_final_checklist", "bi-clipboard2-check", "Core"),
             ],
@@ -540,7 +535,6 @@ def _build_system_settings_hub(*, is_admin: bool) -> dict[str, object]:
             "Operações Técnicas",
             "bi-terminal",
             [
-                _system_setting_item("Notificações", "config.notificacoes", "bi-bell", "Alertas"),
                 _system_setting_item("Telegram", "telegram_config.index", "bi-telegram", "Mensageria"),
                 _system_setting_item("Histórico Telegram", "telegram_config.historico", "bi-clock-history", "Mensageria"),
                 _system_setting_item("Backup", "pages.config_backup", "bi-database", "Dados"),
@@ -552,11 +546,6 @@ def _build_system_settings_hub(*, is_admin: bool) -> dict[str, object]:
             "bi-shield-check",
             [
                 _system_setting_item("Usuários", "users.list_users", "bi-people-fill", "Permissões", enabled=is_admin),
-                _system_setting_item("Painel Mobile", "mobile_panel.dashboard", "bi-phone-fill", "Mobile", enabled=mobile_panel_enabled),
-                _system_setting_item("Dispositivos Mobile", "mobile_panel.devices", "bi-phone", "Mobile", enabled=mobile_panel_enabled),
-                _system_setting_item("Versões Mobile", "mobile_panel.versions", "bi-cloud-download", "Mobile", enabled=mobile_panel_enabled),
-                _system_setting_item("Features Mobile", "mobile_panel.features", "bi-toggles2", "Mobile", enabled=mobile_panel_enabled),
-                _system_setting_item("Auditoria Mobile", "mobile_panel.audit", "bi-shield-check", "Mobile", enabled=mobile_panel_enabled),
                 _system_setting_item("Fornecedores", "config.fornecedores", "bi-building-add", "Cadastro"),
             ],
         ),

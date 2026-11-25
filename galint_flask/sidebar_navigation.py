@@ -131,41 +131,26 @@ def _build_system_settings_navigation(path: str, *, is_admin: bool) -> list[dict
             entries.append(_link_item("Sobre", sobre_url, "bi-info-circle", path == sobre_url))
         return entries
 
-    mobile_panel_enabled = is_admin and bool(current_app.config.get("FEATURE_MOBILE_PANEL_ENABLED", False))
 
     config_root_url = _optional_url("pages.config")
-    system_images_url = _optional_url("config.imagens")
     aparencia_url = _optional_url("config.aparencia") if is_admin else None
-    empresa_url = _optional_url("config.empresa")
-    relatorios_config_url = _optional_url("config.relatorios")
-    updates_url = _optional_url("updates.index")
     rede_url = _optional_url("pages.config_rede")
     telegram_url = _optional_url("telegram_config.index")
-    notificacoes_url = _optional_url("config.notificacoes")
-    editor_notificacoes_url = _optional_url("config.editor_notificacoes")
     backup_url = _optional_url("pages.config_backup")
     restore_backup_url = _optional_url("pages.restore_backup")
     conversionengine_url = _optional_url("pages.config_conversionengine")
     users_list_url = _optional_url("users.list_users")
-    mobile_panel_url = _optional_url("mobile_panel.dashboard", enabled=mobile_panel_enabled)
     fornecedores_url = _optional_url("config.fornecedores")
 
     settings_targets = [
         config_root_url,
-        system_images_url,
         aparencia_url,
-        empresa_url,
-        relatorios_config_url,
-        updates_url,
         rede_url,
         telegram_url,
-        notificacoes_url,
-        editor_notificacoes_url,
         backup_url,
         restore_backup_url,
         conversionengine_url,
         users_list_url if is_admin else None,
-        mobile_panel_url,
         fornecedores_url,
     ]
     settings_active = _path_matches_any(path, settings_targets)
@@ -173,22 +158,10 @@ def _build_system_settings_navigation(path: str, *, is_admin: bool) -> list[dict
     settings_children: list[dict[str, Any]] = []
     if config_root_url:
         settings_children.append(_link_item("Painel do Sistema", config_root_url, "bi-gear-fill", path == config_root_url))
-    if system_images_url:
-        settings_children.append(_link_item("Imagens do Sistema", system_images_url, "bi-images", _path_matches(path, system_images_url)))
     if aparencia_url:
         settings_children.append(_link_item("Aparência", aparencia_url, "bi-palette-fill", _path_matches(path, aparencia_url)))
-    if empresa_url:
-        settings_children.append(_link_item("Empresa", empresa_url, "bi-building", _path_matches(path, empresa_url)))
-    if relatorios_config_url:
-        settings_children.append(_link_item("Relatórios", relatorios_config_url, "bi-file-earmark-text", _path_matches(path, relatorios_config_url)))
-    if updates_url:
-        settings_children.append(_link_item("Atualizações", updates_url, "bi-arrow-clockwise", _path_matches(path, updates_url)))
     if rede_url:
         settings_children.append(_link_item("Rede", rede_url, "bi-wifi", _path_matches(path, rede_url)))
-    if notificacoes_url:
-        settings_children.append(_link_item("Notificações", notificacoes_url, "bi-broadcast-pin", _path_matches(path, notificacoes_url)))
-    if editor_notificacoes_url:
-        settings_children.append(_link_item("Editor de Notificações", editor_notificacoes_url, "bi-pencil-square", _path_matches(path, editor_notificacoes_url)))
     if telegram_url:
         settings_children.append(_link_item("Telegram", telegram_url, "bi-telegram", _path_matches(path, telegram_url)))
     if backup_url:
@@ -197,8 +170,6 @@ def _build_system_settings_navigation(path: str, *, is_admin: bool) -> list[dict
         settings_children.append(_link_item("ConversionEngine", conversionengine_url, "bi-cpu", _path_matches(path, conversionengine_url)))
     if is_admin and users_list_url:
         settings_children.append(_link_item("Usuários", users_list_url, "bi-people-fill", _path_matches(path, users_list_url)))
-    if mobile_panel_url:
-        settings_children.append(_link_item("Painel Mobile", mobile_panel_url, "bi-phone-fill", _path_matches(path, mobile_panel_url)))
     if fornecedores_url:
         settings_children.append(_link_item("Fornecedores", fornecedores_url, "bi-building-add", _path_matches(path, fornecedores_url)))
 
@@ -300,18 +271,11 @@ def build_sidebar_navigation() -> dict[str, Any]:
 
     analytics_url = _optional_url("analytics.index")
     users_list_url = _optional_url("users.list_users")
-    mobile_panel_url = "/mobile-panel" if is_admin and current_app.config.get("FEATURE_MOBILE_PANEL_ENABLED", False) else None
 
     config_root_url = _optional_url("pages.config")
-    system_images_url = _optional_url("config.imagens")
     aparencia_url = _optional_url("config.aparencia") if is_admin else None
-    empresa_url = _optional_url("config.empresa")
-    relatorios_config_url = _optional_url("config.relatorios")
-    updates_url = _optional_url("updates.index")
     rede_url = _optional_url("pages.config_rede")
     telegram_url = _optional_url("telegram_config.index")
-    notificacoes_url = _optional_url("config.notificacoes")
-    editor_notificacoes_url = _optional_url("config.editor_notificacoes")
     backup_url = _optional_url("pages.config_backup")
     restore_backup_url = _optional_url("pages.restore_backup")
     conversionengine_url = _optional_url("pages.config_conversionengine")
@@ -338,20 +302,13 @@ def build_sidebar_navigation() -> dict[str, Any]:
         path,
         [
             config_root_url,
-            system_images_url,
             aparencia_url,
-            empresa_url,
-            relatorios_config_url,
-            updates_url,
             rede_url,
             telegram_url,
-            notificacoes_url,
-            editor_notificacoes_url,
             backup_url,
             restore_backup_url,
             conversionengine_url,
             users_list_url,
-            mobile_panel_url,
         ],
     )
 
@@ -423,32 +380,18 @@ def build_sidebar_navigation() -> dict[str, Any]:
         configuracoes_children: list[dict[str, Any]] = []
         if config_root_url:
             configuracoes_children.append(_link_item("Painel do Sistema", config_root_url, "bi-gear-fill", path == config_root_url))
-        if system_images_url:
-            configuracoes_children.append(_link_item("Imagens do Sistema", system_images_url, "bi-images", _path_matches(path, system_images_url)))
         if aparencia_url:
             configuracoes_children.append(_link_item("Aparência", aparencia_url, "bi-palette-fill", _path_matches(path, aparencia_url)))
-        if empresa_url:
-            configuracoes_children.append(_link_item("Empresa", empresa_url, "bi-building", _path_matches(path, empresa_url)))
-        if relatorios_config_url:
-            configuracoes_children.append(_link_item("Relatórios", relatorios_config_url, "bi-file-earmark-text", _path_matches(path, relatorios_config_url)))
-        if updates_url:
-            configuracoes_children.append(_link_item("Atualizações", updates_url, "bi-arrow-clockwise", _path_matches(path, updates_url)))
         if rede_url:
             configuracoes_children.append(_link_item("Rede", rede_url, "bi-wifi", _path_matches(path, rede_url)))
         if telegram_url:
             configuracoes_children.append(_link_item("Telegram", telegram_url, "bi-telegram", _path_matches(path, telegram_url)))
-        if notificacoes_url:
-            configuracoes_children.append(_link_item("Notificações", notificacoes_url, "bi-broadcast-pin", _path_matches(path, notificacoes_url)))
-        if editor_notificacoes_url:
-            configuracoes_children.append(_link_item("Editor de Notificações", editor_notificacoes_url, "bi-pencil-square", _path_matches(path, editor_notificacoes_url)))
         if backup_url:
             configuracoes_children.append(_link_item("Backup", backup_url, "bi-database", _path_matches(path, backup_url) or _path_matches(path, restore_backup_url)))
         if conversionengine_url:
             configuracoes_children.append(_link_item("ConversionEngine", conversionengine_url, "bi-cpu", _path_matches(path, conversionengine_url)))
         if is_admin and users_list_url:
             configuracoes_children.append(_link_item("Usuários", users_list_url, "bi-people-fill", _path_matches(path, users_list_url)))
-        if is_admin and mobile_panel_url:
-            configuracoes_children.append(_link_item("Painel Mobile", mobile_panel_url, "bi-phone-fill", path.startswith(mobile_panel_url)))
         if configuracoes_children:
             entries.append(_group_item("Configurações", "bi-gear-fill", "configuracoesMenu", configuracoes_active, configuracoes_children))
 

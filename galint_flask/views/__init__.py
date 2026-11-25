@@ -15,7 +15,6 @@ from . import (
 
     inventory,
     item_grupos,
-    mobile_panel,
     movements,
     nf,
     nf_leitura,
@@ -29,7 +28,6 @@ from . import (
     telegram_config,
     telegram_bot,
     tool_custody,
-    updates,
     users,
 )
 
@@ -54,7 +52,6 @@ BLUEPRINTS = (
     api_mobile.blueprint,
     qrcode.blueprint,
     admin_mobile.blueprint,
-    mobile_panel.blueprint,
     telegram_config.bp,
     telegram_bot.bp,
     central_kits.blueprint,
@@ -63,7 +60,6 @@ BLUEPRINTS = (
     reparo.blueprint,
     tool_custody.bp,
     config.bp,
-    updates.blueprint,
 )
 
 
