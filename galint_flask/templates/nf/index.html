@@ -406,7 +406,7 @@
             {% if nota_detalhes and selected_operational and selected_operational.status_key == active_tab %}
             <section class="docf-card">
                 <div class="docf-card-header">
-                    <h2 class="docf-card-title">{% set numero_foco = nota_detalhes.numero_documento|default(nota_detalhes.nota_fiscal, true) %}{% if nota_detalhes.tipo_documento|default('', true)|lower == 'manual' and numero_foco == 'NOTA INTERNA' %}NOTA INTERNA{% else %}{{ nota_detalhes.tipo_documento|default('DOC', true)|upper }} {{ numero_foco }}{% endif %}</h2>
+                    <h2 class="docf-card-title">{% set numero_foco = nota_detalhes.numero_documento|default(nota_detalhes.nota_fiscal, true) %}{% if nota_detalhes.tipo_documento|default('', true)|lower == 'manual' and numero_foco == 'NOTA INTERNA' %}NOTA INTERNA{% else %}{% set chave_d = (nota_detalhes.chave_acesso or '')|replace(' ', '') %}{{ 'NFC-e' if chave_d|length == 44 and chave_d[20:22] == '65' else nota_detalhes.tipo_documento|default('DOC', true)|upper }} {{ numero_foco }}{% endif %}</h2>
                     <div class="d-flex flex-wrap gap-2 align-items-center">
                         <span class="docf-badge">{{ selected_operational.status_label }}</span>
                         {% if nota_detalhes.status_integracao == 'aguardando_certificado' %}

@@ -16,6 +16,9 @@ Fluxo:
    - JÁ ESTÁ (pedido do usuário em 25/11/2026): a leitura vira "arquivada" e fica ligada ao documento como
      a NF física, a prova de que a nota existe em papel, para ver e imprimir em Documentos Fiscais. Não há
      conferência nem lançamento, para não duplicar a entrada.
+   - PODE SER UMA COMPRA JÁ LANÇADA COM OUTRO NÚMERO (cupom digitado do papel e a NFC-e em PDF):
+     documentos_parecidos sugere pelo fornecedor, data e total; confirmada ("É a mesma compra"), a
+     leitura vira a NF física dela (unir_a_documento), sem nova entrada no estoque.
    - NÃO ESTÁ: fica "lida", pronta para conferir, com o item do GALINT sugerido para cada linha:
    - código da linha igual ao código de um item;
    - vínculo aprendido antes (mesmo fornecedor + mesmo código de produto);
@@ -202,6 +205,83 @@ def _existing_document(header: dict[str, Any], supplier: FinanceSupplier | None)
     return None
 
 
+SAME_PURCHASE_DAYS = 3
+
+
+def _as_date(value: Any) -> date | None:
+    if isinstance(value, date):
+        return value
+    try:
+        return date.fromisoformat(str(value or "")[:10]) if value else None
+    except ValueError:
+        return None
+
+
+def documentos_parecidos(result: dict[str, Any]) -> list[dict[str, Any]]:
+    """Compra já lançada que pode ser esta NF sem ter a mesma chave nem o mesmo número (25/11/2026).
+
+    Caso do usuário: cupom de balcão digitado do papel (Almedas, BMB/Obramax), sem chave e com o número
+    impresso no cupom. O PDF que chega depois é a NFC-e (modelo 65) da mesma venda, com outro número:
+    sem esta busca, o Ler NF lançaria a compra de novo e o estoque entraria em dobro.
+    Mesma compra = mesmo fornecedor (CNPJ), documento sem chave, data até 3 dias de diferença e total
+    igual (até R$ 1 ou 1%); sem o total lido, só a mesma data.
+    """
+    header = result.get("cabecalho") or {}
+    supplier = _supplier_by_cnpj(header.get("cnpj_emitente"))
+    emissao = _as_date(header.get("data_emissao"))
+    if supplier is None or emissao is None:
+        return []
+    nf_total = header.get("valor_total") or header.get("valor_produtos")
+    found = []
+    for documento in DocumentoEntradaEstoque.query.filter(DocumentoEntradaEstoque.fornecedor_id == supplier.id).all():
+        if len(re.sub(r"\D", "", documento.chave_acesso or "")) == 44:
+            continue  # tem chave própria: se fosse esta NF, a chave teria achado
+        doc_date = documento.data_emissao or documento.data_recebimento
+        if doc_date is None or abs((doc_date - emissao).days) > SAME_PURCHASE_DAYS:
+            continue
+        doc_total = round(sum(
+            float(line.valor_total) if line.valor_total is not None else float(line.valor_unitario or 0) * float(line.quantidade or 0)
+            for line in documento.itens
+        ), 2)
+        if nf_total and doc_total:
+            if abs(float(nf_total) - doc_total) > max(1.0, 0.01 * float(nf_total)):
+                continue
+        elif doc_date != emissao:
+            continue
+        found.append({
+            "id": documento.id_documento,
+            "tipo": documento.tipo_documento,
+            "numero": documento.numero_documento,
+            "data": doc_date.isoformat(),
+            "total": doc_total,
+        })
+    return found
+
+
+def unir_a_documento(reading: NFLeitura, documento_id: int, *, usuario: str | None = None) -> DocumentoEntradaEstoque:
+    """O usuário confirmou que esta NF é a compra já lançada: o arquivo vira a NF física dela, sem nova
+    entrada no estoque. Documento sem chave recebe a chave lida, para a próxima leitura achar sozinha."""
+    if reading.status != "lida" or (load_result(reading).get("lancamento") or {}).get("linhas"):
+        raise ValueError("Esta leitura não pode mais ser juntada a outro documento.")
+    documento = db.session.get(DocumentoEntradaEstoque, documento_id)
+    if documento is None:
+        raise ValueError("Documento não encontrado.")
+    result = load_result(reading)
+    header = result.get("cabecalho") or {}
+    chave = re.sub(r"\D", "", header.get("chave") or "")
+    if len(chave) == 44 and not re.sub(r"\D", "", documento.chave_acesso or ""):
+        if DocumentoEntradaEstoque.query.filter(DocumentoEntradaEstoque.chave_acesso == chave).first() is None:
+            documento.chave_acesso = chave
+    cnpj = re.sub(r"\D", "", header.get("cnpj_emitente") or "")
+    if len(cnpj) == 14 and not documento.cnpj_emitente:
+        documento.cnpj_emitente = f"{cnpj[:2]}.{cnpj[2:5]}.{cnpj[5:8]}/{cnpj[8:12]}-{cnpj[12:]}"
+    result["unida_a"] = {"id": documento.id_documento, "tipo": documento.tipo_documento, "numero": documento.numero_documento, "por": usuario}
+    _archive_as_proof(reading, documento.id_documento, documento.numero_documento)
+    _save_result(reading, result)
+    db.session.commit()
+    return documento
+
+
 def enrich_reading(result: dict[str, Any]) -> dict[str, Any]:
     """Acrescenta ao que o leitor achou: fornecedor do cadastro, NF já lançada e sugestões de item."""
     header = result["cabecalho"]
@@ -212,6 +292,8 @@ def enrich_reading(result: dict[str, Any]) -> dict[str, Any]:
     existing = _existing_document(header, supplier)
     if existing is not None:
         result["ja_lancada"] = {"id": existing.id_documento, "numero": existing.numero_documento}
+    else:
+        result["parecidas"] = documentos_parecidos(result)
     cnpj = re.sub(r"\D", "", header.get("cnpj_emitente") or "")
     links: dict[str, str] = {}
     if cnpj:

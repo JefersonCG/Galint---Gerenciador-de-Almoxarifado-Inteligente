@@ -117,10 +117,12 @@ def conferir(reading_id: int):
     modelos = carregar_modelos(sorted({str(s.get("codigo") or "") for s in sugestoes if s.get("codigo")}))
     for sugestao in sugestoes:
         sugestao.update(packaging_proof_fields(modelos.get(str(sugestao.get("codigo") or ""))))
+    parecidas = [] if result.get("lancamento", {}).get("linhas") else service.documentos_parecidos(result)
     return render_template(
         "nf/leitura_conferir.html",
         reading=reading,
         result=result,
+        parecidas=parecidas,
         header=result.get("cabecalho", {}),
         items=result.get("itens", []),
         launched=set(result.get("lancamento", {}).get("linhas", [])),
@@ -182,6 +184,21 @@ def lancar(reading_id: int):
         flash(warning, "warning")
     if novos:
         return redirect(url_for("inventory.list_items", open_pre_registered=1, pre_registered_document_number=launched["numero"]))
+    return redirect(url_for("nf_leitura.index"))
+
+
+@blueprint.post("/<int:reading_id>/unir")
+@login_required
+def unir(reading_id: int):
+    """É a mesma compra já lançada (ex.: cupom digitado do papel e a NFC-e em PDF): vira a NF física dela."""
+    _require_admin()
+    reading = _get_reading(reading_id)
+    try:
+        documento = service.unir_a_documento(reading, int(request.form.get("documento_id") or 0), usuario=_user_id())
+    except ValueError as exc:
+        flash(str(exc), "danger")
+        return redirect(url_for("nf_leitura.conferir", reading_id=reading.id))
+    flash(f"Guardada como NF física de {documento.tipo_documento.upper()} {documento.numero_documento}.", "success")
     return redirect(url_for("nf_leitura.index"))
 
 

@@ -242,3 +242,48 @@ def test_queue_resumes_a_reading_interrupted_by_a_restart(client):
     finally:
         service._QUEUED.discard(queued.id)
     assert db.session.get(NFLeitura, queued.id).status == "lendo"
+
+
+def _paper_cupom(total):
+    """Cupom de balcão digitado do papel: sem chave e com o número impresso no cupom (outro número)."""
+    from datetime import date
+
+    from galint_flask.models import FinanceSupplier
+
+    supplier = FinanceSupplier(razao_social="FERRAGENS SAO JOSE LTDA", cnpj="12.345.678/0001-95")
+    db.session.add(supplier)
+    db.session.flush()
+    cupom = DocumentoEntradaEstoque(tipo_documento="cupom", numero_documento="555", fornecedor_id=supplier.id,
+                                    data_emissao=date(2026, 11, 19), data_recebimento=date(2026, 11, 19))
+    db.session.add(cupom)
+    db.session.flush()
+    db.session.add(DocumentoEntradaEstoqueItem(documento_id=cupom.id_documento, codigo_item="FITA001", quantidade=1, valor_total=total))
+    db.session.commit()
+    return cupom
+
+
+def test_paper_cupom_is_suggested_and_the_pdf_becomes_its_physical_nf(client):
+    """25/11/2026: cupom digitado do papel (sem chave, número do cupom) e a NFC-e em PDF da mesma venda,
+    com outro número. O Ler NF sugere a compra (fornecedor, data e total) e, confirmada, o PDF vira a NF
+    física dela, sem lançar de novo; o cupom ganha a chave."""
+    from galint_flask.services.nf_leitura_service import load_result
+
+    cupom = _paper_cupom(1501.9)
+    reading = _send_sample(client)
+    assert reading.status == "lida"
+    assert [(doc["id"], doc["numero"], doc["total"]) for doc in load_result(reading)["parecidas"]] == [(cupom.id_documento, "555", 1501.9)]
+
+    response = client.post(f"/nf/leitura/{reading.id}/unir", data={"documento_id": cupom.id_documento})
+    assert response.status_code == 302 and response.headers["Location"].endswith("/nf/leitura/")
+    joined = db.session.get(NFLeitura, reading.id)
+    assert (joined.status, joined.documento_id) == ("arquivada", cupom.id_documento)
+    assert db.session.get(DocumentoEntradaEstoque, cupom.id_documento).chave_acesso == ACCESS_KEY
+    assert DocumentoEntradaEstoque.query.count() == 1 and DocumentoEntradaEstoqueItem.query.count() == 1
+    assert _send_sample(client).status == "arquivada"  # a próxima cópia já acha pela chave
+
+
+def test_purchase_with_another_total_is_not_suggested(client):
+    from galint_flask.services.nf_leitura_service import load_result
+
+    _paper_cupom(100.0)
+    assert load_result(_send_sample(client))["parecidas"] == []

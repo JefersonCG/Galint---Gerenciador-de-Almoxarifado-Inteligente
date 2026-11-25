@@ -96,3 +96,14 @@ def test_list_page_works_before_the_server_restart(env):
 def test_print_page(env, is_pdf, expected):
     html = env.get_template("nf/leitura_imprimir.html").render(reading=SimpleNamespace(numero_documento="3891"), is_pdf=is_pdf, file_url="/arquivo")
     assert expected in html and "print()" in html and "<title>NF 3891</title>" in html
+
+
+def test_review_page_shows_model_and_same_purchase(env, result):
+    """25/11/2026: o rótulo do número diz o modelo (NF-e/NFC-e) e a compra parecida tem o botão de juntar."""
+    html = env.get_template("nf/leitura_conferir.html").render(
+        reading=SimpleNamespace(id=7, arquivo_nome="nf.pdf"), result=result, header=result["cabecalho"], items=result["itens"], launched=set(),
+        today="2026-11-25", parecidas=[{"id": 9, "tipo": "cupom", "numero": "555", "data": "2026-11-19", "total": 1501.9}],
+    )
+    assert '<label class="form-label small mb-0" for="nfNumero">NF-e</label>' in html
+    assert "Pode ser <strong>CUPOM 555</strong> · 19/11/2026 · R$ 1.501,90, já lançado." in html
+    assert 'action="/nf_leitura.unir/7"' in html and 'name="documento_id" value="9"' in html

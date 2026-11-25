@@ -20,6 +20,18 @@
     {% if result.ja_lancada and not launched %}
     <div class="alert alert-danger py-2 mb-2">Esta NF já está no GALINT (documento nº {{ result.ja_lancada.numero }}).</div>
     {% endif %}
+    {# Mesma compra com outro número (25/11/2026): cupom digitado do papel e a NFC-e em PDF, por exemplo. #}
+    {% for doc in parecidas|default([]) %}
+    <div class="alert alert-warning py-2 mb-2 d-flex flex-wrap align-items-center gap-2">
+        <span>Pode ser <strong>{{ doc.tipo|upper }} {{ doc.numero }}</strong> · {{ doc.data[8:10] }}/{{ doc.data[5:7] }}/{{ doc.data[:4] }} · {{ doc.total|currency_br }}, já lançado.</span>
+        {% if endpoint_exists('nf_leitura.unir') %}
+        <form method="post" action="{{ url_for('nf_leitura.unir', reading_id=reading.id) }}" class="ms-auto">
+            <input type="hidden" name="documento_id" value="{{ doc.id }}">
+            <button class="btn btn-warning btn-sm" type="submit">É a mesma compra</button>
+        </form>
+        {% endif %}
+    </div>
+    {% endfor %}
     {% for aviso in result.get('avisos', []) %}
     <div class="alert alert-warning py-2 mb-2">{{ aviso }}</div>
     {% endfor %}
@@ -30,7 +42,7 @@
             <div>
                 <div class="row g-2 align-items-end">
                     <div class="col-6 col-md-1">
-                        <label class="form-label small mb-0" for="nfNumero">NF</label>
+                        <label class="form-label small mb-0" for="nfNumero">{{ header.modelo or "NF" }}</label>
                         <input class="form-control form-control-sm" id="nfNumero" name="numero" value="{{ header.numero or '' }}" required>
                     </div>
                     <div class="col-12 col-md-4">

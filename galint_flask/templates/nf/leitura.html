@@ -33,7 +33,7 @@
                     {% set result = results[reading.id] %}
                     <tr data-reading-id="{{ reading.id }}" data-status="{{ reading.status }}">
                         <td>
-                            <strong>{{ reading.numero_documento or '—' }}</strong>
+                            <strong>{{ reading.numero_documento or '—' }}</strong>{% if (result.get('cabecalho') or {}).get('modelo') %} <span class="badge text-bg-light border">{{ result.cabecalho.modelo }}</span>{% endif %}
                             <div class="small text-muted text-truncate" style="max-width: 16rem">{{ reading.arquivo_nome }}</div>
                         </td>
                         <td>{{ reading.fornecedor_nome or '—' }}</td>
@@ -47,6 +47,7 @@
                             {% elif reading.status == 'lida' %}
                             <span class="badge bg-primary">{{ status_labels['lida'] }}</span>
                             {% if result.get('ja_lancada') %}<span class="badge bg-danger">já no GALINT</span>{% endif %}
+                            {% for doc in result.get('parecidas') or [] %}<span class="badge bg-warning text-dark">parece {{ doc.tipo|upper }} {{ doc.numero }}</span>{% endfor %}
                             {% elif reading.status == 'erro' %}
                             <span class="badge bg-danger">{{ status_labels['erro'] }}</span>
                             <div class="small text-muted">{{ reading.mensagem }}</div>
