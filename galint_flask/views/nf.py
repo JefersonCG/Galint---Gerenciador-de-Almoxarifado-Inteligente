@@ -1,6 +1,8 @@
 """Rotas para lançamento e acompanhamento de notas fiscais."""
 from __future__ import annotations
 
+import json
+import math
 from collections import defaultdict
 from datetime import date, datetime
 from io import BytesIO
@@ -1640,6 +1642,15 @@ def buscar_documento_modal():
             else:
                 inbox_document = inbox_query.filter_by(numero_documento=query).first()
             if inbox_document:
+                try:
+                    inbox_items = json.loads(inbox_document.itens_json or "[]")
+                except (TypeError, ValueError):
+                    current_app.logger.exception(
+                        "Não foi possível ler os itens da NF-e recebida pela SEFAZ"
+                    )
+                    inbox_items = []
+                if not isinstance(inbox_items, list):
+                    inbox_items = []
                 return jsonify({
                     "success": True,
                     "document": {
@@ -1651,10 +1662,22 @@ def buscar_documento_modal():
                         "chave_acesso": inbox_document.chave_acesso,
                         "status_integracao": "Aguardando conferência",
                         "mensagem_integracao": "Documento recebido pela SEFAZ; ainda não foi lançado no estoque.",
-                        "total_itens": 0,
-                        "total_quantidade": 0,
+                        "total_itens": len(inbox_items),
+                        "total_quantidade": sum(
+                            float(item.get("quantidade") or 0)
+                            for item in inbox_items
+                            if isinstance(item, dict)
+                        ),
                         "total_valor": inbox_document.valor_total,
-                        "itens": [],
+                        "itens": [
+                            {
+                                **item,
+                                "valor_total": item.get("valor_total"),
+                            }
+                            for item in inbox_items
+                            if isinstance(item, dict)
+                        ],
+                        "can_register": bool(getattr(current_user, "is_admin", False)),
                         "inbox_url": url_for("nf.nf_sefaz_document", document_id=inbox_document.id),
                     },
                 })
@@ -1723,7 +1746,120 @@ def buscar_documento_modal():
         ),
         "itens": itens,
     }
+    if (
+        bool(getattr(current_user, "is_admin", False))
+        and payload.get("status_integracao") == "cadastro_rapido_pendente"
+        and not itens
+    ):
+        payload["can_continue_registration"] = True
+        payload["itens_sugeridos"] = _quick_registration_source_items(payload.get("chave_acesso"))
+        payload["registration_url"] = url_for(
+            "nf.nf_index",
+            nota=payload["numero_documento"],
+            aba="processaveis",
+        )
     return jsonify({"success": True, "document": payload})
+
+
+def _quick_registration_item_match(source_item: dict[str, Any]) -> Item | None:
+    source_code = str(source_item.get("codigo") or "").strip()
+    if source_code:
+        matched = db.session.get(Item, source_code)
+        if matched is not None:
+            return matched
+
+    description = str(source_item.get("descricao") or "").strip()
+    if not description:
+        return None
+    matches = (
+        Item.query.filter(func.lower(Item.descricao) == description.lower())
+        .limit(2)
+        .all()
+    )
+    return matches[0] if len(matches) == 1 else None
+
+
+def _quick_registration_source_items(access_key: str | None) -> list[dict[str, Any]]:
+    if not access_key:
+        return []
+    inbox_document = NFeDistributionDocument.query.filter_by(chave_acesso=access_key).first()
+    if inbox_document is None or inbox_document.resumo:
+        return []
+    try:
+        source_items = json.loads(inbox_document.itens_json or "[]")
+    except (TypeError, ValueError):
+        current_app.logger.exception("Não foi possível ler os itens do XML da NF-e recebida")
+        return []
+
+    result: list[dict[str, Any]] = []
+    for source_item in source_items:
+        if not isinstance(source_item, dict):
+            continue
+        matched_item = _quick_registration_item_match(source_item)
+        result.append({
+            "codigo": source_item.get("codigo"),
+            "descricao": source_item.get("descricao"),
+            "unidade": source_item.get("unidade"),
+            "quantidade": source_item.get("quantidade"),
+            "valor_unitario": source_item.get("valor_unitario"),
+            "valor_total": source_item.get("valor_total"),
+            "item_existente": {
+                "codigo": matched_item.codigo_item,
+                "descricao": matched_item.descricao,
+                "unidade": matched_item.unidade,
+                "categoria": matched_item.categoria,
+                "marca": matched_item.marca,
+                "foto_path": matched_item.foto_path,
+                "foto_url": url_for("static", filename=matched_item.foto_path) if matched_item.foto_path else None,
+            } if matched_item else None,
+        })
+    return result
+
+
+@blueprint.get("/api/itens/autocomplete")
+@login_required
+def autocomplete_itens_cadastro_rapido():
+    _require_admin()
+    query = (request.args.get("q") or "").strip()
+    if len(query) < 1:
+        return jsonify({"success": True, "items": []})
+    try:
+        results = inventory_service.search_items_for_autocomplete(query, limit=12)
+    except Exception:
+        current_app.logger.exception("Falha ao buscar itens para o cadastro rápido de NF")
+        return jsonify({"success": False, "message": "Não foi possível buscar os itens do estoque."}), 500
+    return jsonify({
+        "success": True,
+        "items": [
+            {
+                "codigo": item.get("codigo"),
+                "descricao": item.get("descricao"),
+                "unidade": item.get("unidade"),
+                "categoria": item.get("categoria"),
+                "marca": item.get("marca"),
+                "foto_path": item.get("foto_path"),
+                "foto_url": url_for("static", filename=item["foto_path"]) if item.get("foto_path") else None,
+            }
+            for item in results
+        ],
+    })
+
+
+@blueprint.get("/api/documentos/cadastro-rapido/opcoes")
+@login_required
+def opcoes_cadastro_rapido():
+    _require_admin()
+    try:
+        categories = category_catalog_service.list_form_choices()
+    except Exception:
+        current_app.logger.exception("Falha ao carregar as categorias do cadastro rápido de NF")
+        return jsonify({"success": False, "message": "Não foi possível carregar as categorias disponíveis."}), 500
+    return jsonify({
+        "success": True,
+        "categorias": categories,
+        "unidades": _build_document_unit_options(),
+        "categoria_padrao": DEFAULT_INVENTORY_CATEGORY_NAME,
+    })
 
 
 @blueprint.post("/api/documentos/cadastro-rapido")
@@ -1766,6 +1902,19 @@ def cadastrar_documento_rapido():
         return jsonify({"success": False, "message": "O CNPJ do emitente deve ter 14 dígitos."}), 400
     if fornecedor_nome and len(fornecedor_nome) > 200:
         return jsonify({"success": False, "message": "O nome do emitente deve ter até 200 caracteres."}), 400
+
+    inbox_document = (
+        NFeDistributionDocument.query.filter_by(chave_acesso=chave_acesso).first()
+        if chave_acesso
+        else None
+    )
+    if inbox_document is not None:
+        numero = numero or inbox_document.numero_documento or ""
+        cnpj = cnpj or inbox_document.cnpj_emitente
+        fornecedor_nome = fornecedor_nome or inbox_document.emitente
+        data_emissao = data_emissao or inbox_document.data_emissao
+    if not numero:
+        return jsonify({"success": False, "message": "Informe o número da NF ou uma chave de acesso válida."}), 400
 
     existing_query = DocumentoEntradaEstoque.query.filter(
         DocumentoEntradaEstoque.tipo_documento == "nf",
@@ -1814,13 +1963,186 @@ def cadastrar_documento_rapido():
 
     return jsonify({
         "success": True,
-        "message": "NF cadastrada como rascunho. Inclua os itens e confira os dados antes de lançar no estoque.",
+        "message": "NF cadastrada como rascunho. Confira os itens antes de concluir.",
         "url": url_for("nf.nf_index", nota=document.numero_documento, aba="processaveis"),
         "document": {
             "id_documento": document.id_documento,
             "numero_documento": document.numero_documento,
             "chave_acesso": document.chave_acesso,
         },
+        "itens_sugeridos": _quick_registration_source_items(document.chave_acesso),
+    }), 201
+
+
+@blueprint.post("/api/documentos/<int:documento_id>/cadastro-rapido/itens")
+@login_required
+def cadastrar_itens_documento_rapido(documento_id: int):
+    _require_admin()
+    document = db.session.get(DocumentoEntradaEstoque, documento_id)
+    if document is None:
+        return jsonify({"success": False, "message": "Documento fiscal não encontrado."}), 404
+    if document.status_integracao != "cadastro_rapido_pendente":
+        return jsonify({"success": False, "message": "Este documento não está mais em cadastro rápido."}), 409
+    if document.itens:
+        return jsonify({"success": False, "message": "Os itens deste rascunho já foram cadastrados."}), 409
+
+    payload = request.get_json(silent=True)
+    if payload is None and request.form:
+        try:
+            payload = json.loads(request.form.get("payload") or "{}")
+        except (TypeError, ValueError):
+            return jsonify({"success": False, "message": "Os dados dos itens são inválidos."}), 400
+    payload = payload or {}
+    items = payload.get("itens")
+    if not isinstance(items, list) or not items:
+        return jsonify({"success": False, "message": "Adicione ao menos um item à NF."}), 400
+    if len(items) > 200:
+        return jsonify({"success": False, "message": "A NF pode ter no máximo 200 itens neste cadastro."}), 400
+
+    prepared_items: list[dict[str, Any]] = []
+    used_new_codes: set[str] = set()
+    for index, raw_item in enumerate(items, start=1):
+        if not isinstance(raw_item, dict):
+            return jsonify({"success": False, "message": f"Dados inválidos no item {index}."}), 400
+        mode = str(raw_item.get("modo") or "").strip().lower()
+        quantity = _parse_optional_float(str(raw_item.get("quantidade") or ""), fallback=None)
+        unit_price = _parse_optional_float(str(raw_item.get("valor_unitario") or ""), fallback=None)
+        total_price = _parse_optional_float(str(raw_item.get("valor_total") or ""), fallback=None)
+        if quantity is None or not math.isfinite(quantity) or quantity <= 0:
+            return jsonify({"success": False, "message": f"Informe uma quantidade válida no item {index}."}), 400
+        if (
+            (unit_price is not None and (not math.isfinite(unit_price) or unit_price < 0))
+            or (total_price is not None and (not math.isfinite(total_price) or total_price < 0))
+        ):
+            return jsonify({"success": False, "message": f"Os valores do item {index} não podem ser negativos."}), 400
+
+        if mode == "existente":
+            code = str(raw_item.get("codigo_item") or "").strip()
+            item_model = db.session.get(Item, code) if code else None
+            if item_model is None:
+                return jsonify({"success": False, "message": f"Selecione um item existente válido na linha {index}."}), 400
+            new_item_data = None
+        elif mode == "novo":
+            description = str(raw_item.get("descricao_nova") or "").strip()
+            category = str(raw_item.get("categoria") or DEFAULT_INVENTORY_CATEGORY_NAME).strip() or DEFAULT_INVENTORY_CATEGORY_NAME
+            unit = normalize_base_item_unit(str(raw_item.get("unidade_nova") or "").strip(), fallback="Unidade")
+            brand = str(raw_item.get("marca_nova") or "").strip() or None
+            code = str(raw_item.get("codigo_novo") or "").strip() or inventory_service.generate_unique_internal_barcode_code(prefix="2")
+            if not description:
+                return jsonify({"success": False, "message": f"Informe a descrição do novo item na linha {index}."}), 400
+            if len(description) > 255 or len(code) > 120 or len(category) > 120 or len(unit) > 30 or (brand and len(brand) > 200):
+                return jsonify({"success": False, "message": f"Os dados do novo item na linha {index} excedem o limite permitido."}), 400
+            if code in used_new_codes or db.session.get(Item, code) is not None:
+                return jsonify({"success": False, "message": f"O código do novo item na linha {index} já está cadastrado. Gere outro código."}), 409
+            used_new_codes.add(code)
+            new_item_data = {
+                "codigo": code,
+                "descricao": description,
+                "categoria": category,
+                "unidade": unit,
+                "marca": brand,
+            }
+        else:
+            return jsonify({"success": False, "message": f"Escolha se o item {index} já existe ou é novo."}), 400
+
+        if unit_price is None and total_price is not None:
+            unit_price = round(total_price / quantity, 6)
+        elif total_price is None and unit_price is not None:
+            total_price = round(unit_price * quantity, 2)
+
+        prepared_items.append({
+            "codigo": code,
+            "novo": new_item_data,
+            "foto_url": str(raw_item.get("foto_url") or "").strip() or None,
+            "foto_file": request.files.get(f"foto_{index - 1}"),
+            "quantidade": quantity,
+            "unidade_quantidade": str(raw_item.get("unidade_quantidade") or "").strip()[:30] or None,
+            "valor_unitario": unit_price,
+            "valor_total": total_price,
+        })
+
+    now = TimeService.now_db()
+    uploaded_photo_paths: list[str] = []
+    replaced_photo_paths: list[str] = []
+    try:
+        for prepared in prepared_items:
+            new_item_data = prepared["novo"]
+            photo_file = prepared["foto_file"]
+            photo_url = prepared["foto_url"]
+            foto_path = None
+            if photo_file and photo_file.filename:
+                foto_path = ItemFotoService.upload_foto(photo_file, prepared["codigo"])
+            elif photo_url:
+                foto_path = ItemFotoService.download_foto_from_url(photo_url, prepared["codigo"])
+            if foto_path:
+                uploaded_photo_paths.append(foto_path)
+            if new_item_data:
+                item_model = Item(
+                    codigo_item=new_item_data["codigo"],
+                    descricao=new_item_data["descricao"],
+                    unidade=new_item_data["unidade"],
+                    localizacao=None,
+                    setor=new_item_data["categoria"],
+                    categoria=new_item_data["categoria"],
+                    nota_fiscal=document.numero_documento,
+                    marca=new_item_data["marca"],
+                    estoque_minimo=0,
+                    estoque_embalagens=0,
+                    estoque_unidades_soltas=0,
+                    foto_path=foto_path,
+                    pre_cadastro_pendente=True,
+                    pre_cadastro_origem="nf",
+                    pre_cadastro_criado_em=now,
+                )
+                db.session.add(item_model)
+                db.session.flush()
+            else:
+                item_model = db.session.get(Item, prepared["codigo"])
+                if foto_path:
+                    old_photo_path = str(item_model.foto_path or "").strip()
+                    if old_photo_path and old_photo_path != foto_path:
+                        replaced_photo_paths.append(old_photo_path)
+                    item_model.foto_path = foto_path
+
+            document_item = DocumentoEntradaEstoqueItem(
+                documento_id=document.id_documento,
+                codigo_item=prepared["codigo"],
+                quantidade=prepared["quantidade"],
+                unidade_quantidade=prepared["unidade_quantidade"],
+                valor_unitario=prepared["valor_unitario"],
+                valor_total=prepared["valor_total"],
+                status_processamento="pendente",
+            )
+            db.session.add(document_item)
+            db.session.flush()
+            if new_item_data:
+                item_model.pre_cadastro_documento_item_id = document_item.id_documento_item
+
+        document.movimenta_estoque = False
+        document.status_integracao = "cadastro_rapido_pendente"
+        document.mensagem_integracao = (
+            "Itens cadastrados e aguardando conferência. Nenhuma movimentação foi feita no estoque."
+        )
+        db.session.commit()
+        for old_photo_path in replaced_photo_paths:
+            ItemFotoService.deletar_foto(old_photo_path)
+    except ValueError as exc:
+        db.session.rollback()
+        for photo_path in uploaded_photo_paths:
+            ItemFotoService.deletar_foto(photo_path)
+        return jsonify({"success": False, "message": f"Não foi possível salvar a foto do item: {exc}"}), 400
+    except Exception:
+        db.session.rollback()
+        for photo_path in uploaded_photo_paths:
+            ItemFotoService.deletar_foto(photo_path)
+        current_app.logger.exception("Falha ao cadastrar itens no rascunho de NF")
+        return jsonify({"success": False, "message": "Não foi possível salvar os itens da NF."}), 500
+
+    return jsonify({
+        "success": True,
+        "message": "Itens salvos para conferência. O estoque não foi alterado.",
+        "url": url_for("nf.nf_index", nota=document.numero_documento, aba="processaveis"),
+        "total_itens": len(prepared_items),
     }), 201
 
 

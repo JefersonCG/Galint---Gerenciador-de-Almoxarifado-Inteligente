@@ -59,7 +59,7 @@
         </a>
         % endif
         % if current_user.is_authenticated and endpoint_exists('nf.buscar_documento_modal'):
-        <form class="topbar-nf-search d-none" data-search-url="${url_for('nf.buscar_documento_modal')}" role="search" aria-label="Buscar nota fiscal">
+        <form class="topbar-nf-search d-none" data-search-url="${url_for('nf.buscar_documento_modal')}" data-create-url="${url_for('nf.cadastrar_documento_rapido')}" role="search" aria-label="Buscar nota fiscal">
             <input id="topbar-nf-query" type="hidden" name="nota">
             <button type="submit" tabindex="-1" aria-hidden="true"></button>
         </form>
@@ -122,7 +122,7 @@
     % endif
     % if current_user.is_authenticated and endpoint_exists('nf.buscar_documento_modal'):
     <div class="modal fade" id="nfSearchModal" tabindex="-1" aria-labelledby="nfSearchModalTitle" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
             <div class="modal-content nf-search-modal-content">
                 <div class="modal-header">
                     <div>
@@ -134,6 +134,67 @@
                 <div class="modal-body">
                     <div id="nfSearchModalFeedback" class="small" role="status" aria-live="polite"></div>
                     <div id="nfSearchModalContent" class="d-none"></div>
+                    <section id="nfSearchCreatePrompt" class="d-none" aria-live="polite">
+                        <button class="btn btn-primary btn-lg mb-2" type="button" id="nfSearchCreateStart">
+                            <i class="bi bi-file-earmark-plus me-1"></i> Cadastrar esta NF
+                        </button>
+                        <div class="alert alert-warning mb-0">
+                            Não encontramos esta NF no GALINT. Deseja cadastrar um novo documento fiscal?
+                        </div>
+                    </section>
+                    <form id="nfQuickCreateForm" class="d-none mt-3" novalidate
+                        data-items-url-template="${url_for('nf.cadastrar_itens_documento_rapido', documento_id=0)}"
+                        data-item-search-url="${url_for('nf.autocomplete_itens_cadastro_rapido')}"
+                        data-code-url="${url_for('nf.novo_codigo_barras')}">
+                        <div id="nfQuickHeaderFields">
+                            <p class="small text-muted">Informe os dados da NF. Em seguida, inclua ou vincule os itens neste mesmo modal.</p>
+                            <div class="row g-3">
+                                <div class="col-md-5">
+                                    <label class="form-label" for="nfQuickNumber">Número da NF</label>
+                                    <input class="form-control" id="nfQuickNumber" name="numero_documento" maxlength="120" required>
+                                </div>
+                                <div class="col-md-7">
+                                    <label class="form-label" for="nfQuickAccessKey">Chave de acesso <span class="text-muted">(opcional)</span></label>
+                                    <input class="form-control" id="nfQuickAccessKey" name="chave_acesso" inputmode="numeric" maxlength="60" placeholder="44 dígitos">
+                                </div>
+                                <div class="col-md-5">
+                                    <label class="form-label" for="nfQuickCnpj">CNPJ do emitente</label>
+                                    <input class="form-control" id="nfQuickCnpj" name="cnpj_emitente" inputmode="numeric" maxlength="18" placeholder="00.000.000/0000-00">
+                                </div>
+                                <div class="col-md-7">
+                                    <label class="form-label" for="nfQuickSupplier">Emitente / fornecedor</label>
+                                    <input class="form-control" id="nfQuickSupplier" name="fornecedor_nome" maxlength="200">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="nfQuickEmissionDate">Data de emissão</label>
+                                    <input class="form-control" id="nfQuickEmissionDate" name="data_emissao" type="date">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="nfQuickReceiptDate">Data de recebimento</label>
+                                    <input class="form-control" id="nfQuickReceiptDate" name="data_recebimento" type="date">
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-end gap-2 mt-3">
+                                <button class="btn btn-outline-secondary" type="button" id="nfQuickCreateCancel">Voltar</button>
+                                <button class="btn btn-primary" type="submit" id="nfQuickHeaderSubmit">Continuar para os itens</button>
+                            </div>
+                        </div>
+                        <section id="nfQuickItemsPanel" class="d-none">
+                            <div class="alert alert-info py-2">
+                                <strong>Confira os itens.</strong> Quando o XML completo da SEFAZ estiver disponível, as linhas serão preenchidas automaticamente. Você pode vincular itens existentes ou cadastrar novos. O estoque não será movimentado nesta etapa.
+                            </div>
+                            <div id="nfQuickItemsList" class="d-grid gap-3"></div>
+                            <div class="d-flex flex-wrap justify-content-between gap-2 mt-3">
+                                <button class="btn btn-outline-primary" type="button" id="nfQuickAddItem">
+                                    <i class="bi bi-plus-lg me-1"></i> Adicionar item
+                                </button>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-outline-secondary" type="button" id="nfQuickItemsCancel">Fechar por enquanto</button>
+                                    <button class="btn btn-primary" type="submit" id="nfQuickItemsSubmit">Salvar itens</button>
+                                </div>
+                            </div>
+                        </section>
+                    </form>
                 </div>
             </div>
         </div>
@@ -232,7 +293,7 @@
     <script src="${url_for('static', filename='js/consumption-search.js')}?v=20261119-stock-count"></script>
     % endif
     % if current_user.is_authenticated and endpoint_exists('nf.buscar_documento_modal'):
-    <script src="${url_for('static', filename='js/nf-search-modal.js')}?v=20261105"></script>
+    <script src="${url_for('static', filename='js/nf-search-modal.js')}?v=20261116-quick-item-registration"></script>
     % endif
     % if current_user.is_authenticated and endpoint_exists('inventory.stock_count_item_lookup'):
     <script src="${url_for('static', filename='js/stock-count-modal.js')}?v=20261121-permissao"></script>
