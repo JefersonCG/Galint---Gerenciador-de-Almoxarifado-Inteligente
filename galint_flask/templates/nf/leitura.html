@@ -53,6 +53,9 @@
                             <div class="small text-muted">{{ reading.mensagem }}</div>
                             {% elif reading.status == 'arquivada' %}
                             <span class="badge bg-info text-dark">{{ status_labels.get('arquivada', 'Já no GALINT · arquivo guardado') }}</span>
+                            {% elif reading.status == 'duplicada' %}
+                            <span class="badge bg-danger">{{ status_labels.get('duplicada', 'Já consta no sistema') }}</span>
+                            <div class="small text-danger">{{ reading.mensagem }}</div>
                             {% else %}
                             <span class="badge bg-success">{{ status_labels.get(reading.status, reading.status) }}</span>
                             {% endif %}

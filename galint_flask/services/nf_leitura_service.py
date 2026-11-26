@@ -16,6 +16,11 @@ Fluxo:
    - JÁ ESTÁ (pedido do usuário em 25/11/2026): a leitura vira "arquivada" e fica ligada ao documento como
      a NF física, a prova de que a nota existe em papel, para ver e imprimir em Documentos Fiscais. Não há
      conferência nem lançamento, para não duplicar a entrada.
+   - REPETIDA (pedido do usuário em 26/11/2026: "o sistema não pode duplicar NF ao ler se for colocada por
+     engano; tem que avisar que aquela NF já consta no sistema"): o MESMO ARQUIVO é recusado já no envio; outro
+     arquivo da mesma NF (mesmo documento que já tem arquivo, ou mesmo número e fornecedor de outra leitura na
+     lista) vira "duplicada": aviso em vermelho, sem guardar de novo nem abrir conferência. Até aqui a cópia
+     enviada para testar (NF 28498) virava uma segunda "arquivada" na lista.
    - PODE SER UMA COMPRA JÁ LANÇADA COM OUTRO NÚMERO (cupom digitado do papel e a NFC-e em PDF):
      documentos_parecidos sugere pelo fornecedor, data e total; confirmada ("É a mesma compra"), a
      leitura vira a NF física dela (unir_a_documento), sem nova entrada no estoque.
@@ -39,6 +44,7 @@ Fluxo:
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -383,9 +389,42 @@ def _save_result(reading: NFLeitura, result: dict[str, Any]) -> None:
     reading.resultado_json = json.dumps(result, ensure_ascii=False, default=str)
 
 
-def enviar_arquivos(files: list[Any], *, usuario: str | None) -> list[NFLeitura]:
-    """Guarda os arquivos enviados e agenda a leitura de cada um."""
+def _rotulo_da_leitura(leitura: NFLeitura) -> str:
+    numero = f"NF {leitura.numero_documento}" if leitura.numero_documento else f"O arquivo {leitura.arquivo_nome}"
+    quando = leitura.criado_em.strftime("%d/%m/%Y") if leitura.criado_em else ""
+    return f"{numero}{f' (enviada em {quando})' if quando else ''}"
+
+
+def mesmo_arquivo(data: bytes) -> NFLeitura | None:
+    """Leitura (não descartada) com exatamente o mesmo arquivo: mesmo tamanho e mesmo SHA-256."""
+    alvo = hashlib.sha256(data).digest()
+    for leitura in NFLeitura.query.filter(NFLeitura.status != "descartada").order_by(NFLeitura.id).all():
+        caminho = reading_file_path(leitura)
+        try:
+            if caminho.stat().st_size != len(data) or hashlib.sha256(caminho.read_bytes()).digest() != alvo:
+                continue
+        except OSError:
+            continue
+        return leitura
+    return None
+
+
+def aviso_de_repetida(leitura: NFLeitura) -> str:
+    rotulo = _rotulo_da_leitura(leitura)
+    if leitura.status in PROOF_STATUSES or leitura.status == "duplicada":
+        return f"{rotulo} já consta no sistema."
+    if leitura.status == "lida":
+        return f"{rotulo} já está na lista, pronta para conferir."
+    if leitura.status == "lendo":
+        return f"{rotulo} já está na fila de leitura."
+    return f"{rotulo} já está na lista (deu erro: use Ler de novo)."
+
+
+def enviar_arquivos(files: list[Any], *, usuario: str | None, repetidos: list[str] | None = None) -> list[NFLeitura]:
+    """Guarda os arquivos enviados e agenda a leitura de cada um. Arquivo igual a um já enviado não entra: o
+    aviso vai para `repetidos` (ou vira o erro, se nenhum arquivo entrou)."""
     created: list[NFLeitura] = []
+    avisos: list[str] = []
     folder = _storage_root() / TimeService.now_db().strftime("%Y%m")
     folder.mkdir(parents=True, exist_ok=True)
     for storage in files:
@@ -400,6 +439,10 @@ def enviar_arquivos(files: list[Any], *, usuario: str | None) -> list[NFLeitura]
             raise ValueError(f"{name}: arquivo vazio.")
         if len(data) > MAX_FILE_BYTES:
             raise ValueError(f"{name}: arquivo maior que 25 MB.")
+        igual = mesmo_arquivo(data)
+        if igual is not None:
+            avisos.append(aviso_de_repetida(igual))
+            continue
         stored = f"{uuid.uuid4().hex}{suffix}"
         (folder / stored).write_bytes(data)
         reading = NFLeitura(
@@ -410,8 +453,10 @@ def enviar_arquivos(files: list[Any], *, usuario: str | None) -> list[NFLeitura]
         )
         db.session.add(reading)
         created.append(reading)
+    if repetidos is not None:
+        repetidos.extend(avisos)
     if not created:
-        raise ValueError("Escolha o PDF ou a foto da NF.")
+        raise ValueError(" ".join(avisos) if avisos else "Escolha o PDF ou a foto da NF.")
     db.session.commit()
     for reading in created:
         agendar_leitura(reading.id)
@@ -450,6 +495,54 @@ def _archive_as_proof(reading: NFLeitura, documento_id: int, numero: str | None)
     reading.mensagem = None
 
 
+def _digitos(valor: Any) -> str:
+    return re.sub(r"\D", "", str(valor or ""))
+
+
+def _mesmo_fornecedor(a: dict[str, Any], b: dict[str, Any], leitura_a: NFLeitura, leitura_b: NFLeitura) -> bool:
+    cnpj_a, cnpj_b = _digitos(a.get("cnpj_emitente")), _digitos(b.get("cnpj_emitente"))
+    if len(cnpj_a) == 14 and len(cnpj_b) == 14:
+        return cnpj_a == cnpj_b
+    nome_a, nome_b = _normalize(leitura_a.fornecedor_nome or a.get("emitente")), _normalize(leitura_b.fornecedor_nome or b.get("emitente"))
+    if nome_a and nome_b:
+        return nome_a == nome_b
+    total_a, total_b = leitura_a.valor_total, leitura_b.valor_total
+    return total_a is not None and total_b is not None and abs(float(total_a) - float(total_b)) < 0.01
+
+
+def outra_leitura_da_mesma_nf(reading: NFLeitura, header: dict[str, Any], documento_id: int | None) -> NFLeitura | None:
+    """Outra leitura que já guarda esta NF: o arquivo do mesmo documento (lançada/arquivada), ou a mesma NF
+    (número + fornecedor) ainda na lista para conferir."""
+    if documento_id:
+        guardada = (
+            NFLeitura.query.filter(NFLeitura.id != reading.id, NFLeitura.documento_id == documento_id,
+                                   NFLeitura.status.in_(PROOF_STATUSES))
+            .order_by(NFLeitura.id)
+            .first()
+        )
+        if guardada is not None:
+            return guardada
+    numero = str(header.get("numero") or "").strip()[:20]
+    if not numero:
+        return None
+    candidatas = (
+        NFLeitura.query.filter(NFLeitura.id != reading.id, NFLeitura.numero_documento == numero,
+                               NFLeitura.status.in_(("lida",) + PROOF_STATUSES))
+        .order_by(NFLeitura.id)
+        .all()
+    )
+    for candidata in candidatas:
+        if _mesmo_fornecedor(header, load_result(candidata).get("cabecalho") or {}, reading, candidata):
+            return candidata
+    return None
+
+
+def _marcar_duplicada(reading: NFLeitura, original: NFLeitura, documento_id: int | None) -> None:
+    reading.status = "duplicada"
+    reading.documento_id = documento_id
+    reading.mensagem = aviso_de_repetida(original)
+
+
 def processar_leitura(reading_id: int) -> None:
     reading = db.session.get(NFLeitura, reading_id)
     if reading is None:
@@ -471,7 +564,10 @@ def processar_leitura(reading_id: int) -> None:
         reading.fornecedor_nome = (header.get("emitente") or None) and str(header["emitente"])[:200]
         reading.valor_total = header.get("valor_total") or header.get("valor_produtos")
         existing = result.get("ja_lancada")
-        if existing and not previous_launch.get("linhas"):
+        original = None if previous_launch.get("linhas") else outra_leitura_da_mesma_nf(reading, header, (existing or {}).get("id"))
+        if original is not None:
+            _marcar_duplicada(reading, original, (existing or {}).get("id"))
+        elif existing and not previous_launch.get("linhas"):
             _archive_as_proof(reading, existing["id"], existing.get("numero"))
         _save_result(reading, result)
     except nf_ocr.OcrUnavailableError as exc:
@@ -498,7 +594,12 @@ def verificar_nf_existente(reading: NFLeitura) -> dict[str, Any] | None:
         return None
     found = {"id": existing.id_documento, "numero": existing.numero_documento}
     result["ja_lancada"] = found
-    _archive_as_proof(reading, existing.id_documento, existing.numero_documento)
+    original = outra_leitura_da_mesma_nf(reading, header, existing.id_documento)
+    if original is not None:
+        _marcar_duplicada(reading, original, existing.id_documento)
+        found["duplicada"] = reading.mensagem
+    else:
+        _archive_as_proof(reading, existing.id_documento, existing.numero_documento)
     _save_result(reading, result)
     db.session.commit()
     return found
@@ -681,6 +782,8 @@ def lancar_leitura(reading: NFLeitura, header: dict[str, Any], lines: list[dict[
         raise ValueError("Esta NF já foi lançada.")
     if reading.status == "arquivada":
         raise ValueError(f"Esta NF já está no GALINT (documento nº {reading.numero_documento}); o arquivo ficou guardado como NF física.")
+    if reading.status == "duplicada":
+        raise ValueError(reading.mensagem or "Esta NF já consta no sistema.")
     if reading.status != "lida":
         raise ValueError("A leitura desta NF ainda não terminou ou deu erro.")
     numero = str(header.get("numero") or "").strip()

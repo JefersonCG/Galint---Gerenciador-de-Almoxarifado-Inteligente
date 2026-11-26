@@ -67,12 +67,32 @@ def client(tmp_path, monkeypatch):
         db.session.remove()
 
 
-def _send_sample(client):
+_COPIAS = iter(range(1, 10_000))
+
+
+def _send_sample(client, data=None):
+    """Envia o DANFE de exemplo. Sem `data`, cada envio é um ARQUIVO diferente da mesma NF (o reportlab grava a
+    hora no PDF, e dois no mesmo segundo sairiam iguais: a marca no fim deixa cada cópia diferente)."""
     from io import BytesIO
 
-    response = client.post("/nf/leitura/enviar", data={"arquivos": (BytesIO(build_danfe_pdf()), "nf 12345.pdf")}, content_type="multipart/form-data")
+    if data is None:
+        data = build_danfe_pdf() + f"\n%copia {next(_COPIAS)}\n".encode()
+    response = client.post("/nf/leitura/enviar", data={"arquivos": (BytesIO(data), "nf 12345.pdf")}, content_type="multipart/form-data")
     assert response.status_code == 302
     return NFLeitura.query.order_by(NFLeitura.id.desc()).first()
+
+
+def _flashes(client):
+    with client.session_transaction() as session:
+        return [message for _, message in session.get("_flashes", [])]
+
+
+def _documento_sem_leitura():
+    """NF que entrou no GALINT por Documentos Fiscais (sem arquivo lido): mesma chave do DANFE de exemplo."""
+    documento = DocumentoEntradaEstoque(tipo_documento="nf", numero_documento="12345", chave_acesso=ACCESS_KEY)
+    db.session.add(documento)
+    db.session.commit()
+    return documento
 
 
 def _launch_form(reading, overrides=None):
@@ -162,31 +182,30 @@ def test_same_nf_cannot_be_launched_twice(client):
     from galint_flask.services.nf_leitura_service import load_result
 
     assert load_result(second)["ja_lancada"]["numero"] == "12345"
+    assert second.status == "duplicada"
     blocked = client.post(f"/nf/leitura/{second.id}/lancar", data=_launch_form(second))
-    with client.session_transaction() as session:
-        messages = [message for _, message in session.get("_flashes", [])]
+    messages = _flashes(client)
     assert blocked.headers["Location"].endswith(f"/nf/leitura/{second.id}")
-    assert any("já está no GALINT" in message for message in messages), messages
+    assert any("NF 12345" in message and "já consta no sistema" in message for message in messages), messages
     assert DocumentoEntradaEstoque.query.count() == 1
 
 
 def test_nf_already_in_galint_is_kept_as_the_physical_nf(client):
     """Pedido do usuário (25/11/2026): NF que já existe vira a prova da NF física, para ver e imprimir;
-    não abre conferência nem lança de novo."""
+    não abre conferência nem lança de novo. Desde 26/11/2026, uma segunda cópia avisa que já consta."""
     from galint_flask.views.nf_leitura import nf_fisica
 
-    reading = _send_sample(client)
-    client.post(f"/nf/leitura/{reading.id}/lancar", data=_launch_form(reading))
-    document = DocumentoEntradaEstoque.query.one()
-    lines_before = DocumentoEntradaEstoqueItem.query.count()
-
+    document = _documento_sem_leitura()
     copy = _send_sample(client)
     assert (copy.status, copy.documento_id, copy.numero_documento) == ("arquivada", document.id_documento, "12345")
     review = client.get(f"/nf/leitura/{copy.id}")
     assert review.status_code == 302 and review.headers["Location"].endswith("/nf/leitura/")
-    assert DocumentoEntradaEstoqueItem.query.count() == lines_before
+    assert DocumentoEntradaEstoqueItem.query.count() == 0
+
+    again = _send_sample(client)
+    assert again.status == "duplicada" and "NF 12345" in again.mensagem and "já consta no sistema" in again.mensagem
     with client.application.test_request_context():
-        assert [row.id for row in nf_fisica(document.id_documento)] == [reading.id, copy.id]
+        assert [row.id for row in nf_fisica(document.id_documento)] == [copy.id]
         assert nf_fisica(None) == [] and nf_fisica(document.id_documento + 1) == []
 
     printed = client.get(f"/nf/leitura/{copy.id}/imprimir")
@@ -196,18 +215,37 @@ def test_nf_already_in_galint_is_kept_as_the_physical_nf(client):
 
 
 def test_reading_waiting_for_review_becomes_proof_when_the_nf_enters_first(client):
-    """Duas cópias da mesma NF na fila: a primeira é lançada; ao abrir a segunda, ela vira a NF física."""
+    """Leitura pronta para conferir cuja NF entrou depois por Documentos Fiscais: ao abrir, vira a NF física."""
     first = _send_sample(client)
-    second = _send_sample(client)
-    assert (first.status, second.status) == ("lida", "lida")
-    client.post(f"/nf/leitura/{first.id}/lancar", data=_launch_form(first))
+    assert first.status == "lida"
+    _documento_sem_leitura()
 
-    response = client.get(f"/nf/leitura/{second.id}")
-    with client.session_transaction() as session:
-        messages = [message for _, message in session.get("_flashes", [])]
+    response = client.get(f"/nf/leitura/{first.id}")
     assert response.status_code == 302 and response.headers["Location"].endswith("/nf/leitura/")
-    assert "NF 12345 já está no GALINT: o arquivo ficou guardado como NF física." in messages, messages
-    assert db.session.get(NFLeitura, second.id).status == "arquivada"
+    assert "NF 12345 já está no GALINT: o arquivo ficou guardado como NF física." in _flashes(client)
+    assert db.session.get(NFLeitura, first.id).status == "arquivada"
+    assert DocumentoEntradaEstoque.query.count() == 1
+
+
+def test_same_nf_sent_again_warns_that_it_is_already_there(client):
+    """Pedido do usuário (26/11/2026): "o sistema não pode duplicar NF ao ler se for colocada por engano; tem que
+    avisar que aquela NF já consta no sistema". Mesmo arquivo: nem entra. Outro arquivo da mesma NF: aviso."""
+    data = build_danfe_pdf()
+    first = _send_sample(client, data)
+    assert first.status == "lida"
+
+    client.post("/nf/leitura/enviar", data={"arquivos": (__import__("io").BytesIO(data), "copia.pdf")}, content_type="multipart/form-data")
+    assert NFLeitura.query.count() == 1
+    assert any("NF 12345" in m and "já está na lista, pronta para conferir" in m for m in _flashes(client))
+
+    other_file = _send_sample(client)
+    assert other_file.status == "duplicada" and "já está na lista" in other_file.mensagem
+    review = client.get(f"/nf/leitura/{other_file.id}")
+    assert review.status_code == 302 and any("NF 12345" in m for m in _flashes(client))
+
+    client.post(f"/nf/leitura/{first.id}/lancar", data=_launch_form(first))
+    client.post("/nf/leitura/enviar", data={"arquivos": (__import__("io").BytesIO(data), "de novo.pdf")}, content_type="multipart/form-data")
+    assert any("NF 12345" in m and "já consta no sistema" in m for m in _flashes(client))
     assert DocumentoEntradaEstoque.query.count() == 1
 
 
@@ -279,7 +317,7 @@ def test_paper_cupom_is_suggested_and_the_pdf_becomes_its_physical_nf(client):
     assert (joined.status, joined.documento_id) == ("arquivada", cupom.id_documento)
     assert db.session.get(DocumentoEntradaEstoque, cupom.id_documento).chave_acesso == ACCESS_KEY
     assert DocumentoEntradaEstoque.query.count() == 1 and DocumentoEntradaEstoqueItem.query.count() == 1
-    assert _send_sample(client).status == "arquivada"  # a próxima cópia já acha pela chave
+    assert _send_sample(client).status == "duplicada"  # a próxima cópia acha pela chave e avisa que já consta
 
 
 def test_purchase_with_another_total_is_not_suggested(client):

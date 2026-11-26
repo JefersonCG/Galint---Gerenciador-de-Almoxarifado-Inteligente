@@ -32,6 +32,7 @@ STATUS_LABELS = {
     "erro": "Erro",
     "lancada": "Lançada",
     "arquivada": "Já no GALINT · arquivo guardado",
+    "duplicada": "Já consta no sistema",
 }
 
 
@@ -80,11 +81,14 @@ def index():
 @login_required
 def enviar():
     _require_admin()
+    repetidos: list[str] = []
     try:
-        created = service.enviar_arquivos(request.files.getlist("arquivos"), usuario=_user_id())
+        created = service.enviar_arquivos(request.files.getlist("arquivos"), usuario=_user_id(), repetidos=repetidos)
     except ValueError as exc:
         flash(str(exc), "danger")
         return redirect(url_for("nf_leitura.index"))
+    for aviso in repetidos:  # mesmo arquivo enviado de novo (26/11/2026): não entra
+        flash(aviso, "danger")
     flash(f"{len(created)} arquivo(s) enviado(s). A leitura leva de alguns segundos a 1 minuto por página.", "info")
     return redirect(url_for("nf_leitura.index"))
 
@@ -103,7 +107,13 @@ def situacao():
 def conferir(reading_id: int):
     _require_admin()
     reading = _get_reading(reading_id)
+    if reading.status == "duplicada":
+        flash(reading.mensagem or "Esta NF já consta no sistema.", "danger")
+        return redirect(url_for("nf_leitura.index"))
     found = service.verificar_nf_existente(reading)  # a NF pode ter entrado por outro caminho depois da leitura
+    if found and found.get("duplicada"):
+        flash(found["duplicada"], "danger")
+        return redirect(url_for("nf_leitura.index"))
     if found:
         flash(f"NF {found['numero']} já está no GALINT: o arquivo ficou guardado como NF física.", "info")
         return redirect(url_for("nf_leitura.index"))
