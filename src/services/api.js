@@ -906,6 +906,23 @@ class ApiService {
     }
 
 
+    // Como o item volta (2.4.1, 26/11/2026): { tipo: 'ferramenta' | 'fracionado' | 'unitario', unidade,
+    // unidade_curta, decimal, embalagem, conteudo }. A regra é a mesma da gravação no servidor (lata de
+    // 18 L volta em litros, conteúdo 18). null quando o servidor não respondeu ou ainda não tem a rota.
+    async getTipoDevolucao(codigo) {
+        try {
+            const token = await AsyncStorage.getItem('token');
+            if (!token) return null;
+            const response = await this.client.get(
+                `/api/mobile/devolucao/tipo/${encodeURIComponent(String(codigo || '').trim())}`,
+                { headers: { 'Authorization': `Bearer ${token}` } }
+            );
+            return response.data?.success ? response.data.data || null : null;
+        } catch (error) {
+            return null;
+        }
+    }
+
     async devolverMaterial(data) {
         try {
             await this.ensureLocalReady();

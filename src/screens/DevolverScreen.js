@@ -11,29 +11,40 @@ import {
     ActivityIndicator,
     FlatList,
     Image,
+    Keyboard,
 } from 'react-native';
 import TextInput from '../components/UpperTextInput';
 import ApiService from '../services/api';
 import { formatQuantityWithPackaging } from '../utils/formatQuantity';
 import { resolvePhotoUri } from '../components/StockCountPanel';
 import { heroPalette, heroShadow, heroSoftShadow } from '../theme/heroTheme';
-import { returnMessage, unitLabel } from '../utils/shareWhatsApp';
+import { returnMessage } from '../utils/shareWhatsApp';
+import {
+    faltaNaQuantidade,
+    fmt,
+    fracaoTexto,
+    nomeEmbalagem,
+    parseQuantidade,
+    quantidadeBase,
+    quantidadeTexto,
+    tipoSemServidor,
+} from '../utils/devolucaoConta';
 import DoneModal from '../components/DoneModal';
 
-function sanitizeIntText(text) {
-    if (text == null) return '';
-    return String(text).replace(/[^0-9]/g, '');
-}
+const FRACOES = [0.25, 0.5, 0.75, 1];
 
 /**
- * Tela unificada de devolução para Material e Ferramenta
- * Detecta automaticamente o tipo baseado na categoria do item
+ * Tela unificada de devolução: ferramenta, fracionado ou unitário (2.4.1, 26/11/2026).
+ * O servidor diz o tipo e a unidade (/api/mobile/devolucao/tipo/<codigo>); fracionado com embalagem
+ * (lata de 18 L) volta em fração da embalagem (¼, ½, ¾) e vai ao servidor em litros.
  */
 export default function DevolverScreen({ navigation, route }) {
     const user = route.params?.user;
     const item = route.params?.item;
 
-    const [quantidade, setQuantidade] = useState('1');
+    const [tipo, setTipo] = useState(() => tipoSemServidor(item));
+    const [loadingTipo, setLoadingTipo] = useState(true);
+    const [quantidade, setQuantidade] = useState(() => (tipoSemServidor(item).tipo === 'fracionado' ? '' : '1'));
     const [loading, setLoading] = useState(false);
     const [usuarios, setUsuarios] = useState([]);
     const [devolvedorBusca, setDevolvedorBusca] = useState('');
@@ -42,17 +53,36 @@ export default function DevolverScreen({ navigation, route }) {
     const [ultimoResponsavel, setUltimoResponsavel] = useState(null);
     const [loadingUltimoResponsavel, setLoadingUltimoResponsavel] = useState(true);
 
-    // Determina automaticamente se é ferramenta ou material
-    const isFerramenta = useMemo(() => {
-        if (!item) return false;
-        const categoria = (item.categoria || '').toString().toLowerCase().trim();
-        return categoria === 'ferramenta' || categoria === 'ferramentas';
+    const isFerramenta = tipo.tipo === 'ferramenta';
+    const isFracionado = tipo.tipo === 'fracionado';
+    const comEmbalagem = isFracionado && tipo.conteudo > 0;
+
+    // O tipo vem do servidor, com a mesma regra da gravação; sem resposta, fica o palpite local, só inteiro.
+    useEffect(() => {
+        let ativo = true;
+        const codigo = String(item?.id || item?.codigo_barras || '').trim();
+        ApiService.getTipoDevolucao(codigo)
+            .then((remoto) => {
+                if (!ativo || !remoto?.tipo) return;
+                setTipo(remoto);
+                setQuantidade((atual) => (remoto.tipo === 'fracionado' ? (atual === '1' ? '' : atual) : (atual || '1')));
+            })
+            .finally(() => {
+                if (ativo) setLoadingTipo(false);
+            });
+        return () => {
+            ativo = false;
+        };
     }, [item]);
 
     // 2.2.1: o nome da operação fica só no cabeçalho (sem o cartão de título nem a dica do rodapé).
     useLayoutEffect(() => {
-        navigation.setOptions({ title: isFerramenta ? 'Devolver ferramenta' : 'Devolver material' });
-    }, [isFerramenta, navigation]);
+        const title = isFerramenta ? 'Devolver ferramenta' : isFracionado ? 'Devolver fracionado' : 'Devolver material';
+        navigation.setOptions({ title });
+    }, [isFerramenta, isFracionado, navigation]);
+
+    const quantidadeNum = useMemo(() => parseQuantidade(quantidade, tipo.decimal).valor, [quantidade, tipo.decimal]);
+    const falta = faltaNaQuantidade(tipo, quantidadeNum);
     const [photoFailed, setPhotoFailed] = useState(false);
     const [done, setDone] = useState(null); // janela de conclusão (DoneModal)
     const photoUri = photoFailed ? null : resolvePhotoUri(item);
@@ -139,11 +169,12 @@ export default function DevolverScreen({ navigation, route }) {
     }, [devolvedorBusca, usuarios]);
 
     const handleSubmit = async () => {
-        const quantidadeInt = parseInt(sanitizeIntText(quantidade), 10);
-        if (Number.isNaN(quantidadeInt) || quantidadeInt <= 0) {
-            Alert.alert('Erro', 'Informe uma quantidade válida (inteiro > 0).');
+        Keyboard.dismiss();
+        if (falta) {
+            Alert.alert('Quantidade', falta === 'Quantidade inteira' ? 'Este item volta em quantidade inteira.' : 'Informe a quantidade devolvida.');
             return;
         }
+        const enviada = quantidadeBase(tipo, quantidadeNum);
 
         if (!devolvedorSelecionado) {
             Alert.alert('Erro', 'Selecione quem está devolvendo.');
@@ -160,14 +191,14 @@ export default function DevolverScreen({ navigation, route }) {
             const codigo = String(item.id || item.codigo_barras).trim();
             const payload = {
                 codigo,
-                quantidade: quantidadeInt,
+                quantidade: enviada,
                 matricula_devolvedor: String(devolvedorSelecionado?.matricula || '').trim(),
             };
 
-            // Chama API apropriada baseado no tipo
+            // Ferramenta pela custódia; material na unidade de devolução (litro, quilo, metro, unidade).
             const result = isFerramenta
                 ? await ApiService.registrarDevolucaoFerramenta(payload)
-                : await ApiService.devolverMaterial(payload);
+                : await ApiService.devolverMaterial({ ...payload, unidade: tipo.unidade });
 
             if (!result.success) {
                 Alert.alert('Erro', result.message);
@@ -181,10 +212,10 @@ export default function DevolverScreen({ navigation, route }) {
                 : novoSaldoRaw;
             
             const novoSaldoFormatado = formatQuantityWithPackaging(novoSaldo, item);
-            const quantidadeTexto = `${quantidadeInt} ${unitLabel(quantidadeInt, item?.unidade)}`;
+            const textoQuantidade = quantidadeTexto(tipo, quantidadeNum, item?.unidade);
             const mensagem = returnMessage({
                 descricao: item?.descricao || item?.nome || 'Item',
-                quantidade: quantidadeTexto,
+                quantidade: textoQuantidade,
                 devolvidoPor: devolvedorSelecionado?.nome,
                 ferramenta: isFerramenta,
                 registradoPor: user?.nome,
@@ -194,7 +225,7 @@ export default function DevolverScreen({ navigation, route }) {
             setDone({
                 title: 'Devolução registrada',
                 itemName: item?.descricao || item?.nome || 'Item',
-                summary: `${quantidadeTexto} • saldo agora: ${novoSaldoFormatado}`,
+                summary: `${textoQuantidade} • saldo agora: ${novoSaldoFormatado}`,
                 photoUri: resolvePhotoUri(item),
                 message: mensagem,
                 newLabel: 'Nova devolução',
@@ -296,26 +327,56 @@ export default function DevolverScreen({ navigation, route }) {
                     </View>
 
                     <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Quantidade</Text>
+                        <Text style={styles.label}>
+                            {comEmbalagem
+                                ? nomeEmbalagem(tipo.embalagem, 2).replace(/^./, (letra) => letra.toUpperCase())
+                                : isFracionado
+                                    ? `Quantidade (${tipo.unidade_curta})`
+                                    : 'Quantidade'}
+                        </Text>
+                        {comEmbalagem ? (
+                            <View style={styles.chips}>
+                                {FRACOES.map((fracao) => {
+                                    const ativo = Math.abs(quantidadeNum - fracao) < 1e-9;
+                                    return (
+                                        <TouchableOpacity
+                                            key={fracao}
+                                            style={[styles.chip, ativo && styles.chipActive]}
+                                            onPress={() => {
+                                                Keyboard.dismiss();
+                                                setQuantidade(String(fracao).replace('.', ','));
+                                            }}
+                                        >
+                                            <Text style={[styles.chipText, ativo && styles.chipTextActive]}>{fracaoTexto(fracao)}</Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </View>
+                        ) : null}
                         <TextInput
                             style={styles.input}
                             value={quantidade}
-                            onChangeText={(text) => setQuantidade(sanitizeIntText(text))}
-                            placeholder="Quantidade"
+                            onChangeText={(text) => setQuantidade(parseQuantidade(text, tipo.decimal).texto)}
+                            placeholder="0"
                             placeholderTextColor={heroPalette.textMuted}
-                            keyboardType="numeric"
+                            keyboardType={tipo.decimal ? 'decimal-pad' : 'numeric'}
                         />
+                        {comEmbalagem && quantidadeNum > 0 ? (
+                            <Text style={styles.conta}>
+                                {`${fracaoTexto(quantidadeNum)} ${nomeEmbalagem(tipo.embalagem, quantidadeNum)} = ${fmt(quantidadeBase(tipo, quantidadeNum))} ${tipo.unidade_curta}`}
+                            </Text>
+                        ) : null}
                     </View>
 
                     <TouchableOpacity
-                        style={[styles.button, (loading || !devolvedorSelecionado) && styles.buttonDisabled]}
+                        style={[styles.button, (loading || loadingTipo || !devolvedorSelecionado || falta) && styles.buttonDisabled]}
                         onPress={handleSubmit}
-                        disabled={loading || !devolvedorSelecionado}
+                        disabled={loading || loadingTipo || !devolvedorSelecionado || Boolean(falta)}
                     >
-                        {loading ? (
+                        {loading || loadingTipo ? (
                             <ActivityIndicator color="#fff" />
                         ) : (
-                            <Text style={styles.buttonText}>{devolvedorSelecionado ? 'Registrar devolução' : 'Falta quem devolve'}</Text>
+                            <Text style={styles.buttonText}>{!devolvedorSelecionado ? 'Falta quem devolve' : falta || 'Registrar devolução'}</Text>
                         )}
                     </TouchableOpacity>
                 </View>
@@ -415,6 +476,20 @@ const styles = StyleSheet.create({
     inputGroup: {
         marginBottom: 20,
     },
+    chips: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+    chip: {
+        flex: 1,
+        paddingVertical: 12,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: heroPalette.border,
+        backgroundColor: heroPalette.panelAlt,
+        alignItems: 'center',
+    },
+    chipActive: { backgroundColor: heroPalette.accent, borderColor: heroPalette.accent },
+    chipText: { fontSize: 20, fontWeight: '800', color: heroPalette.text },
+    chipTextActive: { color: heroPalette.bg },
+    conta: { marginTop: 8, fontSize: 15, fontWeight: '700', color: heroPalette.accent },
     label: {
         fontSize: 14,
         fontWeight: '600',
