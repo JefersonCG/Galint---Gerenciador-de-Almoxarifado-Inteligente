@@ -3,11 +3,15 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from io import BytesIO
 from math import ceil, isfinite
+from pathlib import Path
 from typing import Any
 
+from flask import current_app
+from openpyxl.drawing.image import Image as SpreadsheetImage
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Protection, Side
 from openpyxl.utils import get_column_letter
+from PIL import Image, ImageOps
 from sqlalchemy import case, func, or_
 
 from ..extensions import db
@@ -48,6 +52,54 @@ class PurchaseProjectionService:
     MAX_WINDOW_DAYS = 365
     MAX_COVERAGE_DAYS = 365
     BALANCE_TOLERANCE = 1e-6
+    EXPORT_THUMBNAIL_SIZE = 64
+
+    @classmethod
+    def _add_item_thumbnail(cls, sheet, foto_path: object, cell_reference: str) -> bool:
+        relative_path = str(foto_path or "").strip().replace("\\", "/")
+        if not relative_path:
+            return False
+
+        relative_file = Path(relative_path)
+        if relative_file.is_absolute() or ".." in relative_file.parts:
+            current_app.logger.warning("Caminho de foto inválido ignorado na planilha: %s", relative_path)
+            return False
+
+        static_root = (Path(current_app.root_path) / "static").resolve()
+        try:
+            image_path = (static_root / relative_file).resolve(strict=True)
+            image_path.relative_to(static_root)
+            if not image_path.is_file():
+                raise OSError("O caminho da foto não é um arquivo.")
+            with Image.open(image_path) as source:
+                thumbnail = ImageOps.exif_transpose(source).convert("RGBA")
+                thumbnail.thumbnail(
+                    (cls.EXPORT_THUMBNAIL_SIZE - 8, cls.EXPORT_THUMBNAIL_SIZE - 8),
+                    Image.Resampling.LANCZOS,
+                )
+                canvas = Image.new("RGB", (cls.EXPORT_THUMBNAIL_SIZE, cls.EXPORT_THUMBNAIL_SIZE), "white")
+                position = (
+                    (cls.EXPORT_THUMBNAIL_SIZE - thumbnail.width) // 2,
+                    (cls.EXPORT_THUMBNAIL_SIZE - thumbnail.height) // 2,
+                )
+                canvas.paste(thumbnail, position, thumbnail)
+                image_buffer = BytesIO()
+                canvas.save(image_buffer, format="PNG")
+                image_buffer.seek(0)
+        except (OSError, ValueError) as exc:
+            current_app.logger.warning(
+                "Foto do item indisponível para a planilha (%s): %s",
+                relative_path,
+                exc,
+            )
+            return False
+
+        spreadsheet_image = SpreadsheetImage(image_buffer)
+        spreadsheet_image.width = cls.EXPORT_THUMBNAIL_SIZE
+        spreadsheet_image.height = cls.EXPORT_THUMBNAIL_SIZE
+        sheet.add_image(spreadsheet_image, cell_reference)
+        sheet.row_dimensions[sheet[cell_reference].row].height = 52
+        return True
 
     STATUS_ALL = "all"
     STATUS_ACTIONABLE = "actionable"
@@ -303,6 +355,7 @@ class PurchaseProjectionService:
         requested_by = dict(requested_by or {})
 
         headers = [
+            "Foto",
             "Fornecedor Fiscal",
             "CNPJ Fiscal",
             "Documento",
@@ -364,7 +417,7 @@ class PurchaseProjectionService:
             cell.font = Font(bold=True, size=12, color="FFFFFF")
             cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
             cell.border = border
-            cell.protection = locked_protection if column_index in {7, 10, 11} else unlocked_protection
+            cell.protection = locked_protection if column_index in {8, 11, 12} else unlocked_protection
         sheet.row_dimensions[header_row].height = 24
         sheet.freeze_panes = f"A{header_row + 1}"
 
@@ -418,6 +471,7 @@ class PurchaseProjectionService:
                         internal_control = f"equivale a {requested_base_display}"
                     row_index = current_data_row
                     values = [
+                        "",
                         str(supplier.get("name") or "Sem fornecedor identificado").strip() or "Sem fornecedor identificado",
                         str(supplier.get("cnpj") or "").strip(),
                         document_reference,
@@ -434,29 +488,31 @@ class PurchaseProjectionService:
                         cell = sheet.cell(row=row_index, column=column_index, value=value)
                         cell.border = border
                         cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-                        cell.font = Font(size=12, bold=(column_index == 4), color="0F172A")
+                        cell.font = Font(size=12, bold=(column_index == 5), color="0F172A")
                         cell.protection = unlocked_protection
-                        if column_index == 7:
+                        if column_index == 8:
                             cell.alignment = Alignment(horizontal="center", vertical="center")
                             cell.protection = locked_protection
                             cell.font = Font(size=12, bold=True, color="0F172A")
-                        if column_index in {10, 11}:
+                        if column_index in {11, 12}:
                             cell.alignment = Alignment(horizontal="right", vertical="center")
                             cell.protection = locked_protection
-                        if column_index in {10, 11} and isinstance(value, (int, float)):
+                        if column_index in {11, 12} and isinstance(value, (int, float)):
                             cell.number_format = 'R$ #,##0.00'
                             cell.fill = value_fill
                             cell.font = Font(size=12, italic=True, color="0F172A")
+                    cls._add_item_thumbnail(sheet, item.get("foto_path"), f"A{row_index}")
                     if row_index % 2 == 0:
                         for column_index in range(1, total_columns + 1):
-                            if column_index in {10, 11}:
+                            if column_index in {11, 12}:
                                 continue
                             sheet.cell(row=row_index, column=column_index).fill = PatternFill(start_color="F8FAFC", end_color="F8FAFC", fill_type="solid")
-                    sheet.row_dimensions[row_index].height = 24
+                    if sheet.row_dimensions[row_index].height is None:
+                        sheet.row_dimensions[row_index].height = 24
                     current_data_row += 1
 
                 subtotal_row = current_data_row
-                sheet.merge_cells(start_row=subtotal_row, start_column=1, end_row=subtotal_row, end_column=6)
+                sheet.merge_cells(start_row=subtotal_row, start_column=1, end_row=subtotal_row, end_column=7)
                 subtotal_label_cell = sheet.cell(row=subtotal_row, column=1)
                 subtotal_label_cell.value = f"SUBTOTAL DA CATEGORIA: {category_name}"
                 subtotal_label_cell.fill = category_total_fill
@@ -465,13 +521,13 @@ class PurchaseProjectionService:
                 subtotal_label_cell.border = border
                 subtotal_label_cell.protection = unlocked_protection
 
-                for column_index in range(7, total_columns + 1):
-                    value = float(category_group.get("requested_value_total") or 0.0) if column_index == 11 else ""
+                for column_index in range(8, total_columns + 1):
+                    value = float(category_group.get("requested_value_total") or 0.0) if column_index == 12 else ""
                     cell = sheet.cell(row=subtotal_row, column=column_index, value=value)
                     cell.fill = category_total_fill
                     cell.border = border
                     cell.protection = locked_protection
-                    if column_index == 11:
+                    if column_index == 12:
                         cell.font = Font(bold=True, size=12, color="166534")
                         cell.alignment = Alignment(horizontal="right", vertical="center")
                         cell.number_format = 'R$ #,##0.00'
@@ -483,7 +539,7 @@ class PurchaseProjectionService:
             data_end_row = current_data_row - 1
 
         total_row = data_end_row + 1
-        sheet.merge_cells(start_row=total_row, start_column=1, end_row=total_row, end_column=6)
+        sheet.merge_cells(start_row=total_row, start_column=1, end_row=total_row, end_column=7)
         total_label_cell = sheet.cell(row=total_row, column=1)
         total_label_cell.value = "SUBTOTAL GERAL"
         total_label_cell.fill = total_fill
@@ -493,15 +549,15 @@ class PurchaseProjectionService:
         total_label_cell.protection = unlocked_protection
 
         total_values = {column_index: "" for column_index in range(7, total_columns + 1)}
-        total_values[11] = float(cart.get("requested_value_total") or 0.0) if export_categories else 0
-        for column_index in range(7, total_columns + 1):
+        total_values[12] = float(cart.get("requested_value_total") or 0.0) if export_categories else 0
+        for column_index in range(8, total_columns + 1):
             cell = sheet.cell(row=total_row, column=column_index, value=total_values[column_index])
-            cell.fill = total_fill if column_index == 11 else value_fill
-            cell.font = Font(bold=True, size=14, color="0F172A") if column_index == 11 else Font(size=12, italic=True, color="0F172A")
+            cell.fill = total_fill if column_index == 12 else value_fill
+            cell.font = Font(bold=True, size=14, color="0F172A") if column_index == 12 else Font(size=12, italic=True, color="0F172A")
             cell.alignment = Alignment(horizontal="right", vertical="center")
             cell.border = border
             cell.protection = locked_protection
-            if column_index == 11:
+            if column_index == 12:
                 cell.number_format = 'R$ #,##0.00'
 
         footer_row = total_row + 3
@@ -515,17 +571,18 @@ class PurchaseProjectionService:
         footer_cell.protection = unlocked_protection
         sheet.row_dimensions[footer_row].height = 24
 
-        sheet.column_dimensions["A"].width = 28
-        sheet.column_dimensions["B"].width = 22
+        sheet.column_dimensions["A"].width = 12
+        sheet.column_dimensions["B"].width = 28
         sheet.column_dimensions["C"].width = 22
-        sheet.column_dimensions["D"].width = 44
-        sheet.column_dimensions["E"].width = 20
-        sheet.column_dimensions["F"].width = 24
-        sheet.column_dimensions["G"].width = 16
+        sheet.column_dimensions["D"].width = 22
+        sheet.column_dimensions["E"].width = 44
+        sheet.column_dimensions["F"].width = 20
+        sheet.column_dimensions["G"].width = 24
         sheet.column_dimensions["H"].width = 16
-        sheet.column_dimensions["I"].width = 28
-        sheet.column_dimensions["J"].width = 20
-        sheet.column_dimensions["K"].width = 18
+        sheet.column_dimensions["I"].width = 16
+        sheet.column_dimensions["J"].width = 28
+        sheet.column_dimensions["K"].width = 20
+        sheet.column_dimensions["L"].width = 18
         sheet.page_setup.orientation = "landscape"
         sheet.protection.sheet = True
         sheet.protection.enable()
@@ -570,6 +627,7 @@ class PurchaseProjectionService:
         workbook = Workbook()
         workbook.remove(workbook.active)
         headers = [
+            "Foto",
             "Código",
             "Descrição",
             "Marca",
@@ -623,6 +681,7 @@ class PurchaseProjectionService:
                     situation = "Estoque zerado"
                 sheet.append(
                     [
+                        "",
                         item.codigo_item or "",
                         item.descricao or "",
                         item.marca or "",
@@ -636,15 +695,16 @@ class PurchaseProjectionService:
                         item.localizacao or "",
                     ]
                 )
+                cls._add_item_thumbnail(sheet, item.foto_path, f"A{sheet.max_row}")
             last_row = sheet.max_row
             sheet.freeze_panes = "A5"
-            sheet.auto_filter.ref = f"A4:K{last_row}"
-            widths = [18, 42, 22, 14, 15, 24, 28, 18, 20, 42, 28]
+            sheet.auto_filter.ref = f"A4:L{last_row}"
+            widths = [12, 18, 42, 22, 14, 15, 24, 28, 18, 20, 42, 28]
             for index, width in enumerate(widths, start=1):
                 sheet.column_dimensions[get_column_letter(index)].width = width
-            for row in sheet.iter_rows(min_row=5, max_row=last_row, min_col=5, max_col=5):
+            for row in sheet.iter_rows(min_row=5, max_row=last_row, min_col=6, max_col=6):
                 row[0].number_format = "0.######"
-            for row in sheet.iter_rows(min_row=5, max_row=last_row, min_col=8, max_col=9):
+            for row in sheet.iter_rows(min_row=5, max_row=last_row, min_col=9, max_col=10):
                 for cell in row:
                     cell.number_format = "dd/mm/yyyy"
 
@@ -966,6 +1026,7 @@ class PurchaseProjectionService:
         return {
             "codigo_item": codigo,
             "descricao": item.descricao,
+            "foto_path": str(getattr(item, "foto_path", None) or "").strip() or None,
             "categoria": item.categoria,
             "marca": item.marca,
             "ativo": bool(getattr(item, "ativo", True)),
