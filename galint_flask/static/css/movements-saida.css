@@ -292,6 +292,41 @@
         color: var(--galint-azul-100, #dbeafe);
     }
 
+    /* 26/11/2026: colaborador e matrícula no verde do botão "Registrar Saída"; valor total da saída em vermelho. */
+    .group-row-label {
+        display: inline-flex;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: 0.35rem 0.6rem;
+    }
+
+    .group-user {
+        color: #38ef7d;
+        font-weight: 800;
+    }
+
+    @supports ((-webkit-background-clip: text) or (background-clip: text)) {
+        .group-user {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+    }
+
+    .group-total {
+        color: #ff4d4f;
+        font-weight: 800;
+        font-size: 1.05rem;
+        margin-left: 0.4rem;
+    }
+
+    .group-total-missing {
+        color: #fca5a5;
+        font-size: 0.8rem;
+        font-weight: 700;
+    }
+
     .alterar-colaborador-resultados {
         display: grid;
         gap: 0.4rem;

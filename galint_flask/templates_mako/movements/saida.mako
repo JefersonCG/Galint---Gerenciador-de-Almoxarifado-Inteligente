@@ -6,7 +6,7 @@
 
 <%block name="extra_css">
 <link rel="stylesheet" href="${url_for('static', filename='css/express-return-modal.css')}?v=20260414b">
-<link rel="stylesheet" href="${url_for('static', filename='css/movements-saida.css')}?v=20260924">
+<link rel="stylesheet" href="${url_for('static', filename='css/movements-saida.css')}?v=20261126">
 </%block>
 
 <%block name="page_header">
@@ -2762,9 +2762,31 @@ ${parent.scripts()}
         return changed;
     }
 
+    // 26/11/2026 (pedido do usuário): nome e matrícula em verde, na cor do botão "Registrar Saída".
     function normalizeGroupLabel(usuario, local) {
         const localLabel = String(local || '').trim();
-        return localLabel ? (escapeHtml(usuario) + ' <span class="group-meta">• ' + escapeHtml(localLabel) + '</span>') : escapeHtml(usuario);
+        const userLabel = '<span class="group-user">' + escapeHtml(usuario) + '</span>';
+        return localLabel ? (userLabel + ' <span class="group-meta">• ' + escapeHtml(localLabel) + '</span>') : userLabel;
+    }
+
+    // Valor total de cada saída (colaborador + local), em vermelho: soma do valor de cada linha, o mesmo da coluna
+    // de valor. Linha sem preço não soma e aparece como "N sem valor".
+    function buildGroupTotalHtml(group) {
+        let total = 0;
+        let semValor = 0;
+        (group.itens || []).forEach((item) => {
+            const summary = buildItemFinancialSummary(item);
+            if (summary && summary.totalValue > 0) {
+                total += summary.totalValue;
+            } else {
+                semValor += 1;
+            }
+        });
+        if (!(total > 0) && !semValor) {
+            return '';
+        }
+        return '<span class="group-total">' + escapeHtml(formatCurrencyBR(total)) + '</span>'
+            + (semValor ? '<span class="group-total-missing">' + semValor + ' sem valor</span>' : '');
     }
 
     function openCollaboratorEditor(groupId) {
@@ -2910,7 +2932,7 @@ ${parent.scripts()}
             const groupHeader =
                 '<tr class="group-row">' +
                     '<td colspan="5"><div class="group-row-content">' +
-                        '<span>' + normalizeGroupLabel(group.usuario, group.local) + '</span>' +
+                        '<span class="group-row-label">' + normalizeGroupLabel(group.usuario, group.local) + buildGroupTotalHtml(group) + '</span>' +
                         '<button type="button" class="btn-change-group-user" data-group-action="change-user" data-group-id="' + group.id + '" title="Alterar colaborador deste grupo">' +
                             '<i class="bi bi-person-gear me-1"></i>Alterar colaborador' +
                         '</button>' +
