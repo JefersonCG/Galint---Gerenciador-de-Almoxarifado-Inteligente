@@ -866,6 +866,7 @@
 {{ super() }}
 <script src="{{ url_for('static', filename='js/nf-prova-real.js', v='20261124') }}"></script>
 <script src="{{ url_for('static', filename='js/nome-padrao.js', v='20261124') }}"></script>
+<script src="{{ url_for('static', filename='js/rascunho-form.js', v='20261126') }}"></script>
 <script>
     const itemSearchInput = document.getElementById('item_search');
     const itemCodigoInput = document.getElementById('codigo');
@@ -2040,6 +2041,14 @@
         }
         hideItemResults();
         loadExistingItemAutofill(item.codigo || '');
+    };
+    // Rascunho do Registro (26/11/2026): volta o item escolhido e espera os dados dele antes dos outros campos.
+    window.GalintNfSelecionarItem = async (codigo, texto) => {
+        if (!codigo) return;
+        if (itemSearchInput) itemSearchInput.value = texto || codigo;
+        if (itemCodigoInput) itemCodigoInput.value = codigo;
+        hideItemResults();
+        await loadExistingItemAutofill(codigo);
     };
 
     const renderItemResults = (items) => {
@@ -3563,6 +3572,28 @@
             itemSearch.focus();
         }
     })();
+
+    // Rascunho automático do Registro (26/11/2026, pedido do usuário: "quando estiver cadastrando itens, a página
+    // se auto recuperar de onde parou"). Regras em static/js/rascunho-form.js.
+    window.GalintRascunho?.ligar(document.getElementById('nf-registration-form'), {
+        chave: 'nf-registro',
+        ignorar: ['item_search'],
+        coletarExtra: () => ({
+            codigo: document.getElementById('codigo')?.value || '',
+            item: document.getElementById('item_search')?.value || '',
+            modo: document.querySelector('#doc-mode-actions input[type="radio"]:checked')?.value || '',
+        }),
+        antesDeRestaurar: async (rascunho) => {
+            const extra = rascunho.extra || {};
+            const modo = extra.modo ? document.querySelector(`#doc-mode-actions [data-doc-mode="${extra.modo}"]`) : null;
+            if (modo && !modo.querySelector('input[type="radio"]')?.checked) modo.click();
+            if (extra.codigo && window.GalintNfSelecionarItem) await window.GalintNfSelecionarItem(extra.codigo, extra.item);
+            else if (extra.item) {
+                const busca = document.getElementById('item_search');
+                if (busca) busca.value = extra.item;
+            }
+        },
+    });
 
     // Unidade da linha no "Corrigir" (26/11/2026): a conta aparece enquanto se escolhe ("1 FARDO = 24 UN").
     document.querySelectorAll('[data-unidade-linha]').forEach((group) => {
