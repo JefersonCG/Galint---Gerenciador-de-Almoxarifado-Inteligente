@@ -1463,6 +1463,9 @@
                                 {% if membro.pode_ajustar_estoque and not membro.is_admin %}
                                 <span class="users-member-tag is-standard" title="Pode alterar o estoque na conferência física">Altera estoque</span>
                                 {% endif %}
+                                {% if membro.app_so_retirada %}
+                                <span class="users-member-tag is-standard">App só retirada</span>
+                                {% endif %}
                             </div>
                         </div>
 

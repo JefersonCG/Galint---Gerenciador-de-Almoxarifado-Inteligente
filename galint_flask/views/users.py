@@ -142,6 +142,7 @@ def _build_payload(form, *, matricula: str | None) -> UserPayload:
         is_admin=bool(form.get("is_admin")),
         is_standard=bool(form.get("is_standard")),
         pode_ajustar_estoque=bool(form.get("pode_ajustar_estoque")),
+        app_so_retirada=bool(form.get("app_so_retirada")),
     )
 
 

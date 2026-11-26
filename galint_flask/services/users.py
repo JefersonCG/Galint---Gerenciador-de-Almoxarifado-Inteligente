@@ -28,6 +28,7 @@ class UserPayload:
     is_admin: bool
     is_standard: bool
     pode_ajustar_estoque: bool = False
+    app_so_retirada: bool = False
 
 
 class UserService:
@@ -96,6 +97,7 @@ class UserService:
             is_admin=int(payload.is_admin),
             is_standard=int(payload.is_standard),
             pode_ajustar_estoque=int(payload.pode_ajustar_estoque),
+            app_so_retirada=int(payload.app_so_retirada),
             barcode_token=self._generate_unique_barcode(matricula),
         )
         db.session.add(usuario)
@@ -123,6 +125,7 @@ class UserService:
         usuario.is_admin = int(payload.is_admin)
         usuario.is_standard = int(payload.is_standard)
         usuario.pode_ajustar_estoque = int(payload.pode_ajustar_estoque)
+        usuario.app_so_retirada = int(payload.app_so_retirada)
         if payload.senha:
             usuario.senha_hash = generate_password_hash(payload.senha)
 
@@ -425,6 +428,7 @@ class UserService:
             "is_admin": bool(usuario.is_admin),
             "is_standard": bool(usuario.is_standard),
             "pode_ajustar_estoque": bool(getattr(usuario, "pode_ajustar_estoque", 0)),
+            "app_so_retirada": bool(getattr(usuario, "app_so_retirada", 0)),
             "barcode_token": usuario.barcode_token,
         }
 

@@ -755,6 +755,9 @@ def mobile_login():
                     "cargo": getattr(user, "cargo", None),
                     "is_manager": is_manager,
                     "pode_ajustar_estoque": stock_count_service.can_adjust_stock(user),
+                    # Celular da supervisão e zeladoria (26/11/2026): tela inicial só com Retirada, Devolução e
+                    # "Será que temos!?".
+                    "app_so_retirada": bool(getattr(user, "app_so_retirada", 0)),
                 },
                 "device": {
                     "device_uuid": getattr(device, "device_uuid", None),
@@ -2303,6 +2306,86 @@ def devolver_ferramenta_mobile(current_user: Usuario):
             "success": False,
             "message": f"Erro ao processar devolução: {str(e)}",
         }), 500
+
+
+def _resposta_sera_que_temos(consulta: str):
+    """Itens parecidos com a foto, do mais para o menos parecido, com saldo e foto (como na consulta do app)."""
+    from ..services import busca_visual
+
+    try:
+        resultado = busca_visual.consultar(consulta)
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+    except busca_visual.BuscaVisualIndisponivel as exc:
+        return jsonify({"success": False, "message": str(exc)}), 503
+    if not resultado.get("pronto"):
+        return jsonify({"success": True, "pronto": False, "consulta": consulta}), 200
+
+    notas = [r for r in resultado.get("resultados") or [] if r.get("codigo")]
+    # Sempre os 3 primeiros (a Fase 0 mostrou que limiar fixo não serve); o 4º e o 5º só quando empatam com o 3º
+    # (itens que usam a mesma foto, como as CURVA 90 de 32/40/50/60 mm).
+    if len(notas) > 3:
+        corte = float(notas[2].get("nota") or 0) - 0.005
+        notas = notas[:3] + [r for r in notas[3:] if float(r.get("nota") or 0) >= corte]
+    codigos = [str(r["codigo"]) for r in notas]
+    itens = (
+        Item.query.options(selectinload(Item.product_units))
+        .filter(Item.codigo_item.in_(codigos), Item.pre_cadastro_pendente.isnot(True))
+        .all()
+    ) if codigos else []
+    por_codigo = {item.codigo_item: item for item in itens}
+    with balance_provider.prefetched_balances(itens):
+        lista = [
+            {**_serialize_mobile_stock_item(por_codigo[str(r["codigo"])]), "nota": r.get("nota")}
+            for r in notas
+            if str(r["codigo"]) in por_codigo
+        ]
+    return jsonify({"success": True, "pronto": True, "consulta": consulta, "itens": lista, "ms": resultado.get("ms")}), 200
+
+
+@blueprint.post("/sera-que-temos")
+@token_required
+def sera_que_temos_mobile(current_user: Usuario):
+    """"Será que temos!?" (26/11/2026): foto do celular → itens parecidos do estoque (DINOv2 + OpenCLIP).
+
+    A primeira busca liga o serviço de visão; enquanto ele carrega, a resposta é {"pronto": false} e o app pergunta
+    de novo em GET /sera-que-temos/<consulta>.
+    """
+    from ..services import busca_visual
+
+    foto = request.files.get("foto")
+    if foto is None:
+        return jsonify({"success": False, "message": "Falta a foto."}), 400
+    if not busca_visual.disponivel():
+        return jsonify({"success": False, "message": "O Será que temos!? não está instalado neste servidor."}), 503
+    try:
+        consulta = busca_visual.guardar_consulta(foto)
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+    busca_visual.garantir_ligado()
+    return _resposta_sera_que_temos(consulta)
+
+
+@blueprint.get("/sera-que-temos/<consulta>")
+@token_required
+def sera_que_temos_resultado_mobile(current_user: Usuario, consulta: str):
+    return _resposta_sera_que_temos(consulta)
+
+
+@blueprint.post("/sera-que-temos/<consulta>/confirmar")
+@token_required
+def sera_que_temos_confirmar_mobile(current_user: Usuario, consulta: str):
+    """A pessoa tocou no item certo: a foto vira referência dele e a próxima busca acerta mais."""
+    from ..services import busca_visual
+
+    codigo = str((request.get_json(silent=True) or {}).get("codigo") or "").strip()
+    if not codigo:
+        return jsonify({"success": False, "message": "Falta o item."}), 400
+    try:
+        busca_visual.confirmar(consulta, codigo, matricula=getattr(current_user, "matricula", None))
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+    return jsonify({"success": True}), 200
 
 
 @blueprint.get("/devolucao/tipo/<path:codigo>")

@@ -871,6 +871,9 @@ class Usuario(UserMixin, db.Model):
     # Pode gravar a quantidade contada na conferência física (app e modal do site). Administradores
     # podem sempre; os demais só consultam até o administrador marcar esta caixa (pedido de 21/11/2026).
     pode_ajustar_estoque: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # App só de retirada (26/11/2026): celular da supervisão e zeladoria. A tela inicial do app vira Retirada,
+    # Devolução e "Será que temos!?", sem Painel, Configurações nem "Atualizar a base agora".
+    app_so_retirada: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     barcode_token: Mapped[str | None] = mapped_column(String, unique=True, nullable=True)
     active_session_id: Mapped[str | None] = mapped_column(String, nullable=True)
 
@@ -1081,6 +1084,22 @@ class NFLeitura(db.Model):
     criado_por: Mapped[str | None] = mapped_column(String(100), nullable=True)
     criado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
     atualizado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db, onupdate=TimeService.now_db)
+
+
+class BuscaVisualReferencia(db.Model):
+    """Foto tirada no app e confirmada pela pessoa como sendo deste item ("Será que temos!?", 26/11/2026).
+
+    Cada confirmação vira mais uma foto de referência do item para a busca visual (busca_visual/servico.py), que
+    assim aprende como o item aparece no almoxarifado, e não só na foto de catálogo. arquivo é relativo à pasta
+    instance/busca_visual. codigo_item sem chave estrangeira, como em NFItemVinculo: item apagado só é ignorado.
+    """
+    __tablename__ = "busca_visual_referencias"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    codigo_item: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    arquivo: Mapped[str] = mapped_column(String(255), nullable=False)
+    criado_por: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    criado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=TimeService.now_db)
 
 
 class NFItemVinculo(db.Model):

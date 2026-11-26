@@ -123,6 +123,19 @@ RUNTIME_SCHEMA_COMPAT_RULES: tuple[SchemaCompatRule, ...] = (
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS pode_ajustar_estoque integer NOT NULL DEFAULT 0",
         ),
     ),
+    # App só de retirada (26/11/2026). Pedido do usuário: o celular da supervisão e da zeladoria é usado só por
+    # RAPHAEL, ISAÍAS (supervisores), FELIPE e ANDERSON (zeladores). A marca já nasce ligada para eles, uma vez,
+    # quando a coluna é criada; depois se muda em Usuários.
+    SchemaCompatRule(
+        table_name="usuarios",
+        required_columns=("app_so_retirada",),
+        ddl_statements=(
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS app_so_retirada integer NOT NULL DEFAULT 0",
+        ),
+        post_statements=(
+            "UPDATE usuarios SET app_so_retirada = 1 WHERE upper(trim(nome)) IN ('RAPHAEL', 'ISAÍAS', 'ISAIAS', 'FELIPE', 'ANDERSON')",
+        ),
+    ),
     SchemaCompatRule(
         table_name="empresa_config",
         required_columns=("tema_menu", "tema_destaque", "tema_fundo"),
