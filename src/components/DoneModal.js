@@ -7,7 +7,7 @@ import { ActivityIndicator, Image, Keyboard, Modal, StyleSheet, Text, TouchableO
 import { heroPalette, heroShadow } from '../theme/heroTheme';
 import { shareOnWhatsApp } from '../utils/shareWhatsApp';
 
-// done: { title, summary, itemName, photoUri, message, newLabel, onNew (opcional), onFinish } ou null.
+// done: { title, summary, itemName, photoUri, photoUris (várias fotos, 2.5.0), message, newLabel, onNew (opcional), onFinish } ou null.
 export default function DoneModal({ done }) {
     const [sharing, setSharing] = useState(false);
     const [shared, setShared] = useState(false);
@@ -26,7 +26,7 @@ export default function DoneModal({ done }) {
 
     const share = async () => {
         setSharing(true);
-        await shareOnWhatsApp(done.message, done.photoUri || null);
+        await shareOnWhatsApp(done.message, done.photoUri || null, done.photoUris || null);
         setSharing(false);
         setShared(true);
     };

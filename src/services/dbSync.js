@@ -7,7 +7,7 @@
 // - Mudanças feitas no site ou em outro celular chegam pela pergunta "o que mudou?"
 //   (/api/mobile/estoque/mudancas), feita a cada 15 s com o app aberto e sempre que ele volta
 //   para a frente. Sem mudança, a resposta custa milissegundos no servidor.
-// - A cada 30 min, e na primeira vez, a lista vem inteira e substitui a base (cobre item
+// - A cada 10 min (pedido do usuário em 26/11/2026; antes 30), e na primeira vez, a lista vem inteira e substitui a base (cobre item
 //   apagado no site ou mudança que o cursor não pega).
 //
 // Até a 2.1.1 a base nunca abria e a lista inteira descia de tempos em tempos (em 21/11/2026,
@@ -18,7 +18,7 @@ import ApiService from './api';
 import { countItems, getMeta, replaceAllItems, setMeta, upsertItems } from './localDb';
 
 const POLL_INTERVAL_MS = 15 * 1000;
-const FULL_REFRESH_MS = 30 * 60 * 1000;
+const FULL_REFRESH_MS = 10 * 60 * 1000;
 
 let pollTimer = null;
 let appStateSubscription = null;

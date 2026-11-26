@@ -52,9 +52,19 @@ export function returnMessage({ descricao, quantidade, devolvidoPor, ferramenta,
 }
 
 // photoUrl: endereço completo da foto do item (http://servidor/static/...), ou vazio.
-export async function shareOnWhatsApp(text, photoUrl = null) {
+// photoUrls (2.5.0): várias fotos numa mensagem só (saída de vários itens), com o texto junto.
+export async function shareOnWhatsApp(text, photoUrl = null, photoUrls = null) {
     const message = String(text || '');
     const nativeShare = NativeModules?.GalintShare;
+    const fotos = Array.isArray(photoUrls) ? photoUrls.filter(Boolean) : [];
+    if (fotos.length > 1 && nativeShare?.shareManyToWhatsApp) {
+        try {
+            await nativeShare.shareManyToWhatsApp(message, fotos);
+            return true;
+        } catch (error) {
+            // segue para uma foto só
+        }
+    }
     if (nativeShare?.shareToWhatsApp) {
         try {
             await nativeShare.shareToWhatsApp(message, photoUrl || null);

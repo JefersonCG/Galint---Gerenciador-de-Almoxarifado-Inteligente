@@ -13,6 +13,13 @@
 // lança entrada) e abre o mesmo "Lançar entrada" com os campos do item novo; na volta, o item abre aqui.
 // Em 25/11/2026 (2.4.0): com itens guardados na Fila de saída, o menu ☰ mostra "Fila de saída" com o número
 // (pedido do usuário: se o app fechar, o que estava sendo retirado volta).
+// Em 26/11/2026 (2.5.0), pedidos do usuário:
+// - menu ☰ sem textos explicativos; Retirada (simples e várias juntas, com o número da fila) e Devolução no
+//   lugar de "Movimento de material"; "Será que temos!?" (busca pela foto) em destaque, com contorno sutil na cor
+//   do sistema;
+// - "App só de retirada" (marcado em Usuários; celular da supervisão e zeladoria: RAPHAEL, ISAÍAS, FELIPE e
+//   ANDERSON): a tela inicial são três botões (Retirada, Devolução, Será que temos!?) e o menu fica sem Painel,
+//   Configurações e "Atualizar a base agora" (a base se atualiza sozinha).
 //
 // A tela também cuida da sessão (sinal de vida, inatividade) e da sincronização da base.
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -114,10 +121,14 @@ export default function EstoqueScreen({ navigation, route }) {
     const lookupId = useRef(0);
 
     const role = useMemo(() => getUserRole(user), [user]);
+    const soRetirada = user?.app_so_retirada === true || user?.app_so_retirada === 1;
+    // Retirada e Devolução: como o antigo "Movimento de material", que a gerência não via; o app só de
+    // retirada vê sempre.
+    const podeMovimentar = soRetirada || role !== 'gerencia';
     // Lançar entrada com NF usa a rota dos documentos fiscais: só administradores (como no servidor).
     const canLaunchEntry = user?.is_admin === true || user?.is_admin === 1 || String(user?.is_admin || '') === '1';
     const firstName = String(user?.nome || user?.username || '').trim().split(/\s+/)[0] || '';
-    const cameraActive = Boolean(permission?.granted) && isFocused && appActive && !menuOpen && !panel && !search;
+    const cameraActive = Boolean(permission?.granted) && isFocused && appActive && !menuOpen && !panel && !search && !soRetirada;
 
     // ---------- sessão e sincronização ----------
     useEffect(() => {
@@ -357,7 +368,7 @@ export default function EstoqueScreen({ navigation, route }) {
     // Fila de saída guardada no celular: aparece no menu com o número de itens.
     const [naFila, setNaFila] = useState(0);
     useEffect(() => {
-        if (!menuOpen) return undefined;
+        if (!menuOpen && !(soRetirada && isFocused)) return undefined;
         let ativo = true;
         contarFila(user).then((total) => {
             if (ativo) setNaFila(total);
@@ -365,7 +376,7 @@ export default function EstoqueScreen({ navigation, route }) {
         return () => {
             ativo = false;
         };
-    }, [menuOpen, user]);
+    }, [isFocused, menuOpen, soRetirada, user]);
 
     const logout = useCallback(() => {
         setMenuOpen(false);
@@ -417,12 +428,11 @@ export default function EstoqueScreen({ navigation, route }) {
         });
     }, [inbox.unread, navigation, openNotifications]);
 
-    const menuEntry = (icon, label, onPress, hint = null, badge = 0) => (
-        <TouchableOpacity key={label} style={styles.menuEntry} onPress={onPress} activeOpacity={0.8}>
+    const menuEntry = (icon, label, onPress, badge = 0, destaque = false) => (
+        <TouchableOpacity key={label} style={[styles.menuEntry, destaque && styles.menuEntryDestaque]} onPress={onPress} activeOpacity={0.8}>
             <Text style={styles.menuEntryIcon}>{icon}</Text>
             <View style={{ flex: 1 }}>
-                <Text style={styles.menuEntryLabel}>{label}</Text>
-                {hint ? <Text style={styles.menuEntryHint}>{hint}</Text> : null}
+                <Text style={[styles.menuEntryLabel, destaque && styles.menuEntryLabelDestaque]}>{label}</Text>
             </View>
             {badge > 0 ? (
                 <View style={styles.menuBadge}>
@@ -442,14 +452,15 @@ export default function EstoqueScreen({ navigation, route }) {
                         <Text style={styles.menuMeta}>{roleLabel(role)} • {syncLabel(sync)}</Text>
                     </View>
                     <ScrollView contentContainerStyle={[styles.menuList, { paddingBottom: insets.bottom + 24 }]}>
-                        {menuEntry('📷', 'Conferência', () => setMenuOpen(false), 'Ler código, consultar e contar')}
-                        {role !== 'gerencia' ? menuEntry('🔄', 'Movimento de material', () => go('Movimento'), 'Materiais, ferramentas, fracionados e devoluções') : null}
-                        {role !== 'gerencia' && naFila > 0 ? menuEntry('🧺', 'Fila de saída', () => go('FilaSaida'), `${naFila} ${naFila === 1 ? 'item esperando' : 'itens esperando'}`, naFila) : null}
-                        {menuEntry('🔔', 'Avisos', openNotifications, 'Saídas, devoluções e alertas do estoque', inbox.unread)}
-                        {ENTRADAS_FISCAIS_NO_APP ? menuEntry('🧾', 'Entradas fiscais', () => go('DocumentosFiscais'), 'NF, cupom, recibo') : null}
-                        {canLaunchEntry ? menuEntry('📊', 'Relatórios', () => go('Reports'), 'Dia, mês e consumo em PDF ou Excel') : null}
-                        {menuEntry('🗂️', 'Painel e configurações', () => go('Menu'))}
-                        {menuEntry('⟳', 'Atualizar a base agora', refreshBase, syncLabel(sync))}
+                        {soRetirada ? null : menuEntry('📷', 'Conferência', () => setMenuOpen(false))}
+                        {podeMovimentar ? menuEntry('📤', 'Retirada', () => go('FilaSaida'), naFila) : null}
+                        {podeMovimentar ? menuEntry('📥', 'Devolução', () => go('Devolucao')) : null}
+                        {menuEntry('🔎', 'Será que temos!?', () => go('SeraQueTemos'), 0, true)}
+                        {menuEntry('🔔', 'Avisos', openNotifications, inbox.unread)}
+                        {ENTRADAS_FISCAIS_NO_APP && !soRetirada ? menuEntry('🧾', 'Entradas fiscais', () => go('DocumentosFiscais')) : null}
+                        {canLaunchEntry && !soRetirada ? menuEntry('📊', 'Relatórios', () => go('Reports')) : null}
+                        {soRetirada ? null : menuEntry('🗂️', 'Painel e configurações', () => go('Menu'))}
+                        {soRetirada ? null : menuEntry('⟳', 'Atualizar a base agora', refreshBase)}
                         {menuEntry('🚪', 'Sair', logout)}
                     </ScrollView>
                 </View>
@@ -521,7 +532,27 @@ export default function EstoqueScreen({ navigation, route }) {
             {inboxBanner}
             {noticeView}
 
-            {panel ? (
+            {soRetirada ? (
+                <View style={styles.inicio}>
+                    <TouchableOpacity style={styles.inicioBotao} onPress={() => go('FilaSaida')} activeOpacity={0.85}>
+                        <Text style={styles.inicioIcone}>📤</Text>
+                        <Text style={styles.inicioTexto}>Retirada</Text>
+                        {naFila > 0 ? (
+                            <View style={styles.menuBadge}>
+                                <Text style={styles.menuBadgeText}>{naFila > 99 ? '99+' : naFila}</Text>
+                            </View>
+                        ) : null}
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.inicioBotao} onPress={() => go('Devolucao')} activeOpacity={0.85}>
+                        <Text style={styles.inicioIcone}>📥</Text>
+                        <Text style={styles.inicioTexto}>Devolução</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.inicioBotao, styles.inicioDestaque]} onPress={() => go('SeraQueTemos')} activeOpacity={0.85}>
+                        <Text style={styles.inicioIcone}>🔎</Text>
+                        <Text style={styles.inicioTexto}>Será que temos!?</Text>
+                    </TouchableOpacity>
+                </View>
+            ) : panel ? (
                 <ScrollView contentContainerStyle={styles.panelScroll} keyboardShouldPersistTaps="handled">
                     <StockCountPanel
                         item={panel.item}
@@ -562,7 +593,7 @@ export default function EstoqueScreen({ navigation, route }) {
                 </View>
             )}
 
-            {!panel ? (
+            {!panel && !soRetirada ? (
                 <View style={styles.searchBox}>
                     <Text style={styles.searchIcon}>🔍</Text>
                     <TextInput
@@ -733,7 +764,13 @@ const styles = StyleSheet.create({
     menuEntry: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 20 },
     menuEntryIcon: { fontSize: 22, width: 36, color: heroPalette.text },
     menuEntryLabel: { color: heroPalette.text, fontSize: 16, fontWeight: '700' },
-    menuEntryHint: { color: heroPalette.textMuted, fontSize: 12, marginTop: 1 },
+    menuEntryDestaque: { marginHorizontal: 12, marginVertical: 4, paddingHorizontal: 8, borderRadius: 14, borderWidth: 1.5, borderColor: heroPalette.primary, backgroundColor: 'rgba(103, 232, 249, 0.06)' },
+    menuEntryLabelDestaque: { color: heroPalette.primary, fontWeight: '900' },
+    inicio: { flex: 1, justifyContent: 'center', paddingHorizontal: 20, gap: 16 },
+    inicioBotao: { flexDirection: 'row', alignItems: 'center', gap: 16, minHeight: 96, paddingHorizontal: 22, borderRadius: 24, backgroundColor: heroPalette.panel, borderWidth: 1, borderColor: heroPalette.border, ...heroSoftShadow },
+    inicioDestaque: { borderWidth: 2, borderColor: heroPalette.primary },
+    inicioIcone: { fontSize: 36 },
+    inicioTexto: { flex: 1, color: heroPalette.text, fontSize: 22, fontWeight: '900' },
     menuBadge: { minWidth: 24, height: 24, borderRadius: 12, backgroundColor: heroPalette.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
     menuBadgeText: { color: '#fff', fontSize: 11, fontWeight: '900' },
 });

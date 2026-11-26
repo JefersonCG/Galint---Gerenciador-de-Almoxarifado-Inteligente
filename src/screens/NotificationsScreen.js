@@ -223,8 +223,14 @@ export default function NotificationsScreen() {
         const result = await ApiService.getNotifyInbox();
         if (result?.success) {
             setItems(Array.isArray(result.items) ? result.items : []);
-            setUnreadCount(Number(result.unread_count || 0));
             setError('');
+            // 2.5.0 (pedido do usuário em 26/11/2026): abriu os Avisos, estão lidos, sem esperar "Marcar todos";
+            // a faixa de avisos novos sai da tela inicial. O "Novo" fica nos que chegaram desde a última visita.
+            if (Number(result.unread_count || 0) > 0) {
+                const marcado = await ApiService.markAllNotifyRead();
+                if (marcado?.success) emitNotifyInboxChanged({ reason: 'mark-all-read', unreadCount: 0 });
+            }
+            setUnreadCount(0);
         } else {
             setError(result?.message || 'Falha ao carregar notificações');
         }
@@ -242,7 +248,7 @@ export default function NotificationsScreen() {
             }, 12000);
 
             const unsubscribeNotify = subscribeNotifyInboxChanged((payload) => {
-                if (payload?.reason === 'mark-read') {
+                if (payload?.reason === 'mark-read' || payload?.reason === 'mark-all-read') {
                     return;
                 }
                 loadInbox({ silent: true });
@@ -268,27 +274,6 @@ export default function NotificationsScreen() {
         }
     };
 
-    // Em 21/11/2026 havia 18 mil avisos sem ler (ninguém abria esta tela): um toque zera.
-    const handleMarkAll = () => {
-        if (unreadCount <= 0) return;
-        Alert.alert('Avisos', `Marcar os ${unreadCount} avisos como lidos?`, [
-            { text: 'Cancelar', style: 'cancel' },
-            {
-                text: 'Marcar todos',
-                onPress: async () => {
-                    const result = await ApiService.markAllNotifyRead();
-                    if (!result?.success) {
-                        Alert.alert('Avisos', result?.message || 'Não foi possível marcar os avisos.');
-                        return;
-                    }
-                    setItems((current) => current.map((entry) => ({ ...entry, status: 'read' })));
-                    setUnreadCount(0);
-                    emitNotifyInboxChanged({ reason: 'mark-all-read', unreadCount: 0 });
-                },
-            },
-        ]);
-    };
-
     if (loading && items.length === 0) {
         return (
             <View style={styles.stateContainer}>
@@ -301,15 +286,6 @@ export default function NotificationsScreen() {
     return (
         <View style={styles.container}>
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
-            <View style={styles.summaryBar}>
-                <Text style={styles.summaryLabel}>Inbox operacional</Text>
-                <Text style={styles.summaryValue}>{unreadCount > 0 ? `${unreadCount} não lidas` : 'Tudo lido'}</Text>
-            </View>
-            {unreadCount > 0 ? (
-                <TouchableOpacity style={styles.markAllButton} onPress={handleMarkAll} activeOpacity={0.85}>
-                    <Text style={styles.markAllText}>✓ Marcar todos como lidos</Text>
-                </TouchableOpacity>
-            ) : null}
             <FlatList
                 data={items}
                 keyExtractor={(item) => String(item.id)}
@@ -318,8 +294,7 @@ export default function NotificationsScreen() {
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadInbox({ refresh: true })} />}
                 ListEmptyComponent={
                     <View style={styles.stateContainer}>
-                        <Text style={styles.emptyTitle}>Nenhuma notificação</Text>
-                        <Text style={styles.stateText}>As mensagens operacionais do GALINT aparecem aqui.</Text>
+                        <Text style={styles.emptyTitle}>Nenhum aviso</Text>
                     </View>
                 }
             />

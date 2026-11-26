@@ -1,5 +1,6 @@
 package com.galint.mobile
 
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -11,6 +12,7 @@ import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
+import com.facebook.react.bridge.ReadableArray
 import com.facebook.react.bridge.UiThreadUtil
 import java.io.File
 import java.io.FileOutputStream
@@ -62,6 +64,61 @@ class GalintShareModule(private val context: ReactApplicationContext) : ReactCon
                         val activity = context.currentActivity
                         if (activity != null) activity.startActivity(intent) else context.startActivity(intent)
                         promise.resolve(imageUri != null)
+                    } catch (error: Exception) {
+                        promise.reject("share_failed", error.message, error)
+                    }
+                }
+            } catch (error: Exception) {
+                promise.reject("share_failed", error.message, error)
+            }
+        }.start()
+    }
+
+    /**
+     * Saída de vários itens numa mensagem só, com a foto de cada um (2.5.0, pedido do usuário em 26/11/2026:
+     * "que as saídas múltiplas sejam compartilhadas via WhatsApp com múltiplas fotos, em uma única mensagem").
+     * ACTION_SEND_MULTIPLE com as fotos em JPEG e o texto como legenda; o WhatsApp manda como um álbum só.
+     * Foto que não baixar fica de fora; sem nenhuma, vai só o texto.
+     */
+    @ReactMethod
+    fun shareManyToWhatsApp(text: String, imageUrls: ReadableArray, promise: Promise) {
+        Thread {
+            try {
+                val uris = ArrayList<Uri>()
+                for (index in 0 until minOf(imageUrls.size(), MAX_FOTOS)) {
+                    val url = imageUrls.getString(index)
+                    if (url.isNullOrBlank()) continue
+                    downloadAsJpeg(url, "item_$index.jpg")?.let { uris.add(it) }
+                }
+                if (uris.isEmpty()) {
+                    UiThreadUtil.runOnUiThread { shareToWhatsApp(text, null, promise) }
+                    return@Thread
+                }
+                val send = Intent(if (uris.size == 1) Intent.ACTION_SEND else Intent.ACTION_SEND_MULTIPLE).apply {
+                    type = "image/jpeg"
+                    putExtra(Intent.EXTRA_TEXT, text)
+                    if (uris.size == 1) {
+                        putExtra(Intent.EXTRA_STREAM, uris[0])
+                    } else {
+                        putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
+                    }
+                    // Com várias fotos, a permissão de leitura vai pelo ClipData (EXTRA_STREAM em lista não basta).
+                    clipData = ClipData.newRawUri("", uris[0]).also { clip -> uris.drop(1).forEach { clip.addItem(ClipData.Item(it)) } }
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                val whatsapp = WHATSAPP_PACKAGES.firstOrNull { isInstalled(it) }
+                val intent = if (whatsapp != null) {
+                    uris.forEach { context.grantUriPermission(whatsapp, it, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+                    Intent(send).setPackage(whatsapp)
+                } else {
+                    Intent.createChooser(send, "Compartilhar")
+                }
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                UiThreadUtil.runOnUiThread {
+                    try {
+                        val activity = context.currentActivity
+                        if (activity != null) activity.startActivity(intent) else context.startActivity(intent)
+                        promise.resolve(uris.size)
                     } catch (error: Exception) {
                         promise.reject("share_failed", error.message, error)
                     }
@@ -161,7 +218,7 @@ class GalintShareModule(private val context: ReactApplicationContext) : ReactCon
         false
     }
 
-    private fun downloadAsJpeg(imageUrl: String): Uri? {
+    private fun downloadAsJpeg(imageUrl: String, fileName: String = "item.jpg"): Uri? {
         return try {
             val connection = (URL(imageUrl).openConnection() as HttpURLConnection).apply {
                 connectTimeout = 8000
@@ -185,7 +242,7 @@ class GalintShareModule(private val context: ReactApplicationContext) : ReactCon
                 decoded
             }
             val dir = File(context.cacheDir, "compartilhar").apply { mkdirs() }
-            val file = File(dir, "item.jpg")
+            val file = File(dir, fileName)
             FileOutputStream(file).use { bitmap.compress(Bitmap.CompressFormat.JPEG, 88, it) }
             FileProvider.getUriForFile(context, context.packageName + ".galintshare", file)
         } catch (error: Exception) {
@@ -195,6 +252,7 @@ class GalintShareModule(private val context: ReactApplicationContext) : ReactCon
 
     companion object {
         private const val MAX_SIDE = 1280
+        private const val MAX_FOTOS = 30 // o WhatsApp aceita até 30 de uma vez
         private val WHATSAPP_PACKAGES = listOf("com.whatsapp", "com.whatsapp.w4b")
     }
 }

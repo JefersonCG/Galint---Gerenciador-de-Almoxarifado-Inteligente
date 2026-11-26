@@ -923,6 +923,51 @@ class ApiService {
         }
     }
 
+    // "Será que temos!?" (2.5.0): foto → itens parecidos do estoque. Enquanto o serviço de visão liga no
+    // servidor, a resposta vem com pronto: false e a tela pergunta de novo pela consulta.
+    async seraQueTemos(fotoUri) {
+        try {
+            const token = await AsyncStorage.getItem('token');
+            if (!token) return { success: false, message: 'Faça login novamente.' };
+            const form = new FormData();
+            form.append('foto', { uri: fotoUri, name: 'foto.jpg', type: 'image/jpeg' });
+            const response = await this.client.post('/api/mobile/sera-que-temos', form, {
+                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' },
+                timeout: 90000,
+            });
+            return response.data || { success: false };
+        } catch (error) {
+            return { success: false, message: error.response?.data?.message || 'Sem conexão com o servidor.' };
+        }
+    }
+
+    async seraQueTemosResultado(consulta) {
+        try {
+            const token = await AsyncStorage.getItem('token');
+            if (!token) return { success: false, message: 'Faça login novamente.' };
+            const response = await this.client.get(`/api/mobile/sera-que-temos/${encodeURIComponent(consulta)}`, {
+                headers: { Authorization: `Bearer ${token}` },
+                timeout: 90000,
+            });
+            return response.data || { success: false };
+        } catch (error) {
+            return { success: false, message: error.response?.data?.message || 'Sem conexão com o servidor.' };
+        }
+    }
+
+    async seraQueTemosConfirmar(consulta, codigo) {
+        try {
+            const token = await AsyncStorage.getItem('token');
+            if (!token) return { success: false };
+            const response = await this.client.post(`/api/mobile/sera-que-temos/${encodeURIComponent(consulta)}/confirmar`, { codigo }, {
+                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            });
+            return response.data || { success: false };
+        } catch (error) {
+            return { success: false };
+        }
+    }
+
     async devolverMaterial(data) {
         try {
             await this.ensureLocalReady();

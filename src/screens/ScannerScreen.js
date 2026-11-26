@@ -169,7 +169,8 @@ export default function ScannerScreen({ navigation, route }) {
                         showScanError('Atenção', 'Este item não é da categoria Ferramentas.', data);
                         return;
                     }
-                    navigation.navigate('Retirada', { item, user, tipo: 'ferramenta', defaultQuantity: 1 });
+                    // 2.5.0: retirada única (simples e várias juntas) é a tela da Fila.
+                    navigation.navigate('FilaSaida', { user, scannedItem: item });
                     return;
                 }
 
@@ -188,7 +189,7 @@ export default function ScannerScreen({ navigation, route }) {
                     return;
                 }
 
-                navigation.navigate('Retirada', { item, user });
+                navigation.navigate('FilaSaida', { user, scannedItem: item });
                 return;
             }
 

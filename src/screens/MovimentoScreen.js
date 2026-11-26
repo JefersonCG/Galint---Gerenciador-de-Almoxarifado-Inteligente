@@ -24,8 +24,12 @@ const TABS = [
 ];
 const EMPTY_SUMMARY = { employees: 0, tools: 0, overdue: 0 };
 
+// 2.5.0 (26/11/2026): Retirada e Devolução viraram dois itens do menu. A Retirada é a FilaSaidaScreen (uma ou
+// várias de uma vez); a Devolução é esta tela fixa na aba Devolução (rota "Devolucao", params.fixo): ler o
+// código de um item ou dar baixa em várias ferramentas da custódia do dia, sem textos explicativos.
 export default function MovimentoScreen({ navigation, route }) {
     const user = route?.params?.user || null;
+    const fixo = route?.params?.fixo === true;
     const [tab, setTab] = useState(route?.params?.tab || 'retirada');
     const [custody, setCustody] = useState({ visible: true, loading: false, groups: [], summary: EMPTY_SUMMARY, message: '' });
     const [returning, setReturning] = useState(false);
@@ -143,7 +147,7 @@ export default function MovimentoScreen({ navigation, route }) {
             <Text style={styles.actionIcon}>{icon}</Text>
             <View style={styles.actionText}>
                 <Text style={[styles.actionTitle, primary && styles.actionTitlePrimary]}>{title}</Text>
-                <Text style={[styles.actionHint, primary && styles.actionHintPrimary]}>{hint}</Text>
+                {hint ? <Text style={[styles.actionHint, primary && styles.actionHintPrimary]}>{hint}</Text> : null}
             </View>
             <Text style={[styles.actionArrow, primary && styles.actionTitlePrimary]}>›</Text>
         </TouchableOpacity>
@@ -151,6 +155,8 @@ export default function MovimentoScreen({ navigation, route }) {
 
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+            {fixo ? null : (
+            <>
             <View style={styles.track} accessibilityRole="tablist">
                 {TABS.map((entry) => {
                     const active = entry.key === tab;
@@ -170,6 +176,8 @@ export default function MovimentoScreen({ navigation, route }) {
                 })}
             </View>
             <View style={styles.tabsGap} />
+            </>
+            )}
             {tab === 'retirada' ? (
                 <>
                     {action('📷', 'Ler código', 'Material ou ferramenta', () => open('Scanner', { mode: 'withdraw' }), true)}
@@ -184,7 +192,7 @@ export default function MovimentoScreen({ navigation, route }) {
 
             {tab === 'devolucao' ? (
                 <>
-                    {action('📷', 'Ler código', 'Material ou ferramenta', () => open('Scanner', { mode: 'return' }), true)}
+                    {action('📷', 'Ler código', null, () => open('Scanner', { mode: 'return' }), true)}
                     {custody.visible ? (
                         <View style={styles.custody}>
                             <DailyCustodyPanel

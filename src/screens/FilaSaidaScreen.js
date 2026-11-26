@@ -9,6 +9,11 @@
 // volta ao abrir esta tela. Item com embalagem sai na embalagem ou na unidade base ("3 pacotes = 3.000
 // unidades"); a rota recebe a quantidade na unidade base. "Estoque zera com esta saída" e "Saldo
 // insuficiente" somam o mesmo item em toda a fila, como no site.
+//
+// 2.5.0 (26/11/2026): esta é a Retirada do app, para todos. Pedido do usuário: "em retirada se mescle com
+// retirada múltipla, uma junção dessas duas funções em 1 só click". Item lido: "Dar saída" sai na hora (um item
+// não pergunta nada); "Mais um item" guarda na fila e lê o próximo. O campo de código também busca pelo nome na
+// base do celular, sem os zerados. A saída vai ao WhatsApp numa mensagem só, com a foto de cada item.
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
@@ -37,6 +42,8 @@ import { unitLabel } from '../utils/provaReal';
 import { baseQty, baseQtyAccepted, fmt, isTool, onlyWholePackages, qtyText, snapshot, stockWarning } from '../utils/filaSaidaConta';
 import { withdrawalMessage } from '../utils/shareWhatsApp';
 import { apagarFila, gravarFila, lerFila } from '../services/filaSaida';
+import { searchItems } from '../services/localDb';
+import SyncService from '../services/dbSync';
 
 const cap = (text) => {
     const value = String(text || '');
@@ -49,6 +56,21 @@ function filterUsers(usuarios, texto) {
     const termo = normalize(texto);
     if (!termo) return usuarios;
     return usuarios.filter((u) => normalize(u?.nome).includes(termo) || String(u?.matricula || '').includes(termo));
+}
+
+// Junta a linha no grupo do colaborador + local (mesmo item, modo e custódia somam a quantidade).
+function juntarNaFila(lista, linha, retirante, local) {
+    const grupoId = `${retirante.matricula}::${local}`;
+    const copia = lista.map((grupo) => ({ ...grupo, itens: [...grupo.itens] }));
+    let grupo = copia.find((entry) => entry.id === grupoId);
+    if (!grupo) {
+        grupo = { id: grupoId, matricula: retirante.matricula, nome: retirante.nome, cargo: retirante.cargo || null, local, itens: [] };
+        copia.push(grupo);
+    }
+    const igual = grupo.itens.findIndex((l) => l.codigo === linha.codigo && l.modo === linha.modo && (l.tipo_custodia || '') === (linha.tipo_custodia || ''));
+    if (igual >= 0) grupo.itens[igual] = { ...grupo.itens[igual], quantidade: grupo.itens[igual].quantidade + linha.quantidade, erro: undefined };
+    else grupo.itens.push(linha);
+    return copia;
 }
 
 export default function FilaSaidaScreen({ navigation, route }) {
@@ -83,12 +105,13 @@ export default function FilaSaidaScreen({ navigation, route }) {
     const [done, setDone] = useState(null);
     const [trocando, setTrocando] = useState(null);
     const [buscaTroca, setBuscaTroca] = useState('');
+    const [sugestoes, setSugestoes] = useState([]);
 
     const localNorm = local.trim().toUpperCase();
     const estado = useRef({ pronto: false, grupos: [], atual: null });
 
     useLayoutEffect(() => {
-        navigation.setOptions({ title: 'Fila de saída' });
+        navigation.setOptions({ title: 'Retirada' });
     }, [navigation]);
 
     // Quem retira: admin e gerente escolhem; os demais retiram para si.
@@ -171,9 +194,25 @@ export default function FilaSaidaScreen({ navigation, route }) {
         navigation.navigate('Scanner', { mode: 'withdraw_multi', user, multiCallback: true, returnTo: 'FilaSaida' });
     }, [navigation, user]);
 
-    const buscarCodigo = useCallback(async () => {
-        const code = codigoBusca.trim();
+    // Nome ou código digitado: até 6 itens da base do celular, só os que têm saldo.
+    useEffect(() => {
+        const termo = codigoBusca.trim();
+        if (termo.length < 2) {
+            setSugestoes([]);
+            return undefined;
+        }
+        const timer = setTimeout(() => {
+            searchItems(termo, 30)
+                .then((lista) => setSugestoes(lista.filter((i) => Number(i?.quantidade ?? i?.saldo ?? 0) > 0).slice(0, 6)))
+                .catch(() => setSugestoes([]));
+        }, 180);
+        return () => clearTimeout(timer);
+    }, [codigoBusca]);
+
+    const buscarCodigo = useCallback(async (codigoEscolhido) => {
+        const code = String(typeof codigoEscolhido === 'string' ? codigoEscolhido : codigoBusca).trim();
         if (!code || buscando) return;
+        setSugestoes([]);
         InactivityService.recordActivity();
         setBuscando(true);
         const found = await ApiService.buscarItemPorCodigo(code).catch(() => null);
@@ -203,10 +242,10 @@ export default function FilaSaidaScreen({ navigation, route }) {
     const previa = atual ? { ...atual, modo: atual.fator > 0 ? modo : 'base', quantidade: qtdNum } : null;
     const faltaAtual = !retirante ? 'Falta quem retira' : !localNorm ? 'Falta o local' : !(qtdNum > 0) ? 'Falta a quantidade' : '';
 
-    const porNaFila = useCallback(() => {
-        if (!atual || faltaAtual) return;
+    // A linha do item aberto, pronta para a fila (null se falta algo ou se a quantidade é fracionada).
+    const linhaAtual = useCallback(() => {
+        if (!atual || faltaAtual || !atual.codigo) return null;
         InactivityService.recordActivity();
-        if (!atual.codigo) return;
         const linha = {
             ...atual,
             id: newId(),
@@ -216,24 +255,20 @@ export default function FilaSaidaScreen({ navigation, route }) {
         };
         if (!baseQtyAccepted(linha)) {
             Alert.alert('Quantidade fracionada', `${qtyText(linha)}: dê esta saída no site.`);
-            return;
+            return null;
         }
-        const grupoId = `${retirante.matricula}::${localNorm}`;
-        setGrupos((lista) => {
-            const copia = lista.map((grupo) => ({ ...grupo, itens: [...grupo.itens] }));
-            let grupo = copia.find((entry) => entry.id === grupoId);
-            if (!grupo) {
-                grupo = { id: grupoId, matricula: retirante.matricula, nome: retirante.nome, cargo: retirante.cargo || null, local: localNorm, itens: [] };
-                copia.push(grupo);
-            }
-            const igual = grupo.itens.findIndex((l) => l.codigo === linha.codigo && l.modo === linha.modo && (l.tipo_custodia || '') === (linha.tipo_custodia || ''));
-            if (igual >= 0) grupo.itens[igual] = { ...grupo.itens[igual], quantidade: grupo.itens[igual].quantidade + linha.quantidade, erro: undefined };
-            else grupo.itens.push(linha);
-            return copia;
-        });
+        return linha;
+    }, [atual, custodia, faltaAtual, ferramentaAtual, modo, qtdNum]);
+
+    // "Mais um item": guarda na fila e abre o leitor para o próximo.
+    const maisUmItem = useCallback(() => {
+        const linha = linhaAtual();
+        if (!linha) return;
+        setGrupos((lista) => juntarNaFila(lista, linha, retirante, localNorm));
         setItemAtual(null);
         setQuantidade('1');
-    }, [atual, custodia, faltaAtual, ferramentaAtual, localNorm, modo, qtdNum, retirante]);
+        navigation.navigate('Scanner', { mode: 'withdraw_multi', user, multiCallback: true, returnTo: 'FilaSaida' });
+    }, [linhaAtual, localNorm, navigation, retirante, user]);
 
     const mudarQtd = useCallback((grupoId, linhaId, delta) => {
         setGrupos((lista) => lista.map((grupo) => (grupo.id !== grupoId ? grupo : {
@@ -267,13 +302,13 @@ export default function FilaSaidaScreen({ navigation, route }) {
 
     const totalLinhas = grupos.reduce((total, grupo) => total + grupo.itens.length, 0);
 
-    const darSaida = useCallback(async () => {
+    const darSaida = useCallback(async (lista) => {
         InactivityService.recordActivity();
         setEnviando(true);
         const restantes = [];
         const saiu = [];
         const falhas = [];
-        for (const grupo of grupos) {
+        for (const grupo of lista) {
             const payload = {
                 itens: grupo.itens.map((l) => ({
                     codigo: l.codigo,
@@ -309,6 +344,7 @@ export default function FilaSaidaScreen({ navigation, route }) {
         setGrupos(restantes);
         await gravarFila(user, restantes, { retirante: canChoose ? retirante : null, local: localNorm });
         setEnviando(false);
+        SyncService.syncNow();
 
         if (!saiu.length) {
             Alert.alert('Não saiu', falhas.slice(0, 4).join('\n') || 'Tente de novo.');
@@ -321,7 +357,8 @@ export default function FilaSaidaScreen({ navigation, route }) {
             local: grupo.local,
             registradoPor: user?.nome,
         })).join('\n\n');
-        const comFoto = saiu.flatMap((parte) => parte.linhas).find((l) => resolvePhotoUri(l));
+        // Uma mensagem só no WhatsApp, com a foto de cada item que saiu (2.5.0).
+        const fotos = [...new Set(saiu.flatMap((parte) => parte.linhas).map((l) => resolvePhotoUri(l)).filter(Boolean))];
         const primeira = saiu[0].linhas[0];
         setDone({
             title: falhas.length ? 'Parte saiu' : 'Saída registrada',
@@ -329,28 +366,46 @@ export default function FilaSaidaScreen({ navigation, route }) {
             summary: falhas.length
                 ? `${falhas.length} ${falhas.length === 1 ? 'ficou' : 'ficaram'} na fila`
                 : (saiu.length === 1 ? `Retirado por ${saiu[0].grupo.nome}` : `${saiu.length} colaboradores`),
-            photoUri: comFoto ? resolvePhotoUri(comFoto) : null,
+            photoUri: fotos[0] || null,
+            photoUris: fotos,
             message: mensagem,
             onFinish: () => {
                 setDone(null);
                 if (!falhas.length) navigation.goBack();
             },
         });
-    }, [canChoose, grupos, localNorm, navigation, retirante, user]);
+    }, [canChoose, localNorm, navigation, retirante, user]);
 
-    const confirmarSaida = useCallback(() => {
-        if (!totalLinhas || enviando) return;
+    // Um item só sai direto; vários perguntam uma vez.
+    const confirmarSaida = useCallback((lista = grupos) => {
+        const total = lista.reduce((soma, grupo) => soma + grupo.itens.length, 0);
+        if (!total || enviando) return;
         Keyboard.dismiss();
-        const pessoas = grupos.length;
+        if (total === 1) {
+            darSaida(lista);
+            return;
+        }
+        const pessoas = lista.length;
         Alert.alert(
             'Dar saída',
-            `${totalLinhas} ${totalLinhas === 1 ? 'item' : 'itens'} de ${pessoas} ${pessoas === 1 ? 'colaborador' : 'colaboradores'}?`,
+            `${total} itens de ${pessoas} ${pessoas === 1 ? 'colaborador' : 'colaboradores'}?`,
             [
                 { text: 'Cancelar', style: 'cancel' },
-                { text: 'Dar saída', onPress: () => darSaida() },
+                { text: 'Dar saída', onPress: () => darSaida(lista) },
             ],
         );
-    }, [darSaida, enviando, grupos.length, totalLinhas]);
+    }, [darSaida, enviando, grupos]);
+
+    // "Dar saída" no item aberto: ele entra na fila e tudo sai junto.
+    const darSaidaAgora = useCallback(() => {
+        const linha = linhaAtual();
+        if (!linha) return;
+        const novos = juntarNaFila(grupos, linha, retirante, localNorm);
+        setGrupos(novos);
+        setItemAtual(null);
+        setQuantidade('1');
+        confirmarSaida(novos);
+    }, [confirmarSaida, grupos, linhaAtual, localNorm, retirante]);
 
     const limpar = useCallback(() => {
         Alert.alert('Limpar fila', 'Apagar todos os itens da fila?', [
@@ -489,9 +544,24 @@ export default function FilaSaidaScreen({ navigation, route }) {
                             </View>
                         ) : null}
 
-                        <TouchableOpacity style={[styles.button, faltaAtual && styles.buttonOff]} onPress={porNaFila} disabled={Boolean(faltaAtual)} activeOpacity={0.85}>
-                            <Text style={styles.buttonText}>{faltaAtual || '➕ Pôr na fila'}</Text>
-                        </TouchableOpacity>
+                        {faltaAtual ? (
+                            <View style={[styles.button, styles.buttonOff]}>
+                                <Text style={styles.buttonText}>{faltaAtual}</Text>
+                            </View>
+                        ) : (
+                            <View style={styles.acoes}>
+                                <TouchableOpacity style={styles.maisUm} onPress={maisUmItem} disabled={enviando} activeOpacity={0.85}>
+                                    <Text style={styles.maisUmTexto}>➕ Mais um item</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={[styles.saidaAgora, enviando && styles.buttonOff]} onPress={darSaidaAgora} disabled={enviando} activeOpacity={0.85}>
+                                    {enviando ? (
+                                        <ActivityIndicator color={heroPalette.bg} />
+                                    ) : (
+                                        <Text style={styles.buttonText}>{totalLinhas ? `Dar saída · ${totalLinhas + 1}` : 'Dar saída'}</Text>
+                                    )}
+                                </TouchableOpacity>
+                            </View>
+                        )}
                     </View>
                 ) : (
                     <>
@@ -503,16 +573,34 @@ export default function FilaSaidaScreen({ navigation, route }) {
                                 style={[styles.input, styles.inputText, { flex: 1 }]}
                                 value={codigoBusca}
                                 onChangeText={setCodigoBusca}
-                                placeholder="Código"
+                                placeholder="Código ou nome"
                                 placeholderTextColor="#94a3b8"
                                 autoCorrect={false}
                                 returnKeyType="search"
                                 onSubmitEditing={buscarCodigo}
                             />
-                            <TouchableOpacity style={styles.buscarBtn} onPress={buscarCodigo} disabled={buscando} activeOpacity={0.85}>
+                            <TouchableOpacity style={styles.buscarBtn} onPress={() => buscarCodigo()} disabled={buscando} activeOpacity={0.85}>
                                 {buscando ? <ActivityIndicator color={heroPalette.bg} /> : <Text style={styles.buscarTexto}>Buscar</Text>}
                             </TouchableOpacity>
                         </View>
+                        {sugestoes.length ? (
+                            <View style={styles.lista}>
+                                {sugestoes.map((entry) => (
+                                    <TouchableOpacity
+                                        key={String(entry.codigo_barras || entry.id)}
+                                        style={styles.listaLinha}
+                                        onPress={() => {
+                                            setCodigoBusca('');
+                                            buscarCodigo(String(entry.codigo_barras || entry.id));
+                                        }}
+                                        activeOpacity={0.8}
+                                    >
+                                        <Text style={styles.listaNome} numberOfLines={2}>{entry.descricao}</Text>
+                                        <Text style={styles.listaDetalhe} numberOfLines={1}>{entry.saldo_display || ''}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        ) : null}
                     </>
                 )}
 
@@ -570,11 +658,11 @@ export default function FilaSaidaScreen({ navigation, route }) {
                             </View>
                         ))}
 
-                        <TouchableOpacity style={[styles.button, styles.buttonSaida, enviando && styles.buttonOff]} onPress={confirmarSaida} disabled={enviando} activeOpacity={0.85}>
+                        <TouchableOpacity style={[styles.button, styles.buttonSaida, enviando && styles.buttonOff]} onPress={() => confirmarSaida()} disabled={enviando} activeOpacity={0.85}>
                             {enviando ? (
                                 <ActivityIndicator color={heroPalette.bg} />
                             ) : (
-                                <Text style={styles.buttonText}>Dar saída em tudo · {totalLinhas} {totalLinhas === 1 ? 'item' : 'itens'}</Text>
+                                <Text style={styles.buttonText}>Dar saída · {totalLinhas} {totalLinhas === 1 ? 'item' : 'itens'}</Text>
                             )}
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.limpar} onPress={limpar} disabled={enviando} activeOpacity={0.8}>
@@ -663,6 +751,10 @@ const styles = StyleSheet.create({
     buttonSaida: { marginTop: 18 },
     buttonOff: { opacity: 0.5 },
     buttonText: { color: heroPalette.bg, fontSize: 17, fontWeight: '900' },
+    acoes: { flexDirection: 'row', gap: 10, marginTop: 16 },
+    maisUm: { flex: 1, height: 56, borderRadius: 16, borderWidth: 1, borderColor: heroPalette.primaryStrong, alignItems: 'center', justifyContent: 'center' },
+    maisUmTexto: { color: heroPalette.text, fontSize: 15, fontWeight: '900' },
+    saidaAgora: { flex: 1.2, height: 56, borderRadius: 16, backgroundColor: heroPalette.primaryStrong, alignItems: 'center', justifyContent: 'center' },
     grupo: { marginBottom: 12, borderRadius: 18, backgroundColor: heroPalette.panel, borderWidth: 1, borderColor: heroPalette.border, overflow: 'hidden' },
     grupoTopo: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 12, backgroundColor: heroPalette.panelAlt },
     grupoNome: { color: heroPalette.text, fontSize: 15, fontWeight: '900' },

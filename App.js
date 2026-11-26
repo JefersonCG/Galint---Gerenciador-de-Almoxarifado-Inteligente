@@ -37,6 +37,7 @@ function loadScreens() {
             EditarItemScreen: require('./src/screens/EditarItemScreen').default,
             RetiradaScreen: require('./src/screens/RetiradaScreen').default,
             FilaSaidaScreen: require('./src/screens/FilaSaidaScreen').default,
+            SeraQueTemosScreen: require('./src/screens/SeraQueTemosScreen').default,
             DevolverScreen: require('./src/screens/DevolverScreen').default,
             DocumentosFiscaisScreen: require('./src/screens/DocumentosFiscaisScreen').default,
             ConfigScreen: require('./src/screens/ConfigScreen').default,
@@ -278,7 +279,10 @@ function AppNavigator() {
                     <Stack.Screen name="Scanner" component={S.ScannerScreen} options={{ title: 'Escanear Código', headerTransparent: true }} />
                     <Stack.Screen name="EditarItem" component={S.EditarItemScreen} options={{ title: 'Editar Item' }} />
                     <Stack.Screen name="Retirada" component={S.RetiradaScreen} options={{ title: 'Retirar Material' }} />
-                    <Stack.Screen name="FilaSaida" component={S.FilaSaidaScreen} options={{ title: 'Fila de saída' }} />
+                    {/* 2.5.0: Retirada única (uma ou várias) e Devolução fixa; "Será que temos!?" pela foto. */}
+                    <Stack.Screen name="FilaSaida" component={S.FilaSaidaScreen} options={{ title: 'Retirada' }} />
+                    <Stack.Screen name="Devolucao" component={S.MovimentoScreen} initialParams={{ tab: 'devolucao', fixo: true }} options={{ title: 'Devolução' }} />
+                    <Stack.Screen name="SeraQueTemos" component={S.SeraQueTemosScreen} options={{ title: 'Será que temos!?' }} />
                     <Stack.Screen name="Devolver" component={S.DevolverScreen} options={{ title: 'Devolução' }} />
                     <Stack.Screen name="Config" component={S.ConfigScreen} options={{ title: 'Configurações' }} />
                     <Stack.Screen name="Menu" component={S.MenuScreen} options={{ title: 'Painel' }} />
