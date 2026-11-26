@@ -2271,6 +2271,8 @@ def nf_index():
         nota_detalhes=nota_detalhes,
         can_manage=can_manage,
         stock_available_notice=session.pop("nf_stock_available_notice", None),
+        # "+ ADICIONAR" (26/11/2026): o cabeçalho da NF volta preenchido para o próximo item.
+        registro_continuar=session.pop("nf_registro_continuar", None),
         preferred_suppliers=finance_service.list_suppliers(limit=100),
         period_dashboard=period_dashboard,
         document_category_options=_build_document_category_options(),
@@ -2626,6 +2628,24 @@ def registrar_nf():
         numero_redirect = documento.numero_documento if documento else None
     except UnboundLocalError:
         numero_redirect = nota or None
+    # "+ ADICIONAR" (pedido do usuário em 26/11/2026: "cadastrar mais de 1 item"): o item foi registrado e o
+    # Registro volta com a mesma NF (modo, número, datas, CNPJ e chave) para o próximo item, com a lista do que
+    # já entrou nela. Se deu erro, nada muda: volta como antes, com o aviso.
+    registrado = False
+    try:
+        registrado = document_item is not None
+    except UnboundLocalError:
+        registrado = False
+    if request.form.get("continuar") and registrado and numero_redirect:
+        session["nf_registro_continuar"] = {
+            "doc_mode": ui_mode or "nf",
+            "numero": numero_redirect,
+            "data_emissao": (request.form.get("data_emissao") or "").strip(),
+            "data_recebimento": (request.form.get("data_recebimento") or "").strip(),
+            "supplier_cnpj": supplier_cnpj or "",
+            "chave_acesso": chave_acesso or "",
+        }
+        return redirect(url_for("nf.nf_index", nota=numero_redirect, aba="registro") + "#nf-registration-form")
     return redirect(_redirect_to_nf_context(numero_documento=numero_redirect, fallback_tab="registro"))
 
 

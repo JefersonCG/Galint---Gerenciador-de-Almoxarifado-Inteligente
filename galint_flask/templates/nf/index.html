@@ -154,8 +154,20 @@
                         <strong>Sem NF</strong>
                     </label>
                 </div>
+                {% if registro_continuar is defined and registro_continuar and nota_detalhes and nota_detalhes.itens is defined %}
+                {# "+ ADICIONAR" (26/11/2026): o que já entrou nesta NF. #}
+                <div class="docf-panel mb-2" id="nf-registro-nesta-nf">
+                    <div class="docf-kicker">NESTA NF {{ nota_detalhes.numero_documento }} · {{ nota_detalhes.itens|length }} {{ 'ITEM' if nota_detalhes.itens|length == 1 else 'ITENS' }} · {{ nota_detalhes.total_valor|default(0, true)|currency_br }}</div>
+                    <ul class="mb-0 small ps-3">
+                        {% for item in nota_detalhes.itens %}
+                        <li>{{ item.codigo }} — {{ (item.descricao or '')|upper }} · {{ item.quantidade_documento_display or item.quantidade }}{% if item.valor_total %} · {{ item.valor_total|currency_br }}{% endif %}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
                 <form method="post" class="docf-form compact-form d-grid gap-2" id="nf-registration-form">
                     <input type="hidden" name="active_tab" value="registro">
+                    <input type="hidden" name="continuar" id="docf-continuar" value="">
                     <input type="hidden" id="doc_mode_submit" name="doc_mode" value="nf">
                     <input type="hidden" id="finance_tipo_documento_submit" name="finance_tipo_documento" value="nf">
                     <input type="hidden" id="finance_origem_valor_submit" name="finance_origem_valor" value="compra_nf">
@@ -392,7 +404,9 @@
                                 <textarea class="form-control form-control-sm" id="finance_observacao" name="finance_observacao" rows="2"
                                     ></textarea>
                             </div>
-                            <div class="col-12 compact-actions">
+                            <div class="col-12 compact-actions d-flex gap-2 justify-content-end">
+                                {# "+ ADICIONAR" (26/11/2026): registra este item e volta com a mesma NF para o próximo. #}
+                                <button class="docf-btn-secondary" id="docf-add-button" type="submit" data-continuar="1">+ ADICIONAR</button>
                                 <button class="docf-btn-primary" id="docf-submit-button" type="submit">Registrar</button>
                             </div>
                         </div>
@@ -3514,6 +3528,41 @@
             return [{ ...proof, label: `${form.__addItemSelected.codigo} — ${form.__addItemSelected.descricao || ''}` }];
         });
     });
+
+    // "+ ADICIONAR" (26/11/2026): marca o envio; na volta, a mesma NF (modo, número, datas, CNPJ e chave) fica
+    // preenchida para o próximo item e o cursor vai para o campo Item.
+    (() => {
+        const form = document.getElementById('nf-registration-form');
+        const flag = document.getElementById('docf-continuar');
+        const addButton = document.getElementById('docf-add-button');
+        if (!form || !flag || !addButton) return;
+        addButton.addEventListener('click', () => { flag.value = '1'; });
+        document.getElementById('docf-submit-button')?.addEventListener('click', () => { flag.value = ''; });
+
+        const continuar = {{ (registro_continuar if registro_continuar is defined else None)|tojson }};
+        if (!continuar) return;
+        const modo = document.querySelector(`#doc-mode-actions [data-doc-mode="${continuar.doc_mode}"]`);
+        const radio = modo?.querySelector('input[type="radio"]');
+        if (modo && radio && !radio.checked) modo.click();
+        const preencher = (id, valor) => {
+            const campo = document.getElementById(id);
+            if (!campo || !valor) return;
+            campo.value = valor;
+            campo.dispatchEvent(new Event('input', { bubbles: true }));
+            campo.dispatchEvent(new Event('change', { bubbles: true }));
+        };
+        preencher('nota_fiscal', continuar.numero);
+        preencher('data_emissao', continuar.data_emissao);
+        preencher('data_recebimento', continuar.data_recebimento);
+        preencher('supplier_cnpj', continuar.supplier_cnpj);
+        preencher('chave_acesso', continuar.chave_acesso);
+        document.getElementById('nota_fiscal_results')?.classList.add('d-none');
+        const itemSearch = document.getElementById('item_search');
+        if (itemSearch) {
+            itemSearch.value = '';
+            itemSearch.focus();
+        }
+    })();
 
     // Unidade da linha no "Corrigir" (26/11/2026): a conta aparece enquanto se escolhe ("1 FARDO = 24 UN").
     document.querySelectorAll('[data-unidade-linha]').forEach((group) => {
