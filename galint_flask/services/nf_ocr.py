@@ -43,7 +43,8 @@ from typing import Any, Iterable
 # produto ("A-778" lido "A-T7T8"); com 400, sai certo, por cerca de 1 s a mais por página.
 OCR_DPI = 400
 MAX_RENDER_WIDTH = 3300  # A4 em 400 dpi
-MAX_PAGES = 12
+# 26/11/2026: era 12. PDF com várias NFs juntas (8 da AC Milan num arquivo só) precisa ser lido inteiro.
+MAX_PAGES = 60
 TESSERACT_TIMEOUT_SECONDS = 240
 
 PDF_SUFFIXES = {".pdf"}
@@ -486,6 +487,52 @@ def read_pdf(data: bytes) -> ReadResult:
         document.close()
     result.seconds = time.monotonic() - started
     return result
+
+
+MAX_SPLIT_PAGES = 80
+
+
+def split_pdf_by_access_key(data: bytes) -> list[dict[str, Any]] | None:
+    """PDF com VÁRIAS NFs (uma por página ou por grupo de páginas) → uma parte por chave de acesso.
+
+    Caso de 26/11/2026: "19.11 - MERCADO LIVRE R$ 955,12.pdf" juntava 8 NFs da AC Milan (28494 a 28501, 1 fardo de
+    bambu cada); o Ler NF lia o PDF como uma NF só e lançou só a primeira página (28498). Só usa o texto do PDF (sem
+    OCR): página sem chave legível fica junto da anterior (continuação da mesma NF). Devolve None quando há menos
+    de duas chaves (o PDF segue inteiro, como sempre); senão [{"chave", "paginas", "data"}] na ordem do arquivo.
+    """
+    pdfium = _pdfium()
+    document = pdfium.PdfDocument(data)
+    try:
+        total = min(len(document), MAX_SPLIT_PAGES)
+        if total < 2:
+            return None
+        groups: list[dict[str, Any]] = []
+        for index in range(total):
+            page = document[index]
+            try:
+                width, height = page.get_size()
+                lines = group_words_into_lines(_text_layer_words(page, height), index, width)
+            finally:
+                page.close()
+            key = find_access_key(lines) if lines else None
+            if groups and (key is None or key == groups[-1]["chave"]):
+                groups[-1]["paginas"].append(index)
+            else:
+                groups.append({"chave": key, "paginas": [index]})
+        if len([group for group in groups if group["chave"]]) < 2:
+            return None
+        for group in groups:
+            part = pdfium.PdfDocument.new()
+            try:
+                part.import_pages(document, pages=group["paginas"])
+                buffer = io.BytesIO()
+                part.save(buffer)
+                group["data"] = buffer.getvalue()
+            finally:
+                part.close()
+        return groups
+    finally:
+        document.close()
 
 
 def read_image(data: bytes) -> ReadResult:
@@ -970,17 +1017,69 @@ def parse_danfe(pages: list[PageText]) -> dict[str, Any]:
     return {"cabecalho": header, "itens": items, "avisos": warnings}
 
 
+def _parse_pages(pages: list[PageText], seconds: float) -> dict[str, Any]:
+    parsed = parse_danfe(pages)
+    sources = {page.source for page in pages}
+    confidences = [page.confidence for page in pages if page.confidence is not None]
+    parsed.update(
+        fonte="ocr" if "ocr" in sources else "texto_pdf",
+        paginas=len(pages),
+        segundos=round(seconds, 1),
+        confianca_ocr=round(sum(confidences) / len(confidences), 1) if confidences else None,
+        texto="\n".join(line.text for page in pages for line in page.lines)[:60000],
+    )
+    return parsed
+
+
 def read_and_parse(data: bytes, filename: str) -> dict[str, Any]:
     """Lê o arquivo e devolve cabeçalho, itens, avisos, fonte (texto do PDF ou OCR) e o texto lido."""
     result = read_file(data, filename)
-    parsed = parse_danfe(result.pages)
-    sources = {page.source for page in result.pages}
-    confidences = [page.confidence for page in result.pages if page.confidence is not None]
-    parsed.update(
-        fonte="ocr" if "ocr" in sources else "texto_pdf",
-        paginas=len(result.pages),
-        segundos=round(result.seconds, 1),
-        confianca_ocr=round(sum(confidences) / len(confidences), 1) if confidences else None,
-        texto="\n".join(line.text for page in result.pages for line in page.lines)[:60000],
-    )
-    return parsed
+    return _parse_pages(result.pages, result.seconds)
+
+
+def page_groups_by_access_key(pages: list[PageText]) -> list[list[int]] | None:
+    """Páginas agrupadas por chave de acesso (a página sem chave legível fica com a anterior). None com menos de
+    duas chaves: o arquivo é uma NF só."""
+    groups: list[tuple[str | None, list[int]]] = []
+    for index, page in enumerate(pages):
+        key = find_access_key(page.lines) if page.lines else None
+        if groups and (key is None or key == groups[-1][0]):
+            groups[-1][1].append(index)
+        else:
+            groups.append((key, [index]))
+    if len([key for key, _ in groups if key]) < 2:
+        return None
+    return [indices for _, indices in groups]
+
+
+def read_and_parse_nfs(data: bytes, filename: str) -> list[dict[str, Any]]:
+    """Como read_and_parse, mas uma NF por chave de acesso (26/11/2026: PDF escaneado com várias NFs juntas, que a
+    separação pelo texto no envio não pega). Cada uma traz "paginas_do_arquivo" (índices das páginas)."""
+    result = read_file(data, filename)
+    groups = page_groups_by_access_key(result.pages) if len(result.pages) > 1 else None
+    if not groups:
+        parsed = _parse_pages(result.pages, result.seconds)
+        parsed["paginas_do_arquivo"] = list(range(len(result.pages)))
+        return [parsed]
+    share = result.seconds / max(1, len(groups))
+    nfs = []
+    for indices in groups:
+        parsed = _parse_pages([result.pages[i] for i in indices], share)
+        parsed["paginas_do_arquivo"] = indices
+        nfs.append(parsed)
+    return nfs
+
+
+def pdf_pages(data: bytes, indices: list[int]) -> bytes:
+    """Novo PDF só com as páginas pedidas (para guardar cada NF de um PDF que juntava várias)."""
+    pdfium = _pdfium()
+    document = pdfium.PdfDocument(data)
+    part = pdfium.PdfDocument.new()
+    try:
+        part.import_pages(document, pages=list(indices))
+        buffer = io.BytesIO()
+        part.save(buffer)
+        return buffer.getvalue()
+    finally:
+        part.close()
+        document.close()

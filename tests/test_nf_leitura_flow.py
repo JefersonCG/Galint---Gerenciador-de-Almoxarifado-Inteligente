@@ -227,6 +227,63 @@ def test_reading_waiting_for_review_becomes_proof_when_the_nf_enters_first(clien
     assert DocumentoEntradaEstoque.query.count() == 1
 
 
+def _pdf_de_varias_nfs(*numeros):
+    import io
+
+    import pypdfium2 as pdfium
+
+    novo = pdfium.PdfDocument.new()
+    for numero in numeros:
+        novo.import_pages(pdfium.PdfDocument(build_danfe_pdf(numero)))
+    saida = io.BytesIO()
+    novo.save(saida)
+    return saida.getvalue()
+
+
+def _enviar(client, data, nome):
+    from io import BytesIO
+
+    return client.post("/nf/leitura/enviar", data={"arquivos": (BytesIO(data), nome)}, content_type="multipart/form-data")
+
+
+def test_pdf_with_several_nfs_becomes_one_reading_per_nf(client):
+    """Pedido do usuário (26/11/2026): "o sistema leia o PDF inteiro mesmo sendo agregadas muitas outras NFs, e
+    divida as NFs e fiquem individuais". Caso: 8 NFs da AC Milan num PDF só, das quais só a 1ª tinha entrado."""
+    import pypdfium2 as pdfium
+
+    from galint_flask.services.nf_leitura_service import reading_file_path
+
+    data = _pdf_de_varias_nfs(12345, 12346, 12347)
+    _enviar(client, data, "MERCADO LIVRE R$ 955,12.pdf")
+    leituras = NFLeitura.query.order_by(NFLeitura.id).all()
+    assert [(r.numero_documento, r.status) for r in leituras] == [("12345", "lida"), ("12346", "lida"), ("12347", "lida")]
+    assert leituras[1].arquivo_nome == "MERCADO LIVRE R$ 955,12 · NF 12346.pdf"
+    assert all(len(pdfium.PdfDocument(reading_file_path(r).read_bytes())) == 1 for r in leituras)
+
+    client.post(f"/nf/leitura/{leituras[0].id}/lancar", data=_launch_form(leituras[0]))
+    _enviar(client, data, "MERCADO LIVRE R$ 955,12.pdf")  # o mesmo PDF de novo
+    assert any(m == "NF 12345 já consta no sistema." for m in _flashes(client))
+    assert NFLeitura.query.filter_by(status="lida").count() == 2
+    assert DocumentoEntradaEstoque.query.count() == 1
+
+
+def test_scanned_pdf_with_several_nfs_is_split_while_reading(client, monkeypatch):
+    """PDF sem texto (escaneado) não se separa no envio: a leitura, depois de ler todas as páginas, fica com a 1ª
+    NF e cria uma leitura para cada uma das outras, cada uma com o seu pedaço do PDF."""
+    import pypdfium2 as pdfium
+
+    from galint_flask.services import nf_leitura_service as service
+
+    monkeypatch.setattr(service, "_partes_do_pdf", lambda name, data: None)
+    _enviar(client, _pdf_de_varias_nfs(12345, 12346), "escaneado.pdf")
+    leituras = NFLeitura.query.order_by(NFLeitura.id).all()
+    assert [(r.numero_documento, r.status, r.arquivo_nome) for r in leituras] == [
+        ("12345", "lida", "escaneado · NF 12345.pdf"),
+        ("12346", "lida", "escaneado · NF 12346.pdf"),
+    ]
+    assert all(len(pdfium.PdfDocument(service.reading_file_path(r).read_bytes())) == 1 for r in leituras)
+
+
 def test_copy_saved_before_the_rule_becomes_duplicate_on_the_list(client):
     """Cópia guardada pela regra antiga (2ª "arquivada" do mesmo documento, como a cópia de teste da NF 28498):
     ao abrir a lista vira "Já consta no sistema"; a lançada continua sendo a NF física."""

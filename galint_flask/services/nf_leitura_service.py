@@ -16,6 +16,13 @@ Fluxo:
    - JÁ ESTÁ (pedido do usuário em 25/11/2026): a leitura vira "arquivada" e fica ligada ao documento como
      a NF física, a prova de que a nota existe em papel, para ver e imprimir em Documentos Fiscais. Não há
      conferência nem lançamento, para não duplicar a entrada.
+   - VÁRIAS NFs NUM PDF SÓ (pedido do usuário em 26/11/2026: "preciso que o sistema leia o PDF inteiro mesmo sendo
+     agregadas muitas outras NFs, e que divida as NFs e fiquem individuais como as outras"; caso do
+     "19.11 - MERCADO LIVRE R$ 955,12.pdf", 8 NFs da AC Milan das quais só a 28498 entrou): no envio, o PDF com
+     texto é separado pela chave de acesso de cada página (nf_ocr.split_pdf_by_access_key) e cada NF vira uma
+     leitura com o seu pedaço do PDF; a NF que já consta fica de fora com o aviso. PDF escaneado é separado na
+     leitura, depois do OCR de todas as páginas (nf_ocr.read_and_parse_nfs): a leitura fica com a 1ª NF e as
+     outras viram leituras novas. O PDF é lido inteiro (até 60 páginas; eram 12).
    - REPETIDA (pedido do usuário em 26/11/2026: "o sistema não pode duplicar NF ao ler se for colocada por
      engano; tem que avisar que aquela NF já consta no sistema"): o MESMO ARQUIVO é recusado já no envio; outro
      arquivo da mesma NF (mesmo documento que já tem arquivo, ou mesmo número e fornecedor de outra leitura na
@@ -420,13 +427,48 @@ def aviso_de_repetida(leitura: NFLeitura) -> str:
     return f"{rotulo} já está na lista (deu erro: use Ler de novo)."
 
 
-def enviar_arquivos(files: list[Any], *, usuario: str | None, repetidos: list[str] | None = None) -> list[NFLeitura]:
-    """Guarda os arquivos enviados e agenda a leitura de cada um. Arquivo igual a um já enviado não entra: o
-    aviso vai para `repetidos` (ou vira o erro, se nenhum arquivo entrou)."""
-    created: list[NFLeitura] = []
-    avisos: list[str] = []
+def _guardar_arquivo(data: bytes, suffix: str) -> str:
+    """Grava o arquivo em instance/nf_leituras/AAAAMM e devolve o caminho relativo à instance."""
     folder = _storage_root() / TimeService.now_db().strftime("%Y%m")
     folder.mkdir(parents=True, exist_ok=True)
+    stored = folder / f"{uuid.uuid4().hex}{suffix}"
+    stored.write_bytes(data)
+    return str(stored.relative_to(Path(current_app.instance_path))).replace("\\", "/")
+
+
+def _nome_da_parte(nome: str, numero: str | None, ordem: int) -> str:
+    raiz, suffix = os.path.splitext(nome)
+    marca = f"NF {numero}" if numero else f"parte {ordem}"
+    return f"{raiz} · {marca}{suffix}"[:255]
+
+
+def _documento_com_arquivo(chave: str | None) -> DocumentoEntradaEstoque | None:
+    """Documento com esta chave que já tem o arquivo da NF guardado (leitura lançada ou arquivada)."""
+    if not chave:
+        return None
+    documento = DocumentoEntradaEstoque.query.filter(DocumentoEntradaEstoque.chave_acesso == chave).first()
+    if documento is None:
+        return None
+    guardada = NFLeitura.query.filter(NFLeitura.documento_id == documento.id_documento, NFLeitura.status.in_(PROOF_STATUSES)).first()
+    return documento if guardada is not None else None
+
+
+def _partes_do_pdf(name: str, data: bytes) -> list[dict[str, Any]] | None:
+    if os.path.splitext(name)[1].lower() not in nf_ocr.PDF_SUFFIXES and data[:5] != b"%PDF-":
+        return None
+    try:
+        return nf_ocr.split_pdf_by_access_key(data)
+    except Exception:  # PDF estranho: segue inteiro, como sempre
+        logger.exception("Falha ao separar as NFs do PDF %s", name)
+        return None
+
+
+def enviar_arquivos(files: list[Any], *, usuario: str | None, repetidos: list[str] | None = None) -> list[NFLeitura]:
+    """Guarda os arquivos enviados e agenda a leitura de cada um. Arquivo igual a um já enviado não entra: o
+    aviso vai para `repetidos` (ou vira o erro, se nenhum arquivo entrou). PDF com várias NFs vira uma leitura
+    por NF; a NF que já consta (documento com arquivo guardado) fica de fora com o aviso."""
+    created: list[NFLeitura] = []
+    avisos: list[str] = []
     for storage in files:
         name = os.path.basename(str(getattr(storage, "filename", "") or "")).strip()
         if not name:
@@ -439,15 +481,33 @@ def enviar_arquivos(files: list[Any], *, usuario: str | None, repetidos: list[st
             raise ValueError(f"{name}: arquivo vazio.")
         if len(data) > MAX_FILE_BYTES:
             raise ValueError(f"{name}: arquivo maior que 25 MB.")
+        partes = _partes_do_pdf(name, data)
+        if partes:
+            for ordem, parte in enumerate(partes, start=1):
+                numero = nf_ocr.describe_access_key(parte["chave"])["numero"] if parte["chave"] else None
+                if _documento_com_arquivo(parte["chave"]) is not None:
+                    avisos.append(f"NF {numero} já consta no sistema.")
+                    continue
+                igual = mesmo_arquivo(parte["data"])
+                if igual is not None:
+                    avisos.append(aviso_de_repetida(igual))
+                    continue
+                reading = NFLeitura(
+                    arquivo_nome=_nome_da_parte(name, numero, ordem),
+                    arquivo_path=_guardar_arquivo(parte["data"], ".pdf"),
+                    status="lendo",
+                    criado_por=usuario,
+                )
+                db.session.add(reading)
+                created.append(reading)
+            continue
         igual = mesmo_arquivo(data)
         if igual is not None:
             avisos.append(aviso_de_repetida(igual))
             continue
-        stored = f"{uuid.uuid4().hex}{suffix}"
-        (folder / stored).write_bytes(data)
         reading = NFLeitura(
             arquivo_nome=name[:255],
-            arquivo_path=str((folder / stored).relative_to(Path(current_app.instance_path))).replace("\\", "/"),
+            arquivo_path=_guardar_arquivo(data, suffix),
             status="lendo",
             criado_por=usuario,
         )
@@ -543,6 +603,28 @@ def _marcar_duplicada(reading: NFLeitura, original: NFLeitura, documento_id: int
     reading.mensagem = aviso_de_repetida(original)
 
 
+def _aplicar_leitura(reading: NFLeitura, parsed: dict[str, Any], previous_launch: dict[str, Any]) -> None:
+    """Resultado do leitor → leitura "lida", "arquivada" (NF já no GALINT) ou "duplicada" (NF já guardada)."""
+    parsed["cabecalho"] = _header_with_file_number(parsed.get("cabecalho") or {}, reading.arquivo_nome)
+    result = enrich_reading(parsed)
+    if previous_launch:
+        result["lancamento"] = previous_launch
+    header = result["cabecalho"]
+    reading.status = "lida"
+    reading.fonte = result.get("fonte")
+    reading.mensagem = None
+    reading.numero_documento = (header.get("numero") or None) and str(header["numero"])[:20]
+    reading.fornecedor_nome = (header.get("emitente") or None) and str(header["emitente"])[:200]
+    reading.valor_total = header.get("valor_total") or header.get("valor_produtos")
+    existing = result.get("ja_lancada")
+    original = None if previous_launch.get("linhas") else outra_leitura_da_mesma_nf(reading, header, (existing or {}).get("id"))
+    if original is not None:
+        _marcar_duplicada(reading, original, (existing or {}).get("id"))
+    elif existing and not previous_launch.get("linhas"):
+        _archive_as_proof(reading, existing["id"], existing.get("numero"))
+    _save_result(reading, result)
+
+
 def processar_leitura(reading_id: int) -> None:
     reading = db.session.get(NFLeitura, reading_id)
     if reading is None:
@@ -551,25 +633,24 @@ def processar_leitura(reading_id: int) -> None:
     previous_launch = load_result(reading).get("lancamento") or {}
     try:
         data = reading_file_path(reading).read_bytes()
-        parsed = nf_ocr.read_and_parse(data, reading.arquivo_nome)
-        parsed["cabecalho"] = _header_with_file_number(parsed.get("cabecalho") or {}, reading.arquivo_nome)
-        result = enrich_reading(parsed)
-        if previous_launch:
-            result["lancamento"] = previous_launch
-        header = result["cabecalho"]
-        reading.status = "lida"
-        reading.fonte = result.get("fonte")
-        reading.mensagem = None
-        reading.numero_documento = (header.get("numero") or None) and str(header["numero"])[:20]
-        reading.fornecedor_nome = (header.get("emitente") or None) and str(header["emitente"])[:200]
-        reading.valor_total = header.get("valor_total") or header.get("valor_produtos")
-        existing = result.get("ja_lancada")
-        original = None if previous_launch.get("linhas") else outra_leitura_da_mesma_nf(reading, header, (existing or {}).get("id"))
-        if original is not None:
-            _marcar_duplicada(reading, original, (existing or {}).get("id"))
-        elif existing and not previous_launch.get("linhas"):
-            _archive_as_proof(reading, existing["id"], existing.get("numero"))
-        _save_result(reading, result)
+        nfs = nf_ocr.read_and_parse_nfs(data, reading.arquivo_nome)
+        eh_pdf = data[:5] == b"%PDF-"
+        if len(nfs) > 1 and eh_pdf and not previous_launch:
+            # PDF escaneado com várias NFs: esta leitura fica com a 1ª e o seu pedaço do PDF; as outras viram
+            # leituras novas, já lidas (sem OCR de novo), cada uma com o seu pedaço.
+            nome_original = reading.arquivo_nome
+            for ordem, parsed in enumerate(nfs, start=1):
+                numero = (parsed.get("cabecalho") or {}).get("numero")
+                destino = reading if ordem == 1 else NFLeitura(status="lendo", criado_por=reading.criado_por, arquivo_nome="", arquivo_path="")
+                destino.arquivo_nome = _nome_da_parte(nome_original, str(numero) if numero else None, ordem)
+                destino.arquivo_path = _guardar_arquivo(nf_ocr.pdf_pages(data, parsed["paginas_do_arquivo"]), ".pdf")
+                if ordem > 1:
+                    db.session.add(destino)
+                    db.session.flush()
+                _aplicar_leitura(destino, parsed, {})
+                db.session.flush()
+        else:
+            _aplicar_leitura(reading, nfs[0], previous_launch)
     except nf_ocr.OcrUnavailableError as exc:
         reading.status = "erro"
         reading.mensagem = str(exc)

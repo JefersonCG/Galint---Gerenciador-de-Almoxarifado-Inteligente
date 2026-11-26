@@ -18,8 +18,13 @@ SERIES = "1"
 EMISSION = "18/11/2026"
 EXIT_DATE = "19/11/2026"
 
-_KEY43 = "53" + "2611" + SUPPLIER_CNPJ + "55" + "001" + "000012345" + "1" + "12345678"
-ACCESS_KEY = _KEY43 + str(access_key_check_digit(_KEY43))
+def chave_da_nf(numero: int) -> str:
+    """Chave de acesso válida do fornecedor de teste para o número dado (dígito verificador certo)."""
+    key43 = "53" + "2611" + SUPPLIER_CNPJ + "55" + "001" + f"{numero:09d}" + "1" + "12345678"
+    return key43 + str(access_key_check_digit(key43))
+
+
+ACCESS_KEY = chave_da_nf(int(NUMBER))
 
 # (código, descrição em linhas, NCM, CST, CFOP, UN, quantidade, unitário, total)
 ITEMS = [
@@ -37,7 +42,7 @@ def _group_key(key: str) -> str:
     return " ".join(key[index:index + 4] for index in range(0, 44, 4))
 
 
-def build_danfe_pdf() -> bytes:
+def build_danfe_pdf(numero: int = int(NUMBER)) -> bytes:
     from reportlab.lib.pagesizes import A4
     from reportlab.pdfgen import canvas
 
@@ -64,7 +69,9 @@ def build_danfe_pdf() -> bytes:
     label(left + 4, top - 26, "DATA DE RECEBIMENTO", 5.5)
     label(left + 160, top - 26, "IDENTIFICAÇÃO E ASSINATURA DO RECEBEDOR", 5.5)
     value(right - 80, top - 14, "NF-e", 9, True)
-    value(right - 80, top - 26, f"Nº 000.012.345  SÉRIE 001", 6.5)
+    numero_br = f"{numero:09d}"
+    numero_br = f"{numero_br[:3]}.{numero_br[3:6]}.{numero_br[6:]}"
+    value(right - 80, top - 26, f"Nº {numero_br}  SÉRIE 001", 6.5)
 
     # Emitente + DANFE + chave
     y = top - 44
@@ -77,11 +84,11 @@ def build_danfe_pdf() -> bytes:
     label(left + 236, y - 30, "DOCUMENTO AUXILIAR DA", 5.5)
     label(left + 236, y - 37, "NOTA FISCAL ELETRÔNICA", 5.5)
     label(left + 236, y - 50, "0 - ENTRADA   1 - SAÍDA", 5.5)
-    value(left + 236, y - 66, "Nº 000.012.345", 7.5, True)
+    value(left + 236, y - 66, f"Nº {numero_br}", 7.5, True)
     value(left + 236, y - 78, "SÉRIE 001  FOLHA 1/1", 7)
     box(left + 334, y - 92, right - left - 334, 92)
     label(left + 338, y - 52, "CHAVE DE ACESSO", 5.5)
-    value(left + 338, y - 62, _group_key(ACCESS_KEY), 6.6, True)
+    value(left + 338, y - 62, _group_key(chave_da_nf(numero)), 6.6, True)
     label(left + 338, y - 78, "Consulta de autenticidade no portal nacional da NF-e", 5.5)
 
     y -= 100
