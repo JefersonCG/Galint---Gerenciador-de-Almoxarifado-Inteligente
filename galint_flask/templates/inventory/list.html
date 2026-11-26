@@ -7,11 +7,11 @@
         {% if endpoint_exists('inventory.purchase_projection_page') %}
         <a class="btn btn-outline-success" href="{{ url_for('inventory.purchase_projection_page') }}">Projeção de Compras</a>
         {% endif %}
-        {% if can_edit_items and endpoint_exists('inventory.barcode_studio_page') %}
-        <a class="btn btn-outline-light" href="{{ url_for('inventory.barcode_studio_page') }}">
-            <i class="bi bi-upc-scan me-1"></i> Editor de Etiquetas
-        </a>
-        {% endif %}
+        {# 26/11/2026: "Editor de Etiquetas" ficou só no menu lateral; no lugar, os itens zerados (fora da busca). #}
+        <button class="btn btn-outline-danger position-relative" type="button" data-bs-toggle="modal" data-bs-target="#zeroItemsModal">
+            ITENS ZERADOS
+            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill text-bg-danger d-none" id="zeroItemsBadge"></span>
+        </button>
         {% if can_create %}
         <button class="btn btn-outline-warning position-relative" type="button" data-bs-toggle="modal" data-bs-target="#preRegisteredModal">
             PRÉ CADASTRADOS
@@ -40,6 +40,43 @@
         <span class="input-group-text" id="inventory-search-badge">0 resultado</span>
     </div>
     <div id="inventory-search-results" class="list-group mt-3 d-none" aria-live="polite"></div>
+</div>
+
+{# Itens zerados (26/11/2026): fora da busca e das categorias; aqui com NFs, datas de entrada e "+ PROJEÇÃO".
+   Na mesma janela, os itens com saída contada duas vezes (services/saida_dobrada.py) e a correção. #}
+<style>
+    #zeroItemsModal .zero-row { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 4px; border-bottom: 1px solid rgba(148, 163, 184, 0.22); }
+    #zeroItemsModal .zero-thumb { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; background: #fff; }
+    #zeroItemsModal .zero-thumb--empty { display: flex; align-items: center; justify-content: center; background: rgba(148, 163, 184, 0.15); }
+    #zeroItemsModal .zero-name { font-weight: 700; text-align: left; background: none; border: 0; padding: 0; color: inherit; }
+    #zeroItemsModal .zero-meta { font-size: 0.78rem; opacity: 0.75; }
+    #zeroItemsModal .zero-chip { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: rgba(148, 163, 184, 0.18); margin: 2px 4px 0 0; white-space: nowrap; }
+    #zeroItemsModal .zero-chip--dobro { background: rgba(220, 38, 38, 0.14); color: #dc2626; }
+    #zeroItemsModal .zero-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+    #zeroItemsModal .zero-saldo { font-weight: 800; min-width: 64px; text-align: right; }
+    #zeroItemsModal .zero-saldo--neg { color: #dc2626; }
+    @media (max-width: 576px) { #zeroItemsModal .zero-row { grid-template-columns: 44px minmax(0, 1fr); } #zeroItemsModal .zero-actions { grid-column: 1 / -1; justify-content: flex-start; } }
+</style>
+<div class="modal fade" id="zeroItemsModal" tabindex="-1" aria-labelledby="zeroItemsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h5 class="modal-title" id="zeroItemsModalLabel">ITENS ZERADOS</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body pt-2">
+                <div class="d-flex gap-2 flex-wrap align-items-center mb-2">
+                    <div class="btn-group btn-group-sm" role="group" aria-label="Lista">
+                        <button type="button" class="btn btn-outline-danger active" data-zero-tab="zerados">ZERADOS <span data-zero-count="zerados"></span></button>
+                        <button type="button" class="btn btn-outline-danger d-none" data-zero-tab="dobradas">SAÍDA EM DOBRO <span data-zero-count="dobradas"></span></button>
+                    </div>
+                    <input class="form-control form-control-sm flex-grow-1" type="search" id="zeroItemsSearch" placeholder="BUSCAR" autocomplete="off" style="max-width: 360px;">
+                </div>
+                <div id="zeroItemsStatus" class="small text-muted"></div>
+                <div id="zeroItemsList"></div>
+            </div>
+        </div>
+    </div>
 </div>
 
 {% if category_cards %}
@@ -8568,10 +8605,23 @@
         }
         updateBadge(matches.length, true);
         const isNumericCode = /^\d{8,}$/.test(query);
+        // Zerado que bate com a busca: uma linha só, que abre os Itens zerados já filtrados.
+        const zeroHidden = countZeroMatches(query);
+        const appendZeroHint = () => {
+            if (!zeroHidden) return;
+            const hint = document.createElement('button');
+            hint.type = 'button';
+            hint.className = 'list-group-item list-group-item-action text-danger fw-bold small';
+            hint.textContent = zeroHidden === 1 ? '1 ZERADO' : `${zeroHidden} ZERADOS`;
+            hint.addEventListener('click', () => window.openZeroItemsModal?.(query));
+            resultsContainer.appendChild(hint);
+        };
 
         if (!matches.length) {
             resultsContainer.classList.remove('d-none');
-            if (canManage && isNumericCode) {
+            if (zeroHidden) {
+                appendZeroHint();
+            } else if (canManage && isNumericCode) {
                 resultsContainer.innerHTML = `
                     <div class="list-group-item">
                         <p class="mb-2">O item com código <strong>${escapeHtml(query)}</strong> não foi encontrado.</p>
@@ -8624,19 +8674,27 @@
             });
             resultsContainer.appendChild(row);
         });
+        appendZeroHint();
     };
 
+    // Zerados ficam fora da busca e das categorias (26/11/2026): moram no botão "Itens zerados".
+    const isZeroItem = (item) => !item?.pre_cadastro_pendente && !(Number(item?.saldo || 0) > 1e-9);
+    const matchesQuery = (item, normalized) => {
+        const description = normalize(item.descricao);
+        const codigo = normalize(item.codigo);
+        const marca = normalize(item.marca);
+        return description.includes(normalized) || codigo.includes(normalized) || marca.includes(normalized);
+    };
     const findMatches = (query) => {
         const normalized = normalize(query);
         if (!normalized) {
             return [];
         }
-        return items.filter((item) => {
-            const description = normalize(item.descricao);
-            const codigo = normalize(item.codigo);
-            const marca = normalize(item.marca);
-            return description.includes(normalized) || codigo.includes(normalized) || marca.includes(normalized);
-        });
+        return items.filter((item) => !isZeroItem(item) && matchesQuery(item, normalized));
+    };
+    const countZeroMatches = (query) => {
+        const normalized = normalize(query);
+        return normalized ? items.filter((item) => isZeroItem(item) && matchesQuery(item, normalized)).length : 0;
     };
 
     const openItemModal = async (item) => {
@@ -9148,7 +9206,7 @@
     };
 
     const renderCategoryModalContent = (category) => {
-        const categoryItems = items.filter((item) => resolveCategoryName(item) === category);
+        const categoryItems = items.filter((item) => resolveCategoryName(item) === category && !isZeroItem(item));
         const totalLabel = categoryItems.length === 1 ? '1 item' : `${categoryItems.length} itens`;
         const listHtml = categoryItems.length
             ? categoryItems.map(renderCategoryItemRow).join('')
@@ -9294,6 +9352,183 @@
             openCategoryModal(match);
         }
     }
+
+    // ---------- Itens zerados (26/11/2026) ----------
+    // Lista vinda de /itens/api/zerados: NF e data das últimas entradas, "+ PROJEÇÃO" e, para o administrador,
+    // "CORRIGIR" a saída contada duas vezes. Antes de o servidor ser religado, a lista sai da própria página.
+    (() => {
+        const modalEl = document.getElementById('zeroItemsModal');
+        const listEl = document.getElementById('zeroItemsList');
+        const statusEl = document.getElementById('zeroItemsStatus');
+        const searchEl = document.getElementById('zeroItemsSearch');
+        const badgeEl = document.getElementById('zeroItemsBadge');
+        if (!modalEl || !listEl) return;
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        const tabs = Array.from(modalEl.querySelectorAll('[data-zero-tab]'));
+        const state = { tab: 'zerados', data: null, loading: null };
+
+        const localZeros = () => items.filter(isZeroItem).map((item) => ({
+            codigo: item.codigo, descricao: item.descricao, categoria: item.categoria, saldo: Number(item.saldo || 0),
+            saldo_display: item.saldo_display, foto_path: item.foto_path, ultima_edicao_em: item.ultima_edicao_em,
+            entradas: [], na_projecao: false, dobro: null,
+        }));
+        const updateBadge = (total) => {
+            if (!badgeEl) return;
+            badgeEl.textContent = total > 999 ? '999+' : String(total);
+            badgeEl.classList.toggle('d-none', !total);
+        };
+        updateBadge(items.filter(isZeroItem).length);
+
+        const fmtDate = (iso) => {
+            const parts = String(iso || '').slice(0, 10).split('-');
+            return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0].slice(2)}` : '';
+        };
+        const fmtNum = (value) => Number(value || 0).toLocaleString('pt-BR', { maximumFractionDigits: 3 });
+
+        const load = async () => {
+            if (state.data) return state.data;
+            if (state.loading) return state.loading;
+            statusEl.textContent = 'CARREGANDO...';
+            state.loading = (async () => {
+                try {
+                    const response = await fetch('/itens/api/zerados', { credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } });
+                    const payload = await readJsonResponse(response);
+                    if (!response.ok || !payload?.success) throw new Error(payload?.message || 'Falha ao carregar.');
+                    state.data = payload;
+                } catch (error) {
+                    state.data = { zerados: localZeros(), dobradas: [], pode_corrigir: false, pode_projetar: canEditItems, offline: true };
+                }
+                statusEl.textContent = '';
+                state.loading = null;
+                return state.data;
+            })();
+            return state.loading;
+        };
+
+        const rowHtml = (entry) => {
+            const photo = entry.foto_path ? buildStableStaticPhotoUrl(entry.foto_path, entry.ultima_edicao_em || '') : '';
+            const saldo = Number(entry.saldo || 0);
+            const chips = (entry.entradas || []).map((e) =>
+                `<span class="zero-chip">${escapeHtml(e.nf)}${e.data ? ` · ${escapeHtml(fmtDate(e.data))}` : ''}${e.quantidade ? ` · ${escapeHtml(fmtNum(e.quantidade))}${e.unidade ? ` ${escapeHtml(e.unidade)}` : ''}` : ''}</span>`).join('');
+            const semEntrada = state.tab === 'zerados' && !(entry.entradas || []).length && !state.data?.offline ? '<span class="zero-chip">SEM ENTRADA</span>' : '';
+            const dobro = entry.dobro
+                ? `<span class="zero-chip zero-chip--dobro">SAÍDA EM DOBRO · ${escapeHtml(fmtNum(saldo))} → ${escapeHtml(fmtNum(entry.dobro.saldo_corrigido))} ${escapeHtml(String(entry.dobro.unidade || '').toUpperCase())}</span>`
+                : '';
+            const corrigir = entry.dobro && state.data?.pode_corrigir
+                ? `<button type="button" class="btn btn-sm btn-danger" data-zero-fix="${escapeHtml(entry.codigo)}">CORRIGIR</button>` : '';
+            const projetar = state.data?.pode_projetar
+                ? (entry.na_projecao
+                    ? '<button type="button" class="btn btn-sm btn-success" disabled>NA PROJEÇÃO ✓</button>'
+                    : `<button type="button" class="btn btn-sm btn-outline-success" data-zero-cart="${escapeHtml(entry.codigo)}">+ PROJEÇÃO</button>`)
+                : '';
+            return `
+                <div class="zero-row" data-zero-code="${escapeHtml(entry.codigo)}">
+                    ${photo ? `<img class="zero-thumb" src="${escapeHtml(photo)}" alt="" loading="lazy">` : '<div class="zero-thumb zero-thumb--empty"><i class="bi bi-box"></i></div>'}
+                    <div class="min-w-0">
+                        <button type="button" class="zero-name" data-zero-open="${escapeHtml(entry.codigo)}">${escapeHtml(String(entry.descricao || '').toUpperCase())}</button>
+                        <div class="zero-meta">${escapeHtml(entry.codigo)} · ${escapeHtml(String(entry.categoria || '').toUpperCase())}</div>
+                        <div>${chips}${semEntrada}${dobro}</div>
+                    </div>
+                    <div class="zero-actions">
+                        <span class="zero-saldo${saldo < -1e-9 ? ' zero-saldo--neg' : ''}">${escapeHtml(saldo < -1e-9 || state.tab === 'dobradas' ? fmtNum(saldo) : (entry.saldo_display || '0'))}</span>
+                        ${corrigir}${projetar}
+                    </div>
+                </div>`;
+        };
+
+        const render = () => {
+            const data = state.data || { zerados: [], dobradas: [] };
+            tabs.forEach((tab) => {
+                const key = tab.dataset.zeroTab;
+                const total = (data[key] || []).length;
+                tab.classList.toggle('active', key === state.tab);
+                const count = tab.querySelector('[data-zero-count]');
+                if (count) count.textContent = total;
+                if (key === 'dobradas') tab.classList.toggle('d-none', !total);
+            });
+            updateBadge((data.zerados || []).length);
+            const term = normalize(searchEl?.value || '');
+            const rows = (data[state.tab] || []).filter((entry) => !term || matchesQuery(entry, term));
+            listEl.innerHTML = rows.length ? rows.map(rowHtml).join('') : '<div class="text-muted small py-3">NENHUM ITEM.</div>';
+            listEl.querySelectorAll('img.zero-thumb').forEach((img) => img.addEventListener('error', () => {
+                img.replaceWith(Object.assign(document.createElement('div'), { className: 'zero-thumb zero-thumb--empty', innerHTML: '<i class="bi bi-box"></i>' }));
+            }));
+        };
+
+        const findEntry = (codigo) => [...(state.data?.zerados || []), ...(state.data?.dobradas || [])].filter((e) => String(e.codigo) === String(codigo));
+
+        listEl.addEventListener('click', async (event) => {
+            const open = event.target.closest('[data-zero-open]');
+            if (open) {
+                const item = itemsByCode.get(String(open.dataset.zeroOpen));
+                if (item) {
+                    modal.hide();
+                    openItemModal(item);
+                }
+                return;
+            }
+            const cart = event.target.closest('[data-zero-cart]');
+            if (cart) {
+                cart.disabled = true;
+                try {
+                    const response = await fetch(comparativeCartAddUrl, {
+                        method: 'POST', credentials: 'same-origin', cache: 'no-store',
+                        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                        body: JSON.stringify({ codigo: cart.dataset.zeroCart }),
+                    });
+                    const payload = await readJsonResponse(response);
+                    if (!response.ok || !payload?.success) throw new Error(payload?.message || 'Falha ao enviar para a projeção.');
+                    findEntry(cart.dataset.zeroCart).forEach((entry) => { entry.na_projecao = true; });
+                    render();
+                } catch (error) {
+                    cart.disabled = false;
+                    statusEl.textContent = String(error?.message || error).toUpperCase();
+                }
+                return;
+            }
+            const fix = event.target.closest('[data-zero-fix]');
+            if (fix) {
+                const entry = findEntry(fix.dataset.zeroFix)[0];
+                if (!entry?.dobro) return;
+                const quando = (entry.dobro.saidas || []).map((s) => `${fmtDate(s.data)}: ${fmtNum(s.quantidade)}${s.local ? ` (${s.local})` : ''}`).join('\n');
+                if (!confirm(`${entry.descricao}\n\nSaídas contadas duas vezes:\n${quando}\n\nSaldo ${fmtNum(entry.saldo)} → ${fmtNum(entry.dobro.saldo_corrigido)}. Corrigir?`)) return;
+                fix.disabled = true;
+                try {
+                    const response = await fetch(`/itens/api/${encodeURIComponent(fix.dataset.zeroFix)}/corrigir-saida-dobrada`, {
+                        method: 'POST', credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' },
+                    });
+                    const payload = await readJsonResponse(response);
+                    if (!response.ok || !payload?.success) throw new Error(payload?.message || 'Falha ao corrigir.');
+                    const local = itemsByCode.get(String(fix.dataset.zeroFix));
+                    if (local) local.saldo = Number(payload.saldo_depois || 0);
+                    state.data = null;
+                    await load();
+                    render();
+                    statusEl.textContent = `${String(entry.descricao || '').toUpperCase()}: SALDO ${fmtNum(payload.saldo_antes)} → ${fmtNum(payload.saldo_depois)}`;
+                } catch (error) {
+                    fix.disabled = false;
+                    statusEl.textContent = String(error?.message || error).toUpperCase();
+                }
+            }
+        });
+
+        tabs.forEach((tab) => tab.addEventListener('click', () => {
+            state.tab = tab.dataset.zeroTab;
+            render();
+        }));
+        searchEl?.addEventListener('input', render);
+        modalEl.addEventListener('show.bs.modal', async () => {
+            listEl.innerHTML = '';
+            await load();
+            render();
+        });
+
+        window.openZeroItemsModal = (query = '') => {
+            if (searchEl) searchEl.value = query;
+            state.tab = 'zerados';
+            modal.show();
+        };
+    })();
     }) ();
 </script>
 {% if request.args.get('open_pre_registered') %}

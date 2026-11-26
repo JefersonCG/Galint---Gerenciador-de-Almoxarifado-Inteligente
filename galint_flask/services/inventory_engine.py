@@ -452,7 +452,11 @@ class InventoryEngine:
         balance_before = float(balance_snapshot.quantity_base)
         quantity_delta = float(conversion.quantity_base) * float(balance_delta_sign)
         balance_after = balance_before + quantity_delta
-        if balance_after < 0:
+        # Só o que TIRA do estoque esbarra no saldo. Até 26/11/2026 a entrada também era recusada quando o
+        # saldo continuava negativo depois dela: a NF 28498 (1 fardo de BAMBU = 24 un) ficou em "Erro" porque
+        # o saldo estava em -432 (saídas contadas duas vezes pelo ledger_backfill). Entrada e devolução sempre
+        # melhoram o saldo; recusá-las só escondia a mercadoria que chegou.
+        if quantity_delta < 0 and balance_after < 0:
             raise InventoryEngineError("Saldo insuficiente para concluir a operação")
 
         movement = StockMovement()

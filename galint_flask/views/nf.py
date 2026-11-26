@@ -43,6 +43,7 @@ from ..services.price_normalization import (
     should_autofix_packaged_document_unit,
 )
 from ..services.price_suggestion_service import price_suggestion_service
+from ..services.unidade_da_linha import trocar_unidade
 from ..utils.time_service import TimeService
 
 blueprint = Blueprint("nf", __name__, url_prefix="/nf")
@@ -2886,6 +2887,10 @@ def editar_documento(documento_id: int):
                 item_row.valor_unitario = valor_unitario
                 item_row.valor_total = valor_total
                 item_row.observacao = observacao_item
+                # Unidade escolhida à mão no "Corrigir" (26/11/2026, NF 28498: 1 FARDO = 24 UN).
+                unidade_trocada = trocar_unidade(item_row, request.form.get(f"item_unidade_{item_row.id_documento_item}"))
+                if unidade_trocada:
+                    affected_pending_item_ids.add(item_row.id_documento_item)
 
                 if previous_status != "processado" and (
                     abs(float(quantidade) - previous_quantidade) > 1e-6

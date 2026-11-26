@@ -48,7 +48,8 @@ from ..services.inventory import (
 from ..services.item_foto_service import ItemFotoService
 from ..services.price_normalization import infer_document_quantity_unit_for_item, infer_price_unit_for_item, normalize_document_line, normalize_item_price
 from ..services.purchase_projection_runtime_service import purchase_projection_service
-from ..services import stock_count_service
+from ..services import itens_zerados, saida_dobrada, stock_count_service
+from ..services.inventory_engine import InventoryEngineError
 from ..services.stock_count_workbook_service import StockCountWorkbookService
 from ..services.price_suggestion_service import price_suggestion_service
 from ..services.potential_supplier_service import potential_supplier_service
@@ -2072,7 +2073,8 @@ def list_items():
         category_cards.append(
             {
                 "categoria": category,
-                "total": len(items),
+                # Zerados ficam no botão "Itens zerados" (26/11/2026), fora da lista da categoria.
+                "total": sum(1 for entry in items if not itens_zerados.eh_zerado(entry)),
                 "balance_summary": balance_summary,
                 "balance_summary_preview": balance_summary[:3],
                 "balance_summary_hidden": max(len(balance_summary) - 3, 0),
@@ -2098,6 +2100,36 @@ def list_items():
         open_withdrawal_intentions=str(request.args.get("open_intentions") or "").strip() in {"1", "true", "True"},
         operational_activity_options=OPERATIONAL_ACTIVITY_OPTIONS,
     )
+
+
+@blueprint.get("/api/zerados")
+@login_required
+def itens_zerados_api():
+    """Itens zerados (NF e data das últimas entradas) e itens com saída contada duas vezes (26/11/2026)."""
+    itens = inventory_service.list_items(use_cache=True, refresh_derived_fields=False, cache_ttl_seconds=60.0)
+    no_carrinho = set(_get_purchase_projection_cart_state().keys())
+    dados = itens_zerados.montar(itens, no_carrinho=no_carrinho)
+    pode_corrigir = _is_admin(current_user)
+    return _json_no_store({
+        "success": True,
+        **dados,
+        "pode_corrigir": pode_corrigir,
+        "pode_projetar": pode_corrigir or _is_supervisor(current_user),
+    })
+
+
+@blueprint.post("/api/<path:codigo>/corrigir-saida-dobrada")
+@login_required
+def corrigir_saida_dobrada_api(codigo: str):
+    """Devolve ao saldo as saídas do item contadas duas vezes (services/saida_dobrada.py). Só administrador."""
+    if not _is_admin(current_user):
+        return _json_no_store({"success": False, "message": "Só o administrador corrige o saldo."}), 403
+    try:
+        resultado = saida_dobrada.corrigir_item(codigo, matricula=getattr(current_user, "id", None))
+    except (ValueError, InventoryEngineError) as exc:
+        db.session.rollback()
+        return _json_no_store({"success": False, "message": str(exc)}), 400
+    return _json_no_store({"success": True, **resultado})
 
 
 def _stock_count_category_name(value: object) -> str:

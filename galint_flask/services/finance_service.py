@@ -1582,6 +1582,7 @@ class FinanceService:
     @staticmethod
     def _serialize_stock_document(document: DocumentoEntradaEstoque) -> dict[str, Any]:
         from .nome_na_nf import nome_diferente, nome_na_nf_da_linha
+        from .unidade_da_linha import opcoes_de_unidade
 
         items: list[dict[str, Any]] = []
         total_quantidade = 0.0
@@ -1612,6 +1613,8 @@ class FinanceService:
                     "status_processamento": row.status_processamento,
                     "processado_em": row.processado_em.isoformat() if row.processado_em else None,
                     "erro_processamento": row.erro_processamento,
+                    # Unidades do item para o "Corrigir" escolher à mão (26/11/2026).
+                    "unidades_opcoes": opcoes_de_unidade(row.item),
                     **_build_document_item_display_metadata(row),
                 }
             )

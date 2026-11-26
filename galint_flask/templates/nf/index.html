@@ -579,8 +579,21 @@
                                     </div>
                                     <div class="col-md-2">
                                         <label class="form-label" for="nota-detalhe-quantidade-{{ item.id }}">Quantidade</label>
-                                        <input class="form-control" id="nota-detalhe-quantidade-{{ item.id }}" name="item_quantidade_{{ item.id }}" type="number" min="0.01" step="0.01" value="{{ item.quantidade|default(0, true) }}" {% if nota_detalhes.movimenta_estoque|default(True, true) and item.status_processamento == 'processado' and item.stock_movement_id is not none %}readonly{% else %}required{% endif %}>
-                                        {% if item.conversao_display or item.quantidade_documento_display %}
+                                        {% set linha_travada = nota_detalhes.movimenta_estoque|default(True, true) and item.status_processamento == 'processado' and item.stock_movement_id is not none %}
+                                        {% set opcoes_unidade = item.unidades_opcoes|default([], true) %}
+                                        {% if opcoes_unidade %}<div class="input-group" data-unidade-linha>{% endif %}
+                                        <input class="form-control" id="nota-detalhe-quantidade-{{ item.id }}" name="item_quantidade_{{ item.id }}" type="number" min="0.01" step="any" value="{{ item.quantidade|default(0, true) }}" {% if linha_travada %}readonly{% else %}required{% endif %}>
+                                        {% if opcoes_unidade %}
+                                        {# Unidade escolhida à mão (26/11/2026, NF 28498: 1 FARDO = 24 UN). #}
+                                        <select class="form-select" name="item_unidade_{{ item.id }}" aria-label="Unidade" {% if linha_travada %}disabled{% endif %}>
+                                            {% for opcao in opcoes_unidade %}
+                                            <option value="{{ opcao.codigo }}" data-fator="{{ opcao.fator }}" data-base="{{ opcao.base }}" {% if (item.unidade_quantidade_efetiva or item.unidade_quantidade or '')|lower == opcao.codigo %}selected{% endif %}>{{ opcao.rotulo }}{% if opcao.fator != 1 %} ({{ opcao.fator|number_br(0 if opcao.fator == opcao.fator|int else 2, True) }} {{ opcao.base }}){% endif %}</option>
+                                            {% endfor %}
+                                        </select>
+                                        </div>
+                                        <small class="form-text text-muted" data-unidade-conta></small>
+                                        {% endif %}
+                                        {% if not opcoes_unidade and (item.conversao_display or item.quantidade_documento_display) %}
                                         <small class="form-text text-muted">
                                             {% if item.conversao_display %}
                                             {{ item.conversao_display }}
@@ -3500,6 +3513,28 @@
             if (!proof) return [];
             return [{ ...proof, label: `${form.__addItemSelected.codigo} — ${form.__addItemSelected.descricao || ''}` }];
         });
+    });
+
+    // Unidade da linha no "Corrigir" (26/11/2026): a conta aparece enquanto se escolhe ("1 FARDO = 24 UN").
+    document.querySelectorAll('[data-unidade-linha]').forEach((group) => {
+        const quantidade = group.querySelector('input[type="number"]');
+        const unidade = group.querySelector('select');
+        const conta = group.parentElement.querySelector('[data-unidade-conta]');
+        if (!quantidade || !unidade || !conta) return;
+        const numero = (valor) => Number(valor).toLocaleString('pt-BR', { maximumFractionDigits: 3 });
+        const mostrar = () => {
+            const opcao = unidade.selectedOptions[0];
+            const fator = Number(opcao?.dataset.fator || 0);
+            const qtd = Number(String(quantidade.value || '').replace(',', '.'));
+            if (!(fator > 0) || !(qtd > 0) || fator === 1) {
+                conta.textContent = '';
+                return;
+            }
+            conta.textContent = `${numero(qtd)} ${opcao.textContent.split(' (')[0]} = ${numero(qtd * fator)} ${opcao.dataset.base || ''}`;
+        };
+        quantidade.addEventListener('input', mostrar);
+        unidade.addEventListener('change', mostrar);
+        mostrar();
     });
 
 </script>
