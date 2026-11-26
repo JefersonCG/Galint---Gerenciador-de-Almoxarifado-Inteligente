@@ -2305,6 +2305,47 @@ def devolver_ferramenta_mobile(current_user: Usuario):
         }), 500
 
 
+@blueprint.get("/devolucao/tipo/<path:codigo>")
+@token_required
+def tipo_devolucao_mobile(current_user: Usuario, codigo: str):
+    """Como o item volta na devolução do app (26/11/2026): ferramenta, fracionado ou unitário.
+
+    Pedido do usuário: "sempre que for devolução, reconheça se é ferramenta, fracionado ou item unitário;
+    se devolver uma lata de tinta pela metade, tenho que pôr que foi metade". A unidade é a mesma que
+    registrar_devolucao_material usa (litro, quilo, metro, unidade ou par), e "conteudo" é quanto cabe
+    numa embalagem nessa unidade (lata de 18 L = 18), para o app oferecer ¼, ½ e ¾ da lata.
+    """
+    item = db.session.get(Item, (codigo or "").strip())
+    if item is None:
+        return jsonify({"success": False, "message": "Item não encontrado"}), 404
+    if "ferrament" in (item.categoria or "").strip().lower():
+        return jsonify({"success": True, "data": {"tipo": "ferramenta", "unidade": "unidade", "unidade_curta": "un", "decimal": False}})
+    unidade = inventory_service._get_default_material_return_unit_code(item)
+    meta = inventory_service._build_material_return_unit_meta(unidade)
+    embalagem = (item.tipo_embalagem_novo or "").strip().lower() or None
+    conteudo = None
+    if embalagem and embalagem != unidade:
+        try:
+            from ..services.unit_conversion_engine import unit_conversion_engine
+
+            por_embalagem = float(unit_conversion_engine.convert_item_to_base(item, 1.0, embalagem).quantity_base)
+            por_unidade = float(unit_conversion_engine.convert_item_to_base(item, 1.0, unidade).quantity_base)
+            conteudo = round(por_embalagem / por_unidade, 6) if por_embalagem > 0 and por_unidade > 0 else None
+        except Exception:
+            conteudo = None
+    return jsonify({
+        "success": True,
+        "data": {
+            "tipo": "fracionado" if meta["allow_decimal"] else "unitario",
+            "unidade": unidade,
+            "unidade_curta": meta["unit_display"],
+            "decimal": bool(meta["allow_decimal"]),
+            "embalagem": embalagem if conteudo and conteudo > 0 else None,
+            "conteudo": conteudo if conteudo and conteudo > 0 else None,
+        },
+    })
+
+
 @blueprint.post("/devolver_material")
 @token_required
 def devolver_material_mobile(current_user: Usuario):
@@ -2324,18 +2365,24 @@ def devolver_material_mobile(current_user: Usuario):
         if not codigo:
             return jsonify({"success": False, "message": "Código do item é obrigatório"}), 400
 
+        # Devolução fracionada pelo app (26/11/2026). Pedido do usuário: "se devolver uma lata de tinta pela
+        # metade, tenho que pôr que foi metade". Item em litro, quilo ou metro aceita fração (a lata de 18 L
+        # pela metade chega aqui como 9, na unidade base do item); unidade e ferramenta seguem inteiras.
         try:
-            quantidade_int = int(quantidade)
-            if quantidade_int <= 0:
+            quantidade_num = float(str(quantidade).strip().replace(",", "."))
+            if not (quantidade_num > 0) or quantidade_num == float("inf"):
                 raise ValueError()
         except (ValueError, TypeError):
             return jsonify({"success": False, "message": "Quantidade inválida"}), 400
+        quantidade_int = int(round(quantidade_num))
 
         item = Item.query.filter(Item.codigo_item == codigo).first()
         if not item:
             return jsonify({"success": False, "message": "Item não encontrado"}), 404
 
         categoria = (item.categoria or "").strip().lower()
+        if "ferrament" in categoria and abs(quantidade_num - quantidade_int) > 1e-9:
+            return jsonify({"success": False, "message": "Ferramenta volta em unidades inteiras."}), 400
 
         devolvedor_user = current_user
         if matricula_devolvedor and matricula_devolvedor != current_user.matricula:
@@ -2422,10 +2469,24 @@ def devolver_material_mobile(current_user: Usuario):
                 },
             }), 201
 
+        unidade_devolucao = inventory_service._get_default_material_return_unit_code(item)
+        unidade_app = inventory_service._normalize_material_return_unit_code(data.get("unidade"))
+        if unidade_app and unidade_app != unidade_devolucao:
+            quantidade_num = inventory_service._convert_material_quantity_between_units(
+                item=item, quantity=quantidade_num, from_unit=unidade_app, to_unit=unidade_devolucao
+            )
+            if quantidade_num <= 0:
+                return jsonify({"success": False, "message": "Unidade de devolução inválida para este item."}), 400
+        quantidade_num = round(quantidade_num, 6)
+        unit_meta = inventory_service._build_material_return_unit_meta(unidade_devolucao)
+        if not unit_meta["allow_decimal"] and abs(quantidade_num - round(quantidade_num)) > 1e-6:
+            return jsonify({"success": False, "message": "Este item volta em quantidade inteira."}), 400
+
         evento = inventory_service.registrar_devolucao_material(
             codigo=item.codigo_item,
-            quantidade=quantidade_int,
+            quantidade=quantidade_num if unit_meta["allow_decimal"] else round(quantidade_num),
             matricula=devolvedor_user.matricula,
+            from_unit=unidade_devolucao,
             observacao=None,
             commit=True,
         )
