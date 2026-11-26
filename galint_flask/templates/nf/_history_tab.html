@@ -213,6 +213,7 @@
                                     <td>{{ item.codigo }}</td>
                                     <td>
                                         {{ item.descricao }}
+                                        {% if item.descricao_nf %}<div class="small text-muted">na NF: {{ item.descricao_nf }}</div>{% endif %}
                                         <div class="small text-muted">{{ item.status_processamento|default('pendente', true)|replace('_', ' ')|title }}</div>
                                     </td>
                                     <td>{{ item.quantidade|number_br(2, True) }}</td>

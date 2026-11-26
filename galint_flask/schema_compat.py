@@ -60,6 +60,15 @@ RUNTIME_SCHEMA_COMPAT_RULES: tuple[SchemaCompatRule, ...] = (
             """,
         ),
     ),
+    # Nome e código do produto como vieram na NF (26/11/2026), ao lado do nome do item no GALINT.
+    SchemaCompatRule(
+        table_name="entrada_documento_itens",
+        required_columns=("descricao_nf", "codigo_nf"),
+        ddl_statements=(
+            "ALTER TABLE entrada_documento_itens ADD COLUMN IF NOT EXISTS descricao_nf varchar(255)",
+            "ALTER TABLE entrada_documento_itens ADD COLUMN IF NOT EXISTS codigo_nf varchar(60)",
+        ),
+    ),
     SchemaCompatRule(
         table_name="saidas",
         required_columns=(

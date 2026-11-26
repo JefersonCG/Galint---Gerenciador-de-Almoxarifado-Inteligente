@@ -7309,6 +7309,8 @@
                 escapeHtml(registro?.fornecedor_nome || registro?.cnpj_emitente || ''),
                 escapeHtml(registro?.quantidade_documento_display || ''),
                 emissao && emissao !== entrada ? `emissão ${emissao}` : '',
+                // Nome do produto na NF, quando é outro (26/11/2026).
+                registro?.descricao_nf ? `na NF: ${escapeHtml(registro.descricao_nf)}` : '',
             ].filter(Boolean).join(' · ');
             return `
                 <div class="galint-compra">

@@ -6725,6 +6725,7 @@ class InventoryService:
             return []
 
         from .finance_service import FinanceService, _build_document_item_display_metadata
+        from .nome_na_nf import nome_diferente, nome_na_nf_da_linha
 
         document_query = (
             DocumentoEntradaEstoqueItem.query
@@ -6752,11 +6753,14 @@ class InventoryService:
             display = _build_document_item_display_metadata(row)
             supplier_name = document.fornecedor.nome_exibicao() if document.fornecedor else document.nome_emitente()
             document_number = FinanceService.normalize_manual_internal_document_number(document.numero_documento)
+            descricao_nf = nome_na_nf_da_linha(row, document)
 
             history.append(
                 {
                     "id": row.id_documento_item,
                     "documento_id": document.id_documento,
+                    # Nome do produto na NF, quando é outro (26/11/2026): "CX INSP … (NF) = CAIXA DE PASSAGEM 20X20".
+                    "descricao_nf": descricao_nf if nome_diferente(descricao_nf, row.item.descricao if row.item else "") else None,
                     "tipo_documento": document.tipo_documento,
                     "numero_documento": document_number,
                     "fornecedor_nome": supplier_name,

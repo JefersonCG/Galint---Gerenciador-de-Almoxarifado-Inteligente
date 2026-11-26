@@ -22,6 +22,7 @@ from ..extensions import db
 from ..models import Item, NFLeitura
 from ..services import nf_leitura_service as service
 from ..services import nf_ocr
+from ..services.nome_na_nf import nome_na_nf
 
 blueprint = Blueprint("nf_leitura", __name__, url_prefix="/nf/leitura")
 
@@ -118,6 +119,12 @@ def conferir(reading_id: int):
     for sugestao in sugestoes:
         sugestao.update(packaging_proof_fields(modelos.get(str(sugestao.get("codigo") or ""))))
     parecidas = [] if result.get("lancamento", {}).get("linhas") else service.documentos_parecidos(result)
+    # Nome do produto na NF, sem o que o PDF junta ("- EAN … - Cód. Forn …"), e o EAN dele (26/11/2026).
+    from ..services.nome_na_nf import ean_na_nf
+
+    for item in result.get("itens", []):
+        item["nome_nf"] = nome_na_nf(item.get("descricao")) or item.get("descricao")
+        item["ean_nf"] = ean_na_nf(item.get("descricao"))
     return render_template(
         "nf/leitura_conferir.html",
         reading=reading,
@@ -162,7 +169,9 @@ def lancar(reading_id: int):
                 "incluir": bool(form.get(f"incluir_{n}")),
                 "acao": acao,
                 "codigo_item": codigo_item,
-                "descricao": form.get(f"descricao_{n}") or item.get("descricao"),
+                # descricao = nome no GALINT (só vale para item novo); descricao_nf = como está na NF.
+                "descricao": form.get(f"descricao_{n}") or nome_na_nf(item.get("descricao")) or item.get("descricao"),
+                "descricao_nf": item.get("descricao"),
                 "unidade_nf": form.get(f"unidade_{n}") or item.get("unidade"),
                 "quantidade": nf_ocr.parse_number(form.get(f"quantidade_{n}")) or 0,
                 "valor_unitario": nf_ocr.parse_number(form.get(f"valor_unitario_{n}")),

@@ -68,6 +68,7 @@ from ..models import (
 )
 from ..utils.time_service import TimeService
 from . import nf_ocr
+from .nome_na_nf import nome_na_nf
 
 logger = logging.getLogger(__name__)
 
@@ -607,7 +608,7 @@ def entradas_anteriores(codigo: str) -> dict[str, Any]:
     codigo = str(codigo or "").strip()
     item = db.session.get(Item, codigo) if codigo else None
     if item is None:
-        return {"codigo": codigo, "saldo": 0.0, "unidade": "", "entradas": []}
+        return {"codigo": codigo, "descricao": "", "saldo": 0.0, "unidade": "", "entradas": []}
     unidade = _UNIT_SHORT.get(str(item.unidade or "").strip().lower(), str(item.unidade or "").strip().lower())
     saldo = float(
         db.session.query(db.func.coalesce(db.func.sum(StockMovement.quantity_base), 0.0))
@@ -667,7 +668,7 @@ def entradas_anteriores(codigo: str) -> dict[str, Any]:
             "disponivel": round(disponivel, 6),
             "origem": origem,
         })
-    return {"codigo": codigo, "saldo": round(saldo, 6), "unidade": unidade, "entradas": entradas}
+    return {"codigo": codigo, "descricao": item.descricao or "", "saldo": round(saldo, 6), "unidade": unidade, "entradas": entradas}
 
 
 def lancar_leitura(reading: NFLeitura, header: dict[str, Any], lines: list[dict[str, Any]], *, usuario: str | None, usuario_nome: str | None = None) -> dict[str, Any]:
@@ -784,6 +785,10 @@ def lancar_leitura(reading: NFLeitura, header: dict[str, Any], lines: list[dict[
         )
         document_item = registered.get("document_item")
         documento = registered.get("document") or documento
+        if document_item is not None:
+            # O nome da NF fica na NF; o item segue com o nome do GALINT (26/11/2026).
+            document_item.descricao_nf = nome_na_nf(line.get("descricao_nf"))[:255] or None
+            document_item.codigo_nf = str(line.get("codigo_fornecedor") or "").strip()[:60] or None
         anterior = ja_no_estoque.get(line["n"])
         if anterior is not None and document_item is not None and document_item.stock_movement_id is None:
             # Já estava no estoque: a linha fica ligada à entrada antiga e não soma de novo.
@@ -847,7 +852,7 @@ def lancar_leitura(reading: NFLeitura, header: dict[str, Any], lines: list[dict[
             from .item_ultima_compra import record_item_last_purchase
 
             record_item_last_purchase(db.session.get(Item, codigo), documento, document_item, actor=usuario)
-        _remember_link(cnpj, line.get("codigo_fornecedor") or "", line.get("descricao") or "", codigo, usuario)
+        _remember_link(cnpj, line.get("codigo_fornecedor") or "", line.get("descricao_nf") or line.get("descricao") or "", codigo, usuario)
         (novos if novo else documentados if anterior is not None else existentes).append(codigo)
         launched.append(line["n"])
         result["lancamento"] = {"linhas": launched}

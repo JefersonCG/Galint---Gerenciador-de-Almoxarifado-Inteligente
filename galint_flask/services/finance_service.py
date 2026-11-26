@@ -1581,6 +1581,8 @@ class FinanceService:
 
     @staticmethod
     def _serialize_stock_document(document: DocumentoEntradaEstoque) -> dict[str, Any]:
+        from .nome_na_nf import nome_diferente, nome_na_nf_da_linha
+
         items: list[dict[str, Any]] = []
         total_quantidade = 0.0
         total_valor = 0.0
@@ -1588,6 +1590,8 @@ class FinanceService:
             line_total = float(row.valor_total or 0)
             total_quantidade += float(row.quantidade or 0)
             total_valor += line_total
+            descricao_galint = row.item.descricao if row.item else ""
+            descricao_nf = nome_na_nf_da_linha(row, document)
             items.append(
                 {
                     "id": row.id_documento_item,
@@ -1595,7 +1599,10 @@ class FinanceService:
                     "stock_movement_id": row.stock_movement_id,
                     "operation_log_id": row.operation_log_id,
                     "codigo": row.codigo_item,
-                    "descricao": row.item.descricao if row.item else "",
+                    "descricao": descricao_galint,
+                    # Como o produto está na NF, quando a NF chama de outro jeito (26/11/2026).
+                    "descricao_nf": descricao_nf if nome_diferente(descricao_nf, descricao_galint) else None,
+                    "codigo_nf": getattr(row, "codigo_nf", None),
                     "quantidade": row.quantidade,
                     "valor_unitario": row.valor_unitario,
                     "valor_total": row.valor_total,

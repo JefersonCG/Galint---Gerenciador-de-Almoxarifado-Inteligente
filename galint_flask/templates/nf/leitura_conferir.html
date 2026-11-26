@@ -88,11 +88,14 @@
                         {% for item in items %}
                         {% set n = item.n %}
                         {% set done = n in launched %}
-                        <tr data-line="{{ n }}" data-nf-total="{{ item.valor_total if item.valor_total is not none else '' }}">
+                        {# Nome na NF × nome no GALINT (26/11/2026): à esquerda o produto como está na NF, fixo; o nome do
+                           GALINT é o do item escolhido, ou o campo "Nome no GALINT" quando é item novo. #}
+                        {% set nome_nf = (item.nome_nf or item.descricao or '')|upper %}
+                        <tr data-line="{{ n }}" data-nf-total="{{ item.valor_total if item.valor_total is not none else '' }}" data-nome-nf="{{ nome_nf }}">
                             <td><input class="form-check-input" type="checkbox" name="incluir_{{ n }}" value="1" {% if not done %}checked{% else %}disabled{% endif %} aria-label="Lançar item {{ n }}"></td>
                             <td>
-                                <input class="form-control form-control-sm" name="descricao_{{ n }}" value="{{ item.descricao|upper }}" {% if done %}disabled{% endif %}{% if endpoint_exists('item_grupos.nomes') %} data-nome-padrao="{{ url_for('item_grupos.nomes') }}"{% endif %}>
-                                <div class="small text-muted">{% if item.codigo %}cód. {{ item.codigo }}{% endif %}{% if item.ncm %} · NCM {{ item.ncm }}{% endif %}{% if done %} · <span class="text-success">lançado</span>{% endif %}</div>
+                                <div class="fw-semibold small">{{ nome_nf }}</div>
+                                <div class="small text-muted">{% if item.codigo %}cód. {{ item.codigo }}{% endif %}{% if item.ncm %} · NCM {{ item.ncm }}{% endif %}{% if item.ean_nf %} · EAN {{ item.ean_nf }}{% endif %}{% if done %} · <span class="text-success">lançado</span>{% endif %}</div>
                             </td>
                             <td><input class="form-control form-control-sm" name="unidade_{{ n }}" value="{{ item.unidade or '' }}" {% if done %}disabled{% endif %}></td>
                             <td><input class="form-control form-control-sm text-end" name="quantidade_{{ n }}" inputmode="decimal" value="{{ qty(item.quantidade) }}" data-role="qty" {% if done %}disabled{% endif %}></td>
@@ -107,6 +110,8 @@
                                     <option value="outro">Outro item…</option>
                                 </select>
                                 <input class="form-control form-control-sm mt-1 d-none" name="outro_{{ n }}" list="nfItemSearchList" placeholder="Código ou nome" data-role="outro" autocomplete="off">
+                                <div class="small fw-semibold mt-1 d-none" data-role="nome-item"></div>
+                                <input class="form-control form-control-sm mt-1{% if item.acao != 'novo' %} d-none{% endif %}" name="descricao_{{ n }}" value="{{ nome_nf }}" placeholder="Nome no GALINT" aria-label="Nome no GALINT do item {{ n }}" data-role="nome-galint" {% if done %}disabled{% elif item.acao == 'novo' %}required{% endif %}{% if endpoint_exists('item_grupos.nomes') %} data-nome-padrao="{{ url_for('item_grupos.nomes') }}"{% endif %}>
                                 <div class="small mt-1" data-role="prova"></div>
                                 {% if endpoint_exists('nf_leitura.estoque_do_item') %}
                                 <div class="d-none align-items-center gap-2 mt-1" data-role="estoque-box">
@@ -271,6 +276,11 @@
         const box = row.querySelector('[data-role="estoque-box"]');
         const select = row.querySelector('[data-role="estoque"]');
         row.querySelector('[data-role="saldo"]').textContent = `Saldo ${num(data.saldo)} ${data.unidade}`.trim();
+        // "Outro item…" mostra só o código no campo: o nome do GALINT aparece embaixo.
+        const nomeItem = row.querySelector('[data-role="nome-item"]');
+        const isOther = row.querySelector('[data-role="acao"]').value === 'outro';
+        nomeItem.textContent = isOther ? (data.descricao || '') : '';
+        nomeItem.classList.toggle('d-none', !(isOther && data.descricao));
         select.innerHTML = '<option value="">Entrar no estoque</option>';
         data.entradas.forEach((entry) => {
             const option = document.createElement('option');
@@ -322,11 +332,16 @@
     });
     form.addEventListener('change', (event) => {
         if (event.target.matches('[data-role="acao"]')) {
-            const other = event.target.closest('td').querySelector('[data-role="outro"]');
+            const cell = event.target.closest('td');
+            const other = cell.querySelector('[data-role="outro"]');
             const isOther = event.target.value === 'outro';
             other.classList.toggle('d-none', !isOther);
             other.required = isOther;
             if (isOther) other.focus();
+            const nomeGalint = cell.querySelector('[data-role="nome-galint"]');
+            nomeGalint.classList.toggle('d-none', event.target.value !== 'novo');
+            nomeGalint.required = event.target.value === 'novo';
+            if (!isOther) cell.querySelector('[data-role="nome-item"]').classList.add('d-none');
         }
         if (event.target.matches('[data-role="estoque"]')) {
             const row = event.target.closest('tr[data-line]');
@@ -348,7 +363,7 @@
             const qty = parse(row.querySelector('[data-role="qty"]').value);
             const price = parse(row.querySelector('[data-role="price"]').value);
             if (Number.isFinite(qty * price)) sum += qty * price;
-            const label = row.querySelector('input[name^="descricao_"]').value;
+            const label = row.dataset.nomeNf || row.querySelector('input[name^="descricao_"]').value;
             const stock = row.querySelector('[data-role="estoque"]');
             if (stock && stock.value && !stock.closest('[data-role="estoque-box"]').classList.contains('d-none') && !stock.classList.contains('d-none')) {
                 lines.push({ label, stockText: `${stock.selectedOptions[0].textContent}: não soma de novo`, moneyText: '' });

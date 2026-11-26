@@ -994,6 +994,9 @@ class DocumentoEntradaEstoqueItem(db.Model):
     lote: Mapped[str | None] = mapped_column(String(50), nullable=True)
     data_validade: Mapped[date | None] = mapped_column(Date, nullable=True)
     observacao: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Nome e código do produto como vieram na NF (26/11/2026): o item tem o nome do GALINT; a NF, o dela.
+    descricao_nf: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    codigo_nf: Mapped[str | None] = mapped_column(String(60), nullable=True)
     status_processamento: Mapped[str] = mapped_column(String(30), nullable=False, default="pendente", index=True)
     processado_em: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     erro_processamento: Mapped[str | None] = mapped_column(Text, nullable=True)
