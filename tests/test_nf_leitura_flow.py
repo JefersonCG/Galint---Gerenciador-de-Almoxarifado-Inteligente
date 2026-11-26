@@ -227,6 +227,24 @@ def test_reading_waiting_for_review_becomes_proof_when_the_nf_enters_first(clien
     assert DocumentoEntradaEstoque.query.count() == 1
 
 
+def test_copy_saved_before_the_rule_becomes_duplicate_on_the_list(client):
+    """Cópia guardada pela regra antiga (2ª "arquivada" do mesmo documento, como a cópia de teste da NF 28498):
+    ao abrir a lista vira "Já consta no sistema"; a lançada continua sendo a NF física."""
+    from galint_flask.services import nf_leitura_service as service
+
+    first = _send_sample(client)
+    client.post(f"/nf/leitura/{first.id}/lancar", data=_launch_form(first))
+    documento = DocumentoEntradaEstoque.query.one()
+    copia = _send_sample(client)
+    NFLeitura.query.filter_by(id=copia.id).update({"status": "arquivada", "documento_id": documento.id_documento, "mensagem": None})
+    db.session.commit()
+
+    service.listar_leituras()
+    assert db.session.get(NFLeitura, first.id).status == "lancada"
+    marcada = db.session.get(NFLeitura, copia.id)
+    assert marcada.status == "duplicada" and "NF 12345" in marcada.mensagem and "já consta no sistema" in marcada.mensagem
+
+
 def test_same_nf_sent_again_warns_that_it_is_already_there(client):
     """Pedido do usuário (26/11/2026): "o sistema não pode duplicar NF ao ler se for colocada por engano; tem que
     avisar que aquela NF já consta no sistema". Mesmo arquivo: nem entra. Outro arquivo da mesma NF: aviso."""

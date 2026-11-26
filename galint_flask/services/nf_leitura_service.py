@@ -628,9 +628,34 @@ def _resume_interrupted_readings() -> None:
         agendar_leitura(reading_id)
 
 
+def _marcar_copias_guardadas() -> None:
+    """Cópias guardadas antes da regra de 26/11/2026 (2ª NF física do mesmo documento, como a cópia de teste da
+    NF 28498) viram "duplicada". Fica a lançada ou, sem ela, a mais antiga; nunca mexe numa lançada."""
+    provas = (
+        NFLeitura.query.filter(NFLeitura.status.in_(PROOF_STATUSES), NFLeitura.documento_id.isnot(None))
+        .order_by(NFLeitura.id)
+        .all()
+    )
+    por_documento: dict[int, list[NFLeitura]] = {}
+    for prova in provas:
+        por_documento.setdefault(int(prova.documento_id), []).append(prova)
+    mudou = False
+    for lista in por_documento.values():
+        if len(lista) < 2:
+            continue
+        original = next((prova for prova in lista if prova.status == "lancada"), lista[0])
+        for prova in lista:
+            if prova is not original and prova.status == "arquivada":
+                _marcar_duplicada(prova, original, prova.documento_id)
+                mudou = True
+    if mudou:
+        db.session.commit()
+
+
 def listar_leituras(limit: int = 60) -> list[NFLeitura]:
     """Leituras ainda não descartadas, mais novas primeiro."""
     _resume_interrupted_readings()
+    _marcar_copias_guardadas()
     return (
         NFLeitura.query.filter(NFLeitura.status != "descartada")
         .order_by(NFLeitura.criado_em.desc(), NFLeitura.id.desc())
