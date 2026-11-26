@@ -3223,7 +3223,8 @@ def excluir_item_documento_por_erro_digitacao(documento_id: int, documento_item_
         return redirect(_redirect_to_nf_context(numero_documento=numero_documento, fallback_tab="historico"))
 
     flash(
-        f"Item {codigo_item} removido do documento fiscal {numero_documento} por erro de digitação, com estorno do estoque.",
+        f"Item {codigo_item} removido do documento fiscal {numero_documento} por erro de digitação"
+        + (", com estorno do estoque." if reversal_result.get("reversed") else "; o estoque não mudou (o item já estava no estoque antes da NF)."),
         "success",
     )
     return redirect(_redirect_to_nf_context(numero_documento=numero_documento, fallback_tab="processaveis"))

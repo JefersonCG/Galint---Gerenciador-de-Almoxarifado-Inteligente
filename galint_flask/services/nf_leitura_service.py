@@ -29,6 +29,11 @@ Fluxo:
      entra quando o pré-cadastro é concluído na página do item (categoria, unidade básica, quantidade e
      valores), como já acontece com item novo vindo de NF;
    - linha ligada a item existente: registra a linha e dá entrada no estoque, como "Lançar entrada com NF".
+   - linha ligada a item existente que JÁ ESTAVA NO ESTOQUE (pedido do usuário em 26/11/2026): muitas NFs
+     só chegaram em PDF agora, e os produtos delas entraram antes sem NF (entrada antiga, NOTA INTERNA ou
+     ajuste da conferência). A conferência mostra o saldo e essas entradas (entradas_anteriores); a
+     escolhida fica ligada à linha da NF (stock_movement_id) e NÃO entra de novo: a NF fica documentada
+     (financeiro e última compra) e o "Para onde foi" parte daquela entrada.
    Também registra o financeiro de cada linha e guarda o vínculo fornecedor+código → item para a próxima
    NF. Não manda aviso de item novo pelo Telegram (uma NF grande mandaria dezenas).
 """
@@ -51,7 +56,16 @@ from typing import Any
 from flask import current_app
 
 from ..extensions import db
-from ..models import DocumentoEntradaEstoque, FinanceSupplier, Item, NFItemVinculo, NFLeitura
+from ..models import (
+    DocumentoEntradaEstoque,
+    DocumentoEntradaEstoqueItem,
+    Entrada,
+    FinanceSupplier,
+    Item,
+    NFItemVinculo,
+    NFLeitura,
+    StockMovement,
+)
 from ..utils.time_service import TimeService
 from . import nf_ocr
 
@@ -203,6 +217,26 @@ def _existing_document(header: dict[str, Any], supplier: FinanceSupplier | None)
             .first()
         )
     return None
+
+
+_FILE_NUMBER = re.compile(r"(?<![A-Z])NF\W{0,3}(\d{3,9})(?!\d)", re.IGNORECASE)
+
+
+def numero_do_arquivo(nome: str | None) -> str | None:
+    """Número da NF escrito no nome do arquivo ("OBRAMAX NF 226340 R$ 531,37.pdf", "NF.202472", "NF4002").
+
+    Caso de 26/11/2026: o PDF da NF 226340 não deixou ler o número nem a chave, a NF já estava no GALINT
+    (documento 113) e a conferência ia lançar 7 bombonas de novo. Com o número do arquivo e o fornecedor
+    pelo CNPJ, a leitura acha o documento e vira a NF física dele."""
+    match = _FILE_NUMBER.search(str(nome or ""))
+    return match.group(1).lstrip("0") or None if match else None
+
+
+def _header_with_file_number(header: dict[str, Any], arquivo_nome: str | None) -> dict[str, Any]:
+    if str(header.get("numero") or "").strip():
+        return header
+    numero = numero_do_arquivo(arquivo_nome)
+    return {**header, "numero": numero} if numero else header
 
 
 SAME_PURCHASE_DAYS = 3
@@ -423,7 +457,9 @@ def processar_leitura(reading_id: int) -> None:
     previous_launch = load_result(reading).get("lancamento") or {}
     try:
         data = reading_file_path(reading).read_bytes()
-        result = enrich_reading(nf_ocr.read_and_parse(data, reading.arquivo_nome))
+        parsed = nf_ocr.read_and_parse(data, reading.arquivo_nome)
+        parsed["cabecalho"] = _header_with_file_number(parsed.get("cabecalho") or {}, reading.arquivo_nome)
+        result = enrich_reading(parsed)
         if previous_launch:
             result["lancamento"] = previous_launch
         header = result["cabecalho"]
@@ -455,7 +491,7 @@ def verificar_nf_existente(reading: NFLeitura) -> dict[str, Any] | None:
     result = load_result(reading)
     if (result.get("lancamento") or {}).get("linhas"):
         return None
-    header = result.get("cabecalho") or {}
+    header = _header_with_file_number(result.get("cabecalho") or {}, reading.arquivo_nome)
     existing = _existing_document(header, _supplier_by_cnpj(header.get("cnpj_emitente")))
     if existing is None:
         return None
@@ -553,6 +589,87 @@ def _remember_link(cnpj: str, supplier_code: str, description: str, item_code: s
     db.session.commit()
 
 
+_UNIT_SHORT = {"quilo": "kg", "litro": "L", "metro": "m", "unidade": "un", "par": "par", "rolo": "rolo"}
+_AJUSTE_REFS = {"inventario_evento", "admin_balance_override"}
+
+
+def entradas_anteriores(codigo: str) -> dict[str, Any]:
+    """Saldo do item e as entradas dele que nenhuma NF documenta ainda (26/11/2026).
+
+    Pedido do usuário: "verifique quantos daquele produto temos em estoque antes de lançar a mesma
+    quantidade que anteriormente já tinha sido posta". Entra na lista o que somou estoque sem NF:
+    - entrada antiga (tabela entradas, de antes dos documentos fiscais);
+    - linha de documento "manual" (NOTA INTERNA, sem NF);
+    - ajuste para mais (conferência física, saldo corrigido pelo administrador).
+    Entrada de NF ou cupom já é documentada e fica fora. Cada entrada mostra quanto ainda não foi coberto
+    por NF ("disponivel"), porque uma entrada antiga grande pode ser a soma de várias compras.
+    """
+    codigo = str(codigo or "").strip()
+    item = db.session.get(Item, codigo) if codigo else None
+    if item is None:
+        return {"codigo": codigo, "saldo": 0.0, "unidade": "", "entradas": []}
+    unidade = _UNIT_SHORT.get(str(item.unidade or "").strip().lower(), str(item.unidade or "").strip().lower())
+    saldo = float(
+        db.session.query(db.func.coalesce(db.func.sum(StockMovement.quantity_base), 0.0))
+        .filter(StockMovement.product_id == codigo)
+        .scalar()
+        or 0.0
+    )
+    movements = (
+        StockMovement.query.filter(
+            StockMovement.product_id == codigo,
+            StockMovement.quantity_base > 0,
+            StockMovement.movement_type.in_(("entrada", "ajuste")),
+        )
+        .order_by(StockMovement.created_at.desc(), StockMovement.id.desc())
+        .all()
+    )
+    rows = (
+        db.session.query(DocumentoEntradaEstoqueItem, DocumentoEntradaEstoque.tipo_documento, DocumentoEntradaEstoque.numero_documento)
+        .join(DocumentoEntradaEstoque, DocumentoEntradaEstoque.id_documento == DocumentoEntradaEstoqueItem.documento_id)
+        .filter(DocumentoEntradaEstoqueItem.codigo_item == codigo)
+        .all()
+    )
+    by_line = {str(row.id_documento_item): (tipo, numero) for row, tipo, numero in rows}
+    covered: dict[int, float] = {}
+    for row, tipo, _numero in rows:
+        if tipo != "manual" and row.stock_movement_id is not None:
+            covered[row.stock_movement_id] = covered.get(row.stock_movement_id, 0.0) + float(row.quantidade_base or row.quantidade or 0)
+    legacy_ids = [int(m.reference_id) for m in movements if m.reference_type == "entrada" and str(m.reference_id or "").isdigit()]
+    legacy_nf = {
+        entrada.id_entrada: str(entrada.nota_fiscal or "").strip()
+        for entrada in (Entrada.query.filter(Entrada.id_entrada.in_(legacy_ids)).all() if legacy_ids else [])
+    }
+
+    entradas = []
+    for movement in movements:
+        reference = movement.reference_type or ""
+        if reference == "entrada_documento_item":
+            tipo, numero = by_line.get(str(movement.reference_id), (None, None))
+            if tipo != "manual":
+                continue  # entrada de NF ou cupom: já documentada
+            origem = "NOTA INTERNA" if str(numero or "").strip().upper() == "NOTA INTERNA" else f"SEM NF {numero or ''}".strip()
+        elif reference == "entrada":
+            nf_antiga = legacy_nf.get(int(movement.reference_id)) if str(movement.reference_id or "").isdigit() else ""
+            origem = f"ENTRADA ANTIGA · NF {nf_antiga}" if nf_antiga and nf_antiga.upper() not in {"SEM NF", "NOTA INTERNA"} else "ENTRADA ANTIGA"
+        elif movement.movement_type == "ajuste" and reference in _AJUSTE_REFS:
+            origem = "AJUSTE"
+        else:
+            continue
+        quantidade = float(movement.quantity_base or 0)
+        disponivel = quantidade - covered.get(movement.id, 0.0)
+        if disponivel <= 1e-6:
+            continue
+        entradas.append({
+            "id": movement.id,
+            "data": movement.created_at.date().isoformat() if movement.created_at else None,
+            "quantidade": round(quantidade, 6),
+            "disponivel": round(disponivel, 6),
+            "origem": origem,
+        })
+    return {"codigo": codigo, "saldo": round(saldo, 6), "unidade": unidade, "entradas": entradas}
+
+
 def lancar_leitura(reading: NFLeitura, header: dict[str, Any], lines: list[dict[str, Any]], *, usuario: str | None, usuario_nome: str | None = None) -> dict[str, Any]:
     """Lança as linhas conferidas. Linhas já lançadas numa tentativa anterior são puladas."""
     from .category_catalog import DEFAULT_INVENTORY_CATEGORY_NAME, category_catalog_service
@@ -575,12 +692,22 @@ def lancar_leitura(reading: NFLeitura, header: dict[str, Any], lines: list[dict[
     selected = [line for line in lines if line.get("incluir")]
     if not selected:
         raise ValueError("Marque ao menos um item para lançar.")
+    ja_no_estoque: dict[int, StockMovement] = {}
     for line in selected:
         if not (float(line.get("quantidade") or 0) > 0):
             raise ValueError(f"Item {line['n']}: informe a quantidade.")
         if line.get("acao") != "novo":
             if not line.get("codigo_item") or db.session.get(Item, line["codigo_item"]) is None:
                 raise ValueError(f"Item {line['n']}: item do GALINT não encontrado.")
+            movimento_id = line.get("movimento_existente")
+            if movimento_id:
+                disponiveis = {row["id"] for row in entradas_anteriores(line["codigo_item"])["entradas"]}
+                movimento = db.session.get(StockMovement, int(movimento_id))
+                if movimento is None or movimento.id not in disponiveis:
+                    raise ValueError(f"Item {line['n']}: a entrada escolhida em \"Estoque\" não está mais livre; confira de novo.")
+                if any(other.id == movimento.id for other in ja_no_estoque.values()):
+                    raise ValueError(f"Item {line['n']}: a mesma entrada antiga foi escolhida em duas linhas.")
+                ja_no_estoque[line["n"]] = movimento
         elif not str(line.get("descricao") or "").strip():
             raise ValueError(f"Item {line['n']}: informe a descrição.")
 
@@ -604,6 +731,7 @@ def lancar_leitura(reading: NFLeitura, header: dict[str, Any], lines: list[dict[
 
     novos: list[str] = []
     existentes: list[str] = []
+    documentados: list[str] = []
     warnings: list[str] = []
     documento = None
     for line in selected:
@@ -656,6 +784,16 @@ def lancar_leitura(reading: NFLeitura, header: dict[str, Any], lines: list[dict[
         )
         document_item = registered.get("document_item")
         documento = registered.get("document") or documento
+        anterior = ja_no_estoque.get(line["n"])
+        if anterior is not None and document_item is not None and document_item.stock_movement_id is None:
+            # Já estava no estoque: a linha fica ligada à entrada antiga e não soma de novo.
+            quando = anterior.created_at.strftime("%d/%m/%Y") if anterior.created_at else "antes"
+            document_item.stock_movement_id = anterior.id
+            document_item.status_processamento = "processado"
+            document_item.processado_em = TimeService.now_db()
+            document_item.erro_processamento = None
+            document_item.observacao = document_item.observacao or f"Já estava no estoque: entrada de {quando}."
+            db.session.commit()
         if novo and documento is not None and documento.movimenta_estoque and document_item is not None:
             item_model = db.session.get(Item, codigo)
             if item_model is not None:
@@ -692,7 +830,7 @@ def lancar_leitura(reading: NFLeitura, header: dict[str, Any], lines: list[dict[
             except Exception as exc:
                 logger.exception("Financeiro da NF lida %s, linha %s", reading.id, line["n"])
                 warnings.append(f"Item {line['n']}: lançado, mas o financeiro não foi registrado ({exc}).")
-            if not novo and documento.movimenta_estoque:
+            if not novo and anterior is None and documento.movimenta_estoque:
                 try:
                     finance_service.process_stock_document_entries(
                         documento.id_documento,
@@ -710,7 +848,7 @@ def lancar_leitura(reading: NFLeitura, header: dict[str, Any], lines: list[dict[
 
             record_item_last_purchase(db.session.get(Item, codigo), documento, document_item, actor=usuario)
         _remember_link(cnpj, line.get("codigo_fornecedor") or "", line.get("descricao") or "", codigo, usuario)
-        (novos if novo else existentes).append(codigo)
+        (novos if novo else documentados if anterior is not None else existentes).append(codigo)
         launched.append(line["n"])
         result["lancamento"] = {"linhas": launched}
         _save_result(reading, result)
@@ -732,7 +870,7 @@ def lancar_leitura(reading: NFLeitura, header: dict[str, Any], lines: list[dict[
     reading.status = "lancada"
     reading.documento_id = documento.id_documento if documento is not None else None
     reading.numero_documento = numero[:20]
-    result["lancamento"] = {"linhas": launched, "novos": novos, "existentes": existentes, "avisos": warnings}
+    result["lancamento"] = {"linhas": launched, "novos": novos, "existentes": existentes, "documentados": documentados, "avisos": warnings}
     _save_result(reading, result)
     db.session.commit()
-    return {"novos": novos, "existentes": existentes, "avisos": warnings, "numero": numero, "documento": documento}
+    return {"novos": novos, "existentes": existentes, "documentados": documentados, "avisos": warnings, "numero": numero, "documento": documento}

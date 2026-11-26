@@ -53,6 +53,21 @@ def test_review_page_renders_compact_form(env, result):
     assert '<option value="FITA001" data-fator="20.0" data-unidade-doc="rolo" data-unidade-base="Metro" data-converte="true" selected>FITA ISOLANTE 19MM 20M · 3M · Metro (81%)</option>' in html
     assert 'js/nf-prova-real.js' in html and 'data-role="prova"' in html  # prova real (24/11/2026)
     assert html.count("Item novo (pré-cadastro)") == 6
+    # Estoque (26/11/2026): saldo e "Já entrou …" por linha, preenchidos pela rota nf_leitura.estoque_do_item.
+    assert html.count('name="estoque_') == 6 and 'name="estoque_4"' in html
+    assert "/nf_leitura.estoque_do_item/__CODIGO__" in html
+
+
+def test_review_page_without_the_stock_route_before_the_restart(env, result):
+    reading = SimpleNamespace(id=7, arquivo_nome="nf.pdf")
+    env.globals["endpoint_exists"] = lambda endpoint: endpoint != "nf_leitura.estoque_do_item"
+    try:
+        html = env.get_template("nf/leitura_conferir.html").render(
+            reading=reading, result=result, header=result["cabecalho"], items=result["itens"], launched=set(), today="2026-11-26"
+        )
+    finally:
+        env.globals["endpoint_exists"] = lambda endpoint: True
+    assert 'name="estoque_' not in html and "const stockUrl = '';" in html
 
 
 def test_list_page_renders_statuses(env, result):

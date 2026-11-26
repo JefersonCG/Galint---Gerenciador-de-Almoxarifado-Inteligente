@@ -2355,6 +2355,26 @@ class FinanceService:
         if stock_movement is None:
             raise ValueError("Não foi possível localizar o movimento de estoque para estorno.")
 
+        # Linha de NF lançada pelo Ler NF como "já estava no estoque" (26/11/2026): aponta para a entrada
+        # antiga (sem NF, NOTA INTERNA ou ajuste), que não é dela. Excluir a linha não pode tirar do estoque
+        # o que entrou antes da NF.
+        own_movement = (
+            stock_movement.reference_type == "entrada_documento_item"
+            and str(stock_movement.reference_id or "") == str(item_row.id_documento_item)
+        )
+        if not own_movement:
+            return {
+                "success": True,
+                "reversed": False,
+                "documento_item_id": item_row.id_documento_item,
+                "stock_movement_id": None,
+                "operation_log_id": None,
+                "balance_before": None,
+                "balance_after": None,
+                "quantity_base": 0.0,
+                "unit_base": None,
+            }
+
         quantity_base = abs(float(stock_movement.quantity_base or 0.0))
         if quantity_base <= 0:
             raise ValueError("Quantidade inválida para estornar a exclusão do item.")

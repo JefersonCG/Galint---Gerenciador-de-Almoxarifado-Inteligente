@@ -108,6 +108,14 @@
                                 </select>
                                 <input class="form-control form-control-sm mt-1 d-none" name="outro_{{ n }}" list="nfItemSearchList" placeholder="Código ou nome" data-role="outro" autocomplete="off">
                                 <div class="small mt-1" data-role="prova"></div>
+                                {% if endpoint_exists('nf_leitura.estoque_do_item') %}
+                                <div class="d-none align-items-center gap-2 mt-1" data-role="estoque-box">
+                                    <select class="form-select form-select-sm" name="estoque_{{ n }}" data-role="estoque" aria-label="Estoque do item {{ n }}" {% if done %}disabled{% endif %}>
+                                        <option value="">Entrar no estoque</option>
+                                    </select>
+                                    <span class="small text-muted text-nowrap" data-role="saldo"></span>
+                                </div>
+                                {% endif %}
                             </td>
                         </tr>
                         {% endfor %}
@@ -223,12 +231,94 @@
         } catch (error) { /* busca opcional */ }
     }
 
+    // Estoque (26/11/2026): saldo do item e as entradas dele sem NF (entrada antiga, NOTA INTERNA, ajuste).
+    // Pedido do usuário: muitas NFs só chegaram em PDF agora e os produtos já tinham entrado; escolher
+    // "Já entrou …" liga a linha a essa entrada e a NF fica documentada sem somar de novo. A entrada com a
+    // mesma quantidade da linha vem escolhida sozinha.
+    {% if endpoint_exists('nf_leitura.estoque_do_item') %}
+    const stockUrl = {{ url_for('nf_leitura.estoque_do_item', codigo='__CODIGO__')|tojson }};
+    {% else %}
+    const stockUrl = '';
+    {% endif %}
+    const emissao = document.getElementById('nfEmissao');
+    const stockCache = {};
+    const num = (value) => Number(value).toLocaleString('pt-BR', { maximumFractionDigits: 3 });
+    const shortDate = (iso) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(2, 4)}` : '');
+
+    function rowCode(row) {
+        const select = row.querySelector('[data-role="acao"]');
+        if (!select || select.disabled || select.value === 'novo') return '';
+        if (select.value === 'outro') return (row.querySelector('[data-role="outro"]')?.value || '').trim();
+        return select.value;
+    }
+
+    function rowBaseQty(row) {
+        const proof = rowProof(row);
+        if (proof && proof.hasPackaging) return proof.baseQty;
+        return parse(row.querySelector('[data-role="qty"]').value);
+    }
+
+    function pickDefault(row, data) {
+        const wanted = rowBaseQty(row);
+        if (!Number.isFinite(wanted)) return '';
+        const day = Date.parse(emissao?.value || '') || Date.now();
+        const same = data.entradas.filter((entry) => Math.abs(Number(entry.disponivel) - wanted) < 1e-6);
+        same.sort((a, b) => Math.abs(Date.parse(a.data) - day) - Math.abs(Date.parse(b.data) - day));
+        return same.length ? String(same[0].id) : '';
+    }
+
+    function fillStock(row, data) {
+        const box = row.querySelector('[data-role="estoque-box"]');
+        const select = row.querySelector('[data-role="estoque"]');
+        row.querySelector('[data-role="saldo"]').textContent = `Saldo ${num(data.saldo)} ${data.unidade}`.trim();
+        select.innerHTML = '<option value="">Entrar no estoque</option>';
+        data.entradas.forEach((entry) => {
+            const option = document.createElement('option');
+            option.value = String(entry.id);
+            const resta = Number(entry.disponivel) < Number(entry.quantidade) - 1e-6 ? ` · resta ${num(entry.disponivel)}` : '';
+            option.textContent = `Já entrou ${shortDate(entry.data)} · +${num(entry.quantidade)} ${data.unidade} · ${entry.origem}${resta}`;
+            select.appendChild(option);
+        });
+        select.classList.toggle('d-none', data.entradas.length === 0);
+        if (row.dataset.stockTouched !== '1') select.value = pickDefault(row, data);
+        select.classList.toggle('text-success', select.value !== '');
+        box.classList.replace('d-none', 'd-flex');
+    }
+
+    async function loadStock(row) {
+        const box = row.querySelector('[data-role="estoque-box"]');
+        if (!box || !stockUrl) return;
+        const code = rowCode(row);
+        if (row.dataset.stockCode !== code) {
+            row.dataset.stockCode = code;
+            row.dataset.stockTouched = '';
+        }
+        if (!code) {
+            box.classList.replace('d-flex', 'd-none');
+            row.querySelector('[data-role="estoque"]').value = '';
+            return;
+        }
+        try {
+            if (!stockCache[code]) {
+                const response = await fetch(stockUrl.replace('__CODIGO__', encodeURIComponent(code)), { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
+                if (!response.ok) throw new Error(String(response.status));
+                stockCache[code] = await response.json();
+            }
+        } catch (error) {
+            box.classList.replace('d-flex', 'd-none');
+            return;
+        }
+        if (row.dataset.stockCode === code) fillStock(row, stockCache[code]);
+    }
+
     form.addEventListener('input', (event) => {
         if (event.target.matches('[data-role="outro"]')) {
             clearTimeout(searchTimer);
             searchTimer = setTimeout(() => search(event.target.value.trim()), 250);
         }
         recalc();
+        const row = event.target.closest('tr[data-line]');
+        if (row && event.target.matches('[data-role="qty"], [data-role="outro"]')) loadStock(row);
     });
     form.addEventListener('change', (event) => {
         if (event.target.matches('[data-role="acao"]')) {
@@ -238,9 +328,17 @@
             other.required = isOther;
             if (isOther) other.focus();
         }
+        if (event.target.matches('[data-role="estoque"]')) {
+            const row = event.target.closest('tr[data-line]');
+            row.dataset.stockTouched = '1';
+            event.target.classList.toggle('text-success', event.target.value !== '');
+        }
         recalc();
+        const row = event.target.closest('tr[data-line]');
+        if (row && event.target.matches('[data-role="acao"], [data-role="outro"]')) loadStock(row);
     });
     recalc();
+    form.querySelectorAll('tr[data-line]').forEach((row) => loadStock(row));
 
     window.GalintProvaReal?.guardSubmit(form, () => {
         const lines = [];
@@ -250,9 +348,15 @@
             const qty = parse(row.querySelector('[data-role="qty"]').value);
             const price = parse(row.querySelector('[data-role="price"]').value);
             if (Number.isFinite(qty * price)) sum += qty * price;
+            const label = row.querySelector('input[name^="descricao_"]').value;
+            const stock = row.querySelector('[data-role="estoque"]');
+            if (stock && stock.value && !stock.closest('[data-role="estoque-box"]').classList.contains('d-none') && !stock.classList.contains('d-none')) {
+                lines.push({ label, stockText: `${stock.selectedOptions[0].textContent}: não soma de novo`, moneyText: '' });
+                return;
+            }
             const proof = rowProof(row);
             if (proof && (proof.hasPackaging || proof.suspicious)) {
-                lines.push({ ...proof, label: row.querySelector('input[name^="descricao_"]').value });
+                lines.push({ ...proof, label });
             }
         });
         const nota = Number.isFinite(totalNota) ? ` (NF: ${brl(totalNota)})` : '';

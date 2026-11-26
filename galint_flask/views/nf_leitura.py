@@ -123,7 +123,7 @@ def conferir(reading_id: int):
         reading=reading,
         result=result,
         parecidas=parecidas,
-        header=result.get("cabecalho", {}),
+        header=service._header_with_file_number(result.get("cabecalho", {}), reading.arquivo_nome),
         items=result.get("itens", []),
         launched=set(result.get("lancamento", {}).get("linhas", [])),
         today=date.today().isoformat(),
@@ -155,6 +155,7 @@ def lancar(reading_id: int):
             acao = "existente"
         elif acao != "novo":
             codigo_item, acao = acao, "existente"
+        estoque = str(form.get(f"estoque_{n}") or "").strip()  # id da entrada antiga, ou vazio = entrar
         lines.append(
             {
                 "n": n,
@@ -166,6 +167,7 @@ def lancar(reading_id: int):
                 "quantidade": nf_ocr.parse_number(form.get(f"quantidade_{n}")) or 0,
                 "valor_unitario": nf_ocr.parse_number(form.get(f"valor_unitario_{n}")),
                 "codigo_fornecedor": item.get("codigo"),
+                "movimento_existente": int(estoque) if estoque.isdigit() and acao == "existente" else None,
             }
         )
     try:
@@ -174,12 +176,16 @@ def lancar(reading_id: int):
         flash(str(exc), "danger")
         return redirect(url_for("nf_leitura.conferir", reading_id=reading.id))
     novos, existentes = len(launched["novos"]), len(launched["existentes"])
+    documentados = len(launched.get("documentados", []))
     partes = []
     if novos:
         partes.append(f"{novos} item(ns) novo(s) no pré-cadastro")
     if existentes:
         partes.append(f"{existentes} com entrada no estoque")
-    flash(f"NF {launched['numero']} lançada: " + " e ".join(partes) + ".", "success")
+    if documentados:
+        partes.append(f"{documentados} já no estoque (só documentado{'s' if documentados > 1 else ''})")
+    resumo = partes[0] if len(partes) == 1 else ", ".join(partes[:-1]) + " e " + partes[-1]
+    flash(f"NF {launched['numero']} lançada: {resumo}.", "success")
     for warning in launched["avisos"]:
         flash(warning, "warning")
     if novos:
@@ -329,3 +335,11 @@ def buscar_itens():
                 found.append({"codigo": item.codigo, "descricao": item.descricao, "marca": item.marca, "unidade": item.unidade,
                               "fator_embalagem": item.fator_embalagem, "unidade_documental": item.unidade_documental})
     return jsonify(found[:10])
+
+
+@blueprint.get("/estoque/<path:codigo>")
+@login_required
+def estoque_do_item(codigo: str):
+    """Saldo do item e as entradas sem NF dele, para a coluna "Estoque" da conferência (26/11/2026)."""
+    _require_admin()
+    return jsonify(service.entradas_anteriores(codigo))
