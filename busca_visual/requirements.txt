@@ -1,0 +1,8 @@
+# Ambiente da busca visual (C:\ia-visual\venv, Python 3.10), separado do GALINT. Medido na Fase 0 em 26/11/2026.
+# torch e torchvision só para processador: pip install ... --index-url https://download.pytorch.org/whl/cpu
+torch==2.5.1
+torchvision==0.20.1
+transformers==4.46.3
+open_clip_torch==2.29.0
+pillow
+numpy
