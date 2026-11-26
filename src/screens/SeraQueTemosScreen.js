@@ -83,6 +83,7 @@ export default function SeraQueTemosScreen({ navigation, route }) {
     const [confirmado, setConfirmado] = useState(null);
     const consulta = useRef('');
     const vivo = useRef(true);
+    const foiRetirar = useRef(false);
     const ocupado = estado === 'capturando' || estado === 'enviando' || estado === 'preparando';
 
     useEffect(() => {
@@ -188,8 +189,17 @@ export default function SeraQueTemosScreen({ navigation, route }) {
 
     const retirar = useCallback((item) => {
         InactivityService.recordActivity();
+        foiRetirar.current = true;
         navigation.navigate('FilaSaida', { user, scannedItem: item });
     }, [navigation, user]);
+
+    // 2.5.2: voltou da Retirada, a busca anterior sai e a câmera abre limpa.
+    useEffect(() => {
+        if (isFocused && foiRetirar.current) {
+            foiRetirar.current = false;
+            novaFoto();
+        }
+    }, [isFocused, novaFoto]);
 
     if (estado === 'camera' || ocupado) {
         // Com a foto tirada, a imagem congela no visor (a câmera sai) e a tartaruga anda por cima.

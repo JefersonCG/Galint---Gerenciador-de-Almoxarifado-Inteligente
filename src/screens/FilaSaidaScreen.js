@@ -342,9 +342,25 @@ export default function FilaSaidaScreen({ navigation, route }) {
             if (ficam.length) restantes.push({ ...grupo, itens: ficam });
         }
         setGrupos(restantes);
-        await gravarFila(user, restantes, { retirante: canChoose ? retirante : null, local: localNorm });
+        const limpar = saiu.length > 0;
+        await gravarFila(user, restantes, limpar ? { retirante: null, local: '' } : { retirante: canChoose ? retirante : null, local: localNorm });
         setEnviando(false);
         SyncService.syncNow();
+        if (limpar) {
+            // 2.5.2 (pedido do usuário em 26/11/2026): formulário limpo depois de registrar a saída.
+            setLocal('');
+            setCodigoBusca('');
+            setSugestoes([]);
+            setItemAtual(null);
+            setQuantidade('1');
+            setModo('base');
+            setCustodia('temporaria');
+            if (canChoose) {
+                setRetirante(null);
+                setBusca('');
+                setMostrarLista(false);
+            }
+        }
 
         if (!saiu.length) {
             Alert.alert('Não saiu', falhas.slice(0, 4).join('\n') || 'Tente de novo.');

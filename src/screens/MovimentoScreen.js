@@ -33,6 +33,7 @@ export default function MovimentoScreen({ navigation, route }) {
     const [tab, setTab] = useState(route?.params?.tab || 'retirada');
     const [custody, setCustody] = useState({ visible: true, loading: false, groups: [], summary: EMPTY_SUMMARY, message: '' });
     const [returning, setReturning] = useState(false);
+    const [limpeza, setLimpeza] = useState(0); // muda depois de cada baixa: limpa a seleção da custódia
 
     useEffect(() => {
         if (route?.params?.tab) return;
@@ -121,6 +122,7 @@ export default function MovimentoScreen({ navigation, route }) {
         } finally {
             setReturning(false);
         }
+        setLimpeza((valor) => valor + 1);
         if (done > 0) loadCustody(true);
         if (!failures.length) {
             Alert.alert('Custódia do dia', done === 1 ? 'Ferramenta devolvida.' : `${done} ferramentas devolvidas.`);
@@ -204,6 +206,7 @@ export default function MovimentoScreen({ navigation, route }) {
                                 onReload={() => loadCustody(false)}
                                 onReturnSelectedPress={confirmReturn}
                                 onReturnAllPress={confirmReturn}
+                                resetKey={limpeza}
                             />
                         </View>
                     ) : null}

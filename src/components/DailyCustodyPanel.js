@@ -69,8 +69,14 @@ export default function DailyCustodyPanel({
     onReload,
     onReturnSelectedPress,
     onReturnAllPress,
+    resetKey = 0,
 }) {
     const [selectedToolKeys, setSelectedToolKeys] = useState({});
+
+    // 2.5.2: depois de dar baixa, nada fica marcado (pedido do usuário: formulários limpos após a devolução).
+    useEffect(() => {
+        setSelectedToolKeys({});
+    }, [resetKey]);
 
     useEffect(() => {
         setSelectedToolKeys((previousState) => {

@@ -235,7 +235,7 @@ export default function DevolverScreen({ navigation, route }) {
                 },
                 onFinish: () => {
                     setDone(null);
-                    navigation.navigate('Movimento', { user, tab: 'devolucao' });
+                    navigation.navigate('Devolucao', { user });
                 },
             });
         } catch (e) {
