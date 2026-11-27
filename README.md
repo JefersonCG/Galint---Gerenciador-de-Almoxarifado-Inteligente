@@ -751,7 +751,7 @@ Tudo o que mudou neste dia no servidor e no app (galint-mobile 2.6.0 → 2.7.0).
 | Devolução no app | Recusa diz o motivo: "Já devolvida: a última retirada (1 unidade, ISAQUE GABRIEL, 07/08/2026) voltou em 04/09/2026."; devolução por outra pessoa abate a retirada de quem retirou | 024e0d56 | religar |
 | Plantão | Usuários: "Plantão __ às __" (07:00–19:00 já ligado para quem tem "App só de retirada"); login do app só dentro do plantão; token vence no fim; todo pedido depois do fim é recusado | 5c4344ae | religar |
 | Login do app | Pelo nome, sem acento ("isaias" = ISAÍAS); nome → senha → digital para quem tem plantão; app sai sozinho às 19h | 5c4344ae, app 994b829 | religar + APK |
-| App 2.7.1 | 🎤 na câmera ("Mais um item" → Falar) e escuta que não fecha numa pausa de 2 s (termina com 4 s em silêncio ou no "Pronto") | app 5f8a479 | APK |
+| App 2.7.1 e 2.7.2 | 🎤 na câmera ("Mais um item" → Falar). A escuta própria da 2.7.1 (modal "Ouvindo…") foi rejeitada pelo usuário e a 2.7.2 voltou à janela do Google | app 5f8a479, b101e99 | APK |
 
 ### Plantão e login pelo nome (5c4344ae, app 2.7.0)
 
