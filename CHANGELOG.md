@@ -2,7 +2,7 @@
 
 Todas as mudanças notáveis do aplicativo GALINT Mobile serão documentadas neste arquivo.
 
-## [2.7.0] - 2026-11-27 (código 33)
+## [2.7.0] - 2026-11-27 (código 33, 994b829)
 
 ### Adicionado
 - **Login pelo nome, depois a senha, depois a digital.** Pedido do usuário para os celulares da supervisão e da zeladoria: "só terá um campo de digite seu nome; eles digitam, aparece outro campo digite sua senha; após a senha, se houver leitor de biometria vai pedir a biometria, se não ele já acessa o GALINT".
