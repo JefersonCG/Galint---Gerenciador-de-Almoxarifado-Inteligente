@@ -1,6 +1,11 @@
 // Entrada do app (2.2.0). Pedido do usuário em 21/11/2026: tela curta, servidor só num ícone de
 // engrenagem, sem "Entrar offline" (o modo offline nunca funcionou: ver services/api.js) e com
 // entrada pela digital ou pelo rosto (services/biometricLogin.js).
+// 2.7.0 (27/11/2026), pedido do usuário para os celulares da supervisão e da zeladoria: "só terá um campo de digite
+// seu nome; eles digitam, aparece outro campo digite sua senha; após a senha, se houver leitor de biometria vai pedir
+// a biometria, se não ele já acessa o GALINT". O nome pode ser o primeiro nome, sem acento (o servidor acha).
+// Quem tem plantão (07h às 19h) confirma com a digital, não guarda a entrada só pela digital (o celular é dividido)
+// nem o nome digitado, e o app sai sozinho no fim do plantão (EstoqueScreen).
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
@@ -22,6 +27,7 @@ import ApiService from '../services/api';
 import {
     biometricAvailability,
     clearBiometricLogin,
+    confirmarComBiometria,
     forgetPlainPassword,
     saveBiometricLogin,
     savedBiometricUser,
@@ -62,9 +68,9 @@ export default function LoginScreen({ navigation, route }) {
         return { availability, saved };
     }, []);
 
-    const finishLogin = useCallback(async (user, typedUser, typedPassword, ip, port, viaBiometric) => {
+    const finishLogin = useCallback(async (user, typedUser, typedPassword, ip, port, viaBiometric, plantonista = false) => {
         await saveServerConfig(ip, port);
-        await saveLastUsername(typedUser);
+        await saveLastUsername(plantonista ? '' : typedUser); // celular dividido: o próximo digita o nome dele
         await forgetPlainPassword();
         try {
             const lastPushToken = await AsyncStorage.getItem('last_expo_push_token');
@@ -74,7 +80,7 @@ export default function LoginScreen({ navigation, route }) {
         }
 
         const go = () => navigation.reset({ index: 0, routes: [{ name: 'Estoque', params: { user } }] });
-        if (viaBiometric) {
+        if (viaBiometric || plantonista) {
             go();
             return;
         }
@@ -108,7 +114,7 @@ export default function LoginScreen({ navigation, route }) {
     const doLogin = useCallback(async (typedUser, typedPassword, { viaBiometric = false, ip, port } = {}) => {
         const user = String(typedUser || '').trim();
         if (!user || !typedPassword) {
-            Alert.alert('Entrar', 'Preencha usuário e senha.');
+            Alert.alert('Entrar', user ? 'Digite sua senha.' : 'Digite seu nome.');
             return;
         }
         setLoading(true);
@@ -124,6 +130,20 @@ export default function LoginScreen({ navigation, route }) {
                 } else {
                     Alert.alert('Entrar', result.message || 'Não foi possível entrar.');
                 }
+                return;
+            }
+            if (result.user?.plantao) {
+                // Plantão: nada de entrar só pela digital neste celular; a digital confirma a senha.
+                await clearBiometricLogin();
+                setBioUser(null);
+                const confirmado = await confirmarComBiometria();
+                if (!confirmado.success) {
+                    ApiService.logout().catch(() => {});
+                    if (confirmado.message) Alert.alert('Entrar', confirmado.message);
+                    return;
+                }
+                setPassword('');
+                await finishLogin(result.user, user, typedPassword, ip, port, false, true);
                 return;
             }
             await finishLogin(result.user, user, typedPassword, ip, port, viaBiometric);
@@ -153,6 +173,8 @@ export default function LoginScreen({ navigation, route }) {
             setServerPort(port);
             setHasServer(Boolean(config));
             setUsername(await loadLastUsername());
+            // Saiu sozinho no fim do plantão (EstoqueScreen): o aviso aparece aqui.
+            if (route?.params?.aviso) Alert.alert('GALINT', route.params.aviso);
             if (!config) {
                 setConfigOpen(true);
                 return;
@@ -247,21 +269,20 @@ export default function LoginScreen({ navigation, route }) {
                         style={styles.input}
                         value={username}
                         onChangeText={setUsername}
-                        placeholder="Usuário ou matrícula"
+                        placeholder="Digite seu nome"
                         placeholderTextColor={heroPalette.textMuted}
-                        keepCase
-                        autoCapitalize="none"
                         autoCorrect={false}
                         returnKeyType="next"
                         onSubmitEditing={() => passwordRef.current?.focus()}
                     />
+                    {username.trim() ? (
                     <View style={styles.passwordRow}>
                         <TextInput
                             ref={passwordRef}
                             style={[styles.input, styles.passwordInput]}
                             value={password}
                             onChangeText={setPassword}
-                            placeholder="Senha"
+                            placeholder="Digite sua senha"
                             placeholderTextColor={heroPalette.textMuted}
                             secureTextEntry={!showPassword}
                             keepCase
@@ -273,12 +294,10 @@ export default function LoginScreen({ navigation, route }) {
                             <Text style={styles.eyeIcon}>{showPassword ? '🙈' : '👁'}</Text>
                         </TouchableOpacity>
                     </View>
+                    ) : null}
                     <TouchableOpacity style={[styles.loginButton, loading && styles.disabled]} onPress={() => doLogin(username, password, { ip: serverIP, port: serverPort })} disabled={loading} activeOpacity={0.85}>
                         {loading ? <ActivityIndicator color={heroPalette.bg} /> : <Text style={styles.loginText}>Entrar</Text>}
                     </TouchableOpacity>
-                    {bio.available && !bioUser ? (
-                        <Text style={styles.bioHint}>Depois de entrar com a senha, você pode ligar a entrada pela {bio.label}.</Text>
-                    ) : null}
                 </View>
 
                 <Text style={styles.footer}>GALINT{version ? ` ${version}` : ''} · {hasServer ? `${serverIP}:${serverPort}` : 'servidor não configurado'}</Text>
@@ -348,7 +367,6 @@ const styles = StyleSheet.create({
     loginButton: { height: 54, borderRadius: 16, backgroundColor: heroPalette.primaryStrong, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
     loginText: { color: heroPalette.bg, fontSize: 17, fontWeight: '900', letterSpacing: 0.4 },
     disabled: { opacity: 0.55 },
-    bioHint: { color: heroPalette.textMuted, fontSize: 12, textAlign: 'center', marginTop: 12 },
     footer: { color: heroPalette.textMuted, fontSize: 12, textAlign: 'center', marginTop: 22 },
     modalBackdrop: { flex: 1, backgroundColor: 'rgba(2, 6, 23, 0.72)', justifyContent: 'center', padding: 22 },
     modalCard: { backgroundColor: heroPalette.panel, borderRadius: 22, padding: 18, borderWidth: 1, borderColor: heroPalette.border },

@@ -85,3 +85,20 @@ export async function forgetPlainPassword() {
         // sem acesso ao armazenamento: nada a apagar
     }
 }
+
+// 2.7.0: quem tem plantão confirma com a digital (ou o rosto) depois do nome e da senha. Pedido do usuário em
+// 27/11/2026: "após a senha digitada, se houver leitor de biometria vai pedir a biometria, se não ele já acessa o
+// GALINT". Sem leitor (ou sem digital cadastrada no celular), entra direto. Sem a senha do celular como saída: o
+// celular é dividido pela equipe.
+export async function confirmarComBiometria() {
+    const disponivel = await biometricAvailability();
+    if (!disponivel.available) return { success: true, semLeitor: true };
+    const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: `Confirme sua ${disponivel.label}`,
+        cancelLabel: 'Cancelar',
+        disableDeviceFallback: true,
+    });
+    if (result.success) return { success: true };
+    const canceled = ['user_cancel', 'system_cancel', 'app_cancel'].includes(result.error);
+    return { success: false, canceled, message: canceled ? '' : `Não foi possível confirmar a ${disponivel.label}.` };
+}

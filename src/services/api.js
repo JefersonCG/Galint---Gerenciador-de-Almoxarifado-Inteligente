@@ -527,17 +527,14 @@ class ApiService {
             // A API do GALINT normalmente retorna { success: false, message: "..." } em erros.
             let message = payload?.message || payload?.error || error.message || 'Erro ao fazer login';
 
-            // Caso especial: login por nome pode ser ambíguo.
+            // Caso especial: login por nome pode ser ambíguo (2.7.0: o nome é a entrada; a lista mostra os nomes).
             if (payload?.ambiguous && Array.isArray(payload?.matches) && payload.matches.length > 0) {
-                const matches = payload.matches
-                    .slice(0, 6)
-                    .map((m) => `${m?.matricula || 'N/D'} - ${m?.nome || 'N/D'}`)
-                    .join('\n');
-                message = `${message}\n\nSugestões (use a matrícula):\n${matches}`;
+                const nomes = payload.matches.slice(0, 6).map((m) => m?.nome || m?.matricula || '').filter(Boolean).join('\n');
+                message = `Mais de uma pessoa com esse nome. Digite o nome completo:\n\n${nomes}`;
             }
 
-            // Ajuda diagnóstico sem expor dados sensíveis.
-            if (status) {
+            // 2.7.0: sem "(HTTP 403)" nos avisos ("Fora do seu plantão (07h às 19h)."); só erro do servidor leva o código.
+            if (status >= 500) {
                 message = `${message} (HTTP ${status})`;
             }
 

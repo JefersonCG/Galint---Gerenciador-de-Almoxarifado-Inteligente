@@ -2,6 +2,29 @@
 
 Todas as mudanças notáveis do aplicativo GALINT Mobile serão documentadas neste arquivo.
 
+## [2.7.0] - 2026-11-27 (código 33)
+
+### Adicionado
+- **Login pelo nome, depois a senha, depois a digital.** Pedido do usuário para os celulares da supervisão e da zeladoria: "só terá um campo de digite seu nome; eles digitam, aparece outro campo digite sua senha; após a senha, se houver leitor de biometria vai pedir a biometria, se não ele já acessa o GALINT".
+  - Um campo "Digite seu nome". O campo "Digite sua senha" aparece quando o nome é digitado.
+  - O nome pode ser só o primeiro, sem acento ("isaias" acha ISAÍAS). Dois primeiros nomes iguais pedem o nome completo e mostram a lista.
+  - Quem tem plantão confirma com a digital depois da senha. Sem leitor, ou sem digital cadastrada no celular, entra direto.
+  - Celular dividido pela equipe:
+    - não há entrada só pela digital;
+    - o cofre da digital é apagado no login;
+    - o nome não fica guardado para o próximo.
+  - Quem não tem plantão entra como antes, com a opção "Entrar com digital".
+- **Fim do plantão.** Pedido do usuário: "todos eles são plantonista 12 por 36, pegam de 07h às 19h; sempre que encerrar essa carga horária o sistema deslogará o usuário, para ninguém usar o usuário dele".
+  - O plantão é marcado em Usuários no site, com os campos "Plantão __ às __". Já vem 07:00–19:00 para quem tem "App só de retirada".
+  - O login só passa dentro do plantão, a partir de 30 min antes do início. Fora dele: "Fora do seu plantão (07h às 19h)."
+  - No fim do plantão, o app sai sozinho e mostra "Plantão encerrado.".
+  - O servidor também recusa todo pedido depois do fim, mesmo com o app aberto ou desatualizado.
+  - Servidor: GALINT 5c4344ae. Vale depois de religar o GALINT.
+
+### Mudado
+- Avisos de login sem "(HTTP 403)"; só erro do servidor mostra o código.
+- Sai o texto "Depois de entrar com a senha, você pode ligar a entrada pela digital" (tela limpa).
+
 ## [2.6.2] - 2026-11-27 (código 32, 132b65d)
 
 ### Adicionado

@@ -196,6 +196,33 @@ export default function EstoqueScreen({ navigation, route }) {
         if (permission && !permission.granted && permission.canAskAgain) requestPermission();
     }, [permission, requestPermission]);
 
+    // 2.7.0: plantão (07h às 19h, marcado em Usuários). No fim, o app sai sozinho. Pedido do usuário em 27/11/2026:
+    // "sempre que encerrar essa carga horária o sistema deslogará o usuário, para ninguém usar o usuário dele". O
+    // servidor também recusa todo pedido depois do fim (token vence e /api/mobile responde "Plantão encerrado").
+    const plantaoAte = Number(user?.plantao?.ate) || 0;
+    useEffect(() => {
+        if (!plantaoAte) return undefined;
+        let saiu = false;
+        const conferir = () => {
+            if (saiu || Date.now() < plantaoAte) return;
+            saiu = true;
+            HeartbeatService.stop();
+            InactivityService.stop();
+            SyncService.stop();
+            ApiService.logout().catch(() => {});
+            navigation.reset({ index: 0, routes: [{ name: 'Login', params: { fromLogout: true, aviso: 'Plantão encerrado.' } }] });
+        };
+        conferir();
+        const timer = setInterval(conferir, 30000);
+        const sub = AppState.addEventListener('change', (estado) => {
+            if (estado === 'active') conferir();
+        });
+        return () => {
+            clearInterval(timer);
+            sub.remove();
+        };
+    }, [navigation, plantaoAte]);
+
     // O rótulo "atualizada agora / há N min" anda sozinho.
     useEffect(() => {
         const timer = setInterval(() => setSync(SyncService.getStatus()), 20000);
