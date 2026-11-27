@@ -16,7 +16,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import ApiService from '../services/api';
 import { isRegistrableCode } from '../utils/itemCode';
-import { useEscutaVoz } from '../components/EscutaVoz';
+import { ouvirVoz } from '../utils/ouvirVoz';
 
 const { width } = Dimensions.get('window');
 
@@ -48,12 +48,17 @@ export default function ScannerScreen({ navigation, route }) {
 
     // 2.7.1: 🎤 na câmera. Pedido do usuário em 27/11/2026: "quando clico em + um item no apk ele deveria dar a opção
     // do microfone na câmera". A fala volta para a tela que abriu o leitor (Retirada ou Devolução), que faz a mesma
-    // busca do 🎤 dela (material, quantidade, quem e local).
-    const { ouvir, ouvindo, janela: janelaDaVoz } = useEscutaVoz();
+    // busca do 🎤 dela (material, quantidade, quem e local). 2.7.2: pela janela de voz do Google.
+    const [ouvindo, setOuvindo] = useState(false);
     const destinoDaFala = mode === 'withdraw_multi' && route?.params?.multiCallback
         ? (route?.params?.returnTo || 'FilaSaida')
         : (mode === 'return' ? 'Devolucao' : null);
-    const falar = () => ouvir((frase) => navigation.navigate(destinoDaFala, { user, falaRecebida: frase, falaId: Date.now() }));
+    const falar = async () => {
+        setOuvindo(true);
+        const frase = await ouvirVoz();
+        setOuvindo(false);
+        if (frase) navigation.navigate(destinoDaFala, { user, falaRecebida: frase, falaId: Date.now() });
+    };
     
     // Ref para controlar debounce de scans
     const lastScanTime = React.useRef(0);
@@ -376,7 +381,6 @@ export default function ScannerScreen({ navigation, route }) {
                     </TouchableOpacity>
                 </View>
             </CameraView>
-            {janelaDaVoz}
         </KeyboardAvoidingView>
     );
 }

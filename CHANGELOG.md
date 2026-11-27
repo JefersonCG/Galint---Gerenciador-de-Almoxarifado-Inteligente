@@ -2,6 +2,15 @@
 
 Todas as mudanças notáveis do aplicativo GALINT Mobile serão documentadas neste arquivo.
 
+## [2.7.2] - 2026-11-27 (código 35)
+
+### Mudado
+- **A voz volta a ser a janela do Google.** A escuta própria da 2.7.1 foi desfeita. Pedido do usuário: "esse modal do microfone está horrível: muito grande, exagerado, não está ouvindo com facilidade, tem atraso no ouvir, está um modal muito baixo; deixe o que era pelo Google".
+  - O 🎤 das telas e o "Falar" da câmera usam a janela do Google (`utils/ouvirVoz.js`).
+  - O botão "Falar" na câmera continua.
+  - A janela pede para esperar 3,5 s na pausa. O Google costuma ignorar esse pedido; se ignorar, ela fecha como antes.
+  - Saem `components/EscutaVoz.js` e a escuta contínua do módulo nativo. O app não pede mais a permissão do microfone, porque quem grava é o Google.
+
 ## [2.7.1] - 2026-11-27 (código 34, 5f8a479)
 
 ### Adicionado
