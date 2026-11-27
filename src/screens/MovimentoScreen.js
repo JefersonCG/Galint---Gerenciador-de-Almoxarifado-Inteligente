@@ -165,6 +165,15 @@ export default function MovimentoScreen({ navigation, route }) {
         setBusca(material);
     }, [abrirDevolucao]);
 
+    // 2.7.1: fala dita no 🎤 da câmera ("Ler código" → Falar) volta para cá e segue o mesmo caminho.
+    const falaRecebida = route?.params?.falaRecebida || '';
+    const falaId = route?.params?.falaId || 0;
+    useEffect(() => {
+        if (!falaRecebida) return;
+        navigation.setParams({ falaRecebida: null, falaId: null });
+        ouvirNaDevolucao(falaRecebida);
+    }, [falaId]); // eslint-disable-line react-hooks/exhaustive-deps
+
     const executeReturn = useCallback(async (entries) => {
         setReturning(true);
         InactivityService.recordActivity();

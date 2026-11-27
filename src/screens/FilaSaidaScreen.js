@@ -320,6 +320,15 @@ export default function FilaSaidaScreen({ navigation, route }) {
         setCodigoBusca(material);
     }, [buscarCodigo, canChoose, eu, usuarios]);
 
+    // 2.7.1: fala dita no 🎤 da câmera ("Mais um item" → Falar) volta para cá e segue o mesmo caminho.
+    const falaRecebida = route.params?.falaRecebida || '';
+    const falaId = route.params?.falaId || 0;
+    useEffect(() => {
+        if (!falaRecebida) return;
+        navigation.setParams({ falaRecebida: null, falaId: null });
+        ouvirNaRetirada(falaRecebida);
+    }, [falaId]); // eslint-disable-line react-hooks/exhaustive-deps
+
     const pedidoPorCodigo = useMemo(() => {
         const mapa = new Map();
         grupos.forEach((grupo) => grupo.itens.forEach((linha) => mapa.set(linha.codigo, (mapa.get(linha.codigo) || 0) + baseQty(linha))));

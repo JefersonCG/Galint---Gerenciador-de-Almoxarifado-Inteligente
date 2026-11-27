@@ -2,6 +2,23 @@
 
 Todas as mudanças notáveis do aplicativo GALINT Mobile serão documentadas neste arquivo.
 
+## [2.7.1] - 2026-11-27 (código 34)
+
+### Adicionado
+- **🎤 na câmera.** Pedido do usuário: "quando clico em + um item no apk ele deveria dar a opção do microfone na câmera".
+  - O leitor aberto pela Retirada ("Mais um item", "Ler código") ou pelo "Ler código" da Devolução ganha o botão "Falar".
+  - A fala volta para a tela que abriu o leitor e segue a mesma busca do 🎤 dela: material, quantidade, quem e local.
+
+### Mudado
+- **A escuta não fecha numa pausa de 2 s.** Pedido do usuário: "tem como aumentar o tempo de intervalo quando se fala, pois 2 segundos sem falar ele já fecha".
+  - Antes: a janela de voz do Google, que encerra sozinha na pausa e ignora o pedido de esperar mais.
+  - Agora: escuta própria do app (`components/EscutaVoz.js` e `GalintVoz.comecar` no módulo nativo), sem a janela do Google.
+    - Quando o reconhecedor do Android fecha um trecho na pausa, ela recomeça na hora e junta o texto.
+    - Termina com 4 s sem fala (8 s antes da primeira palavra) ou no botão "Pronto"; ✕ cancela.
+    - O texto aparece enquanto a pessoa fala.
+  - Na primeira vez, o app pede a permissão do microfone.
+  - Sem a permissão, ou sem o reconhecedor do Android, volta para a janela do Google.
+
 ## [2.7.0] - 2026-11-27 (código 33, 994b829)
 
 ### Adicionado
