@@ -2,6 +2,20 @@
 
 Todas as mudanças notáveis do aplicativo GALINT Mobile serão documentadas neste arquivo.
 
+## [2.6.0] - 2026-11-27 (código 30, 9fae526)
+
+### Adicionado
+- **Retirada e pesquisa de material por voz (🎤)**, na busca da tela inicial e no "Código ou nome" da Retirada.
+  - **Escuta:** a do próprio Android em pt-BR (módulo nativo `GalintVoz`, sem biblioteca nova).
+  - **Busca (`utils/buscaFalada.js`):**
+    - código ditado: "0265" e "0 2 6 5";
+    - números por extenso: "dois e meio" = 2,5;
+    - unidades faladas: "20 amperes" = "20A", "2 milímetros" = "2MM";
+    - abreviação e plural: "adaptador" acha "ADAP.", "redução" acha "RED";
+    - erro pequeno do reconhecimento: "wasco" acha "WESCO".
+  - **Zerados:** aparecem marcados "ZERADO". Na Retirada não entram na saída.
+  - **Mesma busca para texto digitado.**
+
 ## [2.5.2] - 2026-11-26 (código 29, b464567)
 
 ### Corrigido
