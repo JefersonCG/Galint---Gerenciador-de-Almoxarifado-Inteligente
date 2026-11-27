@@ -2,7 +2,7 @@
 
 Todas as mudanças notáveis do aplicativo GALINT Mobile serão documentadas neste arquivo.
 
-## [2.7.1] - 2026-11-27 (código 34)
+## [2.7.1] - 2026-11-27 (código 34, 5f8a479)
 
 ### Adicionado
 - **🎤 na câmera.** Pedido do usuário: "quando clico em + um item no apk ele deveria dar a opção do microfone na câmera".
