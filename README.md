@@ -9,6 +9,8 @@ Hoje o sistema reúne quatro frentes principais no mesmo produto:
 - governança operacional com relatórios, alertas, auditoria e painéis analíticos
 - integrações auxiliares com Telegram, geração de PDFs/XLSX e aplicativo mobile
 
+> Última atualização documentada: [26/11/2026](#atualização-de-26112026). Ler NF com várias NFs por PDF, NF repetida, saída contada duas vezes, itens zerados, "Será que temos!?", rascunho automático e app 2.5.2.
+
 ## Mapa detalhado do produto
 
 O repositório principal já não representa apenas uma aplicação web simples. Ele concentra um ecossistema com múltiplos módulos, páginas especializadas e dois aplicativos satélites separados.
@@ -692,6 +694,12 @@ Essas estruturas permitem coexistência entre legado e modelo novo, mantendo o s
 - galint_flask/models.py: modelos persistentes
 - migrations/versions: evolução do schema
 - galint-mobile: aplicação mobile do ecossistema
+- galint_flask/services/nf_leitura_service.py e galint_flask/services/nf_ocr.py: Ler NF (leitura, separação de várias NFs, NF repetida, lançamento)
+- galint_flask/services/saida_dobrada.py: saída contada duas vezes no razão (diagnóstico e correção)
+- galint_flask/services/itens_zerados.py: modal de itens zerados
+- galint_flask/services/unidade_da_linha.py: unidade da linha da NF no "Corrigir"
+- galint_flask/services/busca_visual.py e busca_visual/: "Será que temos!?" (DINOv2 + OpenCLIP)
+- galint_flask/static/js/rascunho-form.js: rascunho automático das páginas de cadastro
 
 ## Banco e migrations
 
@@ -724,6 +732,242 @@ Exemplo:
 Observação importante:
 
 - o projeto roda com `use_reloader=False`; qualquer mudança em rotas Python, blueprints ou templates carregados por uma instância antiga pode exigir restart manual do Flask para refletir o código atual
+
+## Atualização de 26/11/2026
+
+Tudo o que mudou neste dia no site, no servidor e no app (galint-mobile 2.4.1 → 2.5.2). Cada parte traz:
+- o pedido ou o erro que originou a mudança;
+- como funciona e onde está o código;
+- quando passa a valer.
+
+**Quando cada tipo de mudança vale:**
+- **Python, rotas e banco:** só depois de religar o GALINT (o servidor roda sem reloader).
+- **Templates, CSS e JavaScript:** valem na hora. O Jinja relê o template, e o Mako usa `filesystem_checks=True`.
+
+### Resumo
+
+| Área | O que mudou | Commit | Vale |
+| --- | --- | --- | --- |
+| Ler NF | "Já no estoque": a linha da NF documenta a entrada antiga em vez de somar de novo | 26ff7c64 | religar |
+| Ler NF | O nome da NF fica na NF; o item segue com o nome do GALINT | aa905642 | religar |
+| Ler NF | NF repetida não entra de novo: aviso "Já consta no sistema" | f5db5a98, b605cfc3 | religar |
+| Ler NF | PDF com várias NFs é lido inteiro e separado em NFs individuais | d2c0c2b9 | religar |
+| Documentos Fiscais | Unidade da linha escolhida no "Corrigir" (FARDO = 24 UN) | 0289cabd | religar |
+| Documentos Fiscais | "+ ADICIONAR" no Registro: vários itens na mesma NF | f0b1ab6a | religar |
+| Cadastro de itens | Rascunho automático no Registro, no Conferir e na página do item | dc14a08b | na hora |
+| Estoque | Entrada e devolução não são mais barradas por saldo negativo | 0289cabd | religar |
+| Estoque | Saída contada duas vezes: diagnóstico e correção manual, item a item | 0289cabd | religar |
+| Itens | Botão "ITENS ZERADOS"; zerados fora da busca e das categorias | 0289cabd | religar |
+| Saída (site) | Total de cada colaborador em vermelho; nome e matrícula em verde | 90da731b | na hora |
+| Usuários | Marca "App só de retirada" | f46d7a1d | religar |
+| Busca visual | "Será que temos!?" (DINOv2 + OpenCLIP) | 19d2c1f6, f46d7a1d | religar |
+| App | 2.4.1, 2.5.0, 2.5.1 e 2.5.2 (ver abaixo) | galint-mobile | publicado em `instance/apks` |
+
+O GALINT foi religado às 16h32. Tudo acima já vale, menos a separação de PDF com várias NFs (d2c0c2b9), que vale no próximo religar.
+
+### Ler NF
+
+**"Já no estoque" (26ff7c64)**
+- **Origem:** muitas NFs só chegaram em PDF agora, e os produtos delas tinham entrado antes sem NF.
+- **Na conferência:** cada linha mostra o saldo do item e as entradas sem NF (entrada antiga, NOTA INTERNA ou ajuste). Vem escolhida sozinha a de mesma quantidade.
+- **Ao lançar:** a linha da NF fica ligada àquela entrada e não soma de novo.
+- **Código:** `entradas_anteriores` e `lancar_leitura` em `services/nf_leitura_service.py`.
+
+**Nome na NF × nome no GALINT (aa905642)**
+- **Onde o nome da NF fica:** em `entrada_documento_itens.descricao_nf` e `codigo_nf`.
+- **Onde aparece:** Documentos Fiscais e "Última compra" mostram "na NF: …".
+- **Limpeza do nome:** `services/nome_na_nf.py` tira o "- EAN … - Cód. Forn …" que o PDF junta ao nome.
+
+**NF repetida (f5db5a98, b605cfc3)**
+- **Origem:** um PDF enviado de novo, para testar, virou uma 2ª "arquivada" da NF 28498.
+- **Mesmo arquivo** (mesmo tamanho e SHA-256 de uma leitura não descartada): é recusado no envio, com aviso em vermelho.
+- **Outro arquivo da mesma NF:** depois da leitura vira status `duplicada` ("Já consta no sistema"). Isso acontece quando o documento já tem arquivo guardado, ou quando outra leitura tem o mesmo número e o mesmo fornecedor (CNPJ; sem CNPJ, nome; sem nome, total).
+- **NF que existe no GALINT sem arquivo:** continua virando a NF física, uma vez.
+- **Cópias guardadas pela regra antiga:** ao abrir a lista, a 2ª NF física do mesmo documento vira `duplicada`. A leitura lançada nunca muda.
+
+**Várias NFs num PDF (d2c0c2b9)**
+- **Origem:** o arquivo "19.11 - MERCADO LIVRE R$ 955,12.pdf" junta 8 NFs da AC Milan (28494 a 28501, 1 fardo de bambu cada), e só a 28498 tinha entrado.
+- **No envio (PDF com texto):** `nf_ocr.split_pdf_by_access_key` acha a chave de acesso de cada página. Cada NF vira uma leitura com o seu pedaço do PDF, com o nome "<arquivo> · NF <número>.pdf".
+  - A NF cujo documento já tem arquivo fica de fora, com o aviso.
+  - Reenviar o mesmo PDF traz só as NFs que faltam.
+- **Na leitura (PDF escaneado):** `nf_ocr.read_and_parse_nfs` lê todas as páginas e agrupa pelas chaves. A leitura fica com a 1ª NF, e cada outra vira uma leitura nova, já lida (sem OCR de novo).
+- **Limite de páginas:** `MAX_PAGES` subiu de 12 para 60.
+
+### Documentos Fiscais
+
+**Unidade da linha no "Corrigir" (0289cabd)**
+- **Origem:** a NF 28498 estava em Erro, e o "Corrigir" não deixava trocar a unidade da linha.
+- **Como fica:** cada linha mostra as unidades do item ("FARDO (24 UN)", "UNIDADE"), com a conta ao vivo.
+- **Ao trocar:** `services/unidade_da_linha.py` refaz a quantidade base e o preço. O total da NF fica, e o unitário sai dele.
+- **Linha já processada:** não troca de unidade.
+
+**"+ ADICIONAR" no Registro (f0b1ab6a)**
+- **Ao clicar:** registra o item da tela e volta ao Registro com a mesma NF preenchida: modo, número, emissão, recebimento, CNPJ e chave.
+- **Lista "NESTA NF":** mostra os itens já lançados e o total.
+- **Como funciona:** o cabeçalho volta pela sessão (`nf_registro_continuar`).
+- **Registrar:** continua encerrando a NF.
+
+### Rascunho automático das páginas de cadastro (dc14a08b)
+
+- **Pedido do usuário:** "quando estiver cadastrando itens, a página se auto recuperar de onde parou" (navegador fechado ou PC desligado).
+- **Código:** `static/js/rascunho-form.js` (`GalintRascunho.ligar(form, { chave, ignorar, coletarExtra, antesDeRestaurar })`).
+- **Como guarda:**
+  - em `localStorage` (`galint.rascunho.v1:<página>`), a cada mudança e quando a aba fecha;
+  - só depois da primeira mexida;
+  - arquivo, senha, botões e campos ocultos ficam de fora.
+- **Ao reabrir:** devolve tudo (com `input`/`change`, para a página refazer as contas) e mostra "RASCUNHO RESTAURADO · DESCARTAR". Uma lista que carrega depois (como "Já no estoque") recebe o valor quando a opção aparece.
+- **Depois do envio:**
+  - com aviso vermelho na página seguinte (erro), o rascunho volta;
+  - sem ele, some;
+  - envio segurado pela confirmação da prova real não conta.
+- **Validade:** 3 dias.
+- **Ligado em:**
+  - Registro (`nf-registro`): o item volta por `GalintNfSelecionarItem`, que carrega os dados do item antes dos outros campos;
+  - Conferir do Ler NF (`nf-conferir-<leitura>`);
+  - página do item (`item-<código>`).
+- **Testado** no Chrome sem janela, em 14 casos.
+
+### Estoque: entrada com saldo negativo e saída contada duas vezes
+
+**Entrada com saldo negativo (0289cabd)**
+- **Antes:** `inventory_engine._register_movement` recusava qualquer operação que terminasse negativa, inclusive a entrada, que só melhora o saldo.
+- **Origem:** a NF 28498 (1 fardo de bambu) ficou em "Erro: Saldo insuficiente" com o saldo em −432.
+- **Agora:** só o que tira do estoque esbarra no saldo.
+
+**Saída contada duas vezes (`services/saida_dobrada.py`)**
+- **Causa:** a reconstrução do razão a partir da tabela antiga `saidas` gravou de novo saídas que já estavam no razão. Elas têm `metadata_json.source = "ledger_backfill"`, `reference_type = "saida"` e hora local; a original é do motor, em UTC, 3 h depois.
+- **Par:** mesma quantidade e mesmo número de saída, ou mesmo horário com 3 h de fuso.
+- **Compensada:** existe um ajuste de conferência depois do par; ela fica de fora.
+- **Medição de 26/11, só leitura:**
+  - 1.821 pares em 431 itens;
+  - ainda abertos em 35 itens negativos, 22 zerados e 246 com saldo positivo (3.722 un).
+- **Correção:**
+  - um ajuste de +quantidade com `reference_type = "correcao_saida_dobrada"` e `reference_id` igual ao movimento duplicado;
+  - não apaga nada e não corrige duas vezes;
+  - só administrador, item a item, pelo modal "ITENS ZERADOS", aba "SAÍDA EM DOBRO".
+- **Cuidado:** não corrigir em massa os itens com saldo positivo. Uma contagem que confirmou o saldo não deixa movimento, então só quem conhece o estoque decide.
+
+### Itens zerados (0289cabd)
+
+- **Pedido do usuário:** os zerados ficam fora das listas da busca e se concentram num botão "Itens zerados". O "Editor de Etiquetas" ficou só no menu lateral.
+- **Zerado:** saldo físico ≤ 0, fora o pré-cadastro (227 itens em 26/11).
+- **Busca rápida e lista de cada categoria:** escondem os zerados. A busca mostra "N ZERADOS", que abre o modal já filtrado.
+- **Modal (`GET /itens/api/zerados`, `services/itens_zerados.py`):** NF e data das últimas entradas, "+ PROJEÇÃO" (carrinho da Projeção de Compras) e a aba "SAÍDA EM DOBRO" com "saldo → saldo corrigido" e o botão CORRIGIR.
+- **Antes de religar:** a lista sai da própria página, sem as NFs.
+
+### Saída do site: total por colaborador (90da731b)
+
+- **Onde:** `templates_mako/movements/saida.mako` e `static/css/movements-saida.css`.
+- **Cabeçalho de cada grupo (colaborador + local):** nome e matrícula com o degradê do botão "Registrar Saída" e o valor total em vermelho.
+- **Total:** soma o valor de cada linha. Linha sem preço aparece como "N sem valor".
+
+### Será que temos!? (busca visual DINOv2 + OpenCLIP)
+
+**Fase 0 (19d2c1f6, `busca_visual/fase0_*.py`)**
+- **Teste:** 985 fotos do cadastro e 200 fotos de celular simuladas, em 2 núcleos.
+- **Acerto juntando os dois modelos:** 87% no 1º lugar e 97% entre os 3 primeiros. O DINOv2 sozinho acerta 79,5%; o CLIP sozinho, 70,5%.
+- **Custo:** cerca de 0,6 s e 1,2 GB por foto.
+- **Limiar fixo não serve:** por isso a tela mostra sempre 3 opções.
+- **Busca por texto em português no CLIP:** fraca (12%) e fora.
+- **Fotos repetidas:** 89 itens usam a mesma foto de outro (lista em `C:\ia-visual\fase0\parecidos.csv`).
+
+**Serviço (`busca_visual/servico.py` + `motor.py`)**
+- **Onde roda:** separado, no ambiente `C:\ia-visual\venv`, só em `127.0.0.1:5077`, sem pgvector (busca exata em memória).
+- **Ligar e desligar:** o GALINT liga o serviço na primeira busca (`services/busca_visual.py`, Popen em prioridade abaixo do normal, 2 núcleos). Ele desliga sozinho depois de 20 min sem uso, para devolver a memória.
+- **Índice:** `instance/busca_visual/indice.json` e `.npz` (984 fotos em 26/11), refeito só para foto nova ou mudada, a partir do `catalogo.json` que o GALINT escreve.
+- **Nota de cada item:** média DINOv2/CLIP da melhor foto. Volta os 3 primeiros, e o 4º e o 5º só quando empatam com o 3º (itens com a mesma foto).
+- **Foto confirmada no app:** vira referência do item (tabela `busca_visual_referencias`, arquivos em `instance/busca_visual/referencias`).
+- **Rotas do app:**
+  - `POST /api/mobile/sera-que-temos` (foto);
+  - `GET /api/mobile/sera-que-temos/<consulta>` (pergunta de novo enquanto o serviço liga);
+  - `POST /api/mobile/sera-que-temos/<consulta>/confirmar`.
+- **Instalar em outra máquina:**
+  1. Criar o ambiente e instalar as dependências:
+     ```powershell
+     py -3.10 -m venv C:\ia-visual\venv
+     # torch só para processador (sem placa de vídeo):
+     C:\ia-visual\venv\Scripts\python.exe -m pip install torch==2.5.1 torchvision==0.20.1 --index-url https://download.pytorch.org/whl/cpu
+     C:\ia-visual\venv\Scripts\python.exe -m pip install -r busca_visual\requirements.txt
+     ```
+     Ou apontar `GALINT_BUSCA_VISUAL_PYTHON` para o Python que tem torch, transformers e open_clip.
+  2. Montar o índice uma vez (cerca de 16 min para mil fotos):
+     ```powershell
+     C:\ia-visual\venv\Scripts\python.exe busca_visual\servico.py --dados "<instance>\busca_visual" --indexar
+     ```
+- **Memória:** com o serviço ligado, um PC de 8 GB fica no limite. O recomendado é 16 GB.
+
+### Usuários: "App só de retirada" (f46d7a1d)
+
+- **Coluna:** `usuarios.app_so_retirada`, com a caixa em Usuários e a etiqueta "App só retirada" na lista.
+- **Como nasceu:** o `schema_compat` cria a coluna e, uma vez, a liga para RAPHAEL, ISAÍAS (supervisores), FELIPE e ANDERSON (zeladores). Eles usam o celular da supervisão e da zeladoria.
+- **No app:** a marca vai no login (`app_so_retirada`). Quem já estava logado precisa entrar de novo.
+- **Não decidir pelo setor:** o setor SUPERVISOR também tem outras pessoas.
+
+### App (galint-mobile)
+
+- **2.4.1 (código 26):** a devolução reconhece ferramenta, fracionado ou unitário (`GET /api/mobile/devolucao/tipo/<codigo>`). Lata pela metade usa os botões ¼ ½ ¾ 1.
+- **2.5.0 (código 27):**
+  - **Retirada única para todos:** a tela da Fila. "Dar saída" com um item sai direto; "Mais um item" guarda e lê o próximo. O campo busca por código ou nome, sem os zerados.
+  - **Devolução em botão próprio:** leitura de código mais baixa de várias ferramentas da custódia do dia.
+  - **Será que temos!?:** no ☰ de todos, com contorno na cor do sistema.
+  - **App só de retirada:** três botões na tela inicial (Retirada, Devolução, Será que temos!?) e menu sem Painel, Configurações e "Atualizar a base agora".
+  - **Menu ☰:** sem textos explicativos.
+  - **Avisos:** ficam lidos ao abrir a tela.
+  - **Base do celular:** lista inteira a cada 10 min (a pergunta "o que mudou?" continua a cada 15 s).
+  - **WhatsApp:** saída de vários itens numa mensagem só, com a foto de cada item (`GalintShare.shareManyToWhatsApp`, `ACTION_SEND_MULTIPLE`).
+- **2.5.1 (código 28):** no "Será que temos!?", ao tirar a foto há vibração, flash e ampulheta. Depois a imagem congela e uma tartaruga anda na trilha enquanto procura.
+- **2.5.2 (código 29):** formulários limpos depois de registrar saída e devolução.
+  - A Retirada não guarda mais o local e a pessoa.
+  - O "Concluir" da devolução volta para a tela Devolução.
+  - A seleção da custódia é limpa.
+- **Onde fica o APK:**
+  - `D:\Jeferson dos Santos\Projetos\GALINT 08.04.2026\instance\apks\`: os celulares se atualizam por aqui;
+  - `galint-mobile\build-output\`: cópia no workspace.
+  - Detalhes no `galint-mobile/CHANGELOG.md`.
+
+### Rotas e banco novos
+
+| Tipo | Nome | Para quê |
+| --- | --- | --- |
+| Rota | `GET /itens/api/zerados` | Modal de itens zerados e saídas em dobro |
+| Rota | `POST /itens/api/<codigo>/corrigir-saida-dobrada` | Corrigir a saída contada duas vezes (administrador) |
+| Rota | `GET /nf/leitura/estoque/<codigo>` | Saldo e entradas sem NF na conferência |
+| Rota | `GET /api/mobile/devolucao/tipo/<codigo>` | Como o item volta na devolução do app |
+| Rota | `POST/GET /api/mobile/sera-que-temos…` | Busca visual do app |
+| Coluna | `usuarios.app_so_retirada` | App só de retirada |
+| Coluna | `entrada_documento_itens.descricao_nf`, `codigo_nf` | Nome do produto na NF |
+| Tabela | `busca_visual_referencias` | Fotos confirmadas no "Será que temos!?" |
+| Valor | `nf_leituras.status = 'duplicada'` | NF que já consta no sistema |
+| Valor | `stock_movements.reference_type = 'correcao_saida_dobrada'` | Ajuste que desfaz a saída em dobro |
+
+As colunas entram pelo `schema_compat` e a tabela pelo `create_all`, os dois ao religar.
+
+### Testes
+
+**Arquivos novos ou ampliados:**
+- `tests/test_saida_dobrada_e_unidade.py`
+- `tests/test_sera_que_temos.py`
+- `tests/test_nf_leitura_ja_no_estoque.py`
+- `tests/test_mobile_return_fraction.py`
+- `tests/test_nf_nome_na_nf.py`
+- `tests/test_nf_leitura_flow.py`: NF repetida, PDF com várias NFs, PDF escaneado.
+
+**Apoio:** `tests/danfe_sample.py` gera DANFE com outro número (`build_danfe_pdf(numero)`).
+
+**Resultado:** 162 testes passam e 1 é pulado. Os testes não tocam o banco de produção nem disparam a saudação do Telegram (contador conferido em `log/actions.log`).
+
+### Pendências deixadas para o usuário
+
+- **Religar o GALINT:** para valer a separação de PDF com várias NFs (d2c0c2b9).
+- **Bambu (NFs 28494 a 28501):**
+  1. reenviar o PDF no Ler NF e conferir e lançar as 7 NFs que faltam;
+  2. em "ITENS ZERADOS", aba "SAÍDA EM DOBRO", clicar em CORRIGIR no bambu: o saldo vai de −408 para 24, e com as 7 NFs fica em 192.
+- **Saídas em dobro abertas em itens com saldo positivo:** decidir item a item.
+- **Será que temos!?:**
+  - medir o acerto com fotos reais em `C:\ia-visual\fotos_teste` (o nome do arquivo começa pelo código do item);
+  - avaliar 16 GB de RAM.
+- **WhatsApp com várias fotos:** ainda não foi testado num celular.
+- **Gitea:** os commits do dia estão só neste PC.
 
 ## Implantações recentes
 
