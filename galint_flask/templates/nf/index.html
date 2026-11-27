@@ -101,7 +101,8 @@
         <input type="hidden" name="periodo_tipo" value="{{ period_dashboard.filters.tipo_documento }}">
         <input class="form-control" style="max-width: 26rem" id="nota" name="nota" value="{{ nota_busca }}" placeholder="Nº ou chave da NF" aria-label="Número ou chave da NF">
         <button class="docf-btn-primary" type="submit"><i class="bi bi-search"></i> Buscar</button>
-        {% if nota_busca %}<a class="docf-btn-secondary" href="{{ nf_tab_url(active_tab) }}">Limpar</a>{% endif %}
+        {# "Limpar" também apaga o rascunho do Registro (27/11/2026): sem isso a página voltava preenchida. #}
+        {% if nota_busca %}<a class="docf-btn-secondary" href="{{ nf_tab_url(active_tab) }}" data-rascunho-limpar="nf-registro">Limpar</a>{% endif %}
         {% if nota_busca and not nota_detalhes %}
         <span class="docf-chip warning">Não encontrado</span>
         {% elif selected_operational and selected_operational.status_key != active_tab %}
@@ -406,6 +407,8 @@
                             </div>
                             <div class="col-12 compact-actions d-flex gap-2 justify-content-end">
                                 {# "+ ADICIONAR" (26/11/2026): registra este item e volta com a mesma NF para o próximo. #}
+                                {# LIMPAR (27/11/2026): apaga o rascunho e abre o Registro vazio. #}
+                                <button class="docf-btn-secondary me-auto" type="button" data-rascunho-limpar="nf-registro" data-rascunho-ir="{{ nf_tab_url('registro') }}">LIMPAR</button>
                                 <button class="docf-btn-secondary" id="docf-add-button" type="submit" data-continuar="1">+ ADICIONAR</button>
                                 <button class="docf-btn-primary" id="docf-submit-button" type="submit">Registrar</button>
                             </div>
@@ -866,7 +869,7 @@
 {{ super() }}
 <script src="{{ url_for('static', filename='js/nf-prova-real.js', v='20261124') }}"></script>
 <script src="{{ url_for('static', filename='js/nome-padrao.js', v='20261124') }}"></script>
-<script src="{{ url_for('static', filename='js/rascunho-form.js', v='20261126') }}"></script>
+<script src="{{ url_for('static', filename='js/rascunho-form.js', v='20261127') }}"></script>
 <script>
     const itemSearchInput = document.getElementById('item_search');
     const itemCodigoInput = document.getElementById('codigo');

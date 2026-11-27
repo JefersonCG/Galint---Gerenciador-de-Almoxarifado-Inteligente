@@ -12,12 +12,18 @@
  * - Lista que chega depois (ex.: "Já no estoque", carregada do servidor) recebe o valor quando a opção aparecer.
  * - Fica fora: arquivo, senha, botões e campos ocultos (que o próprio sistema preenche). Validade: 3 dias.
  *
+ * - "Limpar" (27/11/2026): link ou botão com data-rascunho-limpar="<chave>" para de gravar, apaga o rascunho e
+ *   segue (o link pelo próprio href; o botão para data-rascunho-ir ou recarrega). Origem: o "Limpar" da busca do
+ *   Registro recarregava a página e o rascunho devolvia tudo preenchido ("ao clicar em Limpar a página não limpa o
+ *   formulário"); e a gravação ao sair da página (pagehide) regravaria o rascunho recém-apagado.
+ *
  * Uso: GalintRascunho.ligar(form, { chave, ignorar: ['id ou name'], coletarExtra, antesDeRestaurar })
  */
 (function () {
     'use strict';
 
     const PREFIXO = 'galint.rascunho.v1:';
+    const ligados = {}; // chave → { parar }: deixa de gravar (antes de apagar e sair da página)
     const VALIDADE_MS = 3 * 24 * 60 * 60 * 1000;
     const TIPOS_FORA = new Set(['file', 'password', 'submit', 'button', 'reset', 'image', 'hidden']);
 
@@ -176,6 +182,7 @@
         barra.innerHTML = '<i class="bi bi-cloud-check"></i><span data-rascunho-texto></span>'
             + '<button type="button" class="btn btn-link btn-sm p-0 text-danger fw-bold" data-rascunho-descartar hidden>DESCARTAR</button>';
         barra.querySelector('[data-rascunho-descartar]').addEventListener('click', () => {
+            ligados[chave]?.parar();
             guardado.apagar(chave);
             window.location.reload();
         });
@@ -215,9 +222,10 @@
         }
 
         let mexeu = false;
+        let parado = false;
         let timer = null;
         const salvar = () => {
-            if (!mexeu) return;
+            if (!mexeu || parado) return;
             const dados = { salvoEm: Date.now(), campos: coletar(form, ignorar), extra: config.coletarExtra ? config.coletarExtra() : null };
             if (guardado.gravar(chave, dados)) mostrar(barra, 'salvo', dados.salvoEm);
         };
@@ -225,6 +233,12 @@
             mexeu = true;
             window.clearTimeout(timer);
             timer = window.setTimeout(salvar, 400);
+        };
+        ligados[chave] = {
+            parar() {
+                parado = true;
+                window.clearTimeout(timer);
+            },
         };
         const marcarEnviado = () => {
             window.clearTimeout(timer);
@@ -270,5 +284,21 @@
         return { descartar: () => guardado.apagar(chave) };
     }
 
-    window.GalintRascunho = { ligar };
+    function limpar(chave) {
+        ligados[chave]?.parar();
+        guardado.apagar(chave);
+    }
+
+    document.addEventListener('click', (evento) => {
+        const alvo = evento.target instanceof Element ? evento.target.closest('[data-rascunho-limpar]') : null;
+        if (!alvo) return;
+        limpar(alvo.getAttribute('data-rascunho-limpar'));
+        if (alvo.tagName === 'A' && alvo.getAttribute('href')) return; // o link segue sozinho
+        evento.preventDefault();
+        const destino = alvo.getAttribute('data-rascunho-ir');
+        if (destino) window.location.href = destino;
+        else window.location.reload();
+    }, true);
+
+    window.GalintRascunho = { ligar, limpar };
 })();
