@@ -4177,6 +4177,42 @@ class InventoryService:
         )
         return candidatos[:limit]
 
+    def _motivo_sem_retirada_pendente(self, item: Item, *, matricula: str | None = None) -> str:
+        """Aviso de devolução recusada que diz o motivo (27/11/2026).
+
+        Origem: a LUVA CORRER SOLDA 25MM voltou e o app só dizia "não há retirada pendente para este material". A
+        única retirada (1 unidade, ISAQUE GABRIEL, 07/08/2026) já tinha voltado em 04/09/2026; pedido do usuário:
+        "seria mais fácil a mensagem explicar isso, que já havia sido devolvida". Fala da última retirada do item
+        (de `matricula`, quando a devolução é de alguém) e de quando ela voltou.
+        """
+        consulta = Saida.query.filter(Saida.codigo_item == item.codigo_item)
+        if matricula:
+            consulta = consulta.filter(Saida.matricula == matricula)
+        ultima = consulta.order_by(Saida.data_saida.desc(), Saida.id_saida.desc()).first()
+        if ultima is None:
+            return "Devolução não permitida: este material não tem retirada registrada no GALINT."
+        unidade = (item.unidade or "unidade").strip().lower() or "unidade"
+        quantidade = float(ultima.quantidade or 0)
+        if abs(quantidade - 1) > 1e-9 and not unidade.endswith("s"):
+            unidade = f"{unidade}s"
+        pessoa = Usuario.query.get(str(ultima.matricula or "").strip())
+        quem = (getattr(pessoa, "nome", None) or f"Mat. {ultima.matricula}").strip()
+        quando = TimeService.format_local(ultima.data_saida, "%d/%m/%Y")
+        retirada = f"{quantidade:g} {unidade}, {quem}, {quando}"
+        devolucao = (
+            InventarioEvento.query.filter(
+                InventarioEvento.codigo_item == item.codigo_item,
+                InventarioEvento.matricula == ultima.matricula,
+                InventarioEvento.tipo == "devolucao_material",
+                InventarioEvento.data_evento >= ultima.data_saida,
+            )
+            .order_by(InventarioEvento.data_evento.desc(), InventarioEvento.id_evento.desc())
+            .first()
+        )
+        if devolucao is not None:
+            return f"Já devolvida: a última retirada ({retirada}) voltou em {TimeService.format_local(devolucao.data_evento, '%d/%m/%Y')}."
+        return f"Devolução não permitida: nada pendente desta retirada ({retirada})."
+
     def registrar_devolucao_material(
         self,
         *,
@@ -4196,6 +4232,7 @@ class InventoryService:
         - Não cria Entrada (evita devolução virar 'adição' duplicada).
         - Bloqueia devolução acima do pendente por funcionário/item.
         - Permite separar o colaborador que retirou do colaborador que está devolvendo.
+        - Sem retirada pendente, o aviso diz por quê (_motivo_sem_retirada_pendente, 27/11/2026).
         """
         codigo_norm = (codigo or "").strip()
         matricula_legado = (matricula or "").strip()
@@ -4233,7 +4270,7 @@ class InventoryService:
                 unit_code=selected_unit,
             )
             if not retirada_info:
-                raise ValueError("Devolução não permitida: não há retirada pendente para este material.")
+                raise ValueError(self._motivo_sem_retirada_pendente(item))
             retirada_matricula_norm = str(retirada_info.get("matricula") or "").strip()
             retirada_saida_id_int = int(retirada_info.get("saida_id") or 0)
 
@@ -4261,7 +4298,7 @@ class InventoryService:
             )
         # Tolerância mínima para float.
         if pendente <= 1e-9:
-            raise ValueError("Devolução não permitida: não há retirada pendente para este material.")
+            raise ValueError(self._motivo_sem_retirada_pendente(item, matricula=retirada_matricula_norm))
         if quantidade_f > pendente + 1e-9:
             raise ValueError(
                 f"Devolução excede o pendente. Pendente: {pendente:g} {unit_meta['unit_display']}"

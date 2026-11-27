@@ -2565,10 +2565,21 @@ def devolver_material_mobile(current_user: Usuario):
         if not unit_meta["allow_decimal"] and abs(quantidade_num - round(quantidade_num)) > 1e-6:
             return jsonify({"success": False, "message": "Este item volta em quantidade inteira."}), 400
 
+        # 2.6.2 (27/11/2026): quem devolve nem sempre é quem retirou. Com retirada pendente dele, abate a dele; sem,
+        # abate a retirada pendente mais recente de quem retirou ("Retirado por X | Devolvido por Y"), como o site
+        # já permite. Sem retirada pendente de ninguém, segue recusada, e o aviso diz por quê ("Já devolvida: a
+        # última retirada (1 unidade, ISAQUE GABRIEL, 07/08/2026) voltou em 04/09/2026."). Origem: a LUVA CORRER
+        # SOLDA 25MM, recusada só com "não há retirada pendente para este material".
+        pendente_proprio = inventory_service.get_material_return_pending(
+            codigo=item.codigo_item,
+            matricula=devolvedor_user.matricula,
+            unit_code=unidade_devolucao,
+        )
         evento = inventory_service.registrar_devolucao_material(
             codigo=item.codigo_item,
             quantidade=quantidade_num if unit_meta["allow_decimal"] else round(quantidade_num),
-            matricula=devolvedor_user.matricula,
+            retirada_matricula=devolvedor_user.matricula if pendente_proprio > 1e-9 else None,
+            devolvido_por_matricula=devolvedor_user.matricula,
             from_unit=unidade_devolucao,
             observacao=None,
             commit=True,
@@ -3313,6 +3324,45 @@ def mobile_daily_custody_panel(current_user: Usuario):
             "data": _serialize_mobile_daily_custody_panel(items),
         }
     ), 200
+
+
+@blueprint.get("/custodia")
+@token_required
+def mobile_com_quem_esta(current_user: Usuario):
+    """Com quem estão as ferramentas (app 2.6.2, comando de voz "custódia").
+
+    Pedido do usuário em 27/11/2026: "coloca um comando de custódia, para sabermos com quem está a ferramenta".
+    Mesma conta da página Custódia de ferramentas do site (ToolCustodyService.get_all_employees_with_tools:
+    temporária e permanente, sem devolução). ?codigo=<código ou código de barras> filtra um item. Só leitura.
+    """
+    codigo = (request.args.get("codigo") or "").strip()
+    codigo_item = None
+    if codigo:
+        item = _find_item_by_barcode(codigo)
+        if not item:
+            return jsonify({"success": False, "message": "Item não encontrado"}), 404
+        codigo_item = item.codigo_item
+
+    linhas: list[dict[str, Any]] = []
+    for pessoa in ToolCustodyService.get_all_employees_with_tools():
+        for ferramenta in pessoa.get("tools") or []:
+            if codigo_item and ferramenta.get("codigo_item") != codigo_item:
+                continue
+            local = str(ferramenta.get("local_servico") or "").strip()
+            linhas.append({
+                "codigo": ferramenta.get("codigo_item"),
+                "descricao": ferramenta.get("descricao"),
+                "nome": pessoa.get("nome"),
+                "matricula": pessoa.get("matricula"),
+                "quantidade": ferramenta.get("quantidade"),
+                "desde": ferramenta.get("data_saida_formatada"),
+                "dias": int(ferramenta.get("days_in_use") or 0),
+                "local": "" if local == "Não informado" else local,
+                "tipo_custodia": ferramenta.get("tipo_custodia") or "temporaria",
+                "atrasada": bool(ferramenta.get("is_alert")),
+            })
+    linhas.sort(key=lambda linha: (str(linha["descricao"] or ""), str(linha["nome"] or "")))
+    return jsonify({"success": True, "data": linhas}), 200
 
 
 @blueprint.get("/documentos-fiscais/config")
