@@ -733,6 +733,50 @@ Observação importante:
 
 - o projeto roda com `use_reloader=False`; qualquer mudança em rotas Python, blueprints ou templates carregados por uma instância antiga pode exigir restart manual do Flask para refletir o código atual
 
+## Atualização de 27/11/2026
+
+Tudo o que mudou neste dia no servidor e no app (galint-mobile 2.6.0 → 2.7.0). Cada linha traz o pedido ou o erro que originou a mudança. O detalhe do app está em `galint-mobile/CHANGELOG.md`. Valem as mesmas regras de 26/11: Python, rotas e banco só depois de religar; templates na hora.
+
+### Resumo
+
+| Área | O que mudou | Commit | Vale |
+| --- | --- | --- | --- |
+| Ler NF | Lê a NFC-e (cupom eletrônico da Obramax/BMB) e casa as linhas com o que já entrou com a mesma NF | 9ab5a2a0 | religar |
+| Estoque | CORRIGIR da saída em dobro: origem cabia em 20 caracteres e o modal mostrava "0 → 432" | 204d33af | religar |
+| App 2.6.0 | Retirada e pesquisa de material por voz (🎤): código ditado, "20 amperes", "fio de 2 e meio", abreviações | app 9fae526 | APK |
+| App 2.6.1 | Comandos de voz: "retirada lâmpada bolbo 9w kian 6 unidades" abre a Retirada com o item e a quantidade; toque no item dá Retirada, Devolução ou Alteração | app c81fef9 | APK |
+| App 2.6.2 | Quem retira e o local ditos no comando ("retirada por Gláucia de 5 papel toalhas para local das áreas comuns"); "5 pacotes ou 5 unidades?" | app 132b65d | APK |
+| Custódia | Comando "custódia" no app e rota `GET /api/mobile/custodia` (com quem está cada ferramenta, mesma conta da página Custódia) | 024e0d56, app 132b65d | religar + APK |
+| Devolução no app | Tela Devolução sem o painel da custódia do dia; "Concluir" volta para onde a devolução começou (abria a Devolução por cima da tela inicial) | app 132b65d | APK |
+| Devolução no app | Recusa diz o motivo: "Já devolvida: a última retirada (1 unidade, ISAQUE GABRIEL, 07/08/2026) voltou em 04/09/2026."; devolução por outra pessoa abate a retirada de quem retirou | 024e0d56 | religar |
+| Plantão | Usuários: "Plantão __ às __" (07:00–19:00 já ligado para quem tem "App só de retirada"); login do app só dentro do plantão; token vence no fim; todo pedido depois do fim é recusado | 5c4344ae | religar |
+| Login do app | Pelo nome, sem acento ("isaias" = ISAÍAS); nome → senha → digital para quem tem plantão; app sai sozinho às 19h | 5c4344ae, app 994b829 | religar + APK |
+
+### Plantão e login pelo nome (5c4344ae, app 2.7.0)
+
+Pedido do usuário, para os celulares da supervisão e da zeladoria: "o login dele seja pelo primeiro nome… todos eles são plantonista 12 por 36, pegam de 07h às 19h; sempre que encerrar essa carga horária o sistema deslogará o usuário, para ninguém usar o usuário dele".
+
+**Onde fica cada parte:**
+- **Regra:** `galint_flask/services/plantao.py`.
+  - Há 30 min de folga antes do início.
+  - Plantão que vira a noite ("19:00" às "07:00") também vale.
+  - Campo vazio = sem plantão.
+- **Colunas:** `usuarios.plantao_inicio` / `plantao_fim`, criadas pelo `schema_compat` ao religar. Na criação, recebem 07:00–19:00 uma vez para RAPHAEL, ISAÍAS, FELIPE e ANDERSON.
+
+**O que acontece no login e no uso:**
+- **Login:** fora do plantão, `POST /api/mobile/login` responde "Fora do seu plantão (07h às 19h).".
+- **Dentro do plantão:**
+  - o token (JWT) e a sessão vencem no fim do plantão;
+  - o app recebe `plantao.ate` e sai sozinho nessa hora.
+- **Depois do fim:** `token_required` e `mobile_login_required` respondem "Plantão encerrado.", mesmo com o app aberto ou desatualizado.
+- **Nome no login:** primeiro o nome inteiro, depois o primeiro nome, depois o trecho, sem diferença de acento. Dois iguais (JÚLIO) pedem o nome completo.
+- **Digital (app 2.7.0), para quem tem plantão:**
+  - confirma a senha;
+  - sem leitor, entra direto;
+  - o cofre "Entrar com digital" é apagado, porque o celular é dividido.
+
+Testes: `tests/test_mobile_plantao_login.py`, `tests/test_mobile_custodia.py` e `tests/test_mobile_return_fraction.py`. Suíte em 27/11: 181 passed, 1 skipped.
+
 ## Atualização de 26/11/2026
 
 Tudo o que mudou neste dia no site, no servidor e no app (galint-mobile 2.4.1 → 2.5.2). Cada parte traz:
