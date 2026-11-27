@@ -47,7 +47,7 @@ Todas as mudanças notáveis do aplicativo GALINT Mobile serão documentadas nes
   - Contas em `utils/devolucaoConta.js`.
 
 ### Publicação
-- **Pasta:** o APK vai para `D:\Jeferson dos Santos\Projetos\GALINT 08.04.2026\instancepks\` como `GALINT-<versão>-codigo<código>-<rótulo>.apk`. Um `.txt` com o mesmo nome, sem BOM, vira a nota.
+- **Pasta:** o APK vai para `D:\Jeferson dos Santos\Projetos\GALINT 08.04.2026\instance\apks\` como `GALINT-<versão>-codigo<código>-<rótulo>.apk`. Um `.txt` com o mesmo nome, sem BOM, vira a nota.
 - **Atualização:** os celulares com 2.2.4 ou mais se atualizam sozinhos ao abrir o app.
 - **Compilação:** em `C:\gm-src`, ver `README.md` do GALINT.
 
