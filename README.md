@@ -967,7 +967,7 @@ As colunas entram pelo `schema_compat` e a tabela pelo `create_all`, os dois ao 
   - medir o acerto com fotos reais em `C:\ia-visual\fotos_teste` (o nome do arquivo começa pelo código do item);
   - avaliar 16 GB de RAM.
 - **WhatsApp com várias fotos:** ainda não foi testado num celular.
-- **Gitea:** os commits do dia estão só neste PC.
+- **Gitea:** feito. Tudo foi enviado em 26/11/2026 ao GitHub (`origin`) e ao Gitea (`http://127.0.0.1:3000/JEFERSON-CG/galint.git`): GALINT no ramo `master` e app no ramo `sync/mobile-docs-20260415`.
 
 ## Implantações recentes
 
