@@ -62,6 +62,12 @@
                         </td>
                         <td class="text-end text-nowrap">
                             {% if reading.status == 'lida' %}
+                            {# 27/11/2026: leitura pronta sem nenhum item (ex.: NFC-e antes do leitor do cupom) pode ser lida de novo. #}
+                            {% if not (result.get('itens') or []) %}
+                            <form class="d-inline" method="post" action="{{ url_for('nf_leitura.reler', reading_id=reading.id) }}">
+                                <button class="btn btn-outline-primary btn-sm" type="submit">Ler de novo</button>
+                            </form>
+                            {% endif %}
                             <a class="btn btn-primary btn-sm" href="{{ url_for('nf_leitura.conferir', reading_id=reading.id) }}">Conferir</a>
                             {% elif reading.status == 'erro' %}
                             <form class="d-inline" method="post" action="{{ url_for('nf_leitura.reler', reading_id=reading.id) }}">

@@ -953,6 +953,89 @@ def _parse_items(lines: list[Line]) -> list[dict[str, Any]]:
     return items
 
 
+# NFC-e da consulta da SEFAZ (cupom eletrônico, layout das NFs da Obramax/BMB). Pedido do usuário em 27/11/2026: "quero
+# que o Ler NF leia o material dessas NF + os valores e a quantidade, cruze com o sistema e me entregue algo que eu
+# possa corrigir na conferência". Até aqui saíam 0 itens (NF 75788 e 101456): cada item ocupa duas linhas,
+#   "TINTA PRM EPOXI ... De129950 Por123455 (Código: 89580491 ) Vl. Total"
+#   "Qtde.:5 UN: UN Vl. Unit.: 259,9 1.299,50"
+# e o rodapé traz "Qtd. total de itens", "Valor total R$", "Descontos R$" e "Valor a pagar R$".
+_NFCE_CODIGO = re.compile(r"\(\s*C[OÓ0]D[IÍL1]GO\s*[:;.]?\s*(?P<cod>[\w./-]+)\s*\)", re.IGNORECASE)
+_NFCE_QTDE = re.compile(
+    r"QTDE?\s*\.?\s*[:;]?\s*(?P<q>\d[\d.,]*)\s*UN\s*[:;]?\s*(?P<un>[A-Z0-9]{1,6})\s*"
+    r"VL\s*\.?\s*UNIT\s*\.?\s*[:;]?\s*(?P<pu>\d[\d.,]*)(?:\s+(?P<tot>\d[\d.,]*))?"
+)
+_NFCE_PROMOCAO = re.compile(r"\s+DE\s?\d+\s+POR\s?\d+\b", re.IGNORECASE)
+_NFCE_SO_VALOR = re.compile(r"^\d{1,3}(?:\.\d{3})*,\d{2}$|^\d+,\d{2}$")
+
+
+def _nfce_rodape(norm_lines: list[str]) -> dict[str, Any]:
+    rodape: dict[str, Any] = {}
+    padroes = {
+        "qtd_itens": r"QTD\.?\s*TOTAL\s*DE\s*ITENS\s*:?\s*(\d+)",
+        "valor_total": r"VALOR\s*TOTAL\s*R\$\s*:?\s*([\d.,]+)",
+        "desconto": r"DESCONTOS?\s*R\$\s*:?\s*([\d.,]+)",
+        "valor_pagar": r"VALOR\s*A\s*PAGAR\s*R\$\s*:?\s*([\d.,]+)",
+    }
+    for chave, padrao in padroes.items():
+        for norm in norm_lines:
+            achado = re.search(padrao, norm)
+            if achado:
+                rodape[chave] = int(achado.group(1)) if chave == "qtd_itens" else parse_number(achado.group(1))
+                break
+    return rodape
+
+
+def _nfce_items(lines: list[Line]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Itens da NFC-e em duas linhas (descrição + código; quantidade, unidade, unitário e total) e o rodapé."""
+    norms = [line.norm for line in lines]
+    items: list[dict[str, Any]] = []
+    for index, line in enumerate(lines):
+        codigo = _NFCE_CODIGO.search(line.text)
+        if not codigo:
+            continue
+        descricao = line.text[:codigo.start()].strip()
+        descricao = _NFCE_PROMOCAO.sub("", descricao).strip(" -")
+        # A linha de quantidade vem logo abaixo (ou na mesma linha, se o PDF juntou as duas).
+        alvo = None
+        for vizinha in [index] + [index + 1, index + 2]:
+            if vizinha >= len(lines) or (vizinha > index and _NFCE_CODIGO.search(lines[vizinha].text)):
+                break
+            texto = norms[vizinha][codigo.end():] if vizinha == index else norms[vizinha]
+            achado = _NFCE_QTDE.search(texto)
+            if achado:
+                alvo = (vizinha, achado)
+                break
+        if alvo is None:
+            continue
+        vizinha, achado = alvo
+        quantidade = parse_number(achado.group("q"))
+        unitario = parse_number(achado.group("pu"))
+        total = parse_number(achado.group("tot")) if achado.group("tot") else None
+        if total is None and vizinha + 1 < len(lines) and _NFCE_SO_VALOR.match(lines[vizinha + 1].text.strip()):
+            total = parse_number(lines[vizinha + 1].text.strip())  # OCR separou o total numa linha própria
+        if not quantidade or unitario is None:
+            continue
+        calculado = round(quantidade * unitario, 2)
+        if total is None:
+            total = calculado
+        items.append({
+            "codigo": codigo.group("cod").strip(),
+            "descricao": descricao,
+            "ncm": "",
+            "cfop": "",
+            "unidade": achado.group("un").upper(),
+            "quantidade": quantidade,
+            "valor_unitario": unitario,
+            "valor_total": total,
+            "confere": abs(calculado - total) <= max(0.02, total * 0.005),
+            "pagina": line.page + 1,
+        })
+    for number, item in enumerate(items, start=1):
+        item["n"] = number
+        item["descricao"] = re.sub(r"\s+", " ", item["descricao"]).strip()
+    return items, (_nfce_rodape(norms) if items else {})
+
+
 def parse_danfe(pages: list[PageText]) -> dict[str, Any]:
     """Transforma as linhas lidas em cabeçalho e itens da NF."""
     lines = [line for page in pages for line in page.lines]
@@ -1003,7 +1086,26 @@ def parse_danfe(pages: list[PageText]) -> dict[str, Any]:
         if not header[key]:
             header[key] = None  # "0,00" de célula vizinha (foto torta) não é total de nota
 
-    items = _parse_items(lines)
+    items, rodape = _nfce_items(lines)
+    if items:
+        # NFC-e: o emitente fica na linha logo acima do "CNPJ:" (sem o rótulo "Razão social" do DANFE da NF-e).
+        if not header["emitente"]:
+            for index, line in enumerate(first_page):
+                if line.norm.startswith("CNPJ") and index > 0 and len(re.sub(r"[^A-Za-zÀ-ú]", "", first_page[index - 1].text)) >= 4:
+                    header["emitente"] = first_page[index - 1].text.strip()
+                    break
+        # NFC-e: "Valor total R$" é a soma dos produtos; "Valor a pagar R$" já tem o desconto.
+        if rodape.get("valor_total") and not header["valor_produtos"]:
+            header["valor_produtos"] = rodape["valor_total"]
+        if rodape.get("valor_pagar") and not header["valor_total"]:
+            header["valor_total"] = rodape["valor_pagar"]
+        if rodape.get("qtd_itens") and rodape["qtd_itens"] != len(items):
+            warnings.append(f"Lidos {len(items)} de {rodape['qtd_itens']} itens da NFC-e: confira os que faltam.")
+        if rodape.get("desconto"):
+            desconto = f"{rodape['desconto']:.2f}".replace(".", ",")
+            warnings.append(f"Desconto de R$ {desconto} no total da nota; os valores dos itens estão sem o desconto.")
+    else:
+        items = _parse_items(lines)
     if not items:
         warnings.append("Nenhum item lido: confira se a página dos produtos está nítida.")
     else:

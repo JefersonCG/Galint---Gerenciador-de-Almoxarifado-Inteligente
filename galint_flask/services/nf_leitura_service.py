@@ -351,7 +351,101 @@ def enrich_reading(result: dict[str, Any]) -> dict[str, Any]:
         line["sugestoes"] = suggest_items(line, catalog, linked_code=links.get(str(line.get("codigo") or "").strip()))
         best = line["sugestoes"][0] if line["sugestoes"] else None
         line["acao"] = best["codigo"] if best and best["score"] >= AUTO_LINK_SCORE else "novo"
+    if existing is None:
+        _ligar_ao_que_ja_entrou(result, catalog)
     return result
+
+
+def _so_data(valor: Any) -> date | None:
+    """Data sem hora (o documento guarda data; a entrada antiga, data e hora)."""
+    return valor.date() if hasattr(valor, "hour") else valor
+
+
+def _entradas_com_o_numero(numero: str) -> list[dict[str, Any]]:
+    """O que já entrou no estoque com este número de NF sem o documento da NF: entradas antigas (nota_fiscal escrita
+    à mão) e linhas de documento manual. [{codigo, quantidade, data}]."""
+    digitos = re.sub(r"\D", "", numero or "").lstrip("0")
+    if len(digitos) < 3:
+        return []
+    achadas: list[dict[str, Any]] = []
+    entradas_de_documento: set[int] = set()
+    manuais = (
+        db.session.query(DocumentoEntradaEstoqueItem, DocumentoEntradaEstoque)
+        .join(DocumentoEntradaEstoque, DocumentoEntradaEstoqueItem.documento_id == DocumentoEntradaEstoque.id_documento)
+        .filter(DocumentoEntradaEstoque.numero_documento.ilike(f"%{digitos}%"))
+        .all()
+    )
+    for linha, documento in manuais:
+        if re.sub(r"\D", "", documento.numero_documento or "").lstrip("0") != digitos:
+            continue
+        if linha.entrada_id:
+            entradas_de_documento.add(int(linha.entrada_id))
+        if (documento.tipo_documento or "").strip().lower() != "manual":
+            continue
+        if linha.entrada_id:
+            continue  # vem da entrada antiga, logo abaixo
+        achadas.append({"codigo": linha.codigo_item, "quantidade": float(linha.quantidade or 0), "data": _so_data(documento.data_recebimento or documento.criado_em)})
+    for entrada in Entrada.query.filter(Entrada.nota_fiscal.ilike(f"%{digitos}%")).all():
+        if re.sub(r"\D", "", entrada.nota_fiscal or "").lstrip("0") != digitos:
+            continue
+        documentada = entrada.id_entrada in entradas_de_documento and any(
+            (doc.tipo_documento or "").strip().lower() != "manual"
+            for linha, doc in manuais if linha.entrada_id == entrada.id_entrada
+        )
+        if documentada:
+            continue  # já tem o documento da NF de verdade
+        achadas.append({"codigo": entrada.codigo_item, "quantidade": float(entrada.quantidade or 0), "data": _so_data(entrada.data_entrada)})
+    return [a for a in achadas if a["codigo"]]
+
+
+def _ligar_ao_que_ja_entrou(result: dict[str, Any], catalog: list[CatalogItem]) -> None:
+    """NF cujo material já entrou no estoque sem o arquivo da NF (27/11/2026: a NF 101456 da Obramax entrou em 21/03
+    pela tela antiga de entradas, com "NF 101456" escrito, e virou o documento manual 15, sem fornecedor nem chave).
+    Cada linha da NF é casada com o item dessas entradas (nome parecido, e mais ainda com a mesma quantidade): a linha
+    já vem ligada a ele e a conferência marca sozinha o "Já no estoque", para não somar de novo."""
+    numero = str((result.get("cabecalho") or {}).get("numero") or "")
+    entradas = _entradas_com_o_numero(numero)
+    if not entradas:
+        return
+    por_codigo = {item.codigo: item for item in catalog}
+    pares = []
+    for indice, linha in enumerate(result.get("itens") or []):
+        tokens = _tokens(linha.get("descricao"))
+        for posicao, entrada in enumerate(entradas):
+            item = por_codigo.get(entrada["codigo"])
+            if item is None:
+                continue
+            nota = similarity(linha.get("descricao") or "", item, tokens)
+            mesma_quantidade = abs(float(linha.get("quantidade") or 0) - entrada["quantidade"]) < 1e-6
+            if (mesma_quantidade and nota >= 0.30) or nota >= 0.45:
+                pares.append((nota + (0.25 if mesma_quantidade else 0.0), indice, posicao))
+    pares.sort(reverse=True)
+    linhas_usadas: set[int] = set()
+    entradas_usadas: set[int] = set()
+    ligadas = 0
+    itens = result["itens"]
+    for nota, indice, posicao in pares:
+        if indice in linhas_usadas or posicao in entradas_usadas:
+            continue
+        linhas_usadas.add(indice)
+        entradas_usadas.add(posicao)
+        entrada, linha, item = entradas[posicao], itens[indice], por_codigo[entradas[posicao]["codigo"]]
+        quando = entrada["data"].strftime("%d/%m/%Y") if entrada.get("data") else ""
+        sugestao = {
+            "codigo": item.codigo, "descricao": item.descricao, "marca": item.marca, "unidade": item.unidade,
+            "fator_embalagem": item.fator_embalagem, "unidade_documental": item.unidade_documental,
+            "score": round(min(1.0, nota), 4), "motivo": f"entrou com a NF {numero} {quando}".strip(),
+        }
+        linha["sugestoes"] = [sugestao] + [s for s in (linha.get("sugestoes") or []) if s.get("codigo") != item.codigo][:2]
+        linha["acao"] = item.codigo
+        ligadas += 1
+    datas = [e["data"] for e in entradas if e.get("data")]
+    primeira = min(datas).strftime("%d/%m/%Y") if datas else ""
+    result["ja_entrou_sem_arquivo"] = {"numero": numero, "itens": len(entradas), "ligadas": ligadas}
+    result.setdefault("avisos", []).insert(0, (
+        f"A NF {numero} já tinha entrado no estoque sem o arquivo ({len(entradas)} itens{f' em {primeira}' if primeira else ''}). "
+        f"{ligadas} linha(s) foram ligadas a esses itens e o \"Já no estoque\" vem marcado: confira para não somar de novo."
+    ))
 
 
 # --------------------------------------------------------------------------------------------------

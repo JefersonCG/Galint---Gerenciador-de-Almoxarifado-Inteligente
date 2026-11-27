@@ -177,3 +177,56 @@ def render_png(pdf_bytes: bytes, *, dpi: int = 300, rotate: int = 0) -> bytes:
     out = io.BytesIO()
     image.save(out, format="PNG")
     return out.getvalue()
+
+
+NFCE_ITEMS = [
+    ("89916505", "PTA LAMI FECH AL BR DIR STD 210X70CM", "1", "849,9", "849,90"),
+    ("89580491", "TINTA PRM EPOXI MULTISSUPERF BR 36L SV De129950 Por123455", "5", "259,9", "1.299,50"),
+    ("89699463", "ESTILETE MODELO 510 STAMACO", "1", "26,99", "26,99"),
+]
+
+
+def build_nfce_pdf(itens_no_rodape: int = 3) -> bytes:
+    """NFC-e da consulta da SEFAZ (layout das NFs da Obramax/BMB, 27/11/2026): cada item em duas linhas e o rodapé
+    com quantidade de itens, total, desconto e valor a pagar."""
+    from reportlab.lib.pagesizes import A4
+    from reportlab.pdfgen import canvas
+
+    key43 = "33" + "2602" + "23476033000884" + "65" + "001" + "000075788" + "1" + "10000001"
+    chave = key43 + str(access_key_check_digit(key43))
+    buffer = io.BytesIO()
+    page = canvas.Canvas(buffer, pagesize=A4)
+    _, height = A4
+    y = height - 40
+    page.setFont("Helvetica", 8)
+    page.drawString(30, y, "04/02/2026, 15:28")
+    y -= 24
+    page.setFont("Helvetica-Bold", 11)
+    page.drawString(30, y, "BMB Material de Construcao S.A")
+    y -= 14
+    page.setFont("Helvetica", 9)
+    page.drawString(30, y, "CNPJ: 23.476.033/0008-84")
+    y -= 12
+    page.drawString(30, y, "dos Bandeirantes , 3091 , , Jacarepagua , Rio de Janeiro , RJ")
+    y -= 24
+    for codigo, descricao, qtde, unitario, total in NFCE_ITEMS:
+        page.setFont("Helvetica-Bold", 10)
+        page.drawString(30, y, f"{descricao} (Código: {codigo} )")
+        page.drawRightString(560, y, "Vl. Total")
+        y -= 13
+        page.setFont("Helvetica", 10)
+        page.drawString(30, y, f"Qtde.:{qtde}    UN: UN    Vl. Unit.: {unitario}")
+        page.setFont("Helvetica-Bold", 12)
+        page.drawRightString(560, y, total)
+        y -= 20
+    page.setFont("Helvetica", 9)
+    for texto in (f"Qtd. total de itens: {itens_no_rodape}", "Valor total R$: 2.176,39", "Descontos R$: 10,00", "Valor a pagar R$: 2.166,39"):
+        page.drawString(30, y, texto)
+        y -= 12
+    y -= 10
+    page.drawString(30, y, "Chave de acesso:")
+    y -= 12
+    page.drawString(30, y, _group_key(chave))
+    page.showPage()
+    page.save()
+    return buffer.getvalue()
