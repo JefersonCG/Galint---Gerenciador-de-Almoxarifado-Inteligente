@@ -13,7 +13,7 @@
 // 2.5.0 (26/11/2026): esta é a Retirada do app, para todos. Pedido do usuário: "em retirada se mescle com
 // retirada múltipla, uma junção dessas duas funções em 1 só click". Item lido: "Dar saída" sai na hora (um item
 // não pergunta nada); "Mais um item" guarda na fila e lê o próximo. O campo de código também busca pelo nome na
-// base do celular, sem os zerados. A saída vai ao WhatsApp numa mensagem só, com a foto de cada item.
+// base do celular. 2.6.0: busca por voz (🎤) e a mesma busca inteligente; zerados aparecem marcados, sem entrar. A saída vai ao WhatsApp numa mensagem só, com a foto de cada item.
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
@@ -42,7 +42,9 @@ import { unitLabel } from '../utils/provaReal';
 import { baseQty, baseQtyAccepted, fmt, isTool, onlyWholePackages, qtyText, snapshot, stockWarning } from '../utils/filaSaidaConta';
 import { withdrawalMessage } from '../utils/shareWhatsApp';
 import { apagarFila, gravarFila, lerFila } from '../services/filaSaida';
-import { searchItems } from '../services/localDb';
+import { listarTodosItens } from '../services/localDb';
+import { buscarMaterial } from '../utils/buscaFalada';
+import BotaoVoz from '../components/BotaoVoz';
 import SyncService from '../services/dbSync';
 
 const cap = (text) => {
@@ -202,8 +204,10 @@ export default function FilaSaidaScreen({ navigation, route }) {
             return undefined;
         }
         const timer = setTimeout(() => {
-            searchItems(termo, 30)
-                .then((lista) => setSugestoes(lista.filter((i) => Number(i?.quantidade ?? i?.saldo ?? 0) > 0).slice(0, 6)))
+            // 2.6.0: busca falada ou digitada (código, "20 amperes", "fio de 2 e meio", abreviações). Zerados aparecem
+            // marcados, mas não entram na saída (pedido do usuário: "procura os itens, zerados ou não").
+            listarTodosItens()
+                .then((lista) => setSugestoes(buscarMaterial(lista, termo, { limite: 10 })))
                 .catch(() => setSugestoes([]));
         }, 180);
         return () => clearTimeout(timer);
@@ -589,32 +593,42 @@ export default function FilaSaidaScreen({ navigation, route }) {
                                 style={[styles.input, styles.inputText, { flex: 1 }]}
                                 value={codigoBusca}
                                 onChangeText={setCodigoBusca}
-                                placeholder="Código ou nome"
+                                placeholder="Código, nome ou 🎤"
                                 placeholderTextColor="#94a3b8"
                                 autoCorrect={false}
                                 returnKeyType="search"
                                 onSubmitEditing={buscarCodigo}
                             />
+                            <BotaoVoz tamanho={54} onFala={(frase) => { InactivityService.recordActivity(); setCodigoBusca(frase); }} />
                             <TouchableOpacity style={styles.buscarBtn} onPress={() => buscarCodigo()} disabled={buscando} activeOpacity={0.85}>
                                 {buscando ? <ActivityIndicator color={heroPalette.bg} /> : <Text style={styles.buscarTexto}>Buscar</Text>}
                             </TouchableOpacity>
                         </View>
                         {sugestoes.length ? (
                             <View style={styles.lista}>
-                                {sugestoes.map((entry) => (
-                                    <TouchableOpacity
-                                        key={String(entry.codigo_barras || entry.id)}
-                                        style={styles.listaLinha}
-                                        onPress={() => {
-                                            setCodigoBusca('');
-                                            buscarCodigo(String(entry.codigo_barras || entry.id));
-                                        }}
-                                        activeOpacity={0.8}
-                                    >
-                                        <Text style={styles.listaNome} numberOfLines={2}>{entry.descricao}</Text>
-                                        <Text style={styles.listaDetalhe} numberOfLines={1}>{entry.saldo_display || ''}</Text>
-                                    </TouchableOpacity>
-                                ))}
+                                {sugestoes.map((entry) => {
+                                    const zerado = !(Number(entry.quantidade ?? entry.saldo ?? 0) > 0);
+                                    return (
+                                        <TouchableOpacity
+                                            key={String(entry.codigo_barras || entry.id)}
+                                            style={[styles.listaLinha, zerado && styles.listaZerada]}
+                                            onPress={() => {
+                                                if (zerado) {
+                                                    Alert.alert('Estoque zerado', entry.descricao);
+                                                    return;
+                                                }
+                                                setCodigoBusca('');
+                                                buscarCodigo(String(entry.codigo_barras || entry.id));
+                                            }}
+                                            activeOpacity={0.8}
+                                        >
+                                            <Text style={styles.listaNome} numberOfLines={2}>{entry.descricao}</Text>
+                                            <Text style={[styles.listaDetalhe, zerado && styles.listaZeradaTexto]} numberOfLines={1}>
+                                                {zerado ? 'ZERADO' : (entry.saldo_display || '')}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
                             </View>
                         ) : null}
                     </>
@@ -736,6 +750,8 @@ const styles = StyleSheet.create({
     listaLinha: { paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: heroPalette.border },
     listaNome: { color: heroPalette.text, fontSize: 15, fontWeight: '800' },
     listaDetalhe: { color: heroPalette.textMuted, fontSize: 12, marginTop: 2 },
+    listaZerada: { opacity: 0.6 },
+    listaZeradaTexto: { color: '#f87171', fontWeight: '900' },
     fixo: { height: 54, borderRadius: 14, backgroundColor: heroPalette.panel, borderWidth: 1, borderColor: heroPalette.border, justifyContent: 'center', paddingHorizontal: 16 },
     fixoTexto: { color: heroPalette.text, fontSize: 16, fontWeight: '800' },
     scanButton: { height: 56, borderRadius: 16, backgroundColor: heroPalette.primaryStrong, alignItems: 'center', justifyContent: 'center' },

@@ -10,6 +10,8 @@ import * as SQLite from 'expo-sqlite';
 
 const DB_NAME = 'galint_base.db';
 let dbPromise = null;
+// Lista completa em memória para a busca por voz (2.6.0); some a cada gravação e é lida de novo na próxima busca.
+let todosEmMemoria = null;
 
 function normalizeText(value) {
     return String(value ?? '')
@@ -97,6 +99,7 @@ export async function initLocalDb() {
 // Mudanças que vieram do servidor: grava (ou substitui) só esses itens.
 export async function upsertItems(items = []) {
     if (!Array.isArray(items) || items.length === 0) return 0;
+    todosEmMemoria = null;
     const db = await openDb();
     let written = 0;
     await db.withExclusiveTransactionAsync(async (txn) => {
@@ -111,6 +114,7 @@ export async function upsertItem(item) {
 
 // Lista completa do servidor: troca a base inteira de uma vez (itens apagados no site somem).
 export async function replaceAllItems(items = []) {
+    todosEmMemoria = null;
     const db = await openDb();
     let written = 0;
     await db.withExclusiveTransactionAsync(async (txn) => {
@@ -167,6 +171,15 @@ export async function searchItems(query = '', limit = 0) {
     return rows.map(hydrate).filter(Boolean);
 }
 
+// Todos os itens da base do celular (para a busca por voz em utils/buscaFalada.js), guardados em memória.
+export async function listarTodosItens() {
+    if (todosEmMemoria) return todosEmMemoria;
+    const db = await openDb();
+    const rows = await db.getAllAsync('SELECT dados FROM items ORDER BY descricao ASC');
+    todosEmMemoria = rows.map(hydrate).filter(Boolean);
+    return todosEmMemoria;
+}
+
 export async function countItems() {
     const db = await openDb();
     const row = await db.getFirstAsync('SELECT COUNT(*) AS total FROM items');
@@ -186,6 +199,7 @@ export async function setMeta(chave, valor) {
 
 // Trocou de servidor: a base do outro servidor não vale aqui.
 export async function clearLocalDb() {
+    todosEmMemoria = null;
     const db = await openDb();
     await db.execAsync('DELETE FROM items; DELETE FROM meta;');
 }

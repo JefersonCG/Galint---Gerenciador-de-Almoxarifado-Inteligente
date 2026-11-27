@@ -51,7 +51,9 @@ import ApiService from '../services/api';
 import HeartbeatService from '../services/heartbeatService';
 import InactivityService from '../services/inactivityService';
 import SyncService from '../services/dbSync';
-import { getItemByCodigo, searchItems } from '../services/localDb';
+import { getItemByCodigo, listarTodosItens } from '../services/localDb';
+import { buscarMaterial } from '../utils/buscaFalada';
+import BotaoVoz from '../components/BotaoVoz';
 import { contarFila } from '../services/filaSaida';
 import { subscribeNotifyInboxChanged } from '../services/notifyEvents';
 import StockCountPanel from '../components/StockCountPanel';
@@ -352,8 +354,9 @@ export default function EstoqueScreen({ navigation, route }) {
             setResults([]);
             return undefined;
         }
+        // 2.6.0: a mesma busca da voz (código, "20 amperes", "fio de 2 e meio", abreviações), zerados incluídos.
         const timer = setTimeout(() => {
-            searchItems(term, 40).then(setResults).catch(() => setResults([]));
+            listarTodosItens().then((itens) => setResults(buscarMaterial(itens, term, { limite: 60 }))).catch(() => setResults([]));
         }, 180);
         return () => clearTimeout(timer);
     }, [search]);
@@ -577,7 +580,9 @@ export default function EstoqueScreen({ navigation, route }) {
                                 <Text style={styles.resultName} numberOfLines={2}>{entry.descricao}</Text>
                                 <Text style={styles.resultMeta} numberOfLines={1}>{entry.codigo_barras || entry.id}{entry.categoria ? ` • ${entry.categoria}` : ''}</Text>
                             </View>
-                            <Text style={styles.resultBalance}>{entry.saldo_display || ''}</Text>
+                            {Number(entry.quantidade ?? entry.saldo ?? 0) > 0
+                                ? <Text style={styles.resultBalance}>{entry.saldo_display || ''}</Text>
+                                : <Text style={[styles.resultBalance, styles.resultZero]}>ZERADO</Text>}
                         </TouchableOpacity>
                     )}
                 />
@@ -600,7 +605,7 @@ export default function EstoqueScreen({ navigation, route }) {
                         style={styles.searchInput}
                         value={search}
                         onChangeText={(text) => { InactivityService.recordActivity(); setSearch(text); }}
-                        placeholder="Buscar pelo nome ou digitar o código"
+                        placeholder="Buscar, digitar o código ou falar 🎤"
                         placeholderTextColor={heroPalette.textMuted}
                         autoCorrect={false}
                         returnKeyType="search"
@@ -615,6 +620,7 @@ export default function EstoqueScreen({ navigation, route }) {
                             <Text style={styles.searchClear}>✕</Text>
                         </TouchableOpacity>
                     ) : null}
+                    <BotaoVoz tamanho={40} onFala={(frase) => { InactivityService.recordActivity(); setSearch(frase); }} />
                 </View>
             ) : null}
             {sideMenu}
@@ -734,6 +740,7 @@ const styles = StyleSheet.create({
     resultName: { color: heroPalette.text, fontSize: 15, fontWeight: '800' },
     resultMeta: { color: heroPalette.textMuted, fontSize: 12, marginTop: 2 },
     resultBalance: { color: heroPalette.primary, fontSize: 13, fontWeight: '800', maxWidth: '35%', textAlign: 'right' },
+    resultZero: { color: '#f87171' },
     emptyText: { color: heroPalette.textMuted, textAlign: 'center', marginTop: 30 },
     searchBox: { flexDirection: 'row', alignItems: 'center', gap: 8, margin: 16, marginTop: 8, paddingHorizontal: 14, height: 52, borderRadius: 16, backgroundColor: heroPalette.panel, borderWidth: 1, borderColor: heroPalette.border, ...heroSoftShadow },
     searchIcon: { fontSize: 16 },
