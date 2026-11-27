@@ -2,7 +2,7 @@
 
 Todas as mudanças notáveis do aplicativo GALINT Mobile serão documentadas neste arquivo.
 
-## [2.6.2] - 2026-11-27 (código 32)
+## [2.6.2] - 2026-11-27 (código 32, 132b65d)
 
 ### Adicionado
 - **Quem retira ou devolve e o local, ditos no comando.** Pedido do usuário: "Retirada por/para Gláucia de 5 papel toalhas interfolhas para local das áreas comuns e banheiros".
