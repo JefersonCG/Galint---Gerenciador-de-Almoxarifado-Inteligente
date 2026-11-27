@@ -52,6 +52,7 @@ from ..services import report_export_service
 from ..services.telegram_service import TelegramService
 from ..services.tool_custody_service import ToolCustodyService
 from ..utils.time_service import TimeService
+from ..services import plantao as plantao_service
 from ..extensions import db
 from ..models import (
     ApkAuditLog,
@@ -581,6 +582,9 @@ def mobile_login_required(func):
         if not session_ok:
             return jsonify({"error": session_error or "Sessão inválida. Faça login novamente."}), 401
 
+        if plantao_service.fora_do_plantao(user, TimeService.now_local()):
+            return jsonify({"error": PLANTAO_ENCERRADO, "plantao_encerrado": True}), 401
+
         g.mobile_user = user
         return func(*args, **kwargs)
     return wrapper
@@ -621,10 +625,41 @@ def token_required(func):
         if not current_user:
             return jsonify({"success": False, "message": "Token inválido ou expirado. Faça login novamente."}), 401
 
+        if plantao_service.fora_do_plantao(current_user, TimeService.now_local()):
+            return jsonify({"success": False, "plantao_encerrado": True, "message": PLANTAO_ENCERRADO}), 401
+
         g.mobile_user = current_user
         return func(current_user, *args, **kwargs)
 
     return wrapper
+
+
+PLANTAO_ENCERRADO = "Plantão encerrado. Entre de novo no próximo plantão."
+
+
+def _sem_acento_maiusculo(texto: str | None) -> str:
+    sem = "".join(c for c in unicodedata.normalize("NFD", str(texto or "")) if unicodedata.category(c) != "Mn")
+    return " ".join(sem.upper().split())
+
+
+def _usuarios_pelo_nome(texto: str) -> list[Usuario]:
+    """Login do app pelo nome (27/11/2026): nome inteiro, primeiro nome ou trecho, sem diferença de acento.
+
+    Pedido do usuário: no celular da supervisão e da zeladoria "o login dele seja pelo primeiro nome". Nome inteiro
+    igual vence ("LEONARDO" e não "LEONARDO ( LBM )"); depois o primeiro nome ("ISAIAS" = ISAÍAS); por último o
+    trecho, como era antes (ilike). Mais de um resultado volta como ambíguo.
+    """
+    alvo = _sem_acento_maiusculo(texto)
+    if not alvo:
+        return []
+    todos = [(usuario, _sem_acento_maiusculo(usuario.nome)) for usuario in Usuario.query.all()]
+    exatos = [usuario for usuario, nome in todos if nome == alvo]
+    if exatos:
+        return exatos
+    primeiros = [usuario for usuario, nome in todos if re.split(r"[^A-Z0-9]+", nome)[0] == alvo]
+    if primeiros:
+        return primeiros
+    return [usuario for usuario, nome in todos if alvo in nome]
 
 
 @blueprint.post("/login")
@@ -641,13 +676,12 @@ def mobile_login():
                 "message": "Matrícula/Nome e senha são obrigatórios",
             }), 400
 
-        # Buscar por matrícula (numérico) ou por nome (ilike)
+        # Buscar por matrícula (numérico) ou por nome. 27/11/2026: "o login dele seja pelo primeiro nome": nome
+        # inteiro, primeiro nome ou trecho, sem diferença de acento ("ISAIAS" acha ISAÍAS).
         if matricula_ou_nome.isdigit():
             user = Usuario.query.filter_by(matricula=matricula_ou_nome).first()
         else:
-            users = Usuario.query.filter(
-                Usuario.nome.ilike(f"%{matricula_ou_nome}%")
-            ).all()
+            users = _usuarios_pelo_nome(matricula_ou_nome)
 
             if len(users) == 0:
                 user = None
@@ -687,6 +721,18 @@ def mobile_login():
                     "message": "Senha incorreta",
                 }), 401
 
+        # Plantão (27/11/2026): fora dele não entra; o token vence no fim dele.
+        janela_plantao = None
+        if plantao_service.tem_plantao(user):
+            janela_plantao = plantao_service.janela_do_usuario(user, TimeService.now_local())
+            if janela_plantao is None:
+                return jsonify({
+                    "success": False,
+                    "fora_do_plantao": True,
+                    "message": f"Fora do seu plantão ({plantao_service.rotulo(user)}).",
+                }), 403
+        fim_plantao = janela_plantao[1] if janela_plantao else None
+
         # Invalidar sessão mobile anterior da mesma matrícula
         if user.active_session_id and user.active_session_id.startswith('mobile:'):
             logger.info(f"[Mobile] Invalidando sessão mobile anterior de {user.matricula}")
@@ -697,7 +743,7 @@ def mobile_login():
         token = jwt.encode(
             {
                 "matricula": user.matricula,
-                "exp": TimeService.now_db() + timedelta(days=30),
+                "exp": int(fim_plantao.timestamp()) if fim_plantao else TimeService.now_db() + timedelta(days=30),
             },
             current_app.config.get("SECRET_KEY"),
             algorithm="HS256",
@@ -722,7 +768,7 @@ def mobile_login():
                 device_id=device.id,
                 user_id=user.matricula,
                 session_token_hash=session_token_hash,
-                expires_at=TimeService.now_db() + timedelta(days=30),
+                expires_at=fim_plantao.replace(tzinfo=None) if fim_plantao else TimeService.now_db() + timedelta(days=30),
                 ip_address=_get_client_ip(),
                 user_agent=request.headers.get("User-Agent"),
                 status="active",
@@ -758,6 +804,12 @@ def mobile_login():
                     # Celular da supervisão e zeladoria (26/11/2026): tela inicial só com Retirada, Devolução e
                     # "Será que temos!?".
                     "app_so_retirada": bool(getattr(user, "app_so_retirada", 0)),
+                    # Plantão (27/11/2026): o app desloga sozinho em "ate" (milissegundos) e pede a digital no login.
+                    "plantao": {
+                        "inicio": plantao_service.normalizar_hora(user.plantao_inicio),
+                        "fim": plantao_service.normalizar_hora(user.plantao_fim),
+                        "ate": int(fim_plantao.timestamp() * 1000),
+                    } if fim_plantao else None,
                 },
                 "device": {
                     "device_uuid": getattr(device, "device_uuid", None),

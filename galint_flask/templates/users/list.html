@@ -1466,6 +1466,9 @@
                                 {% if membro.app_so_retirada %}
                                 <span class="users-member-tag is-standard">App só retirada</span>
                                 {% endif %}
+                                {% if membro.plantao_inicio and membro.plantao_fim %}
+                                <span class="users-member-tag is-standard">PLANTÃO {{ membro.plantao_inicio }} ÀS {{ membro.plantao_fim }}</span>
+                                {% endif %}
                             </div>
                         </div>
 

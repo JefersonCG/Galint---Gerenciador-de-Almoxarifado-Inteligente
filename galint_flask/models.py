@@ -874,6 +874,10 @@ class Usuario(UserMixin, db.Model):
     # App só de retirada (26/11/2026): celular da supervisão e zeladoria. A tela inicial do app vira Retirada,
     # Devolução e "Será que temos!?", sem Painel, Configurações nem "Atualizar a base agora".
     app_so_retirada: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # Plantão (27/11/2026, services/plantao.py): "07:00" e "19:00"; vazio = sem plantão. O app só entra dentro dele e
+    # desloga no fim ("plantonista 12 por 36 … sempre que encerrar essa carga horária o sistema deslogará o usuário").
+    plantao_inicio: Mapped[str | None] = mapped_column(String(5), nullable=True)
+    plantao_fim: Mapped[str | None] = mapped_column(String(5), nullable=True)
     barcode_token: Mapped[str | None] = mapped_column(String, unique=True, nullable=True)
     active_session_id: Mapped[str | None] = mapped_column(String, nullable=True)
 

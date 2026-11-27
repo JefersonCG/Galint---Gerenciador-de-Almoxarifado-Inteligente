@@ -522,6 +522,15 @@
                                 <label class="form-check-label" for="app-so-retirada">App só de retirada</label>
                             </div>
                         </div>
+                        {# Plantão (27/11/2026): o app só entra dentro dele e desloga no fim; vazio = sem plantão. #}
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="plantao-inicio">Plantão</label>
+                            <div class="d-flex align-items-center gap-2">
+                                <input class="form-control" type="time" id="plantao-inicio" name="plantao_inicio" value="{{ (usuario.plantao_inicio if usuario else '') or '' }}">
+                                <span>às</span>
+                                <input class="form-control" type="time" id="plantao-fim" name="plantao_fim" value="{{ (usuario.plantao_fim if usuario else '') or '' }}">
+                            </div>
+                        </div>
                     </div>
 
                     <div class="mt-4 d-flex gap-2 flex-wrap">

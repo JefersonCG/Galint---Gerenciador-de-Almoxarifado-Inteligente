@@ -136,6 +136,20 @@ RUNTIME_SCHEMA_COMPAT_RULES: tuple[SchemaCompatRule, ...] = (
             "UPDATE usuarios SET app_so_retirada = 1 WHERE upper(trim(nome)) IN ('RAPHAEL', 'ISAÍAS', 'ISAIAS', 'FELIPE', 'ANDERSON')",
         ),
     ),
+    # Plantão (27/11/2026). Pedido do usuário: supervisão e zeladoria são "plantonista 12 por 36, pegam de 07h às
+    # 19h"; no fim do plantão o app desloga. Nasce 07:00–19:00 para quem tem "App só de retirada", uma vez, quando a
+    # coluna é criada; depois se muda em Usuários (vazio = sem plantão).
+    SchemaCompatRule(
+        table_name="usuarios",
+        required_columns=("plantao_inicio", "plantao_fim"),
+        ddl_statements=(
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS plantao_inicio varchar(5)",
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS plantao_fim varchar(5)",
+        ),
+        post_statements=(
+            "UPDATE usuarios SET plantao_inicio = '07:00', plantao_fim = '19:00' WHERE app_so_retirada = 1",
+        ),
+    ),
     SchemaCompatRule(
         table_name="empresa_config",
         required_columns=("tema_menu", "tema_destaque", "tema_fundo"),

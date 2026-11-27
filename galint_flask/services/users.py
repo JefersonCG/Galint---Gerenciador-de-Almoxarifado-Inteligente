@@ -29,6 +29,8 @@ class UserPayload:
     is_standard: bool
     pode_ajustar_estoque: bool = False
     app_so_retirada: bool = False
+    plantao_inicio: str | None = None  # "07:00" (services/plantao.py); vazio = sem plantão
+    plantao_fim: str | None = None
 
 
 class UserService:
@@ -98,6 +100,8 @@ class UserService:
             is_standard=int(payload.is_standard),
             pode_ajustar_estoque=int(payload.pode_ajustar_estoque),
             app_so_retirada=int(payload.app_so_retirada),
+            plantao_inicio=payload.plantao_inicio,
+            plantao_fim=payload.plantao_fim,
             barcode_token=self._generate_unique_barcode(matricula),
         )
         db.session.add(usuario)
@@ -126,6 +130,8 @@ class UserService:
         usuario.is_standard = int(payload.is_standard)
         usuario.pode_ajustar_estoque = int(payload.pode_ajustar_estoque)
         usuario.app_so_retirada = int(payload.app_so_retirada)
+        usuario.plantao_inicio = payload.plantao_inicio
+        usuario.plantao_fim = payload.plantao_fim
         if payload.senha:
             usuario.senha_hash = generate_password_hash(payload.senha)
 
@@ -429,6 +435,8 @@ class UserService:
             "is_standard": bool(usuario.is_standard),
             "pode_ajustar_estoque": bool(getattr(usuario, "pode_ajustar_estoque", 0)),
             "app_so_retirada": bool(getattr(usuario, "app_so_retirada", 0)),
+            "plantao_inicio": getattr(usuario, "plantao_inicio", None),
+            "plantao_fim": getattr(usuario, "plantao_fim", None),
             "barcode_token": usuario.barcode_token,
         }
 

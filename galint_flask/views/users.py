@@ -10,6 +10,7 @@ from flask import Blueprint, abort, flash, redirect, jsonify, make_response, ren
 from flask_login import current_user, login_required
 
 from ..services.inventory import inventory_service
+from ..services.plantao import normalizar_hora
 from ..services.tool_custody_service import tool_custody_service
 from ..services.users import UserPayload, user_service
 
@@ -143,6 +144,8 @@ def _build_payload(form, *, matricula: str | None) -> UserPayload:
         is_standard=bool(form.get("is_standard")),
         pode_ajustar_estoque=bool(form.get("pode_ajustar_estoque")),
         app_so_retirada=bool(form.get("app_so_retirada")),
+        plantao_inicio=normalizar_hora(form.get("plantao_inicio")),
+        plantao_fim=normalizar_hora(form.get("plantao_fim")),
     )
 
 
