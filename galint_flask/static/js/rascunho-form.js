@@ -17,7 +17,7 @@
  *   Registro recarregava a página e o rascunho devolvia tudo preenchido ("ao clicar em Limpar a página não limpa o
  *   formulário"); e a gravação ao sair da página (pagehide) regravaria o rascunho recém-apagado.
  *
- * Uso: GalintRascunho.ligar(form, { chave, ignorar: ['id ou name'], coletarExtra, antesDeRestaurar })
+ * Uso: GalintRascunho.ligar(form, { chave, ignorar: ['id ou name'], coletarExtra, antesDeRestaurar, deuCerto })
  */
 (function () {
     'use strict';
@@ -212,7 +212,12 @@
         }
         if (rascunho && rascunho.enviadoEm) {
             // Enviado: aviso vermelho na página = deu erro (o rascunho volta); sem ele, deu certo (o rascunho some).
-            if (document.querySelector('.galint-flash-toast.toast-danger')) {
+            // config.deuCerto (27/11/2026) decide no lugar do aviso vermelho: o Registro de NF registra e ainda assim
+            // pode mostrar aviso vermelho do estoque (item em PRÉ CADASTRADOS), e o rascunho voltava por isso.
+            const deuCerto = typeof config.deuCerto === 'function'
+                ? Boolean(config.deuCerto())
+                : !document.querySelector('.galint-flash-toast.toast-danger');
+            if (!deuCerto) {
                 rascunho.enviadoEm = null;
                 guardado.gravar(chave, rascunho);
             } else {

@@ -869,7 +869,7 @@
 {{ super() }}
 <script src="{{ url_for('static', filename='js/nf-prova-real.js', v='20261124') }}"></script>
 <script src="{{ url_for('static', filename='js/nome-padrao.js', v='20261124') }}"></script>
-<script src="{{ url_for('static', filename='js/rascunho-form.js', v='20261127') }}"></script>
+<script src="{{ url_for('static', filename='js/rascunho-form.js', v='20261127b') }}"></script>
 <script>
     const itemSearchInput = document.getElementById('item_search');
     const itemCodigoInput = document.getElementById('codigo');
@@ -3576,11 +3576,76 @@
         }
     })();
 
+    // Depois do "Registrar" (27/11/2026). Pedido do usuário: "sempre que clicar em registrar ele dá um limpar na
+    // página". Erro que originou ("dei Ctrl+F5, religuei e nada, continua os formulários preenchidos com o último
+    // cadastro"): o servidor volta para a NF registrada (?nota=…, que preenche o cabeçalho da NF) e o rascunho do
+    // formulário voltava inteiro sempre que havia um aviso vermelho, o que acontece mesmo com o registro feito (o
+    // item novo vai para PRÉ CADASTRADOS e o estoque avisa em vermelho). Agora, com o aviso "Documento fiscal
+    // registrado": o rascunho some e a página vai para o Registro vazio, levando os avisos. Com erro de verdade (sem
+    // esse aviso), o rascunho fica para corrigir. "+ ADICIONAR" continua mantendo a NF para o próximo item.
+    const NF_REGISTROU = 'galint.nf.registrar';
+    const NF_AVISOS = 'galint.nf.avisos';
+    const sessaoNf = {
+        ler(chave) {
+            try { return window.sessionStorage.getItem(chave); } catch (erro) { return null; }
+        },
+        gravar(chave, valor) {
+            try { window.sessionStorage.setItem(chave, valor); } catch (erro) { /* sem armazenamento */ }
+        },
+        apagar(chave) {
+            try { window.sessionStorage.removeItem(chave); } catch (erro) { /* sem armazenamento */ }
+        },
+    };
+    const registradoNestaPagina = () => Array.from(document.querySelectorAll('.js-galint-flash-toast'))
+        .some((aviso) => /documento fiscal registrado/i.test(aviso.textContent || ''));
+    (() => {
+        // Avisos trazidos da página do registro: aparecem aqui, no Registro vazio.
+        const avisos = sessaoNf.ler(NF_AVISOS);
+        if (avisos) {
+            sessaoNf.apagar(NF_AVISOS);
+            const caixa = document.createElement('div');
+            caixa.innerHTML = avisos;
+            const pilha = caixa.firstElementChild;
+            if (pilha && !document.getElementById('galintFlashToastStack')) {
+                document.body.appendChild(pilha);
+                pilha.querySelectorAll('.js-galint-flash-toast').forEach((aviso, indice) => {
+                    aviso.classList.remove('show', 'showing', 'hide');
+                    if (window.bootstrap?.Toast) {
+                        const toast = window.bootstrap.Toast.getOrCreateInstance(aviso, { autohide: true, delay: Number(aviso.getAttribute('data-bs-delay') || 7000) });
+                        window.setTimeout(() => toast.show(), indice * 140);
+                    } else {
+                        aviso.classList.add('show');
+                    }
+                });
+            }
+        }
+        // Volta do "Registrar": registrado → Registro vazio.
+        const marcado = sessaoNf.ler(NF_REGISTROU);
+        if (!marcado) return;
+        sessaoNf.apagar(NF_REGISTROU);
+        if (Date.now() - Number(marcado) > 120000 || !registradoNestaPagina()) return;
+        window.GalintRascunho?.limpar('nf-registro');
+        const limpo = new URL({{ nf_tab_url('registro')|trim|tojson }}, window.location.href);
+        const aqui = new URL(window.location.href);
+        if (aqui.pathname === limpo.pathname && aqui.search === limpo.search) return;
+        const pilha = document.getElementById('galintFlashToastStack');
+        if (pilha) sessaoNf.gravar(NF_AVISOS, pilha.outerHTML);
+        window.location.replace(limpo.href);
+    })();
+    // Marca o envio pelo "Registrar" de verdade (depois da prova real); o "+ ADICIONAR" fica de fora.
+    window.addEventListener('submit', (evento) => {
+        if (evento.target?.id !== 'nf-registration-form' || evento.defaultPrevented) return;
+        if (document.getElementById('docf-continuar')?.value) return;
+        sessaoNf.gravar(NF_REGISTROU, String(Date.now()));
+    });
+
     // Rascunho automático do Registro (26/11/2026, pedido do usuário: "quando estiver cadastrando itens, a página
     // se auto recuperar de onde parou"). Regras em static/js/rascunho-form.js.
     window.GalintRascunho?.ligar(document.getElementById('nf-registration-form'), {
         chave: 'nf-registro',
         ignorar: ['item_search'],
+        // Enviado: some quando a página diz "Documento fiscal registrado" (mesmo com aviso vermelho do estoque).
+        deuCerto: registradoNestaPagina,
         coletarExtra: () => ({
             codigo: document.getElementById('codigo')?.value || '',
             item: document.getElementById('item_search')?.value || '',
