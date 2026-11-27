@@ -2,6 +2,36 @@
 
 Todas as mudanças notáveis do aplicativo GALINT Mobile serão documentadas neste arquivo.
 
+## [2.6.1] - 2026-11-27 (código 31)
+
+### Adicionado
+- **Comandos de voz.** Pedido do usuário: "eu falo 'Retirada lâmpada bolbo 9w kian 6 unidades' e ele abre em retirada com o material que pedi e a quantidade".
+  - **A 1ª palavra diz a ação:**
+    - Retirada: "retirada", "retirar", "tirar", "dar saída";
+    - Devolução: "devolução", "devolver";
+    - Alteração (a conferência do item): "alteração", "alterar", "conferir", "contagem", "ajustar".
+  - **A quantidade vem no fim**, com a unidade: "6 unidades", "3 peças", "2 caixas", "2 rolos", "meia lata", "uma lata e meia". Também vale "quantidade 4". O "9w" do meio é do material.
+  - **Só a ação** ("retirada", "devolução") abre a tela.
+  - **Abre direto** quando um item está claramente à frente. Exemplos: a lâmpada da Kian com 6 unidades; "dar saída bucha de redução 50 x 25 3 peças".
+  - **Com mais de um item parecido**, a lista aparece com a faixa do comando (ex.: "📤 Retirada · 6 unidades", ✕ cancela) e o toque no item faz o comando.
+  - **Sem palavra de comando**, a fala é só busca, como na 2.6.0. Assim "cano 6 metros" não vira quantidade.
+- **Toque no item da lista da tela inicial** pergunta: Retirada, Devolução ou Alteração.
+  - Zerado: a Retirada aparece apagada e avisa "Estoque zerado".
+  - Quem só tem uma opção (gerência: Alteração) vai direto, como antes.
+- **App só de retirada** (supervisão e zeladoria): 🎤 grande embaixo dos três botões, com os mesmos comandos (sem Alteração).
+- **Retirada:** o 🎤 da própria tela também entende a quantidade ("luva 25 6 unidades").
+  - Um item claramente à frente abre direto.
+  - Senão, a quantidade vai para o item tocado na lista. Digitar no campo descarta a quantidade falada.
+- **Como a quantidade entra:**
+  - Retirada (`quantidadeDaFala` em `utils/filaSaidaConta.js`):
+    - item com embalagem sai na unidade dita;
+    - "2 litros" de tinta que só sai em lata inteira avisa e fica 1;
+    - "2 e meio" avisa "dê esta saída no site", porque a Retirada do app só tira inteiro.
+  - Devolução (`quantidadeFaladaDevolucao` em `utils/devolucaoConta.js`):
+    - lata de 18 L volta em latas;
+    - "2 caixas" de item com 100 por caixa = 200;
+    - unidade que não dá para converter deixa o campo como era.
+
 ## [2.6.0] - 2026-11-27 (código 30, 9fae526)
 
 ### Adicionado

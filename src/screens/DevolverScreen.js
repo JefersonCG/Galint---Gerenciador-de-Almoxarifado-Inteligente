@@ -26,6 +26,7 @@ import {
     nomeEmbalagem,
     parseQuantidade,
     quantidadeBase,
+    quantidadeFaladaDevolucao,
     quantidadeTexto,
     tipoSemServidor,
 } from '../utils/devolucaoConta';
@@ -41,10 +42,16 @@ const FRACOES = [0.25, 0.5, 0.75, 1];
 export default function DevolverScreen({ navigation, route }) {
     const user = route.params?.user;
     const item = route.params?.item;
+    // 2.6.1: comando de voz da tela inicial ("devolução fio 2 rolos") chega com a quantidade dita.
+    const quantidadeFalada = route.params?.quantidadeFalada ?? null;
+    const modoFalado = route.params?.modoFalado || null;
 
     const [tipo, setTipo] = useState(() => tipoSemServidor(item));
     const [loadingTipo, setLoadingTipo] = useState(true);
-    const [quantidade, setQuantidade] = useState(() => (tipoSemServidor(item).tipo === 'fracionado' ? '' : '1'));
+    const [quantidade, setQuantidade] = useState(() => (
+        quantidadeFaladaDevolucao(tipoSemServidor(item), item, quantidadeFalada, modoFalado)
+        || (tipoSemServidor(item).tipo === 'fracionado' ? '' : '1')
+    ));
     const [loading, setLoading] = useState(false);
     const [usuarios, setUsuarios] = useState([]);
     const [devolvedorBusca, setDevolvedorBusca] = useState('');
@@ -65,7 +72,10 @@ export default function DevolverScreen({ navigation, route }) {
             .then((remoto) => {
                 if (!ativo || !remoto?.tipo) return;
                 setTipo(remoto);
-                setQuantidade((atual) => (remoto.tipo === 'fracionado' ? (atual === '1' ? '' : atual) : (atual || '1')));
+                setQuantidade((atual) => (
+                    quantidadeFaladaDevolucao(remoto, item, quantidadeFalada, modoFalado)
+                    || (remoto.tipo === 'fracionado' ? (atual === '1' ? '' : atual) : (atual || '1'))
+                ));
             })
             .finally(() => {
                 if (ativo) setLoadingTipo(false);
@@ -73,7 +83,7 @@ export default function DevolverScreen({ navigation, route }) {
         return () => {
             ativo = false;
         };
-    }, [item]);
+    }, [item]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // 2.2.1: o nome da operação fica só no cabeçalho (sem o cartão de título nem a dica do rodapé).
     useLayoutEffect(() => {

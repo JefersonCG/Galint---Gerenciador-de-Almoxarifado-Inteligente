@@ -45,6 +45,19 @@ export function onlyWholePackages(linha) {
     return linha.fator > 0 && ['litro', 'litros', 'l', 'quilo', 'quilos', 'kg'].includes(String(linha.unidade || '').trim().toLowerCase());
 }
 
+// 2.6.1: quantidade dita no comando de voz ("retirada lâmpada kian 6 unidades", "cimento 2 sacos") na linha do item.
+// { quantidade, modo }; { fracionada: true } para "2 e meio" (a Retirada do app só tira inteiro); null quando a
+// unidade dita não serve para o item ("2 litros" de tinta que só sai em lata inteira) ou nada foi dito.
+export function quantidadeDaFala(linha, quantidade, modo) {
+    const q = Number(quantidade);
+    if (quantidade == null || !(q > 0)) return null;
+    if (!Number.isInteger(q)) return { fracionada: true };
+    if (!(linha?.fator > 0)) return { quantidade: q, modo: 'base' };
+    if (modo === 'embalagem') return { quantidade: q, modo: 'embalagem' };
+    if (onlyWholePackages(linha)) return modo === 'base' ? null : { quantidade: q, modo: 'embalagem' };
+    return { quantidade: q, modo: 'base' };
+}
+
 // '' | 'Estoque zera com esta saída' | 'Saldo insuficiente: ...' — soma o mesmo item em toda a fila.
 export function stockWarning(pedido, saldo, unidade) {
     if (!(pedido > 0)) return '';

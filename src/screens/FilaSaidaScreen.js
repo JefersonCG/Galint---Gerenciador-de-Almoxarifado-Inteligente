@@ -14,6 +14,8 @@
 // retirada múltipla, uma junção dessas duas funções em 1 só click". Item lido: "Dar saída" sai na hora (um item
 // não pergunta nada); "Mais um item" guarda na fila e lê o próximo. O campo de código também busca pelo nome na
 // base do celular. 2.6.0: busca por voz (🎤) e a mesma busca inteligente; zerados aparecem marcados, sem entrar. A saída vai ao WhatsApp numa mensagem só, com a foto de cada item.
+// 2.6.1 (27/11/2026): a quantidade dita na voz entra no item ("lâmpada kian 6 unidades", "cimento 2 sacos"), vinda do
+// comando da tela inicial ou do 🎤 desta tela; um item claramente à frente abre direto.
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
@@ -39,11 +41,11 @@ import DoneModal from '../components/DoneModal';
 import { resolvePhotoUri } from '../components/StockCountPanel';
 import { heroPalette, heroSoftShadow } from '../theme/heroTheme';
 import { unitLabel } from '../utils/provaReal';
-import { baseQty, baseQtyAccepted, fmt, isTool, onlyWholePackages, qtyText, snapshot, stockWarning } from '../utils/filaSaidaConta';
+import { baseQty, baseQtyAccepted, fmt, isTool, onlyWholePackages, qtyText, quantidadeDaFala, snapshot, stockWarning } from '../utils/filaSaidaConta';
 import { withdrawalMessage } from '../utils/shareWhatsApp';
 import { apagarFila, gravarFila, lerFila } from '../services/filaSaida';
 import { listarTodosItens } from '../services/localDb';
-import { buscarMaterial } from '../utils/buscaFalada';
+import { buscarComNota, buscarMaterial, interpretarComando, vencedorClaro } from '../utils/buscaFalada';
 import BotaoVoz from '../components/BotaoVoz';
 import SyncService from '../services/dbSync';
 
@@ -78,6 +80,9 @@ function juntarNaFila(lista, linha, retirante, local) {
 export default function FilaSaidaScreen({ navigation, route }) {
     const user = route.params?.user || null;
     const scannedItem = route.params?.scannedItem || null;
+    // 2.6.1: comando de voz da tela inicial ("retirada lâmpada kian 6 unidades") chega com a quantidade dita.
+    const quantidadeFalada = route.params?.quantidadeFalada ?? null;
+    const modoFalado = route.params?.modoFalado ?? null;
 
     const canChoose = useMemo(() => {
         if (!user) return false;
@@ -183,16 +188,34 @@ export default function FilaSaidaScreen({ navigation, route }) {
         setCustodia('temporaria');
     }, []);
 
-    // Item lido no leitor de código (Scanner com returnTo: 'FilaSaida').
+    // Quantidade dita na voz vai para o item aberto (o modo segue a unidade dita: "2 caixas" ou "6 unidades").
+    const aplicarFala = useCallback((item, falada, modoDito) => {
+        if (falada == null || !item || item.pre_cadastro_pendente) return;
+        const linha = snapshot(item);
+        const certa = quantidadeDaFala(linha, falada, modoDito);
+        if (certa?.fracionada) {
+            Alert.alert('Quantidade fracionada', `${fmt(falada)}: dê esta saída no site.`);
+        } else if (!certa) {
+            Alert.alert('Quantidade', `${linha.descricao} sai em ${String(linha.embalagem || 'embalagem').toLowerCase()} inteira.`);
+        } else {
+            setQuantidade(String(certa.quantidade));
+            setModo(certa.modo);
+        }
+    }, []);
+    const falaPendente = useRef(null); // quantidade dita no 🎤 desta tela, à espera do item escolhido na lista
+
+    // Item lido no leitor de código (Scanner com returnTo: 'FilaSaida') ou pedido no comando de voz.
     useEffect(() => {
         if (!scannedItem) return;
         escolherItem(scannedItem);
-        navigation.setParams({ scannedItem: null });
-    }, [escolherItem, navigation, scannedItem]);
+        aplicarFala(scannedItem, quantidadeFalada, modoFalado);
+        navigation.setParams({ scannedItem: null, quantidadeFalada: null, modoFalado: null });
+    }, [aplicarFala, escolherItem, modoFalado, navigation, quantidadeFalada, scannedItem]);
 
     const lerCodigo = useCallback(() => {
         InactivityService.recordActivity();
         Keyboard.dismiss();
+        falaPendente.current = null;
         navigation.navigate('Scanner', { mode: 'withdraw_multi', user, multiCallback: true, returnTo: 'FilaSaida' });
     }, [navigation, user]);
 
@@ -227,7 +250,27 @@ export default function FilaSaidaScreen({ navigation, route }) {
         }
         setCodigoBusca('');
         escolherItem(found);
-    }, [buscando, codigoBusca, escolherItem]);
+        const fala = falaPendente.current;
+        falaPendente.current = null;
+        if (fala) aplicarFala(found, fala.quantidade, fala.modo);
+    }, [aplicarFala, buscando, codigoBusca, escolherItem]);
+
+    // 🎤 nesta tela: "lâmpada bolbo 9w kian 6 unidades" (com ou sem "retirada" na frente). Um item claramente à
+    // frente abre direto com a quantidade; senão a lista aparece e a quantidade vai para o item tocado.
+    const ouvirNaRetirada = useCallback(async (frase) => {
+        InactivityService.recordActivity();
+        const pedido = interpretarComando(frase);
+        const material = String(pedido.material || '').trim();
+        if (!material) return;
+        falaPendente.current = pedido.quantidade != null ? { quantidade: pedido.quantidade, modo: pedido.modo } : null;
+        const lista = await listarTodosItens().catch(() => []);
+        const certo = vencedorClaro(buscarComNota(lista, material, { limite: 10 }));
+        if (certo && Number(certo.quantidade ?? certo.saldo ?? 0) > 0) {
+            buscarCodigo(String(certo.codigo_barras || certo.id));
+            return;
+        }
+        setCodigoBusca(material);
+    }, [buscarCodigo]);
 
     const pedidoPorCodigo = useMemo(() => {
         const mapa = new Map();
@@ -592,14 +635,14 @@ export default function FilaSaidaScreen({ navigation, route }) {
                             <TextInput
                                 style={[styles.input, styles.inputText, { flex: 1 }]}
                                 value={codigoBusca}
-                                onChangeText={setCodigoBusca}
+                                onChangeText={(texto) => { falaPendente.current = null; setCodigoBusca(texto); }}
                                 placeholder="Código, nome ou 🎤"
                                 placeholderTextColor="#94a3b8"
                                 autoCorrect={false}
                                 returnKeyType="search"
                                 onSubmitEditing={buscarCodigo}
                             />
-                            <BotaoVoz tamanho={54} onFala={(frase) => { InactivityService.recordActivity(); setCodigoBusca(frase); }} />
+                            <BotaoVoz tamanho={54} onFala={ouvirNaRetirada} />
                             <TouchableOpacity style={styles.buscarBtn} onPress={() => buscarCodigo()} disabled={buscando} activeOpacity={0.85}>
                                 {buscando ? <ActivityIndicator color={heroPalette.bg} /> : <Text style={styles.buscarTexto}>Buscar</Text>}
                             </TouchableOpacity>

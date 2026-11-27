@@ -116,7 +116,8 @@ function juntarFala(lista) {
             if ((lista[i] === 'um' || lista[i] === 'uma') && j === i + 1 && !(lista[j] in UNIDADES)) {
                 continue;
             }
-            saida.push(String(valor));
+            // número sozinho fica como foi dito/escrito (o zero à esquerda do código "0265" não pode sumir)
+            saida.push(j === i + 1 && /^\d+(\.\d+)?$/.test(lista[i]) ? lista[i] : String(valor));
             i = j - 1;
             continue;
         }
@@ -242,12 +243,84 @@ export function pontuar(item, consulta, digitos) {
     return nota;
 }
 
+// ---------- Comandos falados (2.6.1) ----------
+// Pedido do usuário em 27/11/2026: "eu falo 'Retirada lâmpada bolbo 9w kian 6 unidades' e ele abre a retirada com o
+// material que pedi e a quantidade". A 1ª palavra diz a ação; "<número> <unidades/caixas/rolos…>" no fim é a
+// quantidade (o "9w" do meio é do material); o resto é o material.
+const COMANDOS = [
+    { acao: 'retirada', palavras: ['dar saida', 'retirada', 'retirar', 'retira', 'tirar', 'saida'] },
+    { acao: 'devolucao', palavras: ['devolucao', 'devolver', 'devolve', 'devolvendo'] },
+    { acao: 'alterar', palavras: ['alteracao', 'alterar', 'altera', 'conferencia', 'conferir', 'contagem', 'contar', 'ajustar', 'ajuste'] },
+];
+const QTD_BASE = new Set(['unidade', 'unidades', 'un', 'und', 'unid', 'peca', 'pecas', 'pc', 'pcs', 'metro', 'metros', 'litro', 'litros', 'quilo', 'quilos', 'kg']);
+const QTD_EMBALAGEM = new Set(['caixa', 'caixas', 'cx', 'pacote', 'pacotes', 'pct', 'rolo', 'rolos', 'lata', 'latas', 'balde', 'baldes', 'saco', 'sacos', 'fardo', 'fardos', 'galao', 'galoes', 'bombona', 'bombonas']);
+const QTD_ROTULO = new Set(['quantidade', 'qtd', 'qtde', 'quant']);
+
+// { acao: 'retirada' | 'devolucao' | 'alterar' | null, material, quantidade: número | null, modo: 'base' | 'embalagem' | null,
+//   unidade: a palavra dita ("unidades", "rolos") | null }
+export function interpretarComando(texto) {
+    const crus = brutos(texto);
+    const ehQtd = (palavra) => QTD_BASE.has(palavra) || QTD_EMBALAGEM.has(palavra);
+    // "uma lata", "um rolo": no comando é quantidade (na busca, "um" antes de palavra é artigo: "um adaptador")
+    let lista = juntarFala(crus.map((palavra, k) => ((palavra === 'um' || palavra === 'uma') && ehQtd(crus[k + 1]) ? '1' : palavra)));
+    // "uma lata e meia" / "2 caixas e meia": a meia vai para a quantidade
+    const n = lista.length;
+    if (n >= 4 && lista[n - 2] === 'e' && lista[n - 1] === '0.5' && comoNumero(lista[n - 4]) !== null && ehQtd(lista[n - 3])) {
+        lista = [...lista.slice(0, n - 4), String(comoNumero(lista[n - 4]) + 0.5), lista[n - 3]];
+    }
+    let acao = null;
+    for (const comando of COMANDOS) {
+        const achada = comando.palavras.find((palavra) => palavra.split(' ').every((parte, k) => lista[k] === parte));
+        if (achada) {
+            acao = comando.acao;
+            lista = lista.slice(achada.split(' ').length);
+            break;
+        }
+    }
+    let quantidade = null;
+    let modo = null;
+    let unidade = null;
+    const rotulo = lista.findIndex((palavra) => QTD_ROTULO.has(palavra));
+    if (rotulo >= 0 && rotulo + 1 < lista.length && comoNumero(lista[rotulo + 1]) !== null) {
+        quantidade = comoNumero(lista[rotulo + 1]);
+        lista.splice(rotulo, 2);
+    } else if (lista.length >= 3 && comoNumero(lista[0]) !== null && (QTD_BASE.has(lista[1]) || QTD_EMBALAGEM.has(lista[1]))) {
+        quantidade = comoNumero(lista[0]);
+        modo = QTD_EMBALAGEM.has(lista[1]) ? 'embalagem' : 'base';
+        unidade = lista[1];
+        lista = lista.slice(['de', 'do', 'da', 'dos', 'das'].includes(lista[2]) ? 3 : 2);
+    } else if (lista.length >= 2) {
+        const numero = comoNumero(lista[lista.length - 2]);
+        const palavra = lista[lista.length - 1];
+        if (numero !== null && (QTD_BASE.has(palavra) || QTD_EMBALAGEM.has(palavra))) {
+            quantidade = numero;
+            modo = QTD_EMBALAGEM.has(palavra) ? 'embalagem' : 'base';
+            unidade = palavra;
+            lista = lista.slice(0, -2);
+        }
+    }
+    return { acao, material: lista.join(' ').trim(), quantidade, modo, unidade };
+}
+
 // Itens da base do celular que combinam com o texto, do mais para o menos parecido.
-export function buscarMaterial(itens, texto, { falado = true, limite = 60 } = {}) {
+export function buscarMaterial(itens, texto, opcoes = {}) {
+    return buscarComNota(itens, texto, opcoes).map((achado) => achado.item);
+}
+
+// O 1º achado está claramente à frente (uma palavra inteira a mais que o 2º) ou é o único: o comando falado pode
+// abrir direto, sem a pessoa escolher na lista.
+export function vencedorClaro(achados) {
+    if (!Array.isArray(achados) || !achados.length) return null;
+    if (achados.length === 1 || achados[0].nota >= achados[1].nota + 3) return achados[0].item;
+    return null;
+}
+
+// [{ item, nota }], do mais para o menos parecido.
+export function buscarComNota(itens, texto, { limite = 60 } = {}) {
     // A consulta entende números por extenso mesmo digitada ("dois e meio"); o item é lido como está escrito.
     const consulta = termos(texto, { falado: true });
     const soDigitos = semAcento(texto).replace(/[\s.-]/g, '');
-    const digitos = /^\d{3,}$/.test(soDigitos) ? soDigitos : (falado && /^[\d\s]+$/.test(String(texto).trim()) ? soDigitos : '');
+    const digitos = /^\d{3,}$/.test(soDigitos) ? soDigitos : ''; // "0265" e "0 2 6 5" (sem os espaços)
     if (!consulta.palavras.length && !consulta.numeros.length && !digitos) return [];
     const achados = [];
     for (const item of Array.isArray(itens) ? itens : []) {
@@ -257,5 +330,5 @@ export function buscarMaterial(itens, texto, { falado = true, limite = 60 } = {}
     achados.sort((a, b) => (b.nota - a.nota)
         || (Number(b.temSaldo) - Number(a.temSaldo))
         || String(a.item?.descricao ?? '').localeCompare(String(b.item?.descricao ?? ''), 'pt-BR'));
-    return achados.slice(0, limite).map((achado) => achado.item);
+    return achados.slice(0, limite).map(({ item, nota }) => ({ item, nota }));
 }

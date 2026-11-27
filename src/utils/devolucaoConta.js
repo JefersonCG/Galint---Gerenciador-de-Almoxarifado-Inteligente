@@ -78,3 +78,21 @@ export function quantidadeTexto(tipo, quantidade, unidadeItem) {
     const unidade = String(unidadeItem || 'unidade').trim().toLowerCase() || 'unidade';
     return `${q} ${q === 1 ? unidade : unidade === 'unidade' ? 'unidades' : unidade}`;
 }
+
+// 2.6.1: quantidade dita no comando de voz ("devolução fio 2 rolos") para o campo da Devolução, ou '' (o campo fica
+// como era) quando a unidade dita não dá para converter com segurança. Lata de 18 L volta em latas ("2 latas");
+// item com embalagem ("caixa com 100") que volta na unidade: "2 caixas" = 200; o resto entra como foi dito.
+export function quantidadeFaladaDevolucao(tipo, item, quantidade, modo) {
+    const q = Number(quantidade);
+    if (quantidade == null || !(q > 0)) return '';
+    let valor = q;
+    if (tipo?.tipo === 'fracionado' && tipo.conteudo > 0) {
+        if (modo !== 'embalagem') return '';
+    } else if (modo === 'embalagem') {
+        if (tipo?.tipo === 'fracionado') return ''; // litro avulso: "2 latas" sem saber quanto cabe na lata
+        const pack = factorFromItem(item);
+        if (pack.packaged && pack.factor > 0) valor = q * pack.factor;
+    }
+    if (!tipo?.decimal && !Number.isInteger(valor)) return '';
+    return String(Number(valor.toFixed(3))).replace('.', ',');
+}

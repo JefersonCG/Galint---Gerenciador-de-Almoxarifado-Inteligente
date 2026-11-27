@@ -20,6 +20,10 @@
 // - "App só de retirada" (marcado em Usuários; celular da supervisão e zeladoria: RAPHAEL, ISAÍAS, FELIPE e
 //   ANDERSON): a tela inicial são três botões (Retirada, Devolução, Será que temos!?) e o menu fica sem Painel,
 //   Configurações e "Atualizar a base agora" (a base se atualiza sozinha).
+// Em 27/11/2026 (2.6.1), comandos de voz: "retirada lâmpada bolbo 9w kian 6 unidades" abre a Retirada com o item e
+// a quantidade; "devolução …" abre a Devolução; "alteração/conferir …" abre a conferência do item. Com mais de um
+// item parecido, a lista aparece com a faixa do comando e o toque no item faz o comando. Sem comando, o toque no
+// item da lista pergunta: Retirada, Devolução ou Alteração. O app só de retirada ganha o 🎤 embaixo dos três botões.
 //
 // A tela também cuida da sessão (sinal de vida, inatividade) e da sincronização da base.
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -52,7 +56,7 @@ import HeartbeatService from '../services/heartbeatService';
 import InactivityService from '../services/inactivityService';
 import SyncService from '../services/dbSync';
 import { getItemByCodigo, listarTodosItens } from '../services/localDb';
-import { buscarMaterial } from '../utils/buscaFalada';
+import { buscarComNota, buscarMaterial, interpretarComando, vencedorClaro } from '../utils/buscaFalada';
 import BotaoVoz from '../components/BotaoVoz';
 import { contarFila } from '../services/filaSaida';
 import { subscribeNotifyInboxChanged } from '../services/notifyEvents';
@@ -98,6 +102,14 @@ function syncLabel(status) {
     return `${status.count} itens • atualizada ${when}`;
 }
 
+// 2.6.1: comandos de voz e opções do item tocado na lista.
+const estaZerado = (entry) => !(Number(entry?.quantidade ?? entry?.saldo ?? 0) > 0);
+const ACOES = { retirada: ['📤', 'Retirada'], devolucao: ['📥', 'Devolução'], alterar: ['✏️', 'Alteração'] };
+const COM_ACENTO = { peca: 'peça', pecas: 'peças', galao: 'galão', galoes: 'galões' };
+const qtdFalada = (comando) => (comando?.quantidade != null
+    ? `${String(comando.quantidade).replace('.', ',')} ${COM_ACENTO[comando.unidade] || comando.unidade || ''}`.trim()
+    : '');
+
 export default function EstoqueScreen({ navigation, route }) {
     const [user, setUser] = useState(route.params?.user || null);
     const [permission, requestPermission] = useCameraPermissions();
@@ -117,6 +129,9 @@ export default function EstoqueScreen({ navigation, route }) {
     const [itemMenu, setItemMenu] = useState(false); // ☰ do item lido (lançar entrada com NF)
     const [photoModal, setPhotoModal] = useState(false); // foto do item pelo link
     const [missing, setMissing] = useState(null); // código lido que não existe: pergunta se cadastra
+    const [comando, setComando] = useState(null); // comando falado à espera do item: { acao, quantidade, modo, unidade }
+    const [escolha, setEscolha] = useState(null); // item tocado na lista: Retirada, Devolução ou Alteração
+    const abrindo = useRef(false);
     const registering = useRef(''); // código que foi para o cadastro: abre o item na volta
     const lastSeen = useRef({ code: '', at: 0 });
     const armedUntil = useRef(0);
@@ -129,6 +144,8 @@ export default function EstoqueScreen({ navigation, route }) {
     const podeMovimentar = soRetirada || role !== 'gerencia';
     // Lançar entrada com NF usa a rota dos documentos fiscais: só administradores (como no servidor).
     const canLaunchEntry = user?.is_admin === true || user?.is_admin === 1 || String(user?.is_admin || '') === '1';
+    // Alteração = a conferência do item (o painel de contagem); o app só de retirada não tem.
+    const podeAlterar = !soRetirada;
     const firstName = String(user?.nome || user?.username || '').trim().split(/\s+/)[0] || '';
     const cameraActive = Boolean(permission?.granted) && isFocused && appActive && !menuOpen && !panel && !search && !soRetirada;
 
@@ -368,6 +385,89 @@ export default function EstoqueScreen({ navigation, route }) {
         navigation.navigate(screen, { user, ...params });
     }, [navigation, user]);
 
+    // ---------- comandos de voz (2.6.1) ----------
+    // Pedido do usuário em 27/11/2026: "eu falo 'Retirada lâmpada bolbo 9w kian 6 unidades' e ele abre a retirada com
+    // o material que pedi e a quantidade; se só falar o material e ele achar, ao clicar no item quero a opção de fazer
+    // alteração, retirada ou devolução". Sem palavra de comando, a fala é só busca (como na 2.6.0).
+    useEffect(() => {
+        if (!search.trim()) setComando(null);
+    }, [search]);
+
+    const executar = useCallback(async (acao, entry, pedido = null) => {
+        const codigo = String(entry?.codigo_barras || entry?.id || '').trim();
+        setEscolha(null);
+        setComando(null);
+        if (!codigo || abrindo.current) return;
+        if (acao === 'alterar') {
+            if (podeAlterar) lookup(codigo);
+            return;
+        }
+        if (!podeMovimentar) return;
+        if (acao === 'retirada' && estaZerado(entry)) {
+            Alert.alert('Estoque zerado', entry?.descricao || codigo);
+            return;
+        }
+        abrindo.current = true;
+        const item = await ApiService.buscarItemPorCodigo(codigo).catch(() => null);
+        abrindo.current = false;
+        if (!item) {
+            Alert.alert('Não encontrado', ApiService.lastItemLookupFailure === 'network' ? 'Sem conexão com o servidor.' : `O código ${codigo} não está cadastrado.`);
+            return;
+        }
+        Keyboard.dismiss();
+        setSearch('');
+        const fala = pedido?.quantidade != null ? { quantidadeFalada: pedido.quantidade, modoFalado: pedido.modo || null } : {};
+        if (acao === 'retirada') go('FilaSaida', { scannedItem: item, ...fala });
+        else go('Devolver', { item, ...fala });
+    }, [go, lookup, podeAlterar, podeMovimentar]);
+
+    const ouvirComando = useCallback(async (frase) => {
+        InactivityService.recordActivity();
+        const pedido = interpretarComando(frase);
+        const permitido = pedido.acao === 'alterar' ? podeAlterar : podeMovimentar;
+        if (!pedido.acao || !permitido) {
+            setComando(null);
+            setSearch(pedido.acao ? pedido.material || frase : frase);
+            return;
+        }
+        if (!pedido.material) {
+            // Só "retirada" ou "devolução": abre a tela ("conferência" sozinha é esta tela mesmo).
+            setComando(null);
+            if (pedido.acao === 'retirada') go('FilaSaida');
+            else if (pedido.acao === 'devolucao') go('Devolucao');
+            return;
+        }
+        const itens = await listarTodosItens().catch(() => []);
+        const achados = buscarComNota(itens, pedido.material, { limite: 60 });
+        const certo = vencedorClaro(achados);
+        if (certo) {
+            executar(pedido.acao, certo, pedido);
+            return;
+        }
+        if (!achados.length && pedido.acao === 'alterar') {
+            lookup(pedido.material); // código que a base do celular ainda não tem: o servidor procura
+            return;
+        }
+        setComando(pedido);
+        setSearch(pedido.material);
+    }, [executar, go, lookup, podeAlterar, podeMovimentar]);
+
+    // Toque no item da lista: com comando falado, faz o comando; senão pergunta (Retirada, Devolução, Alteração).
+    const tocarItem = useCallback((entry) => {
+        InactivityService.recordActivity();
+        if (comando?.acao) {
+            executar(comando.acao, entry, comando);
+            return;
+        }
+        const opcoes = [podeMovimentar && 'retirada', podeMovimentar && 'devolucao', podeAlterar && 'alterar'].filter(Boolean);
+        if (opcoes.length === 1) {
+            executar(opcoes[0], entry);
+            return;
+        }
+        Keyboard.dismiss();
+        setEscolha(entry);
+    }, [comando, executar, podeAlterar, podeMovimentar]);
+
     // Fila de saída guardada no celular: aparece no menu com o número de itens.
     const [naFila, setNaFila] = useState(0);
     useEffect(() => {
@@ -535,7 +635,7 @@ export default function EstoqueScreen({ navigation, route }) {
             {inboxBanner}
             {noticeView}
 
-            {soRetirada ? (
+            {soRetirada && !search.trim() ? (
                 <View style={styles.inicio}>
                     <TouchableOpacity style={styles.inicioBotao} onPress={() => go('FilaSaida')} activeOpacity={0.85}>
                         <Text style={styles.inicioIcone}>📤</Text>
@@ -554,6 +654,9 @@ export default function EstoqueScreen({ navigation, route }) {
                         <Text style={styles.inicioIcone}>🔎</Text>
                         <Text style={styles.inicioTexto}>Será que temos!?</Text>
                     </TouchableOpacity>
+                    <View style={styles.inicioVoz}>
+                        <BotaoVoz tamanho={72} onFala={ouvirComando} />
+                    </View>
                 </View>
             ) : panel ? (
                 <ScrollView contentContainerStyle={styles.panelScroll} keyboardShouldPersistTaps="handled">
@@ -568,14 +671,26 @@ export default function EstoqueScreen({ navigation, route }) {
                     />
                 </ScrollView>
             ) : search.trim() ? (
+                <View style={styles.results}>
+                {comando ? (
+                    <View style={styles.comando}>
+                        <Text style={styles.comandoIcone}>{ACOES[comando.acao]?.[0]}</Text>
+                        <Text style={styles.comandoTexto} numberOfLines={1}>
+                            {ACOES[comando.acao]?.[1]}{qtdFalada(comando) ? ` · ${qtdFalada(comando)}` : ''}
+                        </Text>
+                        <TouchableOpacity onPress={() => setComando(null)} hitSlop={10} accessibilityLabel="Cancelar o comando">
+                            <Text style={styles.searchClear}>✕</Text>
+                        </TouchableOpacity>
+                    </View>
+                ) : null}
                 <FlatList
-                    style={styles.results}
+                    style={{ flex: 1 }}
                     data={results}
                     keyExtractor={(entry, index) => String(entry.codigo_barras || entry.id || index)}
                     keyboardShouldPersistTaps="handled"
                     ListEmptyComponent={<Text style={styles.emptyText}>{sync.count ? 'Nenhum item com esse nome ou código.' : 'A base do celular ainda está vazia.'}</Text>}
                     renderItem={({ item: entry }) => (
-                        <TouchableOpacity style={styles.result} onPress={() => lookup(entry.codigo_barras || entry.id)} activeOpacity={0.8}>
+                        <TouchableOpacity style={styles.result} onPress={() => tocarItem(entry)} activeOpacity={0.8}>
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.resultName} numberOfLines={2}>{entry.descricao}</Text>
                                 <Text style={styles.resultMeta} numberOfLines={1}>{entry.codigo_barras || entry.id}{entry.categoria ? ` • ${entry.categoria}` : ''}</Text>
@@ -586,6 +701,7 @@ export default function EstoqueScreen({ navigation, route }) {
                         </TouchableOpacity>
                     )}
                 />
+                </View>
             ) : (
                 <View style={styles.center}>
                     {circle}
@@ -598,7 +714,7 @@ export default function EstoqueScreen({ navigation, route }) {
                 </View>
             )}
 
-            {!panel && !soRetirada ? (
+            {!panel && (!soRetirada || search.trim()) ? (
                 <View style={styles.searchBox}>
                     <Text style={styles.searchIcon}>🔍</Text>
                     <TextInput
@@ -610,9 +726,9 @@ export default function EstoqueScreen({ navigation, route }) {
                         autoCorrect={false}
                         returnKeyType="search"
                         onSubmitEditing={() => {
-                            // Código digitado inteiro: abre direto.
-                            if (results.length === 1) lookup(results[0].codigo_barras || results[0].id);
-                            else if (search.trim() && !results.length) lookup(search.trim());
+                            // Um item só: como tocar nele. Código que a base do celular não tem: o servidor procura.
+                            if (results.length === 1) tocarItem(results[0]);
+                            else if (search.trim() && !results.length && podeAlterar) lookup(search.trim());
                         }}
                     />
                     {search ? (
@@ -620,7 +736,7 @@ export default function EstoqueScreen({ navigation, route }) {
                             <Text style={styles.searchClear}>✕</Text>
                         </TouchableOpacity>
                     ) : null}
-                    <BotaoVoz tamanho={40} onFala={(frase) => { InactivityService.recordActivity(); setSearch(frase); }} />
+                    <BotaoVoz tamanho={40} onFala={ouvirComando} />
                 </View>
             ) : null}
             {sideMenu}
@@ -648,6 +764,27 @@ export default function EstoqueScreen({ navigation, route }) {
                             <Text style={styles.itemMenuIcon}>📥</Text>
                             <Text style={styles.itemMenuLabel}>Lançar entrada com NF</Text>
                         </TouchableOpacity>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
+            <Modal visible={Boolean(escolha)} transparent animationType="fade" onRequestClose={() => setEscolha(null)}>
+                <TouchableOpacity style={styles.itemMenuBackdrop} activeOpacity={1} onPress={() => setEscolha(null)}>
+                    <View style={[styles.itemMenuCard, { marginBottom: insets.bottom + 16 }]} onStartShouldSetResponder={() => true}>
+                        <Text style={styles.escolhaNome} numberOfLines={2}>{escolha?.descricao}</Text>
+                        <Text style={[styles.escolhaSaldo, estaZerado(escolha) && styles.resultZero]} numberOfLines={1}>
+                            {estaZerado(escolha) ? 'ZERADO' : (escolha?.saldo_display || '')}
+                        </Text>
+                        {[podeMovimentar && 'retirada', podeMovimentar && 'devolucao', podeAlterar && 'alterar'].filter(Boolean).map((acao) => (
+                            <TouchableOpacity
+                                key={acao}
+                                style={[styles.itemMenuEntry, acao === 'retirada' && estaZerado(escolha) && styles.escolhaApagada]}
+                                onPress={() => executar(acao, escolha)}
+                                activeOpacity={0.85}
+                            >
+                                <Text style={styles.itemMenuIcon}>{ACOES[acao][0]}</Text>
+                                <Text style={styles.itemMenuLabel}>{ACOES[acao][1]}</Text>
+                            </TouchableOpacity>
+                        ))}
                     </View>
                 </TouchableOpacity>
             </Modal>
@@ -741,6 +878,13 @@ const styles = StyleSheet.create({
     resultMeta: { color: heroPalette.textMuted, fontSize: 12, marginTop: 2 },
     resultBalance: { color: heroPalette.primary, fontSize: 13, fontWeight: '800', maxWidth: '35%', textAlign: 'right' },
     resultZero: { color: '#f87171' },
+    comando: { flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 16, marginBottom: 8, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, borderWidth: 1.5, borderColor: heroPalette.primary, backgroundColor: 'rgba(103, 232, 249, 0.08)' },
+    comandoIcone: { fontSize: 20 },
+    comandoTexto: { flex: 1, color: heroPalette.primary, fontSize: 16, fontWeight: '900' },
+    escolhaNome: { color: heroPalette.text, fontSize: 16, fontWeight: '800', paddingHorizontal: 14, paddingTop: 12 },
+    escolhaSaldo: { color: heroPalette.primary, fontSize: 13, fontWeight: '800', paddingHorizontal: 14, paddingTop: 2, paddingBottom: 6 },
+    escolhaApagada: { opacity: 0.45 },
+    inicioVoz: { alignItems: 'center', marginTop: 4 },
     emptyText: { color: heroPalette.textMuted, textAlign: 'center', marginTop: 30 },
     searchBox: { flexDirection: 'row', alignItems: 'center', gap: 8, margin: 16, marginTop: 8, paddingHorizontal: 14, height: 52, borderRadius: 16, backgroundColor: heroPalette.panel, borderWidth: 1, borderColor: heroPalette.border, ...heroSoftShadow },
     searchIcon: { fontSize: 16 },
