@@ -2,6 +2,55 @@
 
 Todas as mudanças notáveis do aplicativo GALINT Mobile serão documentadas neste arquivo.
 
+## [2.5.2] - 2026-11-26 (código 29, b464567)
+
+### Corrigido
+- **Formulários limpos depois de registrar saída e devolução** (pedido do usuário).
+  - Retirada: local, quem retira, código, item, quantidade, embalagem e custódia voltam vazios. O celular não guarda mais o local e a pessoa da saída anterior; só a fila do que falhou.
+  - Devolução: "Concluir" volta para a tela Devolução (rota `Devolucao`). Antes abria a tela antiga "Movimento" por cima, e o formulário preenchido ficava embaixo.
+  - Custódia do dia: a seleção é limpa a cada baixa (`resetKey` no `DailyCustodyPanel`).
+  - Será que temos!?: voltando de "Retirar", a câmera abre limpa.
+
+## [2.5.1] - 2026-11-26 (código 28, d79cac0)
+
+### Adicionado
+- **"Será que temos!?" mostra que a foto foi tirada.** Origem: "a pessoa não sabe se tirou ou não".
+  - No toque: vibração, flash branco e ampulheta girando.
+  - Foto tirada: a imagem congela e uma tartaruga anda na trilha, com "Procurando…" ou "Preparando a busca…".
+  - Só `Animated` nativo, sem biblioteca nova.
+
+## [2.5.0] - 2026-11-26 (código 27, 9dcb676)
+
+### Adicionado
+- **Retirada única para todos:** a tela da Fila de saída virou a Retirada.
+  - "Dar saída" com um item sai direto, sem pergunta; "Mais um item" guarda e abre o leitor.
+  - O campo busca por código ou nome na base do celular, sem os zerados.
+  - O leitor com modo de retirada abre esta tela.
+- **Devolução em botão próprio:** `MovimentoScreen` fixa na aba Devolução, com leitura de código e baixa de várias ferramentas da custódia.
+- **"Será que temos!?" (SeraQueTemosScreen):**
+  - foto → itens parecidos (DINOv2 + OpenCLIP no servidor), com foto e saldo;
+  - tocar confirma, e a foto vira referência do item; com saldo, aparece "Retirar";
+  - no ☰ com contorno na cor do sistema.
+- **App só de retirada** (marca `app_so_retirada` do usuário, vinda no login): três botões na tela inicial e menu sem Conferência, Painel, Configurações, Relatórios e "Atualizar a base agora".
+- **WhatsApp:** saída de vários itens numa mensagem só, com a foto de cada item (`GalintShare.shareManyToWhatsApp`, `ACTION_SEND_MULTIPLE` com `ClipData`).
+
+### Alterado
+- **Menu ☰:** sem as dicas embaixo de cada item.
+- **Avisos:** abrir a tela marca todos como lidos; saiu o "Marcar todos".
+- **Base do celular:** lista inteira a cada 10 min (antes 30). A pergunta "o que mudou?" continua a cada 15 s.
+
+## [2.4.1] - 2026-11-26 (código 26, f5268a0)
+
+### Adicionado
+- **Devolução reconhece ferramenta, fracionado ou unitário** (`GET /api/mobile/devolucao/tipo/<codigo>`).
+  - Lata pela metade: botões ¼ ½ ¾ 1, com a conta ao vivo ("½ lata = 9 L").
+  - Contas em `utils/devolucaoConta.js`.
+
+### Publicação
+- **Pasta:** o APK vai para `D:\Jeferson dos Santos\Projetos\GALINT 08.04.2026\instancepks\` como `GALINT-<versão>-codigo<código>-<rótulo>.apk`. Um `.txt` com o mesmo nome, sem BOM, vira a nota.
+- **Atualização:** os celulares com 2.2.4 ou mais se atualizam sozinhos ao abrir o app.
+- **Compilação:** em `C:\gm-src`, ver `README.md` do GALINT.
+
 ## [1.3.0] - 2026-01-31
 
 ### ✨ Adicionado
