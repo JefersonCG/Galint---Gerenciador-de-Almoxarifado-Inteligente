@@ -16,6 +16,8 @@
 // base do celular. 2.6.0: busca por voz (🎤) e a mesma busca inteligente; zerados aparecem marcados, sem entrar. A saída vai ao WhatsApp numa mensagem só, com a foto de cada item.
 // 2.6.1 (27/11/2026): a quantidade dita na voz entra no item ("lâmpada kian 6 unidades", "cimento 2 sacos"), vinda do
 // comando da tela inicial ou do 🎤 desta tela; um item claramente à frente abre direto.
+// 2.6.2 (27/11/2026): quem retira e o local ditos na voz entram nos campos ("retirada por Gláucia de 5 papel toalhas
+// para local das áreas comuns"); sem unidade dita num item com embalagem, pergunta "5 pacotes ou 5 unidades?".
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
@@ -45,7 +47,7 @@ import { baseQty, baseQtyAccepted, fmt, isTool, onlyWholePackages, qtyText, quan
 import { withdrawalMessage } from '../utils/shareWhatsApp';
 import { apagarFila, gravarFila, lerFila } from '../services/filaSaida';
 import { listarTodosItens } from '../services/localDb';
-import { buscarComNota, buscarMaterial, interpretarComando, vencedorClaro } from '../utils/buscaFalada';
+import { acharPessoa, buscarComNota, buscarMaterial, interpretarComando, vencedorClaro } from '../utils/buscaFalada';
 import BotaoVoz from '../components/BotaoVoz';
 import SyncService from '../services/dbSync';
 
@@ -59,7 +61,9 @@ const normalize = (text) => String(text || '').normalize('NFD').replace(/[̀-ͯ]
 function filterUsers(usuarios, texto) {
     const termo = normalize(texto);
     if (!termo) return usuarios;
-    return usuarios.filter((u) => normalize(u?.nome).includes(termo) || String(u?.matricula || '').includes(termo));
+    const achados = usuarios.filter((u) => normalize(u?.nome).includes(termo) || String(u?.matricula || '').includes(termo));
+    // 2.6.2: nome falado ("Rafael" para RAPHAEL, "Luiz" para LUÍZ) quando a busca por trecho não acha ninguém
+    return achados.length ? achados : acharPessoa(usuarios, texto).candidatos;
 }
 
 // Junta a linha no grupo do colaborador + local (mesmo item, modo e custódia somam a quantidade).
@@ -83,6 +87,9 @@ export default function FilaSaidaScreen({ navigation, route }) {
     // 2.6.1: comando de voz da tela inicial ("retirada lâmpada kian 6 unidades") chega com a quantidade dita.
     const quantidadeFalada = route.params?.quantidadeFalada ?? null;
     const modoFalado = route.params?.modoFalado ?? null;
+    // 2.6.2: quem retira e o local ditos na voz ("retirada por Gláucia … para local das áreas comuns").
+    const pessoaFalada = route.params?.pessoaFalada ?? null;
+    const localFalado = route.params?.localFalado ?? null;
 
     const canChoose = useMemo(() => {
         if (!user) return false;
@@ -102,6 +109,7 @@ export default function FilaSaidaScreen({ navigation, route }) {
     const [mostrarLista, setMostrarLista] = useState(false);
     const [local, setLocal] = useState('');
     const [usuarios, setUsuarios] = useState([]);
+    const [dadosFalados, setDadosFalados] = useState(null); // { pessoa, local } ditos na voz, à espera da fila guardada
     const [codigoBusca, setCodigoBusca] = useState('');
     const [buscando, setBuscando] = useState(false);
     const [itemAtual, setItemAtual] = useState(null);
@@ -200,8 +208,46 @@ export default function FilaSaidaScreen({ navigation, route }) {
         } else {
             setQuantidade(String(certa.quantidade));
             setModo(certa.modo);
+            if (certa.perguntar) {
+                // "5 papel toalhas": 5 pacotes ou 5 unidades? (o item tem embalagem e a unidade não foi dita)
+                const q = certa.quantidade;
+                Alert.alert('Quantidade', linha.descricao, [
+                    { text: `${q} ${unitLabel(linha.embalagem, q)}`, onPress: () => setModo('embalagem') },
+                    { text: `${q} ${unitLabel(linha.unidade, q)}`, onPress: () => setModo('base') },
+                ]);
+            }
         }
     }, []);
+
+    // Quem retira e o local ditos na voz: entram depois que a fila guardada voltou (senão ela os trocaria).
+    useEffect(() => {
+        if (!pessoaFalada && !localFalado) return;
+        setDadosFalados({ pessoa: pessoaFalada, local: localFalado });
+        navigation.setParams({ pessoaFalada: null, localFalado: null });
+    }, [localFalado, navigation, pessoaFalada]);
+
+    useEffect(() => {
+        if (!dadosFalados || !pronto) return;
+        const { pessoa, local: lugar } = dadosFalados;
+        if (lugar) setLocal(String(lugar).toUpperCase());
+        if (pessoa && !canChoose) {
+            if (!acharPessoa(eu ? [eu] : [], pessoa).pessoa) Alert.alert('Quem retira', `A retirada fica no seu nome: ${eu?.nome || ''}.`);
+        } else if (pessoa) {
+            const certa = acharPessoa(usuarios, pessoa).pessoa;
+            if (certa) {
+                setRetirante({ matricula: String(certa.matricula), nome: certa.nome, cargo: certa.cargo || null });
+                setBusca(certa.nome);
+                setMostrarLista(false);
+            } else {
+                // duas pessoas parecidas ou nome fora do cadastro: a lista aparece com o nome dito
+                setRetirante(null);
+                setBusca(String(pessoa).toUpperCase());
+                setMostrarLista(true);
+                if (!usuarios.length) return; // a lista de pessoas ainda vem do servidor: tenta de novo quando chegar
+            }
+        }
+        setDadosFalados(null);
+    }, [canChoose, dadosFalados, eu, pronto, usuarios]);
     const falaPendente = useRef(null); // quantidade dita no 🎤 desta tela, à espera do item escolhido na lista
 
     // Item lido no leitor de código (Scanner com returnTo: 'FilaSaida') ou pedido no comando de voz.
@@ -257,9 +303,11 @@ export default function FilaSaidaScreen({ navigation, route }) {
 
     // 🎤 nesta tela: "lâmpada bolbo 9w kian 6 unidades" (com ou sem "retirada" na frente). Um item claramente à
     // frente abre direto com a quantidade; senão a lista aparece e a quantidade vai para o item tocado.
+    // 2.6.2: "por Gláucia … para local …" preenche quem retira e o local.
     const ouvirNaRetirada = useCallback(async (frase) => {
         InactivityService.recordActivity();
-        const pedido = interpretarComando(frase);
+        const pedido = interpretarComando(frase, { pessoas: canChoose ? usuarios : (eu ? [eu] : []) });
+        if (pedido.pessoa || pedido.local) setDadosFalados({ pessoa: pedido.pessoa, local: pedido.local });
         const material = String(pedido.material || '').trim();
         if (!material) return;
         falaPendente.current = pedido.quantidade != null ? { quantidade: pedido.quantidade, modo: pedido.modo } : null;
@@ -270,7 +318,7 @@ export default function FilaSaidaScreen({ navigation, route }) {
             return;
         }
         setCodigoBusca(material);
-    }, [buscarCodigo]);
+    }, [buscarCodigo, canChoose, eu, usuarios]);
 
     const pedidoPorCodigo = useMemo(() => {
         const mapa = new Map();

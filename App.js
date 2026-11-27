@@ -38,6 +38,7 @@ function loadScreens() {
             RetiradaScreen: require('./src/screens/RetiradaScreen').default,
             FilaSaidaScreen: require('./src/screens/FilaSaidaScreen').default,
             SeraQueTemosScreen: require('./src/screens/SeraQueTemosScreen').default,
+            CustodiaScreen: require('./src/screens/CustodiaScreen').default,
             DevolverScreen: require('./src/screens/DevolverScreen').default,
             DocumentosFiscaisScreen: require('./src/screens/DocumentosFiscaisScreen').default,
             ConfigScreen: require('./src/screens/ConfigScreen').default,
@@ -283,6 +284,7 @@ function AppNavigator() {
                     <Stack.Screen name="FilaSaida" component={S.FilaSaidaScreen} options={{ title: 'Retirada' }} />
                     <Stack.Screen name="Devolucao" component={S.MovimentoScreen} initialParams={{ tab: 'devolucao', fixo: true }} options={{ title: 'Devolução' }} />
                     <Stack.Screen name="SeraQueTemos" component={S.SeraQueTemosScreen} options={{ title: 'Será que temos!?' }} />
+                    <Stack.Screen name="Custodia" component={S.CustodiaScreen} options={{ title: 'Custódia' }} />
                     <Stack.Screen name="Devolver" component={S.DevolverScreen} options={{ title: 'Devolução' }} />
                     <Stack.Screen name="Config" component={S.ConfigScreen} options={{ title: 'Configurações' }} />
                     <Stack.Screen name="Menu" component={S.MenuScreen} options={{ title: 'Painel' }} />

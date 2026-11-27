@@ -251,16 +251,166 @@ const COMANDOS = [
     { acao: 'retirada', palavras: ['dar saida', 'retirada', 'retirar', 'retira', 'tirar', 'saida'] },
     { acao: 'devolucao', palavras: ['devolucao', 'devolver', 'devolve', 'devolvendo'] },
     { acao: 'alterar', palavras: ['alteracao', 'alterar', 'altera', 'conferencia', 'conferir', 'contagem', 'contar', 'ajustar', 'ajuste'] },
+    // 2.6.2: "custódia furadeira", "com quem está a trena", "custódia Gláucia"
+    { acao: 'custodia', palavras: ['com quem esta', 'quem esta com', 'custodia', 'custodias', 'onde esta'] },
 ];
 const QTD_BASE = new Set(['unidade', 'unidades', 'un', 'und', 'unid', 'peca', 'pecas', 'pc', 'pcs', 'metro', 'metros', 'litro', 'litros', 'quilo', 'quilos', 'kg']);
 const QTD_EMBALAGEM = new Set(['caixa', 'caixas', 'cx', 'pacote', 'pacotes', 'pct', 'rolo', 'rolos', 'lata', 'latas', 'balde', 'baldes', 'saco', 'sacos', 'fardo', 'fardos', 'galao', 'galoes', 'bombona', 'bombonas']);
 const QTD_ROTULO = new Set(['quantidade', 'qtd', 'qtde', 'quant']);
 
-// { acao: 'retirada' | 'devolucao' | 'alterar' | null, material, quantidade: número | null, modo: 'base' | 'embalagem' | null,
-//   unidade: a palavra dita ("unidades", "rolos") | null }
-export function interpretarComando(texto) {
-    const crus = brutos(texto);
-    const ehQtd = (palavra) => QTD_BASE.has(palavra) || QTD_EMBALAGEM.has(palavra);
+// ---------- Quem retira ou devolve e o local, ditos no comando (2.6.2) ----------
+// Pedido do usuário em 27/11/2026: "Retirada por/para Gláucia de 5 papel toalhas interfolhas para local das áreas
+// comuns e banheiros": o colaborador e o local vão para a tela seguinte, mesmo quando o material sai numa lista.
+const PREP_PESSOA = new Set(['por', 'para', 'pra', 'pro']);
+const ANTES_DO_LOCAL = new Set(['para', 'pra', 'pro', 'no', 'na', 'em', 'o', 'a', 'ao', 'do', 'da', 'de', 'e']);
+const ARTIGO_DO_LOCAL = new Set(['de', 'do', 'da', 'dos', 'das', 'o', 'a', 'os', 'as', 'no', 'na', 'nos', 'nas', 'e']);
+const LIGA_NOME = new Set(['de', 'da', 'do', 'das', 'dos', 'e', 'o', 'a']); // "para o Luiz", "da Gláucia"
+const DE = new Set(['de', 'do', 'da', 'dos', 'das']);
+const temChave = (objeto, chave) => Object.prototype.hasOwnProperty.call(objeto, chave);
+const ehQtd = (palavra) => QTD_BASE.has(palavra) || QTD_EMBALAGEM.has(palavra);
+
+// Palavras como foram ditas (o local e o nome ficam com acento) e a forma para comparar.
+function palavrasDitas(texto) {
+    return String(texto ?? '').split(/\s+/)
+        .map((palavra) => palavra.replace(/^[.,;:!?()]+|[.,;:!?()]+$/g, ''))
+        .filter(Boolean)
+        .map((palavra) => ({ w: palavra, n: semAcento(palavra) }));
+}
+
+// Nomes: o reconhecimento escreve "Rafael" para RAPHAEL, "Tais" para THAÍS, "Luis" para LUIZ.
+function fonetico(palavra) {
+    return semAcento(palavra)
+        .replace(/ph/g, 'f').replace(/th/g, 't').replace(/y/g, 'i').replace(/k/g, 'c').replace(/w/g, 'v').replace(/z/g, 's')
+        .replace(/(^|[^cln])h/g, '$1')
+        .replace(/(.)\1+/g, '$1');
+}
+
+function tokensDoNome(nome) {
+    return semAcento(nome).split(/[^a-z0-9]+/).filter((t) => t && !LIGA_NOME.has(t)).map(fonetico);
+}
+
+// Nota do nome falado numa pessoa (0 = não é ela). Estrito: a 1ª palavra tem de ser igual (fora do começo da frase,
+// "cola para cano" não pode virar a pessoa CAIO).
+function notaDaPessoa(falados, pessoa, estrito) {
+    if (falados.length === 1 && /^\d{3,}$/.test(falados[0])) return String(pessoa?.matricula || '') === falados[0] ? 10 : 0;
+    const doNome = tokensDoNome(pessoa?.nome);
+    if (!doNome.length || !falados.length) return 0;
+    let nota = 0;
+    for (let k = 0; k < falados.length; k += 1) {
+        const falado = fonetico(falados[k]);
+        let melhor = 0;
+        for (const token of doNome) melhor = Math.max(melhor, palavraBate(falado, token));
+        if (!melhor || (estrito && k === 0 && melhor < 3)) return 0;
+        nota += melhor;
+    }
+    if (fonetico(falados[0]) === doNome[0]) nota += 1; // o 1º nome falado é o 1º nome da pessoa
+    return nota;
+}
+
+// Pessoas do cadastro (/api/mobile/usuarios) que combinam com o nome falado, da mais para a menos parecida;
+// `pessoa` só quando uma está à frente (duas GLÁUCIAs empatam e a tela mostra a lista).
+export function acharPessoa(pessoas, texto) {
+    const falados = semAcento(texto).split(/[^a-z0-9]+/).filter((t) => t && !LIGA_NOME.has(t));
+    if (!falados.length || !Array.isArray(pessoas)) return { pessoa: null, candidatos: [] };
+    const achados = pessoas
+        .map((p) => ({ p, nota: notaDaPessoa(falados, p, false) }))
+        .filter((achado) => achado.nota > 0)
+        .sort((a, b) => b.nota - a.nota);
+    const pessoa = achados.length && (achados.length === 1 || achados[0].nota > achados[1].nota) ? achados[0].p : null;
+    return { pessoa, candidatos: achados.map((achado) => achado.p) };
+}
+
+// Quantas palavras do começo de `ws` são o nome de alguém do cadastro (0 = nenhuma).
+function tamanhoDoNome(ws, pessoas, estrito) {
+    for (let tam = Math.min(5, ws.length); tam >= 1; tam -= 1) {
+        const parte = ws.slice(0, tam);
+        if (LIGA_NOME.has(parte[tam - 1].n)) continue;
+        const falados = parte.map((x) => x.n).filter((t) => !LIGA_NOME.has(t));
+        if (falados.length && pessoas.some((p) => notaDaPessoa(falados, p, estrito) > 0)) return tam;
+    }
+    return 0;
+}
+
+const ehNumeroDito = (n) => /^\d/.test(n || '') || (temChave(NUMEROS, n || '') && n !== 'um' && n !== 'uma') || n === 'meia' || n === 'meio';
+
+// A quantidade começa na palavra k ("5", "cinco", "de 5", "uma caixa"): é onde o nome dito antes acaba.
+function comecaQuantidade(ws, k) {
+    const n = ws[k]?.n;
+    const seguinte = ws[k + 1]?.n;
+    if (ehNumeroDito(n)) return true;
+    if ((n === 'um' || n === 'uma') && ehQtd(seguinte)) return true;
+    return DE.has(n) && (ehNumeroDito(seguinte) || ((seguinte === 'um' || seguinte === 'uma') && ehQtd(ws[k + 2]?.n)));
+}
+
+// { acao: 'retirada' | 'devolucao' | 'alterar' | 'custodia' | null, material, quantidade: número | null,
+//   modo: 'base' | 'embalagem' | null, unidade: a palavra dita ("unidades", "rolos") | null,
+//   pessoa: o nome como foi dito | null, local: como foi dito | null }
+// `pessoas` (a lista de /api/mobile/usuarios) diz onde o nome acaba; sem ela, o nome logo depois da ação vai até a
+// quantidade.
+export function interpretarComando(texto, { pessoas = [] } = {}) {
+    let ws = palavrasDitas(texto);
+    let acao = null;
+    for (const comando of COMANDOS) {
+        const achada = comando.palavras.find((palavra) => palavra.split(' ').every((parte, k) => ws[k]?.n === parte));
+        if (achada) {
+            acao = comando.acao;
+            ws = ws.slice(achada.split(' ').length);
+            break;
+        }
+    }
+    const temPessoas = Array.isArray(pessoas) && pessoas.length > 0;
+
+    // Local: "para (o) local (das) áreas comuns e banheiros" vai até o fim, ou até "por/para <pessoa>" depois dele.
+    let local = null;
+    const iLocal = ws.findIndex((x) => x.n === 'local');
+    if (iLocal >= 0 && iLocal + 1 < ws.length) {
+        let inicio = iLocal;
+        while (inicio > 0 && ANTES_DO_LOCAL.has(ws[inicio - 1].n)) inicio -= 1;
+        let fim = ws.length;
+        if (temPessoas) {
+            for (let k = iLocal + 2; k < ws.length - 1; k += 1) {
+                if (PREP_PESSOA.has(ws[k].n) && tamanhoDoNome(ws.slice(k + 1), pessoas, true)) {
+                    fim = k;
+                    break;
+                }
+            }
+        }
+        let corpo = ws.slice(iLocal + 1, fim);
+        while (corpo.length > 1 && ARTIGO_DO_LOCAL.has(corpo[0].n)) corpo = corpo.slice(1);
+        local = corpo.map((x) => x.w).join(' ') || null;
+        ws = [...ws.slice(0, inicio), ...ws.slice(fim)];
+    }
+
+    // Pessoa logo depois da ação: "por/para Gláucia (de) 5 …".
+    let pessoa = null;
+    if (ws.length >= 3 && PREP_PESSOA.has(ws[0].n) && (ws[1].n === 'o' || ws[1].n === 'a')) ws = [ws[0], ...ws.slice(2)];
+    if (ws.length >= 2 && PREP_PESSOA.has(ws[0].n)) {
+        let fim = 1;
+        while (fim < ws.length && !comecaQuantidade(ws, fim)) fim += 1;
+        const ate = ws.slice(1, fim);
+        let tam = temPessoas ? tamanhoDoNome(ate, pessoas, false) : 0;
+        // nome que o cadastro não tem (ou sem a lista): vai até a quantidade, e a tela mostra a lista de pessoas
+        if (!tam && (fim < ws.length || !temPessoas)) tam = Math.min(ate.length, 4);
+        if (tam) {
+            pessoa = ws.slice(1, 1 + tam).map((x) => x.w).join(' ');
+            ws = ws.slice(1 + tam);
+        }
+    }
+    // Pessoa em outro ponto ("… 5 papel toalha para Gláucia"): só quando o nome é de alguém do cadastro.
+    if (!pessoa && temPessoas) {
+        for (let k = 0; k < ws.length - 1; k += 1) {
+            if (!PREP_PESSOA.has(ws[k].n)) continue;
+            const tam = tamanhoDoNome(ws.slice(k + 1), pessoas, true);
+            if (tam) {
+                pessoa = ws.slice(k + 1, k + 1 + tam).map((x) => x.w).join(' ');
+                ws = [...ws.slice(0, k), ...ws.slice(k + 1 + tam)];
+                break;
+            }
+        }
+    }
+
+    // Quantidade e material: o que sobrou.
+    const crus = brutos(ws.map((x) => x.w).join(' '));
     // "uma lata", "um rolo": no comando é quantidade (na busca, "um" antes de palavra é artigo: "um adaptador")
     let lista = juntarFala(crus.map((palavra, k) => ((palavra === 'um' || palavra === 'uma') && ehQtd(crus[k + 1]) ? '1' : palavra)));
     // "uma lata e meia" / "2 caixas e meia": a meia vai para a quantidade
@@ -268,15 +418,7 @@ export function interpretarComando(texto) {
     if (n >= 4 && lista[n - 2] === 'e' && lista[n - 1] === '0.5' && comoNumero(lista[n - 4]) !== null && ehQtd(lista[n - 3])) {
         lista = [...lista.slice(0, n - 4), String(comoNumero(lista[n - 4]) + 0.5), lista[n - 3]];
     }
-    let acao = null;
-    for (const comando of COMANDOS) {
-        const achada = comando.palavras.find((palavra) => palavra.split(' ').every((parte, k) => lista[k] === parte));
-        if (achada) {
-            acao = comando.acao;
-            lista = lista.slice(achada.split(' ').length);
-            break;
-        }
-    }
+    if (DE.has(lista[0]) && comoNumero(lista[1]) !== null) lista = lista.slice(1); // "de 5 papel toalhas"
     let quantidade = null;
     let modo = null;
     let unidade = null;
@@ -284,22 +426,47 @@ export function interpretarComando(texto) {
     if (rotulo >= 0 && rotulo + 1 < lista.length && comoNumero(lista[rotulo + 1]) !== null) {
         quantidade = comoNumero(lista[rotulo + 1]);
         lista.splice(rotulo, 2);
-    } else if (lista.length >= 3 && comoNumero(lista[0]) !== null && (QTD_BASE.has(lista[1]) || QTD_EMBALAGEM.has(lista[1]))) {
+    } else if (lista.length >= 3 && comoNumero(lista[0]) !== null && ehQtd(lista[1])) {
         quantidade = comoNumero(lista[0]);
         modo = QTD_EMBALAGEM.has(lista[1]) ? 'embalagem' : 'base';
         unidade = lista[1];
-        lista = lista.slice(['de', 'do', 'da', 'dos', 'das'].includes(lista[2]) ? 3 : 2);
-    } else if (lista.length >= 2) {
-        const numero = comoNumero(lista[lista.length - 2]);
-        const palavra = lista[lista.length - 1];
-        if (numero !== null && (QTD_BASE.has(palavra) || QTD_EMBALAGEM.has(palavra))) {
-            quantidade = numero;
-            modo = QTD_EMBALAGEM.has(palavra) ? 'embalagem' : 'base';
-            unidade = palavra;
-            lista = lista.slice(0, -2);
-        }
+        lista = lista.slice(DE.has(lista[2]) ? 3 : 2);
+    } else if (lista.length >= 2 && comoNumero(lista[lista.length - 2]) !== null && ehQtd(lista[lista.length - 1])) {
+        quantidade = comoNumero(lista[lista.length - 2]);
+        unidade = lista[lista.length - 1];
+        modo = QTD_EMBALAGEM.has(unidade) ? 'embalagem' : 'base';
+        lista = lista.slice(0, -2);
+    } else if (lista.length >= 2 && comoNumero(lista[0]) !== null && !/^0\d/.test(lista[0]) && comoNumero(lista[1]) === null
+        && !temChave(UNIDADES, lista[1]) && lista[1] !== 'x') {
+        // "5 papel toalhas": número no começo, sem unidade, antes do material (o "20 amperes" e o "50 x 25" são do material)
+        quantidade = comoNumero(lista[0]);
+        lista = lista.slice(1);
     }
-    return { acao, material: lista.join(' ').trim(), quantidade, modo, unidade };
+    return { acao, material: lista.join(' ').trim(), quantidade, modo, unidade, pessoa, local };
+}
+
+// Custódia (2.6.2): linhas de /api/mobile/custodia ({ codigo, descricao, nome, matricula, … }) que combinam com o
+// texto dito ou digitado: pela ferramenta ("furadeira", "trena") ou pela pessoa ("Gláucia", "da Gláucia").
+export function filtrarCustodia(linhas, texto) {
+    const lista = Array.isArray(linhas) ? linhas : [];
+    if (!String(texto || '').trim()) return lista;
+    const ferramentas = [];
+    const vistas = new Set();
+    lista.forEach((linha) => {
+        if (vistas.has(linha.codigo)) return;
+        vistas.add(linha.codigo);
+        ferramentas.push({ codigo_barras: linha.codigo, descricao: linha.descricao, quantidade: 1 });
+    });
+    const codigos = new Set(buscarComNota(ferramentas, texto, { limite: 500 }).map((achado) => achado.item.codigo_barras));
+    const pessoas = [];
+    const matriculas = new Set();
+    lista.forEach((linha) => {
+        if (matriculas.has(linha.matricula)) return;
+        matriculas.add(linha.matricula);
+        pessoas.push({ nome: linha.nome, matricula: linha.matricula });
+    });
+    const deQuem = new Set(acharPessoa(pessoas, texto).candidatos.map((pessoa) => pessoa.matricula));
+    return lista.filter((linha) => codigos.has(linha.codigo) || deQuem.has(linha.matricula));
 }
 
 // Itens da base do celular que combinam com o texto, do mais para o menos parecido.

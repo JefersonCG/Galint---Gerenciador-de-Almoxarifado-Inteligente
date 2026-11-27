@@ -708,6 +708,27 @@ class ApiService {
         }
     }
 
+    // 2.6.2: com quem estão as ferramentas (comando de voz "custódia"); `codigo` filtra um item.
+    async getCustodia(codigo = '') {
+        try {
+            await this.ensureLocalReady();
+            if (!(await this.isOnline())) return { success: false, offline: true, message: 'Sem conexão com o servidor.' };
+            const token = await AsyncStorage.getItem('token');
+            if (!token) return { success: false, message: 'Faça login novamente.' };
+            const response = await this.client.get('/api/mobile/custodia', {
+                headers: { Authorization: `Bearer ${token}` },
+                params: codigo ? { codigo } : undefined,
+            });
+            return response.data;
+        } catch (error) {
+            const status = error?.response?.status;
+            const mensagem = error?.response?.data?.message;
+            if (status === 404 && mensagem === 'Item não encontrado') return { success: false, status, message: 'Item não encontrado.' };
+            // 404 sem mensagem: o GALINT ainda não tem a rota (falta religar depois da atualização)
+            return { success: false, status, message: status === 404 ? 'Custódia indisponível agora.' : (mensagem || 'Sem resposta do servidor.') };
+        }
+    }
+
     async returnDailyCustodyTool(data) {
         try {
             await this.ensureLocalReady();

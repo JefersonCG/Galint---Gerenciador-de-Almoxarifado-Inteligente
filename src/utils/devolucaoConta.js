@@ -96,3 +96,11 @@ export function quantidadeFaladaDevolucao(tipo, item, quantidade, modo) {
     if (!tipo?.decimal && !Number.isInteger(valor)) return '';
     return String(Number(valor.toFixed(3))).replace('.', ',');
 }
+
+// 2.6.2: quantidade dita sem unidade ("devolução 5 papel toalhas") num item unitário com embalagem (pacote com 1.000):
+// a tela pergunta "5 pacotes ou 5 unidades?". { embalagem, fator } ou null.
+export function embalagemEmDuvida(tipo, item, quantidade, modo) {
+    if (modo != null || quantidade == null || !(Number(quantidade) > 0) || tipo?.tipo !== 'unitario') return null;
+    const pack = factorFromItem(item);
+    return pack.packaged && pack.factor > 0 ? { embalagem: String(pack.docUnit || 'embalagem').toLowerCase(), fator: pack.factor } : null;
+}

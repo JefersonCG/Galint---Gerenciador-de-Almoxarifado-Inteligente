@@ -25,12 +25,14 @@ import {
     fracaoTexto,
     nomeEmbalagem,
     parseQuantidade,
+    embalagemEmDuvida,
     quantidadeBase,
     quantidadeFaladaDevolucao,
     quantidadeTexto,
     tipoSemServidor,
 } from '../utils/devolucaoConta';
 import DoneModal from '../components/DoneModal';
+import { acharPessoa } from '../utils/buscaFalada';
 
 const FRACOES = [0.25, 0.5, 0.75, 1];
 
@@ -45,6 +47,8 @@ export default function DevolverScreen({ navigation, route }) {
     // 2.6.1: comando de voz da tela inicial ("devolução fio 2 rolos") chega com a quantidade dita.
     const quantidadeFalada = route.params?.quantidadeFalada ?? null;
     const modoFalado = route.params?.modoFalado || null;
+    // 2.6.2: quem devolve dito na voz ("devolução por Júlio César furadeira").
+    const [pessoaPendente, setPessoaPendente] = useState(route.params?.pessoaFalada || null);
 
     const [tipo, setTipo] = useState(() => tipoSemServidor(item));
     const [loadingTipo, setLoadingTipo] = useState(true);
@@ -72,8 +76,9 @@ export default function DevolverScreen({ navigation, route }) {
             .then((remoto) => {
                 if (!ativo || !remoto?.tipo) return;
                 setTipo(remoto);
+                // a quantidade falada já entrou pelo tipo local; o servidor só muda a conta do fracionado (lata)
                 setQuantidade((atual) => (
-                    quantidadeFaladaDevolucao(remoto, item, quantidadeFalada, modoFalado)
+                    (remoto.tipo === 'fracionado' ? quantidadeFaladaDevolucao(remoto, item, quantidadeFalada, modoFalado) : '')
                     || (remoto.tipo === 'fracionado' ? (atual === '1' ? '' : atual) : (atual || '1'))
                 ));
             })
@@ -172,11 +177,47 @@ export default function DevolverScreen({ navigation, route }) {
     const usuariosFiltrados = useMemo(() => {
         if (!devolvedorBusca.trim()) return usuarios;
         const busca = devolvedorBusca.toLowerCase();
-        return usuarios.filter((u) =>
+        const achados = usuarios.filter((u) =>
             u.nome.toLowerCase().includes(busca) ||
             (u.matricula || '').toString().includes(busca)
         );
+        // 2.6.2: nome falado ("Rafael" para RAPHAEL) quando a busca por trecho não acha ninguém
+        return achados.length ? achados : acharPessoa(usuarios, devolvedorBusca).candidatos;
     }, [devolvedorBusca, usuarios]);
+
+    // Quem devolve dito na voz: uma pessoa à frente entra direto; senão a lista abre com o nome dito.
+    useEffect(() => {
+        if (!pessoaPendente) return;
+        if (!canChooseDevolvedor) {
+            const eu = userMatricula ? [{ matricula: userMatricula, nome: userNome || userMatricula }] : [];
+            if (!acharPessoa(eu, pessoaPendente).pessoa) Alert.alert('Quem devolve', `A devolução fica no seu nome: ${userNome || userMatricula || ''}.`);
+            setPessoaPendente(null);
+            return;
+        }
+        const certa = acharPessoa(usuarios, pessoaPendente).pessoa;
+        if (certa) {
+            setDevolvedorSelecionado(certa);
+            setDevolvedorBusca(certa.cargo ? `${certa.nome} (${certa.cargo})` : certa.nome);
+            setShowAutocompleteLista(false);
+            setPessoaPendente(null);
+            return;
+        }
+        setDevolvedorSelecionado(null);
+        setDevolvedorBusca(String(pessoaPendente).toUpperCase());
+        setShowAutocompleteLista(true);
+        if (usuarios.length) setPessoaPendente(null); // sem a lista ainda: tenta de novo quando ela chegar
+    }, [canChooseDevolvedor, pessoaPendente, userMatricula, userNome, usuarios]);
+
+    // "devolução 5 papel toalhas" (sem unidade) num item com embalagem: 5 pacotes ou 5 unidades?
+    useEffect(() => {
+        const duvida = embalagemEmDuvida(tipoSemServidor(item), item, quantidadeFalada, modoFalado);
+        if (!duvida) return;
+        const q = Number(quantidadeFalada);
+        Alert.alert('Quantidade', item?.descricao || '', [
+            { text: `${fmt(q)} ${nomeEmbalagem(duvida.embalagem, q)}`, onPress: () => setQuantidade(String(q * duvida.fator)) },
+            { text: `${fmt(q)} ${q === 1 ? 'unidade' : 'unidades'}`, onPress: () => setQuantidade(String(q)) },
+        ]);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleSubmit = async () => {
         Keyboard.dismiss();
@@ -245,7 +286,12 @@ export default function DevolverScreen({ navigation, route }) {
                 },
                 onFinish: () => {
                     setDone(null);
-                    navigation.navigate('Devolucao', { user });
+                    // 2.6.2: a devolução aberta pela tela Devolução volta para ela; a aberta pela tela inicial (comando
+                    // de voz, toque no item) volta para a inicial. Antes ia sempre para a Devolução, que abria por
+                    // cima da tela inicial com a custódia do dia (relato do usuário em 27/11/2026).
+                    const naPilha = (navigation.getState()?.routes || []).some((rota) => rota.name === 'Devolucao');
+                    if (naPilha) navigation.navigate('Devolucao', { user });
+                    else navigation.navigate('Estoque');
                 },
             });
         } catch (e) {

@@ -6,15 +6,20 @@
 // e só é carregada quando ela está aberta (o servidor leva alguns segundos).
 // 2.4.0 (25/11/2026): "Vários itens" virou "Fila de saída" (FilaSaidaScreen), a fila do site por
 // colaborador, guardada no celular; o cartão mostra quantos itens esperam a saída.
-import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Keyboard, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 
+import TextInput from '../components/UpperTextInput';
+import BotaoVoz from '../components/BotaoVoz';
 import ApiService from '../services/api';
 import InactivityService from '../services/inactivityService';
 import DailyCustodyPanel from '../components/DailyCustodyPanel';
 import { contarFila } from '../services/filaSaida';
+import { listarTodosItens } from '../services/localDb';
+import { pessoasParaVoz } from '../services/pessoasVoz';
+import { buscarComNota, buscarMaterial, interpretarComando, vencedorClaro } from '../utils/buscaFalada';
 import { heroPalette, heroSoftShadow } from '../theme/heroTheme';
 
 const TAB_KEY = 'galint_movimento_aba';
@@ -27,6 +32,9 @@ const EMPTY_SUMMARY = { employees: 0, tools: 0, overdue: 0 };
 // 2.5.0 (26/11/2026): Retirada e Devolução viraram dois itens do menu. A Retirada é a FilaSaidaScreen (uma ou
 // várias de uma vez); a Devolução é esta tela fixa na aba Devolução (rota "Devolucao", params.fixo): ler o
 // código de um item ou dar baixa em várias ferramentas da custódia do dia, sem textos explicativos.
+// 2.6.2 (27/11/2026), pedido do usuário: "remove essas informações de custódia daqui, deixe limpo". A Devolução fica
+// com "Ler código" e "Código, nome ou 🎤" (a mesma busca da Retirada; "por Júlio furadeira" leva quem devolve).
+// Com quem está cada ferramenta: comando "custódia" (tela Custodia). A baixa em várias ferramentas segue no site.
 export default function MovimentoScreen({ navigation, route }) {
     const user = route?.params?.user || null;
     const fixo = route?.params?.fixo === true;
@@ -34,6 +42,10 @@ export default function MovimentoScreen({ navigation, route }) {
     const [custody, setCustody] = useState({ visible: true, loading: false, groups: [], summary: EMPTY_SUMMARY, message: '' });
     const [returning, setReturning] = useState(false);
     const [limpeza, setLimpeza] = useState(0); // muda depois de cada baixa: limpa a seleção da custódia
+    const [busca, setBusca] = useState('');
+    const [sugestoes, setSugestoes] = useState([]);
+    const [abrindo, setAbrindo] = useState(false);
+    const fala = useRef(null); // quantidade e quem devolve ditos no 🎤, à espera do item tocado na lista
 
     useEffect(() => {
         if (route?.params?.tab) return;
@@ -80,9 +92,9 @@ export default function MovimentoScreen({ navigation, route }) {
 
     useFocusEffect(
         useCallback(() => {
-            if (tab === 'devolucao') loadCustody(true);
+            if (tab === 'devolucao' && !fixo) loadCustody(true);
             return undefined;
-        }, [loadCustody, tab])
+        }, [fixo, loadCustody, tab])
     );
 
     // Fila de saída guardada no celular (2.4.0): quantos itens esperam a saída.
@@ -100,8 +112,58 @@ export default function MovimentoScreen({ navigation, route }) {
     );
 
     useEffect(() => {
-        if (tab === 'devolucao') loadCustody(false);
-    }, [loadCustody, tab]);
+        if (tab === 'devolucao' && !fixo) loadCustody(false);
+    }, [fixo, loadCustody, tab]);
+
+    // ---------- Devolução pela busca e pela voz (2.6.2) ----------
+    useEffect(() => {
+        const termo = busca.trim();
+        if (termo.length < 2) {
+            setSugestoes([]);
+            return undefined;
+        }
+        const timer = setTimeout(() => {
+            listarTodosItens().then((lista) => setSugestoes(buscarMaterial(lista, termo, { limite: 10 }))).catch(() => setSugestoes([]));
+        }, 180);
+        return () => clearTimeout(timer);
+    }, [busca]);
+
+    const abrirDevolucao = useCallback(async (entry) => {
+        const codigo = String(entry?.codigo_barras || entry?.id || entry || '').trim();
+        if (!codigo || abrindo) return;
+        InactivityService.recordActivity();
+        Keyboard.dismiss();
+        setAbrindo(true);
+        const item = await ApiService.buscarItemPorCodigo(codigo).catch(() => null);
+        setAbrindo(false);
+        if (!item) {
+            Alert.alert('Não encontrado', ApiService.lastItemLookupFailure === 'network' ? 'Sem conexão com o servidor.' : `O código ${codigo} não está cadastrado.`);
+            return;
+        }
+        const dito = fala.current || {};
+        fala.current = null;
+        setBusca('');
+        setSugestoes([]);
+        open('Devolver', { item, ...dito });
+    }, [abrindo, open]);
+
+    const ouvirNaDevolucao = useCallback(async (frase) => {
+        InactivityService.recordActivity();
+        const pedido = interpretarComando(frase, { pessoas: await pessoasParaVoz() });
+        fala.current = {
+            ...(pedido.quantidade != null ? { quantidadeFalada: pedido.quantidade, modoFalado: pedido.modo } : {}),
+            ...(pedido.pessoa ? { pessoaFalada: pedido.pessoa } : {}),
+        };
+        const material = String(pedido.material || '').trim();
+        if (!material) return;
+        const lista = await listarTodosItens().catch(() => []);
+        const certo = vencedorClaro(buscarComNota(lista, material, { limite: 10 }));
+        if (certo) {
+            abrirDevolucao(certo);
+            return;
+        }
+        setBusca(material);
+    }, [abrirDevolucao]);
 
     const executeReturn = useCallback(async (entries) => {
         setReturning(true);
@@ -195,7 +257,42 @@ export default function MovimentoScreen({ navigation, route }) {
             {tab === 'devolucao' ? (
                 <>
                     {action('📷', 'Ler código', null, () => open('Scanner', { mode: 'return' }), true)}
-                    {custody.visible ? (
+                    {fixo ? (
+                        <>
+                            <View style={styles.codigoRow}>
+                                <TextInput
+                                    style={styles.input}
+                                    value={busca}
+                                    onChangeText={(texto) => { fala.current = null; setBusca(texto); }}
+                                    placeholder="Código, nome ou 🎤"
+                                    placeholderTextColor="#94a3b8"
+                                    autoCorrect={false}
+                                    returnKeyType="search"
+                                    onSubmitEditing={() => {
+                                        if (sugestoes.length === 1) abrirDevolucao(sugestoes[0]);
+                                        else if (busca.trim() && !sugestoes.length) abrirDevolucao(busca.trim());
+                                    }}
+                                />
+                                <BotaoVoz tamanho={54} onFala={ouvirNaDevolucao} />
+                            </View>
+                            {abrindo ? <ActivityIndicator color={heroPalette.primary} style={styles.abrindo} /> : null}
+                            {sugestoes.length ? (
+                                <View style={styles.lista}>
+                                    {sugestoes.map((entry) => (
+                                        <TouchableOpacity
+                                            key={String(entry.codigo_barras || entry.id)}
+                                            style={styles.listaLinha}
+                                            onPress={() => abrirDevolucao(entry)}
+                                            activeOpacity={0.8}
+                                        >
+                                            <Text style={styles.listaNome} numberOfLines={2}>{entry.descricao}</Text>
+                                            <Text style={styles.listaDetalhe} numberOfLines={1}>{entry.codigo_barras || entry.id}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            ) : null}
+                        </>
+                    ) : custody.visible ? (
                         <View style={styles.custody}>
                             <DailyCustodyPanel
                                 groups={custody.groups}
@@ -236,4 +333,11 @@ const styles = StyleSheet.create({
     actionHintPrimary: { color: heroPalette.bg, opacity: 0.8 },
     actionArrow: { color: heroPalette.textMuted, fontSize: 26, fontWeight: '300' },
     custody: { marginTop: 6 },
+    codigoRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    input: { flex: 1, backgroundColor: '#fff', color: '#0f172a', borderRadius: 14, paddingHorizontal: 16, height: 54, fontSize: 16, fontWeight: '700' },
+    abrindo: { marginTop: 12 },
+    lista: { marginTop: 8, borderRadius: 12, backgroundColor: heroPalette.panel, borderWidth: 1, borderColor: heroPalette.border, overflow: 'hidden' },
+    listaLinha: { paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: heroPalette.border },
+    listaNome: { color: heroPalette.text, fontSize: 15, fontWeight: '800' },
+    listaDetalhe: { color: heroPalette.textMuted, fontSize: 12, marginTop: 2 },
 });

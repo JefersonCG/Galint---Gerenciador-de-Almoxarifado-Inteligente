@@ -24,6 +24,9 @@
 // a quantidade; "devolução …" abre a Devolução; "alteração/conferir …" abre a conferência do item. Com mais de um
 // item parecido, a lista aparece com a faixa do comando e o toque no item faz o comando. Sem comando, o toque no
 // item da lista pergunta: Retirada, Devolução ou Alteração. O app só de retirada ganha o 🎤 embaixo dos três botões.
+// Em 27/11/2026 (2.6.2): quem retira/devolve e o local ditos no comando ("retirada por Gláucia de 5 papel toalhas
+// para local das áreas comuns") vão para a tela seguinte, também depois de escolher o item na lista; "custódia
+// <ferramenta ou pessoa>" abre com quem está cada ferramenta (e a opção Custódia no item que é ferramenta).
 //
 // A tela também cuida da sessão (sinal de vida, inatividade) e da sincronização da base.
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -57,6 +60,7 @@ import InactivityService from '../services/inactivityService';
 import SyncService from '../services/dbSync';
 import { getItemByCodigo, listarTodosItens } from '../services/localDb';
 import { buscarComNota, buscarMaterial, interpretarComando, vencedorClaro } from '../utils/buscaFalada';
+import { pessoasParaVoz } from '../services/pessoasVoz';
 import BotaoVoz from '../components/BotaoVoz';
 import { contarFila } from '../services/filaSaida';
 import { subscribeNotifyInboxChanged } from '../services/notifyEvents';
@@ -104,7 +108,8 @@ function syncLabel(status) {
 
 // 2.6.1: comandos de voz e opções do item tocado na lista.
 const estaZerado = (entry) => !(Number(entry?.quantidade ?? entry?.saldo ?? 0) > 0);
-const ACOES = { retirada: ['📤', 'Retirada'], devolucao: ['📥', 'Devolução'], alterar: ['✏️', 'Alteração'] };
+const ACOES = { retirada: ['📤', 'Retirada'], devolucao: ['📥', 'Devolução'], alterar: ['✏️', 'Alteração'], custodia: ['🧰', 'Custódia'] };
+const ehFerramenta = (entry) => String(entry?.categoria || '').toLowerCase().includes('ferrament');
 const COM_ACENTO = { peca: 'peça', pecas: 'peças', galao: 'galão', galoes: 'galões' };
 const qtdFalada = (comando) => (comando?.quantidade != null
     ? `${String(comando.quantidade).replace('.', ',')} ${COM_ACENTO[comando.unidade] || comando.unidade || ''}`.trim()
@@ -402,6 +407,10 @@ export default function EstoqueScreen({ navigation, route }) {
             if (podeAlterar) lookup(codigo);
             return;
         }
+        if (acao === 'custodia') {
+            go('Custodia', { codigo, titulo: entry?.descricao || codigo });
+            return;
+        }
         if (!podeMovimentar) return;
         if (acao === 'retirada' && estaZerado(entry)) {
             Alert.alert('Estoque zerado', entry?.descricao || codigo);
@@ -416,25 +425,37 @@ export default function EstoqueScreen({ navigation, route }) {
         }
         Keyboard.dismiss();
         setSearch('');
-        const fala = pedido?.quantidade != null ? { quantidadeFalada: pedido.quantidade, modoFalado: pedido.modo || null } : {};
-        if (acao === 'retirada') go('FilaSaida', { scannedItem: item, ...fala });
+        const fala = {
+            ...(pedido?.quantidade != null ? { quantidadeFalada: pedido.quantidade, modoFalado: pedido.modo || null } : {}),
+            ...(pedido?.pessoa ? { pessoaFalada: pedido.pessoa } : {}),
+        };
+        if (acao === 'retirada') go('FilaSaida', { scannedItem: item, ...fala, ...(pedido?.local ? { localFalado: pedido.local } : {}) });
         else go('Devolver', { item, ...fala });
     }, [go, lookup, podeAlterar, podeMovimentar]);
 
     const ouvirComando = useCallback(async (frase) => {
         InactivityService.recordActivity();
-        const pedido = interpretarComando(frase);
+        let pedido = interpretarComando(frase);
+        if (pedido.acao === 'custodia') {
+            // "custódia" (todas), "custódia furadeira", "com quem está a trena", "custódia da Gláucia"
+            setComando(null);
+            go('Custodia', { filtro: pedido.material });
+            return;
+        }
         const permitido = pedido.acao === 'alterar' ? podeAlterar : podeMovimentar;
         if (!pedido.acao || !permitido) {
             setComando(null);
             setSearch(pedido.acao ? pedido.material || frase : frase);
             return;
         }
+        // 2.6.2: "retirada por Gláucia … para local …": a lista de pessoas diz onde o nome acaba
+        if (pedido.acao !== 'alterar') pedido = interpretarComando(frase, { pessoas: await pessoasParaVoz() });
         if (!pedido.material) {
-            // Só "retirada" ou "devolução": abre a tela ("conferência" sozinha é esta tela mesmo).
+            // Só "retirada" ou "devolução" (com ou sem quem e onde): abre a tela ("conferência" sozinha é esta tela).
             setComando(null);
-            if (pedido.acao === 'retirada') go('FilaSaida');
-            else if (pedido.acao === 'devolucao') go('Devolucao');
+            if (pedido.acao === 'retirada') {
+                go('FilaSaida', { ...(pedido.pessoa ? { pessoaFalada: pedido.pessoa } : {}), ...(pedido.local ? { localFalado: pedido.local } : {}) });
+            } else if (pedido.acao === 'devolucao') go('Devolucao');
             return;
         }
         const itens = await listarTodosItens().catch(() => []);
@@ -459,7 +480,7 @@ export default function EstoqueScreen({ navigation, route }) {
             executar(comando.acao, entry, comando);
             return;
         }
-        const opcoes = [podeMovimentar && 'retirada', podeMovimentar && 'devolucao', podeAlterar && 'alterar'].filter(Boolean);
+        const opcoes = [podeMovimentar && 'retirada', podeMovimentar && 'devolucao', podeAlterar && 'alterar', ehFerramenta(entry) && 'custodia'].filter(Boolean);
         if (opcoes.length === 1) {
             executar(opcoes[0], entry);
             return;
@@ -675,9 +696,16 @@ export default function EstoqueScreen({ navigation, route }) {
                 {comando ? (
                     <View style={styles.comando}>
                         <Text style={styles.comandoIcone}>{ACOES[comando.acao]?.[0]}</Text>
-                        <Text style={styles.comandoTexto} numberOfLines={1}>
-                            {ACOES[comando.acao]?.[1]}{qtdFalada(comando) ? ` · ${qtdFalada(comando)}` : ''}
-                        </Text>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.comandoTexto} numberOfLines={1}>
+                                {ACOES[comando.acao]?.[1]}{qtdFalada(comando) ? ` · ${qtdFalada(comando)}` : ''}
+                            </Text>
+                            {comando.pessoa || comando.local ? (
+                                <Text style={styles.comandoQuem} numberOfLines={2}>
+                                    {[comando.pessoa ? `👤 ${String(comando.pessoa).toUpperCase()}` : '', comando.local ? `📍 ${String(comando.local).toUpperCase()}` : ''].filter(Boolean).join('  ')}
+                                </Text>
+                            ) : null}
+                        </View>
                         <TouchableOpacity onPress={() => setComando(null)} hitSlop={10} accessibilityLabel="Cancelar o comando">
                             <Text style={styles.searchClear}>✕</Text>
                         </TouchableOpacity>
@@ -774,7 +802,7 @@ export default function EstoqueScreen({ navigation, route }) {
                         <Text style={[styles.escolhaSaldo, estaZerado(escolha) && styles.resultZero]} numberOfLines={1}>
                             {estaZerado(escolha) ? 'ZERADO' : (escolha?.saldo_display || '')}
                         </Text>
-                        {[podeMovimentar && 'retirada', podeMovimentar && 'devolucao', podeAlterar && 'alterar'].filter(Boolean).map((acao) => (
+                        {[podeMovimentar && 'retirada', podeMovimentar && 'devolucao', podeAlterar && 'alterar', ehFerramenta(escolha) && 'custodia'].filter(Boolean).map((acao) => (
                             <TouchableOpacity
                                 key={acao}
                                 style={[styles.itemMenuEntry, acao === 'retirada' && estaZerado(escolha) && styles.escolhaApagada]}
@@ -880,7 +908,8 @@ const styles = StyleSheet.create({
     resultZero: { color: '#f87171' },
     comando: { flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 16, marginBottom: 8, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, borderWidth: 1.5, borderColor: heroPalette.primary, backgroundColor: 'rgba(103, 232, 249, 0.08)' },
     comandoIcone: { fontSize: 20 },
-    comandoTexto: { flex: 1, color: heroPalette.primary, fontSize: 16, fontWeight: '900' },
+    comandoTexto: { color: heroPalette.primary, fontSize: 16, fontWeight: '900' },
+    comandoQuem: { color: heroPalette.accent, fontSize: 13, fontWeight: '800', marginTop: 2 },
     escolhaNome: { color: heroPalette.text, fontSize: 16, fontWeight: '800', paddingHorizontal: 14, paddingTop: 12 },
     escolhaSaldo: { color: heroPalette.primary, fontSize: 13, fontWeight: '800', paddingHorizontal: 14, paddingTop: 2, paddingBottom: 6 },
     escolhaApagada: { opacity: 0.45 },

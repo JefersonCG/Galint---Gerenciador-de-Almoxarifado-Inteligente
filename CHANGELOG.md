@@ -2,6 +2,33 @@
 
 Todas as mudanças notáveis do aplicativo GALINT Mobile serão documentadas neste arquivo.
 
+## [2.6.2] - 2026-11-27 (código 32)
+
+### Adicionado
+- **Quem retira ou devolve e o local, ditos no comando.** Pedido do usuário: "Retirada por/para Gláucia de 5 papel toalhas interfolhas para local das áreas comuns e banheiros".
+  - O nome e o local vão para a tela seguinte, também quando o material aparece numa lista e a pessoa escolhe o item.
+  - "por/para <nome>" logo depois da ação vai até a quantidade. Também vale no fim da frase ("… para Gláucia"), mas só com nome do cadastro.
+  - "local …" vai até o fim da frase.
+  - Nomes falados: "Rafael" acha RAPHAEL, "Luiz" acha LUÍZ, "Isaias" acha ISAÍAS. Duas pessoas parecidas (dois JÚLIOs) abrem a lista já com o nome dito.
+  - Quem não escolhe quem retira (fora administrador e gerente) recebe o aviso "A retirada fica no seu nome".
+  - A Devolução não tem campo de local; o local dito é ignorado lá.
+- **Quantidade antes do material:** "de 5 papel toalhas". "20 amperes" e "50 x 25" continuam sendo do material.
+- **"5 pacotes ou 5 unidades?"** quando a unidade não é dita e o item tem embalagem (papel toalha: pacote com 1.000). Vale na Retirada e na Devolução.
+- **Comando "custódia":** "custódia furadeira", "com quem está a trena", "custódia da Gláucia", ou "custódia" sozinha para ver todas.
+  - Abre a tela Custódia: ferramenta, com quem está, desde quando, dias, local, PERMANENTE e ATRASADA.
+  - O item da lista que é ferramenta ganha a opção 🧰 Custódia.
+  - Rota nova do servidor `/api/mobile/custodia` (GALINT 024e0d56), com a mesma conta da página Custódia do site. Vale depois de religar o GALINT; antes disso, a tela avisa "Custódia indisponível agora".
+
+### Corrigido
+- **Devolução limpa.** Pedido do usuário: "remove essas informações de custódia daqui, deixe limpo".
+  - A tela tem só "Ler código" e "Código, nome ou 🎤", a mesma busca da Retirada.
+  - A baixa de várias ferramentas da custódia do dia continua no site.
+- **"Concluir" da devolução volta para onde a devolução começou.** Antes ia sempre para a tela Devolução, que abria por cima da tela inicial com a custódia do dia. Relato do usuário: "após uma devolução, o apk abriu essa página".
+- **Devolução recusada diz o motivo** (servidor 024e0d56).
+  - Antes: "não há retirada pendente para este material". Exemplo: a LUVA CORRER SOLDA 25MM, cuja única retirada já tinha voltado.
+  - Agora: "Já devolvida: a última retirada (1 unidade, ISAQUE GABRIEL, 07/08/2026) voltou em 04/09/2026."
+  - Devolução feita por outra pessoa abate a retirada de quem retirou, como o site.
+
 ## [2.6.1] - 2026-11-27 (código 31, c81fef9)
 
 ### Adicionado
