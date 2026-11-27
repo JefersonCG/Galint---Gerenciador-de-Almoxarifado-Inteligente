@@ -2,7 +2,7 @@
 
 Todas as mudanças notáveis do aplicativo GALINT Mobile serão documentadas neste arquivo.
 
-## [2.7.2] - 2026-11-27 (código 35)
+## [2.7.2] - 2026-11-27 (código 35, b101e99)
 
 ### Mudado
 - **A voz volta a ser a janela do Google.** A escuta própria da 2.7.1 foi desfeita. Pedido do usuário: "esse modal do microfone está horrível: muito grande, exagerado, não está ouvindo com facilidade, tem atraso no ouvir, está um modal muito baixo; deixe o que era pelo Google".
