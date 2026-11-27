@@ -2,7 +2,7 @@
 
 Todas as mudanças notáveis do aplicativo GALINT Mobile serão documentadas neste arquivo.
 
-## [2.6.1] - 2026-11-27 (código 31)
+## [2.6.1] - 2026-11-27 (código 31, c81fef9)
 
 ### Adicionado
 - **Comandos de voz.** Pedido do usuário: "eu falo 'Retirada lâmpada bolbo 9w kian 6 unidades' e ele abre em retirada com o material que pedi e a quantidade".
