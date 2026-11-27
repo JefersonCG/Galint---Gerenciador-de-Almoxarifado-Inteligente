@@ -112,16 +112,38 @@ def _base(item: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _saldos_do_razao(codigos: Iterable[str]) -> dict[str, float]:
+    """Saldo do razão (stock_balances). O saldo da lista de itens de item com embalagem não fica negativo (o BAMBU
+    com -408 aparecia como 0, e a correção mostrava "0 → 432" em vez de "-408 → 24"; 27/11/2026)."""
+    from .balance_provider import balance_provider
+
+    lista = sorted({str(c) for c in codigos if c})
+    if not lista:
+        return {}
+    try:
+        return {codigo: float(snapshot.quantity_base) for codigo, snapshot in balance_provider.get_balances(lista).items()}
+    except Exception:
+        return {}
+
+
 def montar(itens: list[dict[str, Any]], *, no_carrinho: set[str]) -> dict[str, Any]:
     """Zerados (com entradas) e itens com saída em dobro aberta, para o modal da página de itens."""
     zerados = [item for item in itens if eh_zerado(item)]
     dobradas = resumo_por_item(None)
     entradas = entradas_dos_itens(item.get("codigo") for item in zerados)
+    razao = _saldos_do_razao([str(item.get("codigo") or "") for item in zerados] + list(dobradas))
+
+    def _base_com_razao(item: dict[str, Any]) -> dict[str, Any]:
+        linha = _base(item)
+        codigo = str(item.get("codigo") or "")
+        if codigo in razao:
+            linha["saldo"] = razao[codigo]
+        return linha
 
     lista_zerados = []
     for item in sorted(zerados, key=lambda i: str(i.get("descricao") or "")):
         codigo = str(item.get("codigo") or "")
-        linha = _base(item)
+        linha = _base_com_razao(item)
         linha["entradas"] = entradas.get(codigo, [])
         linha["na_projecao"] = codigo in no_carrinho
         dobro = dobradas.get(codigo)
@@ -134,7 +156,7 @@ def montar(itens: list[dict[str, Any]], *, no_carrinho: set[str]) -> dict[str, A
         item = por_codigo.get(codigo)
         if item is None:
             continue
-        linha = _base(item)
+        linha = _base_com_razao(item)
         linha["dobro"] = {**dobro, "saldo_corrigido": round(linha["saldo"] + dobro["quantidade"], 6)}
         linha["na_projecao"] = codigo in no_carrinho
         lista_dobradas.append(linha)

@@ -23,7 +23,10 @@ from typing import Any, Iterable
 from ..extensions import db
 from ..models import Item, StockMovement
 
-REFERENCIA = "correcao_saida_dobrada"
+REFERENCIA = "correcao_saida_dobrada"  # stock_movements.reference_type (até 50)
+# operation_logs.source tem 20 caracteres. Em 27/11/2026 o primeiro CORRIGIR (bambu) falhou com
+# StringDataRightTruncation porque a origem era "correcao_saida_dobrada" (22); o teste em SQLite não pegou.
+FONTE = "saida_dobrada"
 _FUSO_S = 3 * 3600
 _JANELA_S = 5.0
 
@@ -152,7 +155,7 @@ def corrigir_item(codigo: str, *, matricula: str | None) -> dict[str, Any]:
             quantity=par["quantidade"],
             from_unit=par["unidade"],
             metadata={
-                "source": REFERENCIA,
+                "source": FONTE,
                 "channel": "estoque",
                 "reference_type": REFERENCIA,
                 "reference_id": str(par["duplicada_id"]),

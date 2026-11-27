@@ -119,6 +119,41 @@ def test_saida_em_dobro_e_achada_e_corrigida_uma_vez(app):
         saida_dobrada.corrigir_item(BAMBU, matricula="9001")
 
 
+def _cabe_nas_colunas(modelo, linhas):
+    """O SQLite não confere o tamanho do texto; o PostgreSQL recusa (StringDataRightTruncation)."""
+    for linha in linhas:
+        for coluna in modelo.__table__.columns:
+            tamanho = getattr(coluna.type, "length", None)
+            valor = getattr(linha, coluna.key, None)
+            if tamanho and isinstance(valor, str):
+                assert len(valor) <= tamanho, f"{modelo.__tablename__}.{coluna.key} = {valor!r} passa de {tamanho}"
+
+
+def test_correcao_cabe_nas_colunas_do_postgres(app):
+    """27/11/2026: o primeiro CORRIGIR do bambu falhou no PostgreSQL porque operation_logs.source (20) recebeu
+    "correcao_saida_dobrada" (22). Nada foi gravado pela metade; agora a origem é "saida_dobrada"."""
+    from galint_flask.models import OperationLog
+    from galint_flask.services import saida_dobrada
+
+    _bambu_como_em_producao()
+    saida_dobrada.corrigir_item(BAMBU, matricula="9001")
+    _cabe_nas_colunas(OperationLog, OperationLog.query.all())
+    _cabe_nas_colunas(StockMovement, StockMovement.query.filter_by(reference_type=saida_dobrada.REFERENCIA).all())
+    assert {log.source for log in OperationLog.query.all()} >= {"saida_dobrada"}
+
+
+def test_modal_mostra_o_saldo_do_razao(app):
+    """O saldo da lista de itens de item com embalagem não fica negativo (o bambu com -432 aparecia como 0, e a
+    correção mostrava "0 → 432"). O modal usa o razão: "-432 → 0"."""
+    from galint_flask.services import itens_zerados
+
+    _bambu_como_em_producao()
+    dados = itens_zerados.montar([{"codigo": BAMBU, "descricao": "BAMBU RACHADO (2 METROS", "saldo": 0.0}], no_carrinho=set())
+    assert dados["zerados"][0]["saldo"] == -432
+    assert dados["zerados"][0]["dobro"]["saldo_corrigido"] == 0
+    assert (dados["dobradas"][0]["saldo"], dados["dobradas"][0]["dobro"]["saldo_corrigido"]) == (-432, 0)
+
+
 def test_saida_compensada_pela_conferencia_fica_de_fora(app):
     from galint_flask.services import saida_dobrada
 
